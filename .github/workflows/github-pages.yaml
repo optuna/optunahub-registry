@@ -1,0 +1,53 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Install
+        env:
+          SECRET_GITHUB_TOKEN: ${{ secrets.SECRET_GITHUB_TOKEN }}
+        run: |
+          python -m pip install -U pip
+          pip install --progress-bar off .
+          pip install --progress-bar off ".[docs]"
+          pip install --progress-bar off git+https://github.com/optuna/optunahub.git
+      - name: Build
+        env:
+          SECRET_GITHUB_TOKEN: ${{ secrets.SECRET_GITHUB_TOKEN }}
+          OPTUNAHUB_NO_ANALYTICS: 1
+        run: |
+          cd docs
+          make html
+          cd ..
+      - name: Deploy
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/build/html
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

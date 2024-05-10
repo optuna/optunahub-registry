@@ -1,0 +1,69 @@
+[project]
+name = "optunahub-registry"
+description = "Registry for OptunaHub"
+version = "0.0.2"
+readme = "README.md"
+authors = [
+  {name = "Optuna team"}
+]
+dependencies = [
+  "mdutils",
+  "python-frontmatter",
+]
+
+[project.optional-dependencies]
+checking = [
+  "pre-commit",
+  "ruff==0.3.5",
+  "mypy==1.9.0",
+  "types-PyYAML",
+]
+
+docs = [
+  "sphinx",
+  "sphinx_rtd_theme",
+  "sphinx-gallery",
+  "matplotlib",
+  "optuna",
+  "optunahub"
+]
+
+[tool.setuptools.packages.find]
+include = ["package*"]
+
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.lint]
+extend-select = [
+    "I",
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ['optuna']
+lines-after-imports = 2
+force-single-line = true
+force-sort-within-sections = true
+order-by-type = false
+
+[tool.mypy]
+# Options configure mypy's strict mode.
+warn_unused_configs = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+strict_equality = true
+extra_checks = true
+no_implicit_reexport = true
+ignore_missing_imports = true
+explicit_package_bases = true
+exclude = [
+    ".venv",
+    "venv",
+    "build",
+    "work",
+    ".*/.ipynb_checkpoints/.*",
+]
