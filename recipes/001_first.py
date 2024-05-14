@@ -25,8 +25,10 @@ You need to install `optuna` to implement your own sampler, and `optunahub` to u
 
 ###################################################################################################
 # First of all, import `optuna`, `optunahub`, and other necessary modules.
+import os
 from typing import Any
 
+from github import Auth
 import numpy as np
 import optuna
 import optunahub
@@ -40,6 +42,7 @@ import optunahub
 
 SimpleSampler = optunahub.load(
     "samplers/simple",
+    auth=Auth.Token(os.environ["SECRET_GITHUB_TOKEN"]),
 ).SimpleSampler
 
 
