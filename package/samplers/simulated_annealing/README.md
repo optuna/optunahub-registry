@@ -5,7 +5,6 @@ description: 'Sampler based on simulated annealing algorithm.'
 tags: ['sampler', 'simulated annealing']
 optuna_versions: [3.5, 3.6]
 license: 'MIT'
-lastmod: 2024-04-07T18:42:26+09:00
 ---
 
 Simulated Annealing Sampler
