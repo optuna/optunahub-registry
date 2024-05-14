@@ -5,7 +5,6 @@ description: 'An easy sampler base class to implement custom samplers.'
 tags: ['sampler', 'development']
 optuna_versions: [3.6.1]
 license: 'MIT'
-lastmod: 2024-04-17T18:42:26+09:00
 ---
 
 Simple Sampler

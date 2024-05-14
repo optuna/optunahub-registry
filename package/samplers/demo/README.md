@@ -5,7 +5,6 @@ description: 'Demo Sampler of OptunaHub'
 tags: ['sampler']
 optuna_versions: [3.6.1]
 license: 'MIT'
-lastmod: 2024-04-22T18:42:26+09:00
 ---
 
 This package provides a demo sampler of OptunaHub.

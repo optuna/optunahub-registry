@@ -5,7 +5,6 @@ description: 'Plot hypervolume history with the reference point information.'
 tags: ['visualization', 'hypervolume', 'multi-objective optimization']
 optuna_versions: ['3.6']
 license: MIT
-lastmod: 2024-04-07T18:42:26+09:00
 ---
 
 Plot Hypervolume History with Reference Point
