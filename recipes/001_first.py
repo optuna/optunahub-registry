@@ -143,7 +143,7 @@ print("Found x: {}, (x - 2)^2: {}".format(found_x, (found_x - 2) ** 2))
 #       description: 'Demo Sampler of OptunaHub'
 #       tags: ['sampler']
 #       optuna_versions: ['3.6.1']
-#       license: 'MIT License' 
+#       license: 'MIT License'
 #       ---
 #
 #   - `author`: The author of the package. It can be your name or the name of your organization.
@@ -154,9 +154,9 @@ print("Found x: {}, (x - 2)^2: {}".format(found_x, (found_x - 2) ** 2))
 #   - `license`: The license of the package. It should be a string. For example, `'MIT License'`. The license must be `MIT` in the alpha version.
 #
 # - A `Class or Function Names` section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can just write the name of the class or function. Note that the documentation of the classes or functions must be written in the docstrings of the classes or functions. If you want to refer to the documentation, please leavea a link to the source code, or write them in the following `Others` section. For example:
-# 
+#
 #   .. code-block:: markdown
-# 
+#
 #       - `DemoSampler1`
 #       - `DemoSampler2`
 #       - `demo_function1`
