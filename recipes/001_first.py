@@ -119,12 +119,67 @@ print("Found x: {}, (x - 2)^2: {}".format(found_x, (found_x - 2) ** 2))
 # |     └── YOUR_ALGORITHM_NAME
 # |         ├── README.md
 # |         ├── __init__.py
+# |         ├── LICENSE
 # |         └── YOUR_ALGORITHM_NAME.py
 #
 # If you implement not visualizarion feature but sampler, you should put your implementation in the `samplers` directory.
 # In the `samplers` directory, you should create a directory named after your algorithm.
 # In the directory, you should put the following files:
 #
-# - `README.md`: A description of your algorithm. This file is used as the description of your algorithm in OptunaHub. See `package/samplers/simple/README.md <` for an example.
+# - `README.md`: A description of your algorithm. This file is used to create an `web page of OptunaHub <TBD>`_. Let me explain the format of the `README.md` file later.
 # - `__init__.py`: An initialization file. This file must import your impelemented sampler from `YOUR_ALGORITHM_NAME.py`.
+# - `LICENSE`: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version.
 # - `YOUR_ALGORITHM_NAME.py`: Your implemented sampler.
+#
+# The `README.md` file must contain the following sections:
+#
+# - An header section written in the following format:
+#
+#   .. code-block:: markdown
+#
+#       ---
+#       author: 'Optuna team'
+#       title: 'Demo Sampler'
+#       description: 'Demo Sampler of OptunaHub'
+#       tags: ['sampler']
+#       optuna_versions: ['3.6.1']
+#       license: 'MIT License' 
+#       ---
+#
+#   - `author`: The author of the package. It can be your name or the name of your organization.
+#   - `title`: The title of the package. It should not be a class/function name but a human-readable name. For example, `Demo Sampler` is a good title, but `DemoSampler` is not.
+#   - `description`: A brief description of the package. It should be a one-sentence summary of the package.
+#   - `tags`: Tags of the package. It should be a list of strings. The tags must include `sampler` or `visualization` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM]".
+#   - `optuna_versions`: A list of Optuna versions that the package supports. It should be a list of strings. For example, "['3.5.0', '3.6.1']".
+#   - `license`: The license of the package. It should be a string. For example, `'MIT License'`. The license must be `MIT` in the alpha version.
+#
+# - A `Class or Function Names` section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can just write the name of the class or function. Note that the documentation of the classes or functions must be written in the docstrings of the classes or functions. If you want to refer to the documentation, please leavea a link to the source code, or write them in the following `Others` section. For example:
+# 
+#   .. code-block:: markdown
+# 
+#       - `DemoSampler1`
+#       - `DemoSampler2`
+#       - `demo_function1`
+#
+# - An `Installation` section that describes how to install the additional dependencies if there are. For example:
+#
+#   .. code-block:: markdown
+#
+#       $ pip install -r requirements.txt
+#
+# - An `Example` section that describes how to use the package. It should be a python code block. It should be a few lines of code snippets that show how to use the package. If you want to provide a full example, please create a separete file like `example.py` and refer to it. For example:
+#
+#   .. code-block:: markdown
+#
+#       ```python
+#       sampler = DemoSampler()
+#       study = optuna.create_study(sampler=sampler)
+#       ```
+#       See `example.py <path/to/example.py>` for more details.
+#
+# - An `Others` section that describes other information about the package, like the reference to the original paper or the link to the source code. For example:
+#
+#   .. code-block:: markdown
+#
+#       - [Original Paper](Link/to/the/original/paper)
+#       - [Source Code](Link/to/the/source/code)
