@@ -63,7 +63,7 @@ if __name__ == "__main__":
     fig.show()
 ```
 
-![Example](img/example.png "Example")
+![Example](images/example.png "Example")
 
 
 # Author Information
