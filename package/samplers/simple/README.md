@@ -42,7 +42,7 @@ from optuna.trial import FrozenTrial
 
 
 class UserDefinedSampler(
-    optunahub.load("sampler/simple").SimpleSampler
+    optunahub.load_module("sampler/simple").SimpleSampler
 ):
     def __init__(self, search_space: dict[str, BaseDistribution]) -> None:
         super().__init__(search_space)
