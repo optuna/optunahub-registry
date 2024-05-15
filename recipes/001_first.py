@@ -125,6 +125,7 @@ print("Found x: {}, (x - 2)^2: {}".format(found_x, (found_x - 2) ** 2))
 # |         ├── images
 # |         │   ├──  thumbnail.png
 # |         │   └──  screenshot.png
+# |         ├── requirements.txt
 # |         └── YOUR_ALGORITHM_NAME.py
 #
 # If you implement not visualizarion feature but sampler, you should put your implementation in the `samplers` directory.
@@ -135,6 +136,7 @@ print("Found x: {}, (x - 2)^2: {}".format(found_x, (found_x - 2) ** 2))
 # - `__init__.py`: An initialization file. This file must import your impelemented sampler from `YOUR_ALGORITHM_NAME.py`.
 # - `LICENSE`: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version.
 # - `images`: This is optional. A directory that contains images. You can put images that are used in the `web page of OptunaHub <TBD>`_. Note that the image file named `thumbnail.png` is used as a thumbnail in the web page. If you want to put other images like `screenshot.png` and use them in the `README.md` file, please use the relative path like `images/screenshot.png`.
+# - `requirements.txt`: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies, you do not need to create this file.
 # - `YOUR_ALGORITHM_NAME.py`: Your implemented sampler.
 #
 # The `README.md` file must contain the following sections:
