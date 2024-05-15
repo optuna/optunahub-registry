@@ -53,7 +53,7 @@ def objective(trial):
 
 
 if __name__ == "__main__":
-    mod = optunahub.load("visualization/plot_hypervolume_history_with_rp")
+    mod = optunahub.load_module("visualization/plot_hypervolume_history_with_rp")
 
     study = optuna.create_study(directions=["minimize", "minimize"])
     study.optimize(objective, n_trials=50)
