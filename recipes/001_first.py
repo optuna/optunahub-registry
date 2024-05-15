@@ -39,10 +39,10 @@ import optunahub
 ###################################################################################################
 # Next, define your own sampler class by inheriting `SimpleSampler` class.
 # In this example, we implement a sampler that always returns a random value.
-# The `SimpleSampler` class can be loaded using `optunahub.load` function.
+# The `SimpleSampler` class can be loaded using `optunahub.load_module` function.
 # The `force_load` argument is set to `True` to force loading the sampler without caching and consent to use stats.
 
-SimpleSampler = optunahub.load(
+SimpleSampler = optunahub.load_module(
     "samplers/simple",
     auth=Auth.Token(os.environ["SECRET_GITHUB_TOKEN"]),
 ).SimpleSampler
