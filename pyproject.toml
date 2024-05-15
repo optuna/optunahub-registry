@@ -3,6 +3,7 @@ name = "optunahub-registry"
 description = "Registry for OptunaHub"
 version = "0.0.2"
 readme = "README.md"
+license = {file = "LICENSE"}
 authors = [
   {name = "Optuna team"}
 ]

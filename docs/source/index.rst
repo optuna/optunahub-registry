@@ -9,3 +9,7 @@ See `optunahub <https://github.com/optuna/optunahub>`_ and its `documentation <h
 Recipes
 =======
 :doc:`recipes/001_first`
+
+License
+-------
+MIT License (see `LICENSE <https://github.com/optuna/optunahub-registry/blob/main/LICENSE>`__).
