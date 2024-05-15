@@ -25,6 +25,8 @@ You need to install `optuna` to implement your own sampler, and `optunahub` to u
 
 ###################################################################################################
 # First of all, import `optuna`, `optunahub`, and other necessary modules.
+from __future__ import annotations
+
 import os
 from typing import Any
 
