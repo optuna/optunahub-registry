@@ -5,16 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "optunahub-registry"
 description = "Registry for OptunaHub"
-version = "0.0.2"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
   {name = "Optuna team"}
 ]
+requires-python = ">=3.8"
 dependencies = [
   "mdutils",
   "python-frontmatter",
 ]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 checking = [
@@ -33,8 +34,17 @@ docs = [
   # "optunahub",
 ]
 
+[project.urls]
+homepage = "TBD"
+repository = "https://github.com/optuna/optunahub-registry"
+documentation = "TBD"
+bugtracker = "https://github.com/optuna/optunahub-registry/issues"
+
 [tool.setuptools.packages.find]
 include = ["optunahub-registry*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "optunahub-registry.version.__version__"}
 
 [tool.ruff]
 line-length = 99
