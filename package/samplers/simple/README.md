@@ -35,14 +35,14 @@ import optuna
 import optunahub
 from optuna import Study
 from optuna.distributions import BaseDistribution
-from optuna.distributions import FloatDistribution                               
-from optuna.distributions import IntDistribution                       
+from optuna.distributions import FloatDistribution
+from optuna.distributions import IntDistribution
 from optuna.samplers import BaseSampler
 from optuna.trial import FrozenTrial
 
 
 class UserDefinedSampler(
-    optunahub.load_module("sampler/simple").SimpleSampler
+    optunahub.load_module("samplers/simple").SimpleSampler
 ):
     def __init__(self, search_space: dict[str, BaseDistribution]) -> None:
         super().__init__(search_space)
