@@ -41,7 +41,7 @@ documentation = "TBD"
 bugtracker = "https://github.com/optuna/optunahub-registry/issues"
 
 [tool.setuptools.packages.find]
-include = ["optunahub-registry*"]
+include = ["optunahub-registry*", "package*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "optunahub-registry.version.__version__"}

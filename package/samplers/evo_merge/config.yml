@@ -1,0 +1,16 @@
+models:
+  - model: augmxnt/shisa-gamma-7b-v1
+    # No parameters necessary for base model
+  - model: GAIR/Abel-7B-002
+    parameters:
+      density: 0.5
+      weight: 0.5
+  - model: WizardLM/WizardMath-7B-V1.1
+    parameters:
+      density: 0.5
+      weight: 0.5
+merge_method: dare_ties
+base_model: augmxnt/shisa-gamma-7b-v1
+parameters:
+  int8_mask: true
+dtype: float16
