@@ -8,6 +8,7 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
 
 jobs:
   build:
@@ -42,7 +43,7 @@ jobs:
           path: docs/build/html
 
   deploy:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     needs: build
     permissions:
       pages: write
