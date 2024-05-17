@@ -50,7 +50,7 @@ SimpleSampler = optunahub.load_module(
 
 
 class MySampler(SimpleSampler):  # type: ignore
-    # `search_space` argument is necessary for the concrete implmentation of `SimpleSampler` class.
+    # `search_space` argument is necessary for the concrete implementation of `SimpleSampler` class.
     def __init__(self, search_space: dict[str, optuna.distributions.BaseDistribution]) -> None:
         super().__init__(search_space)
         self._rng = np.random.RandomState()
