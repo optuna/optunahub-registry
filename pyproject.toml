@@ -35,9 +35,9 @@ docs = [
 ]
 
 [project.urls]
-homepage = "TBD"
+homepage = "https://hub.optuna.org/"
 repository = "https://github.com/optuna/optunahub-registry"
-documentation = "TBD"
+documentation = "https://optuna.github.io/optunahub-registry/"
 bugtracker = "https://github.com/optuna/optunahub-registry/issues"
 
 [tool.setuptools.packages.find]
