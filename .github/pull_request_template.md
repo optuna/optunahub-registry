@@ -1,8 +1,8 @@
 ## Contributor Agreements
 
-Please read the CODE_OF_CONDUCT.md and if you agree, please click the checkbox below.
+Please read the [contributor agreements](CONTRIBUTING.md#contributor-agreements) and if you agree, please click the checkbox below.
 
-- [ ] I agree to the code of conduct.
+- [ ] I agree to the contributor agreements.
 
 ## Motivation
 <!-- Describe your motivation why you will submit this PR. This is useful for reviewers to understand the context of PR. -->
