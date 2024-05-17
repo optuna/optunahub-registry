@@ -132,10 +132,10 @@ print("Found x: {}, (x - 2)^2: {}".format(found_x, (found_x - 2) ** 2))
 # In the `samplers` directory, you should create a directory named after your algorithm.
 # In the directory, you should put the following files:
 #
-# - `README.md`: A description of your algorithm. This file is used to create an `web page of OptunaHub <TBD>`_. Let me explain the format of the `README.md` file later.
+# - `README.md`: A description of your algorithm. This file is used to create an `web page of OptunaHub <https://hub.optuna.org/>`_. Let me explain the format of the `README.md` file later.
 # - `__init__.py`: An initialization file. This file must import your impelemented sampler from `YOUR_ALGORITHM_NAME.py`.
 # - `LICENSE`: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version.
-# - `images`: This is optional. A directory that contains images. You can put images that are used in the `web page of OptunaHub <TBD>`_. Note that the image file named `thumbnail.png` is used as a thumbnail in the web page. If you want to put other images like `screenshot.png` and use them in the `README.md` file, please use the relative path like `images/screenshot.png`.
+# - `images`: This is optional. A directory that contains images. You can put images that are used in the `web page of OptunaHub <https://hub.optuna.org/>`_. Note that the image file named `thumbnail.png` is used as a thumbnail in the web page. If you want to put other images like `screenshot.png` and use them in the `README.md` file, please use the relative path like `images/screenshot.png`.
 # - `requirements.txt`: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies, you do not need to create this file.
 # - `YOUR_ALGORITHM_NAME.py`: Your implemented sampler.
 #
