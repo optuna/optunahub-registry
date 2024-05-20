@@ -216,7 +216,7 @@ fig.show()  # plt.show() for matplotlib
 # - `README.md`: A description of your algorithm. This file is used to create an `web page of OptunaHub <https://hub.optuna.org/>`_. Let me explain the format of the `README.md` file later.
 # - `__init__.py`: An initialization file. This file must implement your algorithm or import its implementation from another file, e.g., `YOUR_ALGORITHM_NAME.py`.
 # - `LICENSE`: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version.
-# - `images`: This is optional. A directory that contains images. The images in this directory will be used the `web page of OptunaHub <https://hub.optuna.org/>`_. `thumbnail.png` will be used as a thumbnail in the web page. Note that `README.md` can also refer to image files, e.g. `images/screenshot.png`,  in this directory.
+# - `images`: This is optional. A directory that contains images. The images in this directory will be used the `web page of OptunaHub <https://hub.optuna.org/>`_. `thumbnail.png` will be used as a thumbnail in the web page for visualization packages. Note that `README.md` can also refer to image files, e.g. `images/screenshot.png`,  in this directory.
 # - `requirements.txt`: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies, you do not need to create this file.
 # - `YOUR_ALGORITHM_NAME.py`: The implementation of your algorithm.
 #
