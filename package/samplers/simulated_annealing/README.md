@@ -15,7 +15,7 @@ license: 'MIT License'
 mod = optunahub.load_module("samplers/simulated_annealing")
 sampler = mod.SimulatedAnnealingSampler()
 ```
-See `example.py <example.py>`_ for more details.
+See `example.py` for more details.
 
 ## Others
 This package provides a sampler based on Simulated Annealing algorithm.
