@@ -152,6 +152,7 @@ def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
 
 # If you use `matplotlib` (https://matplotlib.org/) for visualization, the function should return a `matplotlib.figure.Figure` object.
 
+
 def plot_optimizaiton_history_matplotlib(study: optuna.study.Study) -> plt.Figure:
     trials = study.trials
     best_values = [trial.value for trial in trials]
