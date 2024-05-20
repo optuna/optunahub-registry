@@ -137,15 +137,17 @@ import plotly.graph_objects as go
 def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
     trials = study.trials
     best_values = [trial.value for trial in trials]
-    best_values = [min(best_values[:i + 1]) for i in range(len(best_values))]
+    best_values = [min(best_values[: i + 1]) for i in range(len(best_values))]
     iteration = [i for i in range(len(trials))]
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=iteration,
-        y=best_values,
-        mode="lines+markers",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=iteration,
+            y=best_values,
+            mode="lines+markers",
+        )
+    )
     fig.update_layout(title="Optimization history")
     return fig
 
@@ -160,7 +162,7 @@ import optuna
 def plot_optimizaiton_history_matplotlib(study: optuna.study.Study) -> plt.Figure:
     trials = study.trials
     best_values = [trial.value for trial in trials]
-    best_values = [min(best_values[:i + 1]) for i in range(len(best_values))]
+    best_values = [min(best_values[: i + 1]) for i in range(len(best_values))]
 
     fig, ax = plt.subplots()
     ax.set_title("Optimization history")
