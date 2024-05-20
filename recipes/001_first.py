@@ -39,7 +39,6 @@ import optunahub
 # Next, define your own sampler class by inheriting `SimpleSampler` class.
 # In this example, we implement a sampler that returns a random value.
 # `SimpleSampler` class can be loaded using `optunahub.load_module` function.
-# To download the registered sampler, we need to set `force_reload` to `False`.
 # `force_reload=True` argument forces downloading the sampler from the registry.
 # If we set `force_reload` to `False`, we use the cached data in our local storage if available.
 
