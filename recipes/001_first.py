@@ -7,6 +7,21 @@ How to Implement and Register Your Algorithm with OptunaHub
 OptunaHub is an Optuna package registry, which is a user platform to share their optimization and visualization algorithms.
 This recipe shows how to implement and register your own algorithm with OptunaHub.
 
+
+# First of all, import `optuna`, `optunahub`, and other required modules.
+from __future__ import annotations
+
+import os
+from typing import Any
+
+from github import Auth
+import matplotlib.pyplot as plt
+import numpy as np
+import optuna
+import optunahub
+import plotly.graph_objects as go
+
+
 How to Implement Your Own Sampler
 -----------------------------------
 
@@ -24,21 +39,6 @@ You need to install `optuna` to implement your own sampler, and `optunahub` to u
     $ pip install optuna optunahub
 
 """
-
-###################################################################################################
-# First of all, import `optuna`, `optunahub`, and other required modules.
-from __future__ import annotations
-
-import os
-from typing import Any
-
-from github import Auth
-import matplotlib.pyplot as plt
-import numpy as np
-import optuna
-import optunahub
-import plotly.graph_objects as go
-
 
 ###################################################################################################
 # Next, define your own sampler class by inheriting `SimpleSampler` class.
