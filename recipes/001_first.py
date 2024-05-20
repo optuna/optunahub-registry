@@ -129,7 +129,6 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 # If you use `plotly` (https://plotly.com/python/) for visualization, the function should return a `plotly.graph_objects.Figure` object.
 # In this example, we implement a visualization function that plots the optimization history.
 
-from __future__ import annotations
 import optuna
 import plotly.graph_objects as go
 
@@ -154,7 +153,6 @@ def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
 
 # If you use `matplotlib` (https://matplotlib.org/) for visualization, the function should return a `matplotlib.figure.Figure` object.
 
-from __future__ import annotations
 import matplotlib.pyplot as plt
 import optuna
 
