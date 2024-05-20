@@ -150,6 +150,7 @@ def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
     return fig
 
 
+###################################################################################################
 # If you use `matplotlib` (https://matplotlib.org/) for visualization, the function should return a `matplotlib.figure.Figure` object.
 
 
