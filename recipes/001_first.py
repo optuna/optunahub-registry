@@ -4,11 +4,14 @@
 How to Implement and Register Your Algorithm with OptunaHub
 ===========================================================
 
-OptunaHub is an Optuna package registry, which is a user platform to share their optimization algorithms.
-This recipe shows how to implement and register your own sampling algorithm with OptunaHub.
+OptunaHub is an Optuna package registry, which is a user platform to share their optimization and visualization algorithms.
+This recipe shows how to implement and register your own algorithm with OptunaHub.
 
-How to Implement Your Own Algorithm
+How to Implement Your Own Sampler
 -----------------------------------
+
+In this section, we show how to implement your own sampler, i.e., optimizaiton algorithm.
+If you want to implement a visualization function rather than a sampler, you can skip this section and move to the next section.
 
 Usually, Optuna provides `BaseSampler` class to implement your own sampler.
 However, it is a bit complicated to implement a sampler from scratch.
@@ -107,6 +110,80 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 ###################################################################################################
 # We can see that ``x`` value found by Optuna is close to the optimal value ``2``.
 
+
+###################################################################################################
+# How to Implement Your Own Visualization Function
+# ---------------------------------------------------------
+#
+# In this section, we show how to implement your own visualization function.
+# If you want to implement a sampler rather than a visualization function, you can skip this section and move to the next section.
+#
+# You need to install `optuna` to implement your own sampler, and `optunahub` to use the template `SimpleSampler`.
+#
+# .. code-block:: bash
+#
+#     $ pip install optuna optunahub
+#
+# Next, define your own visualization function.
+#
+# If you use `plotly` (https://plotly.com/python/) for visualization, the function should return a `plotly.graph_objects.Figure` object.
+# In this example, we implement a visualization function that plots the optimization history.
+
+from __future__ import annotations
+import optuna
+import plotly.graph_objects as go
+
+
+def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
+    trials = study.trials
+    best_values = [trial.value for trial in trials]
+    best_values = [min(best_values[:i + 1]) for i in range(len(best_values))]
+    iteration = [i for i in range(len(trials))]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=iteration,
+        y=best_values,
+        mode="lines+markers",
+    ))
+    fig.update_layout(title="Optimization history")
+    return fig
+
+
+# If you use `matplotlib` (https://matplotlib.org/) for visualization, the function should return a `matplotlib.figure.Figure` object.
+
+from __future__ import annotations
+import matplotlib.pyplot as plt
+import optuna
+
+
+def plot_optimizaiton_history_matplotlib(study: optuna.study.Study) -> plt.Figure:
+    trials = study.trials
+    best_values = [trial.value for trial in trials]
+    best_values = [min(best_values[:i + 1]) for i in range(len(best_values))]
+
+    fig, ax = plt.subplots()
+    ax.set_title("Optimization history")
+    ax.plot(best_values, marker="o")
+    return fig
+
+
+###################################################################################################
+# In this example, the objective function is a simple quadratic function.
+
+
+def objective(trial: optuna.trial.Trial) -> float:
+    x = trial.suggest_float("x", -10, 10)
+    return x**2
+
+
+study = optuna.create_study()
+study.optimize(objective, n_trials=100)
+
+fig = plot_optimizaiton_history(study)
+fig.show()  # plt.show() for matplotlib
+
+
 ###################################################################################################
 # How to Register Your Implemented Algorithm with OptunaHub
 # ---------------------------------------------------------
@@ -117,8 +194,8 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 # The following is an example of the directory structure of the pull request.
 #
 # | package
-# | └── samplers
-# |     └── YOUR_ALGORITHM_NAME
+# | └── samplers (or visualization)
+# |     └── YOUR_PACKAGE_NAME
 # |         ├── README.md
 # |         ├── __init__.py
 # |         ├── LICENSE
@@ -128,16 +205,18 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 # |         ├── requirements.txt
 # |         └── YOUR_ALGORITHM_NAME.py
 #
-# An implemented sampler should be put in the `samplers` directory.
-# In the `samplers` directory, you should create a directory named after your algorithm.
+# An implemented sampler (resp. visualization) should be put in the `samplers` (resp. `visualization`) directory.
+# In the `samplers` (resp. `visualization`) directory, you should create a directory with a unique identifier.
+# This unique identifier is the name of your algorithm package, is used to load the package, and is unable to change once it is registered.
+#
 # The created directory should include the following files:
 #
 # - `README.md`: A description of your algorithm. This file is used to create an `web page of OptunaHub <https://hub.optuna.org/>`_. Let me explain the format of the `README.md` file later.
-# - `__init__.py`: An initialization file. This file must import your implemented sampler from `YOUR_ALGORITHM_NAME.py`.
+# - `__init__.py`: An initialization file. This file must implement your algorithm or import its implementation from another file, e.g., `YOUR_ALGORITHM_NAME.py`.
 # - `LICENSE`: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version.
 # - `images`: This is optional. A directory that contains images. The images in this directory will be used the `web page of OptunaHub <https://hub.optuna.org/>`_. `thumbnail.png` will be used as a thumbnail in the web page. Note that `README.md` can also refer to image files, e.g. `images/screenshot.png`,  in this directory.
 # - `requirements.txt`: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies, you do not need to create this file.
-# - `YOUR_ALGORITHM_NAME.py`: Your implemented sampler.
+# - `YOUR_ALGORITHM_NAME.py`: The implementation of your algorithm.
 #
 # `README.md` must contain the following sections:
 #
