@@ -186,7 +186,7 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 #       ```
 #       See `example.py <path/to/example.py>` for more details.
 #
-# - An `Others` (COMMENT: miscellaneous is better) section that describes supplementary information about the package such as the paper reference or the original source code link. For example:
+# - An `Others` section that describes supplementary information about the package such as the paper reference or the original source code link. For example:
 #
 #   .. code-block:: markdown
 #
