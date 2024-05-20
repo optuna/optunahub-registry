@@ -26,6 +26,7 @@ checking = [
 ]
 
 docs = [
+  "plotly",
   "sphinx",
   "sphinx_rtd_theme",
   "sphinx-gallery",
