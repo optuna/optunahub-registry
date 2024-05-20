@@ -168,11 +168,6 @@ def plot_optimizaiton_history_matplotlib(study: optuna.study.Study) -> plt.Figur
 # In this example, the objective function is a simple quadratic function.
 
 
-def objective(trial: optuna.trial.Trial) -> float:
-    x = trial.suggest_float("x", -10, 10)
-    return x**2
-
-
 study = optuna.create_study()
 study.optimize(objective, n_trials=100)
 
