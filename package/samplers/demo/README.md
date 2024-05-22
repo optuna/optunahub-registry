@@ -15,4 +15,4 @@ license: 'MIT License'
 module = optunahub.load_module("samplers/demo")
 sampler = module.DemoSampler(seed=42)
 ```
-See `example.py <example.py>`_ for more details.
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/demo/example.py) for more details.

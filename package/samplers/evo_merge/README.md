@@ -35,7 +35,7 @@ for _ in range(100):
 
 print(study.trials_dataframe(attrs=("number", "value")))
 ```
-See `example.py` for a full example. You need GPU with 16G VLAM to run this example.
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/evo_merge/example.py) for a full example. You need GPU with 16G VLAM to run this example.
 The following figures are obtained from the analysis of the optimization.
 ![History Plot](images/history.png "History Plot")
 ![Parallel Coordinate Plot](images/parallel_coordinate.png "Parallel Coordinate Plot")
