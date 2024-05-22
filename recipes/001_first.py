@@ -265,5 +265,5 @@ fig.show()  # plt.show() for matplotlib
 #
 # To debug your package, you can employ the following approaches.
 #
-# - First, you can use the `optunahub.load_module_local <https://optuna.github.io/optunahub/reference.html#optunahub.load_module_local>`__ function to load your package from your local directory and check if it works correctly.
+# - First, you can use the `optunahub.load_local_module <https://optuna.github.io/optunahub/reference.html#optunahub.load_local_module>`__ function to load your package from your local directory and check if it works correctly.
 # - Second, you can use the `optunahub.load_module <https://optuna.github.io/optunahub/reference.html#optunahub.load_module>`__ function with `repo_owner={YOUR_GITHUB_ID}` to load your package from your fork of the optunahub-registry repository and check if it works correctly.
