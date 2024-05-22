@@ -106,7 +106,7 @@ class EvoMergeSampler(BaseSampler):
 def load_model(model_id: str) -> BaseLLM:
     bnbconf = BitsAndBytesConfig(load_in_4bit=True)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.frm_pretrained(model_id, quantization_config=bnbconf)
+    model = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=bnbconf)
     llm = HuggingFacePipeline(
         pipeline=pipeline(
             "text-generation",

@@ -10,13 +10,12 @@ from langchain.chains import LLMChain
 from langchain.llms.base import BaseLLM
 from langchain.prompts import PromptTemplate
 import optuna
-
-from package.samplers.evo_merge.sampler import EvoMergeSampler
-from package.samplers.evo_merge.trial import EvoMergeTrial
+import optunahub
 
 
-# EvoMergeSampler = optunahub.load_module("samplers/evo_merge").EvoMergeSampler
-# EvoMergeTrial = optunahub.load_module("samplers/evo_merge").EvoMergeTrial
+module = optunahub.load_module("samplers/evo_merge")
+EvoMergeSampler = module.EvoMergeSampler
+EvoMergeTrial = module.EvoMergeTrial
 
 TEMPLATE = "質問に答えなさい。質問: {question} 回答: "
 
@@ -39,7 +38,7 @@ def eval_jaqket(llm_chain: LLMChain) -> int:
         out = llm_chain.run(question=problem["question"])
         if len(out.strip()) != 0:
             out = out.strip().split()[0].strip()
-        if problem["answer_number"] in out:
+        if str(problem["answer_number"]) in out:
             correct += 1
 
     return correct
