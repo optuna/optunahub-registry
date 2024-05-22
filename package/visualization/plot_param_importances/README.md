@@ -15,3 +15,6 @@ license: 'MIT License'
 mod = optunahub.load_module("visualization/plot_param_importances")
 mod.plot_param_importances(study)
 ```
+
+## Others
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_param_importances.html) for more details.

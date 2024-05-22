@@ -15,3 +15,6 @@ license: 'MIT License'
 mod = optunahub.load_module("visualization/plot_timeline")
 mod.plot_timeline(study)
 ```
+
+## Others
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_timeline.html) for more details.

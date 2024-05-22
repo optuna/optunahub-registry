@@ -15,3 +15,6 @@ license: 'MIT License'
 mod = optunahub.load_module("visualization/plot_parallel_coordinate")
 mod.plot_parallel_coordinate(study)
 ```
+
+## Others
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_parallel_coordinate.html) for more details.

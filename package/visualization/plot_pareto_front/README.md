@@ -15,3 +15,6 @@ license: 'MIT License'
 mod = optunahub.load_module("visualization/plot_pareto_front")
 mod.plot_pareto_front(study)
 ```
+
+## Others
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_pareto_front.html) for more details.

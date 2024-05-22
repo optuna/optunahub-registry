@@ -15,3 +15,6 @@ license: 'MIT License'
 mod = optunahub.load_module("visualization/plot_edf")
 mod.plot_edf(study)
 ```
+
+## Others
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_edf.html) for more details.
