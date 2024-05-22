@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Hypervolume History Plot'
 description: 'Plot hypervolume history of all trials in a study.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---

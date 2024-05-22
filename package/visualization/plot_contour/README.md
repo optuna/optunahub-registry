@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Contour Plot'
 description: 'Plot the parameter relationship as contour plot in a study.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---

@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Slice Plot'
 description: 'Plot the parameter relationship as slice plot in a study.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---
