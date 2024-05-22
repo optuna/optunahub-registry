@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Pareto-front Plot'
 description: 'Plot the Pareto front of a study.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---

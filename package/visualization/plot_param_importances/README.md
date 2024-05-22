@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Hyperparameter Importances Plot'
 description: 'Plot hyperparameter importances.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---

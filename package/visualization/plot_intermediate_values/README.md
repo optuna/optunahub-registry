@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Intermediate Values Plot'
 description: 'Plot intermediate values of all trials in a study.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---

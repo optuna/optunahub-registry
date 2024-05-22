@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Terminator Improvement Plot'
 description: 'Plot the potentials for future objective improvement.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---

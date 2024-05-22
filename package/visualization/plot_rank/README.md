@@ -2,7 +2,7 @@
 author: 'Optuna team'
 title: 'Rank Plot'
 description: 'Plot parameter relations as scatter plots with colors indicating ranks of target value.'
-tags: ['visualization']
+tags: ['visualization', "built-in"]
 optuna_versions: ['3.6.1']
 license: 'MIT License'
 ---
