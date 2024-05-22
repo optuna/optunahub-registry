@@ -17,7 +17,7 @@ class UserDefinedSampler(
 ):
     ...
 ```
-See `example.py <example.py>`_ for more details.
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simple/example.py) for more details.
 
 ## Others
 This package provides an easy sampler base class to implement custom samplers.
