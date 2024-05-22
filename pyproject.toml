@@ -42,10 +42,10 @@ documentation = "https://optuna.github.io/optunahub-registry/"
 bugtracker = "https://github.com/optuna/optunahub-registry/issues"
 
 [tool.setuptools.packages.find]
-include = ["optunahub-registry*", "package*"]
+include = ["package*"]
 
 [tool.setuptools.dynamic]
-version = {attr = "optunahub-registry.version.__version__"}
+version = {attr = "version.__version__"}
 
 [tool.ruff]
 line-length = 99
