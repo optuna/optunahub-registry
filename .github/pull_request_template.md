@@ -1,6 +1,6 @@
 ## Contributor Agreements
 
-Please read the [contributor agreements](CONTRIBUTING.md#contributor-agreements) and if you agree, please click the checkbox below.
+Please read the [contributor agreements](https://github.com/optuna/optunahub-registry/blob/main/CONTRIBUTING.md#contributor-agreements) and if you agree, please click the checkbox below.
 
 - [ ] I agree to the contributor agreements.
 
