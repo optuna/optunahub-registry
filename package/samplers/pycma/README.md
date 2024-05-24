@@ -1,7 +1,7 @@
 ---
 author: 'Optuna team'
 title: 'PyCMA Sampler'
-description: 'A Sampler using cma library as the backend.'
+description: 'A CMA-ES Sampler using cma library as the backend.'
 tags: ['sampler', 'built-in']
 optuna_versions: ['3.6.1']
 license: 'MIT License'
