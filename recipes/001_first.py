@@ -29,10 +29,8 @@ You need to install `optuna` to implement your own sampler, and `optunahub` to u
 # First of all, import `optuna`, `optunahub`, and other required modules.
 from __future__ import annotations
 
-import os
 from typing import Any
 
-from github import Auth
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
@@ -47,10 +45,7 @@ import plotly.graph_objects as go
 # `force_reload=True` argument forces downloading the sampler from the registry.
 # If we set `force_reload` to `False`, we use the cached data in our local storage if available.
 
-SimpleSampler = optunahub.load_module(
-    "samplers/simple",
-    auth=Auth.Token(os.environ["SECRET_GITHUB_TOKEN"]),
-).SimpleSampler
+SimpleSampler = optunahub.load_module("samplers/simple").SimpleSampler
 
 
 class MySampler(SimpleSampler):  # type: ignore
