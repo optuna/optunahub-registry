@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_rank")
-mod.plot_rank(study)
+from optuna.visualization import plot_rank
+plot_rank(study)
 ```
 
 ## Others

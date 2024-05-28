@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_param_importances")
-mod.plot_param_importances(study)
+from optuna.visualization import plot_param_importances
+plot_param_importances(study)
 ```
 
 ## Others

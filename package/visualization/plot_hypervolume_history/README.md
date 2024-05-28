@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_hypervolume_history")
-mod.plot_hypervolume_history(study, reference_point)
+from optuna.visualization import plot_hypervolume_history
+plot_hypervolume_history(study, reference_point)
 ```
 
 ## Others

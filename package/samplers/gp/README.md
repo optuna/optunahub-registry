@@ -18,7 +18,7 @@ pip install scipy pytorch
 ## Example
 ```python
 import optuna
-import optunahub
+from optuna.samplers import GPSampler
 
 
 def objective(trial):
@@ -26,8 +26,7 @@ def objective(trial):
   return x**2
 
 
-mod = optunahub.load_module("samplers/gp")
-sampler = mod.GPSampler()
+sampler = GPSampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
 ```

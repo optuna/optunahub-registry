@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_edf")
-mod.plot_edf(study)
+from optuna.visualization import plot_edf
+plot_edf(study)
 ```
 
 ## Others

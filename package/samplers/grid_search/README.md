@@ -13,7 +13,7 @@ license: 'MIT License'
 ## Example
 ```python
 import optuna
-import optunahub
+from optuna.samplers import GridSampler
 
 
 def objective(trial):
@@ -23,8 +23,7 @@ def objective(trial):
 
 
 search_space = {"x": [-50, 0, 50], "y": [-99, 0, 99]}
-mod = optunahub.load_module("samplers/grid_search")
-sampler = mod.GridSampler(search_space)
+sampler = GridSampler(search_space)
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective)
 ```

@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_pareto_front")
-mod.plot_pareto_front(study)
+from optuna.visualization import plot_pareto_front
+plot_pareto_front(study)
 ```
 
 ## Others
