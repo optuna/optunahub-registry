@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_intermediate_values")
-mod.plot_intermediate_values(study)
+from optuna.visualization import plot_intermediate_values
+plot_intermediate_values(study)
 ```
 
 ## Others

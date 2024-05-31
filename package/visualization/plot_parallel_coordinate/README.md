@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_parallel_coordinate")
-mod.plot_parallel_coordinate(study)
+from optuna.visualization import plot_parallel_coordinate
+plot_parallel_coordinate(study)
 ```
 
 ## Others

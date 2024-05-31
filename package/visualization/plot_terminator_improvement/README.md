@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_terminator_improvement")
-mod.plot_terminator_improvement(study)
+from optuna.visualization import plot_terminator_improvement
+plot_terminator_improvement(study)
 ```
 
 ## Others

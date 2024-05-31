@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_contour")
-mod.plot_contour(study)
+from optuna.visualization import plot_contour
+plot_contour(study)
 ```
 
 ## Others

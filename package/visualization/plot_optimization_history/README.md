@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_optimization_history")
-mod.plot_optimization_history(study)
+from optuna.visualization import plot_optimization_history
+plot_optimization_history(study)
 ```
 
 ## Others

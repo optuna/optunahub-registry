@@ -13,7 +13,7 @@ license: 'MIT License'
 ## Example
 ```python
 import optuna
-import optunahub
+from optuna.samplers import NSGAIISampler
 
 
 def objective(trial):
@@ -21,8 +21,7 @@ def objective(trial):
     return x**2
 
 
-mod = optunahub.load_module("samplers/nsgaii")
-sampler = mod.NSGAIISampler()
+sampler = NSGAIISampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=10)
 ```

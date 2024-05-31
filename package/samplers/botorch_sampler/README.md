@@ -17,8 +17,8 @@ pip install optuna-integration botorch
 
 ## Example
 ```python
-module = optunahub.load_module("samplers/botorch_sampler")
-sampler = module.BoTorchSampler()
+from optuna_integration import BoTorchSampler
+sampler = BoTorchSampler()
 ```
 
 ## Others

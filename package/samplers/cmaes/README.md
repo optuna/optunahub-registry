@@ -18,7 +18,7 @@ pip install cmaes
 ## Example
 ```python
 import optuna
-import optunahub
+from optuna.samplers import CmaEsSampler
 
 
 def objective(trial):
@@ -27,8 +27,7 @@ def objective(trial):
     return x**2 + y
 
 
-mod = optunahub.load_module("samplers/cmaes")
-sampler = mod.CmaEsSampler()
+sampler = CmaEsSampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=20)
 ```

@@ -17,8 +17,8 @@ pip install optuna-integration cma
 
 ## Example
 ```python
-module = optunahub.load_module("samplers/pycma")
-sampler = module.PyCmaSampler()
+from optuna_integration import PyCmaSampler
+sampler = PyCmaSampler()
 ```
 
 ## Others

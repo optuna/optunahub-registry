@@ -12,8 +12,8 @@ license: 'MIT License'
 
 ## Example
 ```python
-mod = optunahub.load_module("visualization/plot_slice")
-mod.plot_slice(study)
+from optuna.visualization import plot_slice
+plot_slice(study)
 ```
 
 ## Others

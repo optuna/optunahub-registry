@@ -13,7 +13,7 @@ license: 'MIT License'
 ## Example
 ```python
 import optuna
-import optunahub
+from optuna.samplers import PartialFixedSampler
 
 
 def objective(trial):
@@ -24,8 +24,7 @@ def objective(trial):
 
 tpe_sampler = optuna.samplers.TPESampler()
 fixed_params = {"y": 0}
-mod = optunahub.load_module("samplers/partial_fixed")
-partial_sampler = mod.PartialFixedSampler(fixed_params, tpe_sampler)
+partial_sampler = PartialFixedSampler(fixed_params, tpe_sampler)
 
 study = optuna.create_study(sampler=partial_sampler)
 study.optimize(objective, n_trials=10)
