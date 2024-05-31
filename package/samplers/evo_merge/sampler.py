@@ -22,7 +22,7 @@ from transformers import BitsAndBytesConfig
 from transformers import pipeline
 import yaml
 
-from package.samplers.evo_merge.trial import EvoMergeTrial
+from .trial import EvoMergeTrial
 
 
 class EvoMergeSampler(BaseSampler):
