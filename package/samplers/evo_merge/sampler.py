@@ -26,12 +26,21 @@ from .trial import EvoMergeTrial
 
 
 class EvoMergeSampler(BaseSampler):
-    def __init__(self, base_config: str, seed: None | int = None) -> None:
+    def __init__(
+        self,
+        base_config: str,
+        seed: None | int = None,
+        max_new_tokens: int = 16,
+        temperature: float = 0.7,
+    ) -> None:
         self.seed = seed
-        self._cmaes = CmaEsSampler()
+        self._cmaes = CmaEsSampler(seed=seed)
 
         with open(base_config, "r", encoding="utf-8") as fp:
             self._merge_config = MergeConfiguration.model_validate(yaml.safe_load(fp))
+
+        self._max_new_tokens = max_new_tokens
+        self._temperature = temperature
 
     def infer_relative_search_space(
         self, study: Study, trial: FrozenTrial
@@ -98,12 +107,12 @@ class EvoMergeSampler(BaseSampler):
                     low_cpu_memory=False,
                 ),
             )
-            llm = load_model(output_path)
+            llm = load_model(output_path, self._max_new_tokens, self._temperature)
 
         return llm
 
 
-def load_model(model_id: str) -> BaseLLM:
+def load_model(model_id: str, max_new_tokens: int, temperature: float) -> BaseLLM:
     bnbconf = BitsAndBytesConfig(load_in_4bit=True)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=bnbconf)
@@ -112,8 +121,8 @@ def load_model(model_id: str) -> BaseLLM:
             "text-generation",
             model=model,
             tokenizer=tokenizer,
-            max_new_tokens=16,
-            temperature=0.7,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
             do_sample=True,
             return_full_text=False,
         )
