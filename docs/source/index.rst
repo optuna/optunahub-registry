@@ -8,7 +8,8 @@ See `optunahub <https://github.com/optuna/optunahub>`_ and its `documentation <h
 
 Recipes
 =======
-:doc:`recipes/001_first`
+- :doc:`recipes/001_first`
+- :doc:`recipes/002_pruner`
 
 License
 -------
