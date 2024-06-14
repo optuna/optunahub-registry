@@ -179,9 +179,9 @@ fig.show()  # plt.show() for matplotlib
 # You need to create a pull request to the `optunahub-registry <https://github.com/optuna/optunahub-registry>`_ repository.
 #
 # The following is an example of the directory structure of the pull request.
-# See the `template directory<https://github.com/optuna/optunahub-registry/tree/main/template>`__ for an example of the directory structure.
+# See the `template directory <https://github.com/optuna/optunahub-registry/tree/main/template>`__ for an example of the directory structure.
 #
-# | package
+# | `package <https://github.com/optuna/optunahub-registry/tree/main/package>`__
 # | └── samplers (or visualization)
 # |     └── YOUR_PACKAGE_NAME
 # |         ├── README.md
