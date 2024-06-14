@@ -176,7 +176,8 @@ fig.show()  # plt.show() for matplotlib
 # ---------------------------------------------------------
 #
 # After implementing your own algorithm, you can register it with OptunaHub.
-# You need to create a pull request to the `optunahub-registry <https://github.com/optuna/optunahub-registry>`_ repository.
+# You need to create a pull request to the `optunahub-registry <https://github.com/optuna/optunahub-registry>`__ repository.
+# Your pull request must be aligned with `the contribution guidelines <https://github.com/optuna/optunahub-registry/blob/main/CONTRIBUTING.md>`__.
 #
 # The following is an example of the directory structure of the pull request.
 # See the `template directory <https://github.com/optuna/optunahub-registry/tree/main/template>`__ for an example of the directory structure.
@@ -196,6 +197,8 @@ fig.show()  # plt.show() for matplotlib
 # An implemented sampler (resp. visualization) should be put in the `samplers` (resp. `visualization`) directory.
 # In the `samplers` (resp. `visualization`) directory, you should create a directory with a unique identifier.
 # This unique identifier is the name of your algorithm package, is used to load the package, and is unable to change once it is registered.
+# The package name must be a valid Python module name, preferably one that is easily searchable.
+# Abbreviations are not prohibited in package names, but their abuse should be avoided.
 #
 # The created directory should include the following files:
 #
@@ -263,3 +266,5 @@ fig.show()  # plt.show() for matplotlib
 #
 # - First, you can use the `optunahub.load_local_module <https://optuna.github.io/optunahub/reference.html#optunahub.load_local_module>`__ function to load your package from your local directory and check if it works correctly.
 # - Second, you can use the `optunahub.load_module <https://optuna.github.io/optunahub/reference.html#optunahub.load_module>`__ function with `repo_owner={YOUR_GITHUB_ID}` to load your package from your fork of the optunahub-registry repository and check if it works correctly.
+#
+# After merging your pull request, your package will be available on the `OptunaHub <https://hub.optuna.org/>`__ in about 1 hour.
