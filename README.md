@@ -6,4 +6,4 @@ OptunaHub Registry is a registry service for sharing and discovering user-define
 
 See the [OptunaHub Website](https://hub.optuna.org/) for registered packages.
 
-See also the [OptunaHub API documentation](https://optuna.github.io/optunahub/) for the API to use the registry, and the [OptunaHub tutorial](https://optuna.github.io/optunahub-registry/recipes/001_first.html) for how to register and discover packages.
+See also the [OptunaHub API documentation](https://optuna.github.io/optunahub/) for the API to use the registry, and the [OptunaHub tutorial](https://optuna.github.io/optunahub-registry/) for how to register and discover packages.
