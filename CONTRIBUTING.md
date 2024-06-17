@@ -1,5 +1,14 @@
 # Contribution Guidelines
 
+
+## Coding Standards and Guidelines
+
+Please adhere to the following coding standards and guidelines:
+
+- write your code comments and documentation in English
+- give your package an appropriate name, the package name may be requested to be changed at the discretion of the maintainers
+
+
 ## Creating a Pull Request
 
 When you are ready to create a pull request, please try to keep the following in mind.
