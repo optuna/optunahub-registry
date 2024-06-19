@@ -107,4 +107,3 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 #
 # In the next recipe, we will show how to register your sampler to OptunaHub.
 # Let's move on to :doc:`002_registration`.
-#
