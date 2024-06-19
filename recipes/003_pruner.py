@@ -1,14 +1,11 @@
 """
 .. _pruner:
 
-How to Implement and Register Your Pruners with OptunaHub
+How to Implement Your Pruners with OptunaHub
 =========================================================
 
 OptunaHub supports Optuna's pruners as well as samplers and visualization functions.
 This recipe shows how to implement and register your own pruner with OptunaHub.
-
-How to Implement Your Own Pruner
---------------------------------
 
 Usually, Optuna provides ``BasePruner`` class to implement your own sampler.
 You can implement your own pruner by inheriting this class.
@@ -64,7 +61,7 @@ class MyPruner(BasePruner):  # type: ignore
 
 
 def objective(trial: optuna.trial.Trial) -> float:
-    s = 0
+    s = 0.0
     for step in range(20):
         x = trial.suggest_float(f"x_{step}", -5, 5)
         s += x**2
@@ -81,10 +78,6 @@ pruner = MyPruner(upper_threshold=100, n_warmup_steps=5)
 study = optuna.create_study(pruner=pruner)
 study.optimize(objective, n_trials=100)
 
-
 ###################################################################################################
-# How to Register Your Implemented Pruner with OptunaHub
-# ---------------------------------------------------------
-#
 # After implementing your own pruner, you can register it with OptunaHub.
-# See `this page  <001_first.html#how-to-register-your-implemented-algorithm-with-optunahub>`_ for how to register your pruner with OptunaHub.
+# See :doc:`002_registration` for how to register your pruner with OptunaHub.
