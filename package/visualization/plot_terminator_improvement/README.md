@@ -16,5 +16,7 @@ from optuna.visualization import plot_terminator_improvement
 plot_terminator_improvement(study)
 ```
 
+![Example](images/thumbnail.png "Example")
+
 ## Others
 See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_terminator_improvement.html) for more details.

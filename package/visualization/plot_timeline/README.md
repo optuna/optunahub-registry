@@ -16,5 +16,7 @@ from optuna.visualization import plot_timeline
 plot_timeline(study)
 ```
 
+![Example](images/thumbnail.png "Example")
+
 ## Others
 See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_timeline.html) for more details.
