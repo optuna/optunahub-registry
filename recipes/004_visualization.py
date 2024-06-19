@@ -22,6 +22,7 @@ import plotly.graph_objects as go
 ###################################################################################################
 # If you use `plotly` (https://plotly.com/python/) for visualization, the function should return a `plotly.graph_objects.Figure` object.
 
+
 def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
     trials = study.trials
     values = [trial.value for trial in trials]
@@ -43,6 +44,7 @@ def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
 ###################################################################################################
 # If you use `matplotlib` (https://matplotlib.org/) for visualization, the function should return a `matplotlib.figure.Figure` object.
 
+
 def plot_optimizaiton_history_matplotlib(study: optuna.study.Study) -> matplotlib.figure.Figure:
     trials = study.trials
     values = [trial.value for trial in trials]
@@ -58,9 +60,11 @@ def plot_optimizaiton_history_matplotlib(study: optuna.study.Study) -> matplotli
 # Plot the optimization history using the implemented visualization function.
 # Here, we use the simple quadratic function as objective function.
 
+
 def objective(trial: optuna.trial.Trial) -> float:
     x = trial.suggest_float("x", -10, 10)
     return x**2
+
 
 study = optuna.create_study()
 study.optimize(objective, n_trials=100)
