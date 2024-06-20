@@ -16,5 +16,7 @@ from optuna.visualization import plot_hypervolume_history
 plot_hypervolume_history(study, reference_point)
 ```
 
+![Example](images/thumbnail.png "Example")
+
 ## Others
 See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_hypervolume_history.html) for more details.

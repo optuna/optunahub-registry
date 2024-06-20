@@ -16,5 +16,7 @@ from optuna.visualization import plot_pareto_front
 plot_pareto_front(study)
 ```
 
+![Example](images/thumbnail.png "Example")
+
 ## Others
 See the [documentation](https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_pareto_front.html) for more details.
