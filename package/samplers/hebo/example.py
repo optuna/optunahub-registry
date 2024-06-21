@@ -2,8 +2,7 @@ import optuna
 import optunahub
 
 
-# module = optunahub.load_module("samplers/hebo")
-module = optunahub.load_local_module("samplers/hebo", registry_root="./package")
+module = optunahub.load_module("samplers/hebo")
 HEBOSampler = module.HEBOSampler
 
 
