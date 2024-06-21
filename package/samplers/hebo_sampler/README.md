@@ -28,7 +28,7 @@ search_space = {
 sampler = HEBOSampler(search_space)
 study = optuna.create_study(sampler=sampler)
 ```
-See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/hebo/example.py) for a full example.
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/hebo_sampler/example.py) for a full example.
 ![History Plot](images/hebo_optimization_history.png "History Plot")
 
 
