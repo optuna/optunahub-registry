@@ -9,6 +9,7 @@ WhaleOptimizationSampler = optunahub.load_module(  # type: ignore
     "samplers/whale_optimization"
 ).WhaleOptimizationSampler
 
+
 if __name__ == "__main__":
 
     def objective(trial: optuna.trial.Trial) -> float:
