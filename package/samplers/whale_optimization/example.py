@@ -4,10 +4,8 @@ import matplotlib.pyplot as plt
 import optuna
 import optunahub
 
-from package.samplers.whale_optimization.whale_optimization import WhaleOptimizationSampler
 
-
-WhaleOptimizationSampler = optunahub.load_module(
+WhaleOptimizationSampler = optunahub.load_module(  # type: ignore
     "samplers/whale_optimization"
 ).WhaleOptimizationSampler
 

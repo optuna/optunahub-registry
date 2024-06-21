@@ -10,7 +10,7 @@ import optunahub
 SimpleSampler = optunahub.load_module("samplers/simple").SimpleSampler
 
 
-class WhaleOptimizationSampler(SimpleSampler):
+class WhaleOptimizationSampler(SimpleSampler):  # type: ignore
     def __init__(
         self,
         search_space: dict[str, optuna.distributions.BaseDistribution],
@@ -36,7 +36,7 @@ class WhaleOptimizationSampler(SimpleSampler):
             np.random.rand(self.population_size, self.dim) * (self.upper_bound - self.lower_bound)
             + self.lower_bound
         )
-        self.queue = []
+        self.queue: list[dict[str, Any]] = []
 
     def sample_relative(
         self,
@@ -64,7 +64,7 @@ class WhaleOptimizationSampler(SimpleSampler):
             r1, r2 = np.random.rand(), np.random.rand()
             A = 2 * a * r1 - a
             C = 2 * r2
-            b, l = 1, ((a2 - 1) * np.random.rand() + 1)
+            b, L = 1, ((a2 - 1) * np.random.rand() + 1)
             p = np.random.rand()
 
             if p < 0.5:
@@ -79,7 +79,7 @@ class WhaleOptimizationSampler(SimpleSampler):
             else:
                 distance2Leader = np.abs(self.leader_pos - self.positions[i, :])
                 new_positions[i, :] = (
-                    distance2Leader * np.exp(b * l) * np.cos(l * 2 * np.pi) + self.leader_pos
+                    distance2Leader * np.exp(b * L) * np.cos(L * 2 * np.pi) + self.leader_pos
                 )
 
         param_list = [
@@ -88,7 +88,7 @@ class WhaleOptimizationSampler(SimpleSampler):
         self.queue.extend(param_list)
         return self.queue.pop(0)
 
-    def tell(self, new_positions, fitnesses):
+    def tell(self, new_positions: np.ndarray, fitnesses: np.ndarray) -> None:
         self.positions = np.clip(new_positions, self.lower_bound, self.upper_bound)
         min_index = np.argmin(fitnesses)
         min_fitness = fitnesses[min_index]
