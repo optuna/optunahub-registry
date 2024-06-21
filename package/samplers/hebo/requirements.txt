@@ -1,3 +1,5 @@
+numpy
 optuna
 optunahub
+pandas
 hebo@git+https://github.com/huawei-noah/HEBO.git#subdirectory=HEBO
