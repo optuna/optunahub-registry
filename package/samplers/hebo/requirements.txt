@@ -1,0 +1,3 @@
+optuna
+optunahub
+hebo@git+https://github.com/huawei-noah/HEBO.git#subdirectory=HEBO
