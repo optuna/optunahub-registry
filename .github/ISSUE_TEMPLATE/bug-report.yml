@@ -21,12 +21,14 @@ body:
         Please give us your environment information. You can get this information by typing the following.
         ```
         python3 -c 'import optuna; print(f"- Optuna version:{optuna.__version__}")'
+        python3 -c 'import optunahub; print(f"- OptunaHub version:{optunahub.__version__}")'
         python3 -c 'import platform; print(f"- Python version:{platform.python_version()}")'
         python3 -c 'import platform; print(f"- OS:{platform.platform()}")'
         ```
       value: |
         - The package of OptunaHub which you are using:
         - Optuna version:
+        - OptunaHub version:
         - Python version:
         - OS:
         - (Optional) Other libraries and their versions:
