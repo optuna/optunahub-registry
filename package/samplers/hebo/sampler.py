@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from hebo.design_space.design_space import DesignSpace
-from hebo.optimizers.hebo import HEBO
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
@@ -9,6 +7,9 @@ from optuna.distributions import IntDistribution
 from optuna.study import Study
 from optuna.trial import FrozenTrial
 import optunahub
+
+from hebo.design_space.design_space import DesignSpace
+from hebo.optimizers.hebo import HEBO
 
 
 SimpleSampler = optunahub.load_module("samplers/simple").SimpleSampler
