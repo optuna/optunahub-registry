@@ -1,5 +1,7 @@
 # Contribution Guidelines
 
+If you are interested in contributing to Optuna Hub, please read the following guidelines.
+If you are new to GitHub, please refer to [our blog](https://medium.com/optuna/optuna-wants-your-pull-request-ff619572302c) for more information.
 
 ## Coding Standards and Guidelines
 
