@@ -15,9 +15,9 @@ If you want to implement algorithms other than a sampler, please refer to the ot
 
 Usually, Optuna provides `BaseSampler` class to implement your own sampler.
 However, it is a bit complicated to implement a sampler from scratch.
-Instead, in OptunaHub, you can use `samplers/simple/SimpleSampler` class, which is a sampler template that can be easily extended.
+Instead, in OptunaHub, you can use `samplers/simple/SimpleBaseSampler` class, which is a sampler template that can be easily extended.
 
-You need to install `optuna` to implement your own sampler, and `optunahub` to use the template `SimpleSampler`.
+You need to install `optuna` to implement your own sampler, and `optunahub` to use the template `SimpleBaseSampler`.
 
 .. code-block:: bash
 
@@ -37,18 +37,21 @@ import optunahub
 
 
 ###################################################################################################
-# Next, define your own sampler class by inheriting `SimpleSampler` class.
+# Next, define your own sampler class by inheriting `SimpleBaseSampler` class.
 # In this example, we implement a sampler that returns a random value.
-# `SimpleSampler` class can be loaded using `optunahub.load_module` function.
+# `SimpleBaseSampler` class can be loaded using `optunahub.load_module` function.
 # `force_reload=True` argument forces downloading the sampler from the registry.
 # If we set `force_reload` to `False`, we use the cached data in our local storage if available.
 
-SimpleSampler = optunahub.load_module("samplers/simple").SimpleSampler
+SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
-class MySampler(SimpleSampler):  # type: ignore
-    # `search_space` argument is necessary for the concrete implementation of `SimpleSampler` class.
-    def __init__(self, search_space: dict[str, optuna.distributions.BaseDistribution]) -> None:
+class MySampler(SimpleBaseSampler):  # type: ignore
+    # By default, search will be estimated automatically like Optuna's built-in samplers.
+    # You can fix the search spacd by `search_space` argument of `SimpleBaseSampler` class.
+    def __init__(
+        self, search_space: dict[str, optuna.distributions.BaseDistribution] | None = None
+    ) -> None:
         super().__init__(search_space)
         self._rng = np.random.RandomState()
 
@@ -64,7 +67,11 @@ class MySampler(SimpleSampler):  # type: ignore
         search_space: dict[str, optuna.distributions.BaseDistribution],
     ) -> dict[str, Any]:
         # `search_space` argument must be identical to `search_space` argument input to `__init__` method.
-        # This method is automatically invoked by Optuna and `SimpleSampler`.
+        # This method is automatically invoked by Optuna and `SimpleBaseSampler`.
+
+        # If search space is empty, all parameter values are sampled randomly by SimpleBaseSampler.
+        if search_space == {}:
+            return {}
 
         params = {}  # type: dict[str, Any]
         for n, d in search_space.items():
@@ -91,7 +98,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 ###################################################################################################
 # This sampler can be used in the same way as other Optuna samplers.
 # In the following example, we create a study and optimize it using `MySampler` class.
-sampler = MySampler({"x": optuna.distributions.FloatDistribution(-10, 10)})
+sampler = MySampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
 
@@ -107,3 +114,11 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 #
 # In the next recipe, we will show how to register your sampler to OptunaHub.
 # Let's move on to :doc:`002_registration`.
+
+
+###################################################################################################
+# In the above examples, search space is estimated at the first trial and updated dynamically through optimization.
+# If you pass the search space to the sampler, you can avoid the overhead of estimating the search space.
+sampler = MySampler({"x": optuna.distributioins.FloatDictribution(-10, 10)})
+study = optuna.create_study(sampler=sampler)
+study.optimize(objective, n_trials=100)

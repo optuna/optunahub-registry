@@ -7,24 +7,29 @@ import optuna
 import optunahub
 
 
-SimpleSampler = optunahub.load_module("samplers/simple").SimpleSampler
+SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
-class WhaleOptimizationSampler(SimpleSampler):  # type: ignore
+class WhaleOptimizationSampler(SimpleBaseSampler):  # type: ignore
     def __init__(
         self,
-        search_space: dict[str, optuna.distributions.BaseDistribution],
         population_size: int = 10,
         max_iter: int = 40,
+        search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
     ) -> None:
         super().__init__(search_space)
         self._rng = np.random.RandomState()
         self.population_size = population_size
         self.max_iter = max_iter
+        self.dim = 0
+        self.queue: list[dict[str, Any]] = []
+
+    def _lazy_init(self, search_space: dict[str, optuna.distributions.BaseDistribution]) -> None:
         assert all(
             isinstance(dist, optuna.distributions.FloatDistribution)
             for dist in search_space.values()
         )
+
         self.lower_bound = np.asarray([dist.low for dist in search_space.values()])
         self.upper_bound = np.asarray([dist.high for dist in search_space.values()])
         self.dim = len(search_space)
@@ -36,7 +41,6 @@ class WhaleOptimizationSampler(SimpleSampler):  # type: ignore
             np.random.rand(self.population_size, self.dim) * (self.upper_bound - self.lower_bound)
             + self.lower_bound
         )
-        self.queue: list[dict[str, Any]] = []
 
     def sample_relative(
         self,
@@ -46,6 +50,8 @@ class WhaleOptimizationSampler(SimpleSampler):  # type: ignore
     ) -> dict[str, Any]:
         if len(search_space) == 0:
             return {}
+        if self.dim != len(search_space):
+            self._lazy_init(search_space)
         if len(self.queue) != 0:
             return self.queue.pop(0)
         last_trials = study.get_trials(states=(optuna.trial.TrialState.COMPLETE,))[
@@ -95,13 +101,3 @@ class WhaleOptimizationSampler(SimpleSampler):  # type: ignore
         if min_fitness < self.leader_score:
             self.leader_score = min_fitness
             self.leader_pos = self.positions[min_index].copy()
-
-    def sample_independent(
-        self,
-        study: "optuna.Study",
-        trial: "optuna.trial.FrozenTrial",
-        param_name: str,
-        param_distribution: optuna.distributions.BaseDistribution,
-    ) -> Any:
-        independent_sampler = optuna.samplers.RandomSampler(seed=777)
-        return independent_sampler.sample_independent(study, trial, param_name, param_distribution)

@@ -17,17 +17,22 @@ from hebo.design_space.design_space import DesignSpace
 from hebo.optimizers.hebo import HEBO
 
 
-SimpleSampler = optunahub.load_module("samplers/simple").SimpleSampler
+SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
-class HEBOSampler(SimpleSampler):  # type: ignore
-    def __init__(self, search_space: dict[str, BaseDistribution]) -> None:
+class HEBOSampler(SimpleBaseSampler):  # type: ignore
+    def __init__(self, search_space: dict[str, BaseDistribution] | None = None) -> None:
         super().__init__(search_space)
-        self._hebo = HEBO(self._convert_to_hebo_design_space(search_space))
+        self._hebo = None
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, float]:
+        if len(search_space) == 0:
+            return {}
+        if self._hebo is None:
+            self._hebo = HEBO(self._convert_to_hebo_design_space(search_space))
+        assert self._hebo is not None
         params_pd = self._hebo.suggest()
 
         params = {}

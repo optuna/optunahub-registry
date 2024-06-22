@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 import numpy as np
@@ -10,8 +12,8 @@ from optuna.trial import FrozenTrial
 import optunahub
 
 
-class UserDefinedSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # type: ignore
-    def __init__(self, search_space: dict[str, BaseDistribution]) -> None:
+class UserDefinedSampler(optunahub.load_module("samplers/simple").SimpleBaseSampler):  # type: ignore
+    def __init__(self, search_space: dict[str, BaseDistribution] | None = None) -> None:
         super().__init__(search_space)
         self._rng = np.random.RandomState()
 

@@ -8,12 +8,12 @@ license: 'MIT License'
 ---
 
 ## Class or Function Names
-- SimpleSampler
+- SimpleBaseSampler
 
 ## Example
 ```python
 class UserDefinedSampler(
-    optunahub.load_module("samplers/simple").SimpleSampler
+    optunahub.load_module("samplers/simple").SimpleBaseSampler
 ):
     ...
 ```
@@ -21,4 +21,4 @@ See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/packag
 
 ## Others
 This package provides an easy sampler base class to implement custom samplers.
-You can make your own sampler easily by inheriting `SimpleSampler` and by implementing necessary methods.
+You can make your own sampler easily by inheriting `SimpleBaseSampler` and by implementing necessary methods.
