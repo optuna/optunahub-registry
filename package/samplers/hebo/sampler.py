@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+import numpy as np
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 from optuna.study import Study
 from optuna.trial import FrozenTrial
+from optuna.trial import TrialState
 import optunahub
+import pandas as pd
 
 from hebo.design_space.design_space import DesignSpace
 from hebo.optimizers.hebo import HEBO
@@ -29,6 +34,15 @@ class HEBOSampler(SimpleSampler):  # type: ignore
         for name in search_space.keys():
             params[name] = params_pd[name].to_numpy()[0]
         return params
+
+    def after_trial(
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        state: TrialState,
+        values: Sequence[float] | None,
+    ) -> None:
+        self._hebo.observe(pd.DataFrame([trial.params]), np.asarray([values]))
 
     def _convert_to_hebo_design_space(
         self, search_space: dict[str, BaseDistribution]
