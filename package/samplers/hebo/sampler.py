@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from optuna.distributions import BaseDistribution
@@ -41,7 +40,7 @@ class HEBOSampler(SimpleSampler):  # type: ignore
         study: Study,
         trial: FrozenTrial,
         state: TrialState,
-        values: Optional[Sequence[float]],
+        values: Sequence[float] | None,
     ) -> None:
         self._hebo.observe(pd.DataFrame([trial.params]), np.asarray([values]))
 
