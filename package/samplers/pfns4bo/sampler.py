@@ -143,6 +143,8 @@ class PFNs4BOSampler(BaseSampler):
     def __init__(
         self,
         *,
+        prior: str | torch.nn.Module = "hebo",
+        model_path: str | None = None,
         seed: int | None = None,
         independent_sampler: BaseSampler | None = None,
         n_startup_trials: int = 10,
@@ -161,11 +163,20 @@ class PFNs4BOSampler(BaseSampler):
 
         self._device = utils.default_device
 
-        # _, _, trained_model, _ = train(**get_vanilla_gp_config(self._device))
-        _, _, trained_model, _ = train(**get_heboplus_config(self._device))
+        if isinstance(prior, torch.nn.Module):
+            trained_model = prior
+        elif prior == "vanilla gp":
+            _, _, trained_model, _ = train(**get_vanilla_gp_config(self._device))
+        elif prior == "hebo":
+            _, _, trained_model, _ = train(**get_heboplus_config(self._device))
+        else:
+            raise ValueError("You should specify `prior` as 'vanilla gp', 'hebo', or a model.")
 
         self._model = trained_model
         self._model.eval()
+
+        if model_path is not None:
+            torch.save(trained_model, model_path)
 
     def sample_relative(
         self, study: Study, trial: Trial, search_space: dict[str, BaseDistribution]
