@@ -1,23 +1,22 @@
-import math
-import sys
+# mypy: ignore-errors
 from typing import Any
 
 import GPy  # type: ignore
 import jax
 import jax.numpy as jnp
+from jax.scipy.stats import norm
 import matplotlib.pyplot as plt
 import numpy as np
 import numpyro  # type: ignore
-import optuna
-import optunahub
-import scipy.stats  # type: ignore
-from jax import random
-from jax.scipy.stats import norm
 from numpyro.infer import init_to_value  # type: ignore
+import optuna
 from optuna import Study
-from optuna.distributions import BaseDistribution, FloatDistribution
+from optuna.distributions import BaseDistribution
+from optuna.distributions import FloatDistribution
 from optuna.samplers._base import BaseSampler
-from optuna.trial import FrozenTrial, TrialState
+from optuna.trial import FrozenTrial
+from optuna.trial import TrialState
+import optunahub
 from scipy import optimize  # type: ignore
 
 
@@ -185,14 +184,14 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
             u_w = self.__u_est(self.pc[:, 0], w)
             u_l = self.__u_est(self.pc[:, 1], w)
 
-            l = [l[0] for l in self.ir[:]]
+            l_f = [l_[0] for l_ in self.ir[:]]
             para = (u_w - u_l) / (np.sqrt(2) * u_sigma)
             para = jnp.where(para < -30, -30, para)
             para = norm.cdf(para, 0, 1)
             para = jnp.maximum(para, 1e-14)
 
-            du_w = self.__dudf(l, [li[1] for li in self.ir[:]], w)
-            du_l = self.__dudf(l, [li[2] for li in self.ir[:]], w)
+            du_w = self.__dudf(l_f, [li[1] for li in self.ir[:]], w)
+            du_l = self.__dudf(l_f, [li[2] for li in self.ir[:]], w)
             para_d = (du_w - du_l) / (np.sqrt(2) * u_sigma)
             para_d = norm.cdf(para_d, 0, 1)
             para_d = jnp.maximum(para_d, 1e-14)
@@ -206,7 +205,7 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
         if len(y_pc) == 0:
 
             def mcmc_model():
-                w = numpyro.sample("w", numpyro.distributions.Dirichlet(np.full(self.obj_dim, 2)))
+                w = numpyro.sample("w", numpyro.distributions.Dirichlet(np.full(self.obj_dim, 2))) # noqa: F841
 
         # sampling
         kern = numpyro.infer.NUTS(
@@ -228,14 +227,14 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
         def ll(w):
             u_w = self.__u_est(self.pc[:, 0], w)
             u_l = self.__u_est(self.pc[:, 1], w)
-            l = [l[0] for l in self.ir[:]]
+            l_f = [l_[0] for l_ in self.ir[:]]
             para = (u_w - u_l) / (np.sqrt(2) * u_sigma)
             para = jnp.where(para < -20, -20, para)
             para = norm.cdf(para, 0, 1)
             para = np.maximum(para, 1e-14)
 
-            du_w = self.__dudf(l, [li[1] for li in self.ir[:]], w)
-            du_l = self.__dudf(l, [li[2] for li in self.ir[:]], w)
+            du_w = self.__dudf(l_f, [li[1] for li in self.ir[:]], w)
+            du_l = self.__dudf(l_f, [li[2] for li in self.ir[:]], w)
             para_d = (du_w - du_l) / (np.sqrt(2) * u_sigma)
             para_d = norm.cdf(para_d, 0, 1)
             para_d = np.maximum(para_d, 1e-14)

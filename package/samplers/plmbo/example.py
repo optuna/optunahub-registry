@@ -3,8 +3,9 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
-import optunahub
 from optuna.distributions import FloatDistribution
+import optunahub
+
 
 PLMBOSampler = optunahub.load_module(  # type: ignore
     "samplers/plmbo",
