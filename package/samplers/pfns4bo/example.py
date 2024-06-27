@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import warnings
+
 import optuna
 import optunahub
 
 
 module = optunahub.load_module("samplers/pfns4bo")
 PFNs4BOSampler = module.PFNs4BOSampler
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
 def objective(trial: optuna.Trial) -> float:
