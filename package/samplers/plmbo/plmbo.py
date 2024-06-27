@@ -174,17 +174,15 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
 
     def __update_w(self):
         u_sigma = 0.01
-        # どっちが好まれる点かの情報（0,1だけど実装上すべて1）
+        # preference information
         y_pc = np.ones((len(self.pc)))
         y_ir = np.ones((len(self.ir)))
 
         def mcmc_model():
-            # 事前分布
+            # prior
             w = numpyro.sample("w", numpyro.distributions.Dirichlet(np.full(self.obj_dim, 2)))
 
-            # 好まれる点のU
             u_w = self.__u_est(self.pc[:, 0], w)
-            # 好まれない点のU
             u_l = self.__u_est(self.pc[:, 1], w)
 
             l = [l[0] for l in self.ir[:]]
@@ -199,7 +197,7 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
             para_d = norm.cdf(para_d, 0, 1)
             para_d = jnp.maximum(para_d, 1e-14)
 
-            # 観測として設定
+            # observations
             with numpyro.plate("data", len(y_pc)):
                 numpyro.sample("obs", numpyro.distributions.Bernoulli(para), obs=y_pc)
             with numpyro.plate("data2", len(y_ir)):
@@ -210,7 +208,7 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
             def mcmc_model():
                 w = numpyro.sample("w", numpyro.distributions.Dirichlet(np.full(self.obj_dim, 2)))
 
-        # サンプリング
+        # sampling
         kern = numpyro.infer.NUTS(
             mcmc_model, init_strategy=init_to_value(values={"w": jnp.array(self.w)})
         )
@@ -252,10 +250,10 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
         self.w = np.mean(self.sample_w, axis=0)
 
     def __acq(self, x):
-        # 獲得関数値初期化
+        # initialize acquisition
         alpha = 0
 
-        # カレントベスト
+        # current best
         n = len(self.sample_w)
         ubest = np.zeros(len(self.sample_w))
         ubest_tmp = np.zeros((self.Y.shape[0], n))
@@ -269,7 +267,7 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
         for i in range(self.obj_dim):
             normal.append(np.random.normal(0, 1, n))
 
-        # 獲得関数値の計算
+        # calculate acquisition
         yy = []
         for i in range(self.obj_dim):
             gp_pred = self.gp_models[i].predict(x.reshape(1, self.input_dim))
@@ -288,7 +286,6 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
         alpha = np.mean(uaftermax)
         return -alpha
 
-    # 任意の重みでのU
     def __u_est(self, x, w):
         x = jnp.array(x)
         w = jnp.array(w)
@@ -300,7 +297,7 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
             re = jnp.minimum(x[i], re)
         return re
 
-    # Uの微分
+    # differential of U
     def __dudf(self, x, f, weight):
         x = jnp.array(x)
         weight = jnp.array(weight)
