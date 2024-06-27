@@ -205,7 +205,7 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
         if len(y_pc) == 0:
 
             def mcmc_model():
-                w = numpyro.sample("w", numpyro.distributions.Dirichlet(np.full(self.obj_dim, 2))) # noqa: F841
+                w = numpyro.sample("w", numpyro.distributions.Dirichlet(np.full(self.obj_dim, 2)))  # noqa: F841
 
         # sampling
         kern = numpyro.infer.NUTS(
