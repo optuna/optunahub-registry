@@ -20,10 +20,10 @@ import optunahub
 from scipy import optimize  # type: ignore
 
 
-class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # type: ignore
+class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleBaseSampler):  # type: ignore
     def __init__(
         self,
-        search_space: dict[str, BaseDistribution],
+        search_space: dict[str, BaseDistribution] | None = None,
         *,
         seed: int | None = None,
         independent_sampler: BaseSampler | None = None,
@@ -50,6 +50,8 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
         trial: FrozenTrial,
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
+        if search_space == {}:
+            return {}
         if self.obj_dim is None:
             self.obj_dim = len(study.directions)
         if self.pc is None:
@@ -106,17 +108,6 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleSampler):  # t
 
         print(params)
         return params
-
-    def sample_independent(
-        self,
-        study: Study,
-        trial: FrozenTrial,
-        param_name: str,
-        param_distribution: BaseDistribution,
-    ) -> Any:
-        return self._independent_sampler.sample_independent(
-            study, trial, param_name, param_distribution
-        )
 
     def __add_comparison(self):
         y_rnd_1 = np.random.rand(self.obj_dim)

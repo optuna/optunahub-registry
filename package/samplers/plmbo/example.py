@@ -4,7 +4,6 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
-from optuna.distributions import FloatDistribution
 import optunahub
 
 
@@ -35,13 +34,7 @@ if __name__ == "__main__":
         values = obs_obj_func(np.array([x1, x2]))
         return float(values[0]), float(values[1])
 
-    sampler = PLMBOSampler(
-        {
-            "x1": FloatDistribution(0, 1),
-            "x2": FloatDistribution(0, 1),
-        }
-    )
-    study = optuna.create_study(sampler=sampler, directions=["minimize", "minimize"])
+    study = optuna.create_study(sampler=PLMBOSampler(), directions=["minimize", "minimize"])
     study.optimize(objective, n_trials=20)
 
     optuna.visualization.matplotlib.plot_pareto_front(study)
