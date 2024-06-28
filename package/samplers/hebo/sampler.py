@@ -21,18 +21,13 @@ SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
 class HEBOSampler(SimpleBaseSampler):  # type: ignore
-    def __init__(self, search_space: dict[str, BaseDistribution] | None = None) -> None:
+    def __init__(self, search_space: dict[str, BaseDistribution]) -> None:
         super().__init__(search_space)
-        self._hebo = None
+        self._hebo = HEBO(self._convert_to_hebo_design_space(search_space))
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, float]:
-        if len(search_space) == 0:
-            return {}
-        if self._hebo is None:
-            self._hebo = HEBO(self._convert_to_hebo_design_space(search_space))
-        assert self._hebo is not None
         params_pd = self._hebo.suggest()
 
         params = {}
