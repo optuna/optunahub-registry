@@ -48,7 +48,7 @@ class SimpleBaseSampler(BaseSampler, abc.ABC):
     ) -> Any:
         # This method is optional.
         # By default, parameter values are sampled by ``optuna.samplers.RandomSampler``.
-        raise self._default_sample_independent(study, trial, param_name, param_distribution)
+        return self._default_sample_independent(study, trial, param_name, param_distribution)
 
     def _init_defaults(self) -> None:
         self._intersection_search_space = IntersectionSearchSpace()
