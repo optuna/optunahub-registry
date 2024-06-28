@@ -42,6 +42,12 @@ if __name__ == "__main__":
     print(study.best_params)
     print(study.best_value)
 ```
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/pfns4bo/example.py) for a full example. You need GPU to run this example.
+
+The following figures are experimental results of the comparison between PFNs4BO and the random search.
+This figure stands for the performance of PFNs4BO against the random search. The horizontal axis represents the amount of budgets, which is equal to the number of trials. The vertical axis represents the p-value of the Mann–Whitney U test, in which the null hypothesis is that the PFNs4BO loses the random search. Therefore, don't get me wrong, but the lower is better.
+The benchmark consists of 70 problems. The 8 problems are from HPO tabular benchmarks in https://github.com/automl/HPOBench (original 4 problems, and log-converted 4 problems). The 62 problems are several synthetic functions in https://github.com/sigopt/evalset (Not just use it, but I re-implement them).
+![Comparison between PFNs4BO and random search](images/compare2-pfns4bo-vs-random-1.png "Comparison between PFNs4BO and random search")
 
 ## Others
 
