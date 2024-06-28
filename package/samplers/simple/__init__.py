@@ -81,7 +81,3 @@ class SimpleBaseSampler(BaseSampler, abc.ABC):
         return self._random_sampler.sample_independent(
             study, trial, param_name, param_distribution
         )
-
-
-class SimpleSampler(SimpleBaseSampler):
-    pass
