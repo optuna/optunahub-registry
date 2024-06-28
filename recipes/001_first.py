@@ -47,7 +47,7 @@ SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
 class MySampler(SimpleBaseSampler):  # type: ignore
-    # By default, search will be estimated automatically like Optuna's built-in samplers.
+    # By default, search space will be estimated automatically like Optuna's built-in samplers.
     # You can fix the search spacd by `search_space` argument of `SimpleBaseSampler` class.
     def __init__(
         self, search_space: dict[str, optuna.distributions.BaseDistribution] | None = None
