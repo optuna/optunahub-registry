@@ -50,8 +50,6 @@ class PLMBOSampler(optunahub.load_module("samplers/simple").SimpleBaseSampler): 
         trial: FrozenTrial,
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
-        if search_space == {}:
-            return {}
         if self.obj_dim is None:
             self.obj_dim = len(study.directions)
         if self.pc is None:
