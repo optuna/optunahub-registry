@@ -13,9 +13,9 @@ SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 class WhaleOptimizationSampler(SimpleBaseSampler):  # type: ignore
     def __init__(
         self,
+        search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
         population_size: int = 10,
         max_iter: int = 40,
-        search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
     ) -> None:
         super().__init__(search_space)
         self._rng = np.random.RandomState()
