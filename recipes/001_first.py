@@ -113,6 +113,6 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 ###################################################################################################
 # In the above examples, search space is estimated at the first trial and updated dynamically through optimization.
 # If you pass the search space to the sampler, you can avoid the overhead of estimating the search space.
-sampler = MySampler({"x": optuna.distributioins.FloatDictribution(-10, 10)})
+sampler = MySampler({"x": optuna.distributions.FloatDictribution(-10, 10)})
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
