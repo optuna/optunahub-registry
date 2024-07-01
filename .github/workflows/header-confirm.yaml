@@ -17,4 +17,4 @@ jobs:
       - name: Install dependencies
         run: pip install python-frontmatter
       - name: Confirm headers
-        run: python optunahub-registry/header_confirm.py        
+        run: python optunahub-registry/header_confirm.py

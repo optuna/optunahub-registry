@@ -14,14 +14,15 @@ See the `template directory <https://github.com/optuna/optunahub-registry/tree/m
 | `package <https://github.com/optuna/optunahub-registry/tree/main/package>`__
 | └── category (e.g. samplers, pruners, and visualization)
 |     └── YOUR_PACKAGE_NAME (you need to create this directory and its contents)
-|         ├── README.md
+|         ├── YOUR_ALGORITHM_NAME.py
 |         ├── __init__.py
+|         ├── example.py
+|         ├── README.md
 |         ├── LICENSE
-|         ├── (images)
-|         │   ├──  (thumbnail.png)
-|         │   └──  (screenshot.png)
 |         ├── (requirements.txt)
-|         └── YOUR_ALGORITHM_NAME.py
+|         └── (images)
+|             ├──  (thumbnail.png)
+|             └──  (screenshot.png)
 
 An implemented algorithm should be put in the corresponding directory, e.g., a sampler should be put in the `samplers` directory.
 In the `samplers` directory, you should create a directory with a unique identifier.
@@ -37,6 +38,15 @@ The created directory should include the following files:
 - `images`: This is optional. A directory that contains images. The images in this directory will be used the `web page of OptunaHub <https://hub.optuna.org/>`_. `thumbnail.png` will be used as a thumbnail in the web page. Note that `README.md` can also refer to image files, e.g. `images/screenshot.png`,  in this directory.
 - `requirements.txt`: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies other than Optuna and OptunaHub, you do not need to create this file.
 - `YOUR_ALGORITHM_NAME.py`: The implementation of your algorithm.
+
+All files must pass linter and formetter checks to be merged to the optunahub-registry repository.
+You can check them by running the `pre-commit <https://pre-commit.com/>`__ tool as follows.
+
+.. code-block:: bash
+
+    pip install pre-commit
+    pre-commit install
+    pre-commit run  # This will run all checks against currently staged files.
 
 `README.md` must contain the following sections:
 
@@ -58,7 +68,7 @@ The created directory should include the following files:
   - `description`: A brief description of the package. It should be a one-sentence summary of the package.
   - `tags`: The package tags. It should be a list of strings. The tags must include `sampler` or `visualization` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
   - `optuna_versions`: A list of Optuna versions that the package supports. It should be a list of strings. For example, "['3.5.0', '3.6.1']".
-  - `license`: The license of the package. It should be a string. For example, `'MIT License'`. The license must be `MIT` in the alpha version of OptunaHub.
+  - `license`: The license of the package. It should be a string. For example, `'MIT License'`. The license must be `MIT License` in the current version of OptunaHub.
 
 - `Class or Function Names` section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can simply write the class or function name. Note that the documentation of the classes or functions must be written in their docstrings. If you want to refer to the documentation, please leave the source code link, or write them in the following `Others` section. For example:
 

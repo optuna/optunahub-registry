@@ -10,6 +10,14 @@ Please adhere to the following coding standards and guidelines:
 - write your code comments and documentation in English
 - give your package an appropriate name, the package name may be requested to be changed at the discretion of the maintainers
 
+All files must pass linter and formetter checks to be merged to the optunahub-registry repository.
+You can check them by running the [pre-commit](https://pre-commit.com/) tool as follows.
+
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit run  # This will run all checks against currently staged files.
+```
 
 ## Creating a Pull Request
 
@@ -28,6 +36,10 @@ Second, the **description** of your pull request should:
 - if still work-in-progress, describe remaining tasks
 
 Finally, read [`contributor agreements`](#contributor-agreements) and if you agree, please click the checkbox
+
+## Tutorial
+
+You can find tutorials to implement a package for the OptunaHub registry in [the OptunaHub registry documentation](https://optuna.github.io/optunahub-registry/).
 
 
 ## Contributor Agreements
