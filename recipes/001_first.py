@@ -111,14 +111,16 @@ print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
 
 ###################################################################################################
 # We can see that ``x`` value found by Optuna is close to the optimal value ``2``.
-#
-# In the next recipe, we will show how to register your sampler to OptunaHub.
-# Let's move on to :doc:`002_registration`.
-
 
 ###################################################################################################
 # In the above examples, search space is estimated at the first trial and updated dynamically through optimization.
-# If you pass the search space to the sampler, you can avoid the overhead of estimating the search space.
+# If your sampler requires the search space to be fixed before optimization, you can pass the search space to the sampler at initialization.
+# Passing the search space also allows the sampler to avoid the overhead of estimating the search space.
 sampler = MySampler({"x": optuna.distributions.FloatDistribution(-10, 10)})
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
+
+###################################################################################################
+# In the next recipe, we will show how to register your sampler to OptunaHub.
+# Let's move on to :doc:`002_registration`.
+# See `the User-Defined Sampler documentation <https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/005_user_defined_sampler.html>`_ for more information to implement a sampler.

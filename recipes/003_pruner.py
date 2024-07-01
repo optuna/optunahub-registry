@@ -81,3 +81,4 @@ study.optimize(objective, n_trials=100)
 ###################################################################################################
 # After implementing your own pruner, you can register it with OptunaHub.
 # See :doc:`002_registration` for how to register your pruner with OptunaHub.
+# See `the User-Defined Pruner documentation <https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/006_user_defined_pruner.html>`_ for more information to implement an pruner.
