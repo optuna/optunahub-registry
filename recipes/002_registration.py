@@ -16,7 +16,7 @@ See the `template directory <https://github.com/optuna/optunahub-registry/tree/m
 |     └── YOUR_PACKAGE_NAME (you need to create this directory and its contents)
 |         ├── YOUR_ALGORITHM_NAME.py
 |         ├── __init__.py
-|         ├── example.py
+|         ├── (example.py)
 |         ├── README.md
 |         ├── LICENSE
 |         ├── (requirements.txt)
