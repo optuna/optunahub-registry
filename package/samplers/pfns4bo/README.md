@@ -51,12 +51,12 @@ The benchmark consists of 70 problems. The 8 problems are from HPO tabular bench
 
 ## Others
 
-The default prior argument is ``"hebo"``. This trains the PFNs model in the init of the sampler. If you want to use a pre-trained model, you can download the model checkpoint from the following link: https://github.com/automl/PFNs/blob/main/models_diff/prior_diff_real_checkpoint_n_0_epoch_42.cpkt and load it using the following code:
+The default prior argument is ``"hebo"``. This trains the PFNs model in the init of the sampler. If you want to use a pre-trained model, you can download the model checkpoint from the following link: https://github.com/automl/PFNs4BO/tree/main/pfns4bo/final_models and load it using the following code:
 
 ```python
 import torch
 
-model = torch.load("PATH/TO/prior_diff_real_checkpoint_n_0_epoch_42.cpkt")
+model = torch.load("PATH/TO/MODEL.pt")
 sampler = PFNs4BOSampler(prior=model)
 ```
 
