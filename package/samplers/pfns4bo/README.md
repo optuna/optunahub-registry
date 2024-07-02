@@ -1,8 +1,8 @@
 ---
-author: "HideakiImamura"
+author: "Hideaki Imamura"
 title: "PFNs4BO sampler"
 description: "In-context learning for Bayesian optimization. This sampler uses Prior-data Fitted Networks (PFNs) as a surrogate model for Bayesian optimization."
-tags: ["sampler"]
+tags: ["sampler", "Bayesian optimization", "Pre-trained Model"]
 optuna_versions: ["3.6.1"]
 license: "MIT License"
 ---
@@ -60,8 +60,11 @@ model = torch.load("PATH/TO/prior_diff_real_checkpoint_n_0_epoch_42.cpkt")
 sampler = PFNs4BOSampler(prior=model)
 ```
 
-The performance of PFNs4BO with the HEBO+ prior is maximized with the number of trials smaller than 100 or 200 in most cases. If you have a large number of trials, it is recommended to change the sampler to a random sampler or etc after a certain  number of trials.
+The performance of PFNs4BO with the HEBO+ prior is maximized with the number of trials smaller than 100 or 200 in most cases. If you have a large number of trials, changing the sampler to another one (e.g., a random sampler) after a certain number of trials is recommended.
 
 ### Reference
 
 Samuel Müller, Matthias Feurer, Noah Hollmann, and Frank Hutter. 2023. PFNs4BO: in-context learning for Bayesian optimization. In Proceedings of the 40th International Conference on Machine Learning (ICML'23), Vol. 202. JMLR.org, Article 1056, 25444–25470.
+
+See the [paper](https://arxiv.org/abs/2305.17535) for more details.
+```
