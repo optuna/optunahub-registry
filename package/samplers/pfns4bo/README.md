@@ -51,6 +51,17 @@ The benchmark consists of 70 problems. The 8 problems are from HPO tabular bench
 
 ## Others
 
+The default prior argument is ``"hebo"``. This trains the PFNs model in the init of the sampler. If you want to use a pre-trained model, you can download the model checkpoint from the following link: https://github.com/automl/PFNs/blob/main/models_diff/prior_diff_real_checkpoint_n_0_epoch_42.cpkt and load it using the following code:
+
+```python
+import torch
+
+model = torch.load("PATH/TO/prior_diff_real_checkpoint_n_0_epoch_42.cpkt")
+sampler = PFNs4BOSampler(prior=model)
+```
+
+The performance of PFNs4BO with the HEBO+ prior is maximized with the number of trials smaller than 100 or 200 in most cases. If you have a large number of trials, it is recommended to change the sampler to a random sampler or etc after a certain  number of trials.
+
 ### Reference
 
 Samuel Müller, Matthias Feurer, Noah Hollmann, and Frank Hutter. 2023. PFNs4BO: in-context learning for Bayesian optimization. In Proceedings of the 40th International Conference on Machine Learning (ICML'23), Vol. 202. JMLR.org, Article 1056, 25444–25470.

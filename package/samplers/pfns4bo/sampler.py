@@ -140,6 +140,62 @@ def get_heboplus_config(device: str) -> dict[str, Any]:
 
 
 class PFNs4BOSampler(BaseSampler):
+    """A sampler based on the Prior-data Fitted Networks (PFNs) as the surrogate model.
+
+    This sampler is based on the PFNs, which is a neural network-based surrogate model.
+
+    .. note::
+        The default prior argument is ``"hebo"``. This trains the PFNs model in the
+        init of the sampler. If you want to use a pre-trained model, you can download
+        the model checkpoint from the following link:
+        https://github.com/automl/PFNs/blob/main/models_diff/prior_diff_real_checkpoint_n_0_epoch_42.cpkt
+        and load it using the following code:
+
+        .. code-block:: python
+            import torch
+
+            model = torch.load("PATH/TO/prior_diff_real_checkpoint_n_0_epoch_42.cpkt")
+            sampler = PFNs4BOSampler(prior=model)
+
+    .. note::
+        The performance of PFNs4BO with the HEBO+ prior is maximized with the number of
+        trials smaller than 100 or 200 in most cases. If you have a large number of trials,
+        it is recommended to change the sampler to a random sampler or etc after a certain
+        number of trials.
+
+    Args:
+        prior:
+            A string or a torch.nn.Module object. If a string, it should be one of the following:
+
+            - ``"vanilla gp"``: A vanilla GP model.
+            - ``"hebo"``: A model based on the HEBO+ algorithm.
+
+            If a torch.nn.Module object, it should be a trained model.
+        model_path:
+            A file path to save the trained model. If None, the model will not be saved.
+        seed:
+            Seed for random number generator.
+        independent_sampler:
+            A sampler instance for independent sampling. If None, :class:`~optuna.samplers.RandomSampler`
+            is used.
+        n_startup_trials:
+            The number of initial trials that are used to fit the model.
+        num_grad_steps:
+            The number of gradient steps for optimization.
+        num_candidates:
+            The number of candidates for optimization.
+        pre_sample_size:
+            The number of samples for pre-sampling.
+        acquisition_function_type:
+            The type of acquisition function. It should be one of the following:
+
+            - ``"ei"``: Expected improvement.
+            - ``"pi"``: Probability of improvement.
+            - ``"ucb"``: Upper confidence bound.
+            - ``"ei_or_rand"``: Expected improvement mixed with random sampling.
+            - ``"mean"``: Mean of the model.
+    """
+
     def __init__(
         self,
         *,
@@ -151,10 +207,12 @@ class PFNs4BOSampler(BaseSampler):
         num_grad_steps: int = 15_000,
         num_candidates: int = 100,
         pre_sample_size: int = 100_000,
+        acquisition_function_type: str = "ei",
     ) -> None:
         self._num_grad_steps = num_grad_steps
         self._num_candidates = num_candidates
         self._pre_sample_size = pre_sample_size
+        self._acquisition_function_type = acquisition_function_type
 
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or RandomSampler(seed=seed)
@@ -232,7 +290,8 @@ class PFNs4BOSampler(BaseSampler):
                 pre_sample_size=self._pre_sample_size,
                 device=self._device,
                 rand_sample_func=rand_sample_func,
-                apply_power_transform=False,
+                apply_power_transform=True,
+                acq_function=self._acquisition_function_type,
             )
 
         normalized_param = x_options[torch.argmax(eis)]
