@@ -37,3 +37,21 @@ Please fill in the code snippet to use the implemented feature here.
 ## Others
 Please fill in any other information if you have here by adding child sections (###).
 If there is no additional information, this section can be removed.
+
+<!--
+For example, you can add sections to introduce a corresponding paper.
+
+### Reference
+Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
+Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
+
+### Bibtex
+```
+@inproceedings{optuna_2019,
+    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
+    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
+    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
+    year={2019}
+}
+```
+-->
