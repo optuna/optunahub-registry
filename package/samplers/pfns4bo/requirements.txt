@@ -1,0 +1,4 @@
+botorch<0.8.0
+matplotlib
+numpy<2.0.0
+pfns@git+https://github.com/automl/PFNs.git
