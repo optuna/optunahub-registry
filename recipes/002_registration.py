@@ -49,6 +49,13 @@ You can check them by running the `pre-commit <https://pre-commit.com/>`__ tool 
     pre-commit install
     pre-commit run  # This will run all checks against currently staged files.
 
+Although we recommend you write proper type hints, if you find it difficult to comply with mypy, you can omit the check by writing the following directive as the first line of your code.
+
+.. code-block:: python
+
+  # mypy: ignore-errors
+
+
 `README.md` must contain the following sections:
 
 - A header section written in the following format:
