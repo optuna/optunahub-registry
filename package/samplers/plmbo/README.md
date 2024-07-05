@@ -1,21 +1,24 @@
 ---
-author: "Ryota Ozaki"
-title: "PLMBO (Preference Learning Multi-Objective Bayesian Optimization)"
-description: "Interatctive multi-objective Bayesian optimization based on user preference"
-tags: ["sampler", "interactive optimization", "Bayesian optimization", "multi-objective optimization", "preference learning", "active learning"]
-optuna_versions: ["3.6.1"]
-license: "MIT License"
+author: Ryota Ozaki
+title: PLMBO (Preference Learning Multi-Objective Bayesian Optimization)
+description: Interatctive multi-objective Bayesian optimization based on user preference
+tags: [sampler, interactive optimization, Bayesian optimization, multi-objective optimization, preference learning, active learning]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - PLMBOSampler
 
 ## Installation
+
 ```sh
 pip install -r https://raw.githubusercontent.com/optuna/optunahub-registry/main/package/samplers/plmbo/requirements.txt
 ```
 
 ## Example
+
 ```python
 from __future__ import annotations
 
@@ -67,10 +70,13 @@ if __name__ == "__main__":
 ```
 
 ## Others
+
 ### Reference
+
 R Ozaki, K Ishikawa, Y Kanzaki, S Takeno, I Takeuchi, and M Karasuyama. (2024). Multi-Objective Bayesian Optimization with Active Preference Learning. Proceedings of the AAAI Conference on Artificial Intelligence.
 
 ### Bibtex
+
 ```
 @inproceedings{ozaki2024multi,
   title={Multi-Objective Bayesian Optimization with Active Preference Learning},

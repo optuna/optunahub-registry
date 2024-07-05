@@ -1,21 +1,24 @@
 ---
-author: 'Optuna team'
-title: 'CMA-ES Sampler'
-description: 'A sampler using cmaes as the backend.'
-tags: ['sampler', 'built-in']
-optuna_versions: ['3.6.1']
-license: 'MIT License'
+author: Optuna team
+title: CMA-ES Sampler
+description: A sampler using cmaes as the backend.
+tags: [sampler, built-in]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - CmaEsSampler
 
 ## Installation
+
 ```bash
 pip install cmaes
 ```
 
 ## Example
+
 ```python
 import optuna
 from optuna.samplers import CmaEsSampler
@@ -33,4 +36,5 @@ study.optimize(objective, n_trials=20)
 ```
 
 ## Others
+
 See the [documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.CmaEsSampler.html) for more details.

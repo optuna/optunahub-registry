@@ -1,16 +1,18 @@
 ---
-author: "mist714"
-title: "Sampler using Whale Optimization Algorithm"
-description: "Swarm Algorithm Inspired by Pod of Whale"
-tags: ["sampler"]
-optuna_versions: ["3.6.1"]
-license: "MIT License"
+author: mist714
+title: Sampler using Whale Optimization Algorithm
+description: Swarm Algorithm Inspired by Pod of Whale
+tags: [sampler]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - WhaleOptimizationSampler
 
 ## Example
+
 ```python
 from __future__ import annotations
 
@@ -43,5 +45,7 @@ if __name__ == "__main__":
 ```
 
 ## Others
+
 ### Reference
+
 Mirjalili, Seyedali & Lewis, Andrew. (2016). The Whale Optimization Algorithm. Advances in Engineering Software. 95. 51-67. 10.1016/j.advengsoft.2016.01.008.
