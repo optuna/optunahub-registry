@@ -17,3 +17,9 @@ repos:
       additional_dependencies: [
         "types-PyYAML",
       ]
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.16
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-frontmatter
