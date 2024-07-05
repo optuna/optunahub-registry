@@ -11,11 +11,20 @@ def header_confirm(path: str) -> None:
     assert isinstance(post["title"], str), f"title is not a string in {path}"
     assert "description" in post.keys(), f"description is not found in {path}"
     assert isinstance(post["description"], str), f"description is not a string in {path}"
-    assert "tags" in post.keys(), f"tags is not found in {path}"
     assert isinstance(post["tags"], list), f"tags is not a list in {path}"
     assert all(
         isinstance(v, str) for v in post["tags"]
     ), f"tags is not a list of strings in {path}"
+    split_path = path.split("/")
+    if split_path[0] == "package":
+        category = split_path[1]
+        if category == "samplers":
+            assert "sampler" in post["tags"], f"sampler tag must be in {path}"
+        elif category == "visualizations":
+            assert "visualization" in post["tags"], f"visualization tag must be in {path}"
+        elif category == "pruners":
+            assert "pruner" in post["tags"], f"pruner tag must be in {path}"
+    assert "tags" in post.keys(), f"tags is not found in {path}"
     assert "optuna_versions" in post.keys(), f"optuna_versions is not found in {path}"
     assert isinstance(post["optuna_versions"], list), f"optuna_versions is not a list in {path}"
     assert all(
