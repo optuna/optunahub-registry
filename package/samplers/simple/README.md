@@ -3,7 +3,7 @@ author: Optuna team
 title: Simple Sampler
 description: An easy sampler base class to implement custom samplers.
 tags: [sampler, development]
-optuna_versions: ['3.6']
+optuna_versions: [3.6.1]
 license: MIT License
 ---
 
