@@ -71,6 +71,3 @@ The performance of PFNs4BO with the HEBO+ prior is maximized with the number of 
 Samuel Müller, Matthias Feurer, Noah Hollmann, and Frank Hutter. 2023. PFNs4BO: in-context learning for Bayesian optimization. In Proceedings of the 40th International Conference on Machine Learning (ICML'23), Vol. 202. JMLR.org, Article 1056, 25444–25470.
 
 See the [paper](https://arxiv.org/abs/2305.17535) for more details.
-
-```
-```
