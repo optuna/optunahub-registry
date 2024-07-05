@@ -11,7 +11,6 @@ license: MIT License
 This is an example of the frontmatters.
 All columns must be string.
 You can omit quotes when value types are not ambiguous.
-However, quotes are required in ambiguous cases, e.g., '3.5' must not be 3.5.
 For tags, a package placed in
 - package/samplers/ must include the tag "sampler"
 - package/visualilzation/ must include the tag "visualization"
@@ -23,7 +22,7 @@ author: Optuna team
 title: My Sampler
 description: A description for My Sampler.
 tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
-optuna_versions: ['3.5', 3.6.1]
+optuna_versions: [3.6.1]
 license: "MIT License"
 ---
 -->
