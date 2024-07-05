@@ -1,21 +1,24 @@
 ---
-author: "Please fill in the author name here."
-title: "Please fill in the title of the feature here."
-description: "Please fill in the description of the feature here."
-tags: ["Please fill in the list of tags here."]
-optuna_versions: ["Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1."]
-license: "MIT License"
+author: Please fill in the author name here.
+title: Please fill in the title of the feature here.
+description: Please fill in the description of the feature here.
+tags: [Please fill in the list of tags here.]
+optuna_versions: ['Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1.']
+license: MIT License
 ---
 
 <!--
 This is an example of the frontmatters.
+All columns must be string.
+You can omit quotes when value types are not ambiguous.
+However, quotes are required in ambiguous cases, e.g., '3.5' must not be 3.5.
 
 ---
-author: "Optuna team"
-title: "My Sampler"
-description: "A description for My Sampler."
-tags: ["sampler", "2nd tag for My Sampler", "3rd tag for My Sampler"]
-optuna_versions: ["3.5.0", "3.6.1"]
+author: Optuna team
+title: My Sampler
+description: A description for My Sampler.
+tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
+optuna_versions: ['3.5', 3.6.1]
 license: "MIT License"
 ---
 -->
@@ -25,16 +28,20 @@ You can find more detailed explanation of the following contents in the tutorial
 Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
 
 ## Class or Function Names
+
 Please fill in the class/function name which you implement here.
 
 ## Installation
+
 If you have additional dependencies, please fill in the installation guide here.
 If no additional dependencies is required, this section can be removed.
 
 ## Example
+
 Please fill in the code snippet to use the implemented feature here.
 
 ## Others
+
 Please fill in any other information if you have here by adding child sections (###).
 If there is no additional information, this section can be removed.
 
