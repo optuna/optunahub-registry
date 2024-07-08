@@ -8,7 +8,7 @@ license: "MIT License"
 ---
 
 ## Class or Function Names
-- CatCMASampler
+- CatCmaSampler
 
 ## Installation
 ```bash
