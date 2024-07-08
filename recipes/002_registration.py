@@ -49,6 +49,13 @@ You can check them by running the `pre-commit <https://pre-commit.com/>`__ tool 
     pre-commit install
     pre-commit run  # This will run all checks against currently staged files.
 
+Although we recommend you write proper type hints, if you find it difficult to comply with mypy, you can omit the check by writing the following directive as the first line of your code.
+
+.. code-block:: python
+
+  # mypy: ignore-errors
+
+
 `README.md` must contain the following sections:
 
 - A header section written in the following format:
@@ -56,20 +63,20 @@ You can check them by running the `pre-commit <https://pre-commit.com/>`__ tool 
   .. code-block:: markdown
 
       ---
-      author: 'Optuna team'
-      title: 'Demo Sampler'
-      description: 'Demo Sampler of OptunaHub'
-      tags: ['sampler']
-      optuna_versions: ['3.6.1']
-      license: 'MIT License'
+      author: Optuna team
+      title: Demo Sampler
+      description: Demo Sampler of OptunaHub
+      tags: [sampler]
+      optuna_versions: [3.6.1]
+      license: MIT License
       ---
 
-  - `author`: The author of the package. It can be your name or your organization name.
-  - `title`: The package title. It should not be a class/function name but a human-readable name. For example, `Demo Sampler` is a good title, but `DemoSampler` is not.
-  - `description`: A brief description of the package. It should be a one-sentence summary of the package.
-  - `tags`: The package tags. It should be a list of strings. The tags must include `sampler` or `visualization` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
-  - `optuna_versions`: A list of Optuna versions that the package supports. It should be a list of strings. For example, "['3.5.0', '3.6.1']".
-  - `license`: The license of the package. It should be a string. For example, `'MIT License'`. The license must be `MIT License` in the current version of OptunaHub.
+  - `author` (string): The author of the package. It can be your name or your organization name.
+  - `title` (string): The package title. It should not be a class/function name but a human-readable name. For example, `Demo Sampler` is a good title, but `DemoSampler` is not.
+  - `description` (string): A brief description of the package. It should be a one-sentence summary of the package.
+  - `tags` (list[string]): The package tags. It should be a list of strings. The tags must include `sampler`, `visualization`, or `pruner` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
+  - `optuna_versions` (list[string]): A list of Optuna versions that the package supports. It should be a list of strings. You can find your Optuna version with `python -c 'import optuna; print(optuna.__version__)'`.
+  - `license` (string): The license of the package. It should be a string. For example, `MIT License`. The license must be `MIT License` in the current version of OptunaHub.
 
 - `Class or Function Names` section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can simply write the class or function name. Note that the documentation of the classes or functions must be written in their docstrings. If you want to refer to the documentation, please leave the source code link, or write them in the following `Others` section. For example:
 
@@ -103,5 +110,9 @@ You can check them by running the `pre-commit <https://pre-commit.com/>`__ tool 
       - [Source Code](Link/to/the/source/code)
 
 It is highly recommended that you confirm your package works properly (cf. :doc:`005_debugging`) before making a pull request.
+
+Before making a pull request, please ensure the code examples in README.md and example.py do not contain your local directory and/or your fork of the registry.
+Code such as ``load_local_module("your_package", registry_root=”your_local_directory”)`` or ``load_module("your_package_name", repo_owner=”your_github_id”, ref=”your_working_branch”)`` should be ``load_module("your_package_name")``.
+
 After merging your pull request, your package will be available on the `OptunaHub <https://hub.optuna.org/>`__ in about 1 hour.
 """

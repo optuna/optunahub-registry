@@ -15,7 +15,7 @@ If you want to implement algorithms other than a sampler, please refer to the ot
 
 Usually, Optuna provides `BaseSampler` class to implement your own sampler.
 However, it is a bit complicated to implement a sampler from scratch.
-Instead, in OptunaHub, you can use `samplers/simple/SimpleBaseSampler` class, which is a sampler template that can be easily extended.
+Instead, in OptunaHub, you can use `samplers/simple/SimpleBaseSampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simple/__init__.py>`__ class, which is a sampler template that can be easily extended.
 
 You need to install `optuna` to implement your own sampler, and `optunahub` to use the template `SimpleBaseSampler`.
 
@@ -80,19 +80,21 @@ class MySampler(SimpleBaseSampler):  # type: ignore
             elif isinstance(d, optuna.distributions.IntDistribution):
                 params[n] = self._rng.randint(d.low, d.high)
             elif isinstance(d, optuna.distributions.CategoricalDistribution):
-                params[n] = d.choices[0]
+                params[n] = d.choices[self._rng.randint(len(d.choices))]
             else:
                 raise NotImplementedError
         return params
 
 
 ###################################################################################################
-# In this example, the objective function is a simple quadratic function.
+# Here, as an example, the objective function is defined as follows.
 
 
 def objective(trial: optuna.trial.Trial) -> float:
     x = trial.suggest_float("x", -10, 10)
-    return x**2
+    y = trial.suggest_int("y", -10, 10)
+    z = trial.suggest_categorical("z", ["a", "b", "c"])
+    return x**2 + y**2 + {"a": -10, "b": 0, "c": 10}[z] ** 2
 
 
 ###################################################################################################
@@ -103,20 +105,27 @@ study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
 
 ###################################################################################################
-# The best parameter can be fetched as follows.
+# The best parameters can be fetched as follows.
 
 best_params = study.best_params
-found_x = best_params["x"]
-print(f"Found x: {found_x}, (x - 2)^2: {(found_x - 2) ** 2}")
+best_value = study.best_value
+print(f"Best params: {best_params}, Best value: {best_value}")
 
 ###################################################################################################
-# We can see that ``x`` value found by Optuna is close to the optimal value ``2``.
+# We can see that ``best_params`` value found by Optuna is close to the optimal value ``{"x":0, "y": 0, "z": "b"}``.
 
 ###################################################################################################
 # In the above examples, search space is estimated at the first trial and updated dynamically through optimization.
 # If your sampler requires the search space to be fixed before optimization, you can pass the search space to the sampler at initialization.
 # Passing the search space also allows the sampler to avoid the overhead of estimating the search space.
-sampler = MySampler({"x": optuna.distributions.FloatDistribution(-10, 10)})
+# See `the documentation <https://optuna.readthedocs.io/en/stable/reference/distributions.html>`__ for more information about the optuna.distributions to define search space.
+sampler = MySampler(
+    search_space={
+        "x": optuna.distributions.FloatDistribution(-10, 10),
+        "y": optuna.distributions.IntDistribution(-10, 10),
+        "z": optuna.distributions.CategoricalDistribution(["a", "b", "c"]),
+    }
+)
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
 

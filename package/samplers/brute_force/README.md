@@ -1,16 +1,18 @@
 ---
-author: 'Optuna team'
-title: 'Brute Force Search'
-description: 'Sampler using brute force.'
-tags: ['sampler', 'built-in']
-optuna_versions: ['3.6.1']
-license: 'MIT License'
+author: Optuna team
+title: Brute Force Search
+description: Sampler using brute force.
+tags: [sampler, built-in]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - BruteForceSampler
 
 ## Example
+
 ```python
 import optuna
 from optuna.samplers import BruteForceSampler
@@ -27,5 +29,5 @@ study.optimize(objective, n_trials=10)
 ```
 
 ## Others
-See the [documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.BruteForceSampler.html) for more details.
 
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.BruteForceSampler.html) for more details.
