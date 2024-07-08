@@ -1,16 +1,18 @@
 ---
-author: 'Optuna team'
-title: 'Grid Search'
-description: 'Sampler using grid search.'
-tags: ['sampler', 'built-in']
-optuna_versions: ['3.6.1']
-license: 'MIT License'
+author: Optuna team
+title: Grid Search
+description: Sampler using grid search.
+tags: [sampler, built-in]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - GridSampler
 
 ## Example
+
 ```python
 import optuna
 from optuna.samplers import GridSampler
@@ -29,4 +31,5 @@ study.optimize(objective)
 ```
 
 ## Others
+
 See the [documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.GridSampler.html) for more details.

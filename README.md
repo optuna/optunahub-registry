@@ -1,6 +1,4 @@
-
-OptunaHub Registry
-==================
+# OptunaHub Registry
 
 OptunaHub Registry is a registry service for sharing and discovering user-defined Optuna packages. It provides a platform for users to share their Optuna packages with others and discover useful packages created by other users.
 

@@ -1,16 +1,18 @@
 ---
-author: 'Optuna team'
-title: 'NSGAII Search'
-description: 'Sampler using NSGAII algotithm.'
-tags: ['sampler', 'built-in']
-optuna_versions: ['3.6.1']
-license: 'MIT License'
+author: Optuna team
+title: NSGAII Search
+description: Sampler using NSGAII algotithm.
+tags: [sampler, built-in]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - NSGAIISampler
 
 ## Example
+
 ```python
 import optuna
 from optuna.samplers import NSGAIISampler
@@ -27,5 +29,5 @@ study.optimize(objective, n_trials=10)
 ```
 
 ## Others
-See the [documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.NSGAIISampler.html) for more details.
 
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.NSGAIISampler.html) for more details.

@@ -1,16 +1,18 @@
 ---
-author: 'Optuna team'
-title: 'Median Pruner'
-description: 'Pruner using the median stopping rule.'
-tags: ['pruner', 'built-in']
-optuna_versions: ['3.6.1']
-license: 'MIT License'
+author: Optuna team
+title: Median Pruner
+description: Pruner using the median stopping rule.
+tags: [pruner, built-in]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - MedianPruner
 
 ## Example
+
 ```python
 import optuna
 from optuna.pruners import MedianPruner
@@ -33,5 +35,5 @@ study.optimize(objective, n_trials=20)
 ```
 
 ## Others
-See the [documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.pruners.MedianPruner.html) for more details.
 
+See the [documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.pruners.MedianPruner.html) for more details.
