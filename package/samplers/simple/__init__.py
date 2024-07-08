@@ -12,8 +12,11 @@ from optuna.trial import FrozenTrial
 
 
 class SimpleBaseSampler(BaseSampler, abc.ABC):
-    def __init__(self, search_space: dict[str, BaseDistribution] | None = None) -> None:
+    def __init__(
+        self, search_space: dict[str, BaseDistribution] | None = None, seed: int | None = None
+    ) -> None:
         self.search_space = search_space
+        self._seed = seed
         self._init_defaults()
 
     def infer_relative_search_space(
@@ -50,9 +53,12 @@ class SimpleBaseSampler(BaseSampler, abc.ABC):
         # By default, parameter values are sampled by ``optuna.samplers.RandomSampler``.
         return self._default_sample_independent(study, trial, param_name, param_distribution)
 
+    def reseed_rng(self) -> None:
+        self._default_reseed_rng()
+
     def _init_defaults(self) -> None:
         self._intersection_search_space = IntersectionSearchSpace()
-        self._random_sampler = RandomSampler()
+        self._random_sampler = RandomSampler(seed=self._seed)
 
     def _default_infer_relative_search_space(
         self, study: Study, trial: FrozenTrial
@@ -81,3 +87,6 @@ class SimpleBaseSampler(BaseSampler, abc.ABC):
         return self._random_sampler.sample_independent(
             study, trial, param_name, param_distribution
         )
+
+    def _default_reseed_rng(self) -> None:
+        self._random_sampler.reseed_rng()
