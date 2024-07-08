@@ -1,21 +1,24 @@
 ---
-author: "Masahiro Nomura"
-title: "CatCMA Sampler"
-description: "Categorical and Continuous Optimization with CMA-ES."
-tags: ["sampler", "Mixed-variable optimization", "Evolutionary algorithms", "CMA-ES"]
-optuna_versions: ["3.6.1"]
-license: "MIT License"
+author: Masahiro Nomura
+title: CatCMA Sampler
+description: Categorical and Continuous Optimization with CMA-ES.
+tags: [sampler, Mixed-variable optimization, Evolutionary algorithms, CMA-ES]
+optuna_versions: [3.6.1]
+license: MIT License
 ---
 
 ## Class or Function Names
+
 - CatCmaSampler
 
 ## Installation
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Example
+
 ```python
 import numpy as np
 import optuna
@@ -75,8 +78,8 @@ Ryoki Hamano, Shota Saito, Masahiro Nomura, Kento Uchida, Shinichi Shirakawa , C
 
 See the [paper](https://arxiv.org/abs/2405.09962) for more details.
 
-
 ### BibTeX
+
 ```bibtex
 @article{hamano2024catcma,
   title={CatCMA: Stochastic Optimization for Mixed-Category Problems},
@@ -85,4 +88,3 @@ See the [paper](https://arxiv.org/abs/2405.09962) for more details.
   year={2024}
 }
 ```
-
