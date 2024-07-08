@@ -110,5 +110,9 @@ Although we recommend you write proper type hints, if you find it difficult to c
       - [Source Code](Link/to/the/source/code)
 
 It is highly recommended that you confirm your package works properly (cf. :doc:`005_debugging`) before making a pull request.
+
+Before making a pull request, please ensure the code examples in README.md and example.py do not contain your local directory and/or your fork of the registry.
+Code such as ``load_local_module("your_package", registry_root=”your_local_directory”)`` or ``load_module("your_package_name", repo_owner=”your_github_id”, ref=”your_working_branch”)`` should be ``load_module("your_package_name")``.
+
 After merging your pull request, your package will be available on the `OptunaHub <https://hub.optuna.org/>`__ in about 1 hour.
 """
