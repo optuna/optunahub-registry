@@ -112,7 +112,7 @@ best_value = study.best_value
 print(f"Best params: {best_params}, Best value: {best_value}")
 
 ###################################################################################################
-# We can see that ``best_params`` value found by Optuna is close to the optimal value ``{'x':0, 'y': 0, 'z': 'b'}``.
+# We can see that ``best_params`` value found by Optuna is close to the optimal value ``{"x":0, "y": 0, "z": "b"}``.
 
 ###################################################################################################
 # In the above examples, search space is estimated at the first trial and updated dynamically through optimization.
