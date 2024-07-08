@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import numpy as np
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import SGDClassifier
-
 import optuna
 import optunahub
+from sklearn.datasets import load_iris
+from sklearn.linear_model import SGDClassifier
+from sklearn.model_selection import train_test_split
 
 
-# module = optunahub.load_module("samplers/dehb")
-module = optunahub.load_local_module("samplers/dehb", registry_root="/mnt/nfs-mnj-home-43/mamu/optunahub-registry/package")
+module = optunahub.load_module("samplers/dehb")
 DEHBSampler = module.DEHBSampler
 DEHBPruner = module.DEHBPruner
+
+module = optunahub.load_module("visualization/plot_step_distribution")
 plot_step_distribution = module.plot_step_distribution
 
 X, y = load_iris(return_X_y=True)
@@ -39,9 +39,6 @@ def objective(trial: optuna.Trial) -> float:
 
 if __name__ == "__main__":
     sampler = DEHBSampler()
-    # sampler = optuna.samplers.TPESampler()
-    # sampler = optuna.samplers.RandomSampler()
-    # sampler = optuna.samplers.CmaEsSampler()
     pruner = DEHBPruner(min_resource=1, max_resource=n_train_iter, reduction_factor=3)
     study = optuna.create_study(sampler=sampler, pruner=pruner)
     study.optimize(objective, n_trials=1000)
