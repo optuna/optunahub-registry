@@ -15,7 +15,7 @@ If you want to implement algorithms other than a sampler, please refer to the ot
 
 Usually, Optuna provides `BaseSampler` class to implement your own sampler.
 However, it is a bit complicated to implement a sampler from scratch.
-Instead, in OptunaHub, you can use `samplers/simple/SimpleBaseSampler` class, which is a sampler template that can be easily extended.
+Instead, in OptunaHub, you can use `samplers/simple/SimpleBaseSampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simple/__init__.py>`__ class, which is a sampler template that can be easily extended.
 
 You need to install `optuna` to implement your own sampler, and `optunahub` to use the template `SimpleBaseSampler`.
 
