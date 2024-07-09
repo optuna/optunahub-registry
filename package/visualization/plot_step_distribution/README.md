@@ -41,6 +41,8 @@ $ pip install plotly
 
 ## Example
 
+This plot shows how many steps (budget, epoch, iterations, etc.) were consumed before pruning occurred for each trial.
+
 ```python
 fig = plot_step_distribution(study)
 ```
