@@ -2,7 +2,7 @@
 author: Hideaki Imamura
 title: Differential Evolution with Hyperband (DEHB) Sampler
 description: A sampler for differential evolution with Hyperband.
-tags: [sampler, pruner, hyper parameter optimization, differential evolution, hyperband]
+tags: [sampler, pruner, hyperparameter optimization, differential evolution, hyperband]
 optuna_versions: [3.6.1]
 license: MIT License
 ---
@@ -39,3 +39,5 @@ The following figures are obtained from the analysis of the optimization.
 ### References
 
 Awad, N. H., Mallik, N., & Hutter, F. (2021). DEHB: Evolutionary hyberband for scalable, robust and efficient hyperparameter optimization. In Z. Zhou (Ed.), Proceedings of the Thirtieth International Joint Conference on Artificial Intelligence (IJCAI-21) (pp. 2147–2153).
+
+See the [paper](https://arxiv.org/abs/2105.09821) for more details.

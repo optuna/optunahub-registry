@@ -113,9 +113,6 @@ class DEHBSampler(BaseSampler):
         search_space: dict[str, BaseDistribution] = {}
         for name, distribution in self._search_space.calculate(study).items():
             if distribution.single():
-                # `cma` cannot handle distributions that contain just a single value, so we skip
-                # them. Note that the parameter values for such distributions are sampled in
-                # `Trial`.
                 continue
             search_space[name] = distribution
 
