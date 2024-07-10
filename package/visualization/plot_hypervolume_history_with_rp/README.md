@@ -21,4 +21,4 @@ mod.plot_hypervolume_history(study, reference_point)
 See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/visualization/plot_hypervolume_history_with_rp/example.py) for more details.
 The example of generated image is as follows.
 
-![Example](images/example.png "Example")
+![Example](images/thumbnail.png "Example")
