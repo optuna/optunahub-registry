@@ -28,6 +28,10 @@ for sampler in samplers:
 
 reference_point = [100.0, 50.0]
 
-m = optunahub.load_module("visualization/plot_hypervolume_history_multi")
+m = optunahub.load_module(
+    "visualization/plot_hypervolume_history_multi",
+    repo_owner="y0z",
+    ref="feature/plot_hv_multi",
+)
 fig = m.plot_hypervolume_history(studies, reference_point)
 fig.show()
