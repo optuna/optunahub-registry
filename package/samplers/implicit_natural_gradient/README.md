@@ -1,8 +1,8 @@
 ---
 author: Yuhei Otomo and Masashi Shibata
-title: Implicit Natural Gradient Sampler
+title: Implicit Natural Gradient Sampler (INGO)
 description: A sampler based on Implicit Natural Gradient.
-tags: [sampler]
+tags: [sampler, natural gradient]
 optuna_versions: [3.6.1]
 license: MIT License
 ---
