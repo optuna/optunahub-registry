@@ -18,6 +18,8 @@ study = optuna.create_study(pruner=optuna.pruners.WilcoxonPruner(p_threshold=0.1
 study.optimize(objective, n_trials=100)
 ```
 
+See [example.py](https://github.com/optuna/optunahub-registry/blob/main/package/pruners/wilcoxon/example.py) for a full example.
+
 ## Others
 
 See the [documentation](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.pruners.WilcoxonPruner.html) for more details.
