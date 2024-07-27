@@ -30,7 +30,8 @@ license: MIT License
 ## Example
 
 Implementation of BBO-Rietveld, automated crystal structure analysis method based on blackbox optimisation.\
-![The schematic figure of BBO-Rietveld](https://gist.githubusercontent.com/resnant/32aed77b71f71d798a847fab16431315/raw/cadacc758e000e1dc7d7e4d0253512f8b83b4e88/bbo_rietveld_schematic.jpg)
+![The schematic figure of BBO-Rietveld](images/bbo_rietveld_schematic.png)
+This image is taken from [the BBO-Rietveld paper](https://www.nature.com/articles/s41524-020-0330-9) under a Creative Commons Attribution 4.0 International License.
 
 To execute following example, please make directory `Y2O3_data` in the same directory of this code and copy `Y2O3.cif`, `Y2O3.csv`, `INST_XRY.PRM` from https://github.com/quantumbeam/BBO-Rietveld/tree/master/data/Y2O3 into `Y2O3_data`.
 
