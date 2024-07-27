@@ -7,6 +7,9 @@ from typing import Callable
 from typing import Optional
 from typing import Sequence
 
+import matplotlib
+from matplotlib.gridspec import GridSpec
+import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 from optuna.distributions import CategoricalChoiceType
@@ -38,11 +41,10 @@ class Project:
     def __init__(self, config: ProjectConfig, trial_number: int):
         import GSASIIscriptable as G2sc
 
-        self.gpx = G2sc.G2Project(
-            newgpx=os.path.join(
-                config.work_dir, f"project_seed{config.random_seed}_trial_{trial_number}.gpx"
-            )
+        self.gpx_path = os.path.join(
+            config.work_dir, f"project_seed{config.random_seed}_trial_{trial_number}.gpx"
         )
+        self.gpx = G2sc.G2Project(newgpx=self.gpx_path)
 
         self.hist1 = self.gpx.add_powder_histogram(
             os.path.join(config.data_dir, config.powder_histogram_file),
@@ -168,8 +170,10 @@ def create_objective(config: ProjectConfig) -> Callable[[optuna.Trial], float]:
         ]
 
         def evaluate(
-            config: ProjectConfig, trial_number: int, refine_params_list: list[dict]
+            config: ProjectConfig, trial: optuna.Trial, refine_params_list: list[dict]
         ) -> float:
+            trial_number = trial.number
+
             ERROR_PENALTY: float = 1e9
             try:
                 _logger.info(config)
@@ -177,6 +181,7 @@ def create_objective(config: ProjectConfig) -> Callable[[optuna.Trial], float]:
                 _logger.info(refine_params_list)
 
                 project = Project(config, trial_number)
+                trial.set_user_attr("gpx_path", project.gpx_path)
                 for params in refine_params_list:
                     Rwp = project.refine_and_calc_Rwp(params)
                 # validate Uiso >= 0
@@ -193,7 +198,7 @@ def create_objective(config: ProjectConfig) -> Callable[[optuna.Trial], float]:
 
                 return ERROR_PENALTY
 
-        Rwp = evaluate(config, trial.number, refine_params_list)
+        Rwp = evaluate(config, trial, refine_params_list)
         return Rwp
 
     return objective
@@ -240,33 +245,35 @@ class BboRietveldSampler(optuna.samplers.TPESampler):
         )
 
 
-def main() -> None:
-    STUDY_NAME = "Y2O3"
+def rietveld_plot(config: ProjectConfig, gpx_path: str) -> matplotlib.figure.Figure:
+    import GSASIIscriptable as G2sc
 
-    config = ProjectConfig(
-        random_seed=1024,
-        work_dir="work/" + STUDY_NAME,
-        data_dir="Y2O3_data/",
-        cif_file="Y2O3.cif",
-        powder_histogram_file="Y2O3.csv",
-        instrument_parameter_file="INST_XRY.PRM",
-        two_theta_lower=15,
-        two_theta_upper=150,
-        two_theta_margin=20,
-        validate_Uiso_nonnegative=True,
-    )
+    gpx = G2sc.G2Project(gpx_path)
 
-    objective_fn = create_objective(config=config)
-    os.makedirs(config.work_dir, exist_ok=True)
-    study = optuna.create_study(
-        study_name=STUDY_NAME,
-        sampler=BboRietveldSampler(seed=config.random_seed, n_startup_trials=10),
-    )
+    hist = gpx.histograms()[0]
 
-    study.optimize(objective_fn, n_trials=100)
+    two_theta = hist.getdata("X")
+    Y_obs = hist.getdata("Yobs")
+    Y_calc = hist.getdata("Ycalc")
+    background = hist.getdata("Background")
+    residual = hist.getdata("Residual")
 
-    print(f"best params:\n{study.best_params}")
+    fig = plt.figure()
+    gs = GridSpec(5, 1, figure=fig)
+    ax1 = fig.add_subplot(gs[:4, :])
+    ax2 = fig.add_subplot(gs[4, :])
+    fig.subplots_adjust(hspace=0)
+    ax1.grid(color="#cccccc")
 
-
-if __name__ == "__main__":
-    main()
+    ax1.scatter(two_theta, Y_obs, marker="P", lw=0.0001, c="Black", label="XRD (Obs)")
+    ax1.plot(two_theta, Y_calc, label="XRD (Calc)")
+    ax1.plot(two_theta, background, color="red", label="Background (Calc)")
+    ax1.set_ylabel("Intensity")
+    ax1.legend()
+    ax2.plot(two_theta, residual, color="blue")
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.xlabel(r"$2\theta$ (deg.)")
+    ax2.set_ylabel("Residual")
+    ax1.set_xlim(config.two_theta_lower, config.two_theta_upper)
+    ax2.set_xlim(config.two_theta_lower, config.two_theta_upper)
+    return fig
