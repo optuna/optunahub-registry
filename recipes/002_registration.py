@@ -38,7 +38,7 @@ The created directory should include the following files:
 - `LICENSE`: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version of OptunaHub.
 - `example.py`: This is optional. This file should contain a simple example of how to use your algorithm (Example: `example.py for Simulated Annealing Sampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simulated_annealing/example.py>`_).
 - `requirements.txt`: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies other than Optuna and OptunaHub, you do not need to create this file.
-- `images`: This is optional. A directory that contains images. The images in this directory will be used the `web page of OptunaHub <https://hub.optuna.org/>`_. `thumbnail.png` will be used as a thumbnail in the web page. Note that `README.md` can also refer to image files, e.g. `images/screenshot.png`,  in this directory.
+- `images`: This is optional. A directory that contains images. Only relative references to images in this directory are allowed in README.md - for example, absolute paths to images on external sites are not allowed. The first image that appears in README.md will be used as the thumbnail.
 
 All files must pass linter and formetter checks to be merged to the optunahub-registry repository.
 You can check them by running the `pre-commit <https://pre-commit.com/>`__ tool as follows.
