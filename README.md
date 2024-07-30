@@ -16,7 +16,7 @@ When creating your package, please check the following TODO list:
 - Check whether your module works as intended based on the  tips below
 - Fill out `README.md`
 
-> [!TIPS]
+> [!TIP]
 > The following formatting is a requirement to merge this PR:
 >
 > ```shell
