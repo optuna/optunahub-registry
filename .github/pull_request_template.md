@@ -14,3 +14,12 @@ Please read the [contributor agreements](https://github.com/optuna/optunahub-reg
 ## Description of the changes
 
 <!-- Describe the changes in this PR. -->
+
+## TODO List towards PR Merge
+
+- [ ] Copy `./template/` to create your package
+- [ ] Replace `<COPYRIGHT HOLDER>` in `LICENSE` of your package with your name
+- [ ] Fill out `README.md` in your package
+- [ ] Add import statements of your function or class names to be used in `__init__.py`
+- [ ] Apply the formatter based on the tips in [`README.md`](https://github.com/optuna/optunahub-registry/tree/main)
+- [ ] Check whether your module works as intended based on the tips in [`README.md`](https://github.com/optuna/optunahub-registry/tree/main)
