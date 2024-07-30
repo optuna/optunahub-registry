@@ -6,7 +6,7 @@ See the [OptunaHub Website](https://hub.optuna.org/) for registered packages.
 
 See also the [OptunaHub API documentation](https://optuna.github.io/optunahub/) for the API to use the registry, and the [OptunaHub tutorial](https://optuna.github.io/optunahub-registry/) for how to register and discover packages.
 
-## TODO List towards Contribution
+## Quick TODO List towards Contribution
 
 When creating your package, please check the following TODO list:
 
@@ -16,8 +16,10 @@ When creating your package, please check the following TODO list:
 - Check whether your module works as intended based on the  tips below
 - Fill out `README.md`
 
+For more details, please check [OptunaHub tutorial](https://optuna.github.io/optunahub-registry/).
+
 > [!TIP]
-> The following formatting is a requirement to merge this PR:
+> The following formatting is a requirement to merge your feature PR:
 >
 > ```shell
 > $ pip install pre-commit

@@ -4,36 +4,8 @@ Please read the [contributor agreements](https://github.com/optuna/optunahub-reg
 
 - [ ] I agree to the contributor agreements.
 
-## TODO List
-
-- [ ] Copy `./template/` to create your package
-- [ ] Replace `<COPYRIGHT HOLDER>` in `LICENSE` of your package with your name
-- [ ] Apply the formatter based on the tips below
-- [ ] Check whether your module works as intended based on the  tips below
-- [ ] Fill out `README.md`
-
 > [!TIP]
-> The following formatting is a requirement to merge this PR:
->
-> ```shell
-> $ pip install pre-commit
-> $ pre-commit run --all-files
-> ```
->
-> Please also try the following to make sure that your module can be loaded from the registry:
->
-> ```python
-> import optunahub
->
-> module = optunahub.load_module(
->     # category is one of [pruners, samplers, visualization].
->     package="<category>/<your_package_name>",
->     repo_owner="<your_github_id>",
->     ref="<your_branch_name>",
-> )
-> ```
->
-> For more detail, please check [the tutorial](https://optuna.github.io/optunahub-registry/recipes/005_debugging.html).
+> Please follow the [Quick TODO list](https://github.com/optuna/optunahub-registry/tree/main) to smoothly merge your PR.
 
 ## Motivation
 
