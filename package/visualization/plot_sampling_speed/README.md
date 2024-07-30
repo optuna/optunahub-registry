@@ -2,7 +2,7 @@
 author: Shuhei Watanabe
 title: Plot the Sampling Speed Benchmark to Compare Multiple Samplers
 description: With this visualization module, we can compare the samplers speed over multiple studies.
-tags: [visualization,benchmarking,runtime]
+tags: [visualization, benchmarking, runtime]
 optuna_versions: [3.6.1]
 license: MIT License
 ---

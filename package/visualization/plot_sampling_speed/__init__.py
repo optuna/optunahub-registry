@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import linregress
-
 import optuna
+from scipy.stats import linregress
 
 
 if TYPE_CHECKING:
