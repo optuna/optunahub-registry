@@ -2,17 +2,17 @@
 
 Please read the [contributor agreements](https://github.com/optuna/optunahub-registry/blob/main/CONTRIBUTING.md#contributor-agreements) and if you agree, please click the checkbox below.
 
-- \[ \] I agree to the contributor agreements.
+- [ ] I agree to the contributor agreements.
 
 ## TODO List
 
-- \[ \] Copy `./template/` to create your package
-- \[ \] Replace `<COPYRIGHT HOLDER>` in `LICENSE` of your package with your name
-- \[ \] Apply the formatter based on the tips below
-- \[ \] Check whether your module works as intended based on the  tips below
-- \[ \] Fill out `README.md`
+- [ ] Copy `./template/` to create your package
+- [ ] Replace `<COPYRIGHT HOLDER>` in `LICENSE` of your package with your name
+- [ ] Apply the formatter based on the tips below
+- [ ] Check whether your module works as intended based on the  tips below
+- [ ] Fill out `README.md`
 
-> \[!TIPS\]
+> [!TIPS]
 > The following formatting is a requirement to merge this PR:
 >
 > ```shell
