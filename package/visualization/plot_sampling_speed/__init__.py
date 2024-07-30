@@ -13,11 +13,6 @@ if TYPE_CHECKING:
     from matplotlib.axes._axes import Axes
 
 
-def objective(trial: optuna.Trial) -> float:
-    x = trial.suggest_float("x", -5, 5)
-    return x**2
-
-
 def _extract_elapsed_times(studies: dict[str, list[optuna.Study]]) -> dict[str, list[list[float]]]:
     elapsed_times: dict[str, list[list[float]]] = {}
     for label, target_studies in studies.items():
