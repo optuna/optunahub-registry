@@ -1,8 +1,8 @@
 ---
-author: Please fill in the author name here.
-title: Please fill in the title of the feature here.
-description: Please fill in the description of the feature here.
-tags: [Please fill in the list of tags here.]
+author: Please fill in the author name here. (e.g., John Smith)
+title: Please fill in the title of the feature here. (e.g., Gaussian-Process Expected Improvement Sampler)
+description: Please fill in the description of the feature here. (e.g., This sampler searches for each trial based on expected improvement using Gaussian process.)
+tags: [Please fill in the list of tags here. (e.g., sampler, visualization, pruner)]
 optuna_versions: ['Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1.']
 license: MIT License
 ---
@@ -33,21 +33,48 @@ Looking at [other packages' implementations](https://github.com/optuna/optunahub
 
 ## Class or Function Names
 
-Please fill in the class/function name which you implement here.
+Please fill in the class/function names which you implement here.
+
+**Example**
+
+- GPSampler
 
 ## Installation
 
 If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, this section can be removed.
+If no additional dependencies is required, **this section can be removed**.
+
+**Example**
+
+```shell
+$ pip install scipy torch
+```
 
 ## Example
 
 Please fill in the code snippet to use the implemented feature here.
 
+**Example**
+
+```python
+import optuna
+import optunahub
+
+
+def objective(trial):
+  x = trial.suggest_float("x", -5, 5)
+  return x**2
+
+
+sampler = optunahub.load_module(package="samplers/gp").GPSampler()
+study = optuna.create_study(sampler=sampler)
+study.optimize(objective, n_trials=100)
+```
+
 ## Others
 
 Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, this section can be removed.
+If there is no additional information, **this section can be removed**.
 
 <!--
 For example, you can add sections to introduce a corresponding paper.
