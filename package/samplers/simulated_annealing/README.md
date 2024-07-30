@@ -19,6 +19,7 @@ sampler = mod.SimulatedAnnealingSampler()
 ```
 
 See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simulated_annealing/example.py) for more details.
+You can run the [example in Google Colab](http://colab.research.google.com/github/optuna/optunahub-registry/blob/main/package/samplers/simulated_annealing/example.ipynb).
 
 ## Others
 
