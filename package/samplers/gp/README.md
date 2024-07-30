@@ -14,7 +14,7 @@ license: MIT License
 ## Installation
 
 ```bash
-pip install scipy pytorch
+pip install scipy torch
 ```
 
 ## Example
