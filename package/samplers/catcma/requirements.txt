@@ -1,1 +1,1 @@
-cmaes@git+https://github.com/CyberAgentAILab/cmaes.git@main
+cmaes>=0.11.0
