@@ -125,7 +125,7 @@ class ImplicitNaturalGradientSampler(BaseSampler):
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._n_startup_trials = n_startup_trials
         self._warn_independent_sampling = warn_independent_sampling
-        self._search_space = optuna.samplers.IntersectionSearchSpace()
+        self._search_space = optuna.search_space.IntersectionSearchSpace()
         self._optimizer: Optional[FastINGO] = None
         self._seed = seed
         self._population_size = population_size
