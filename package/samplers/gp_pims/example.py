@@ -5,7 +5,7 @@ import optuna
 import optunahub
 
 
-def f(x):
+def f(x: np.ndarray) -> float:
     return -np.sin(3 * np.sum(x**2)) - np.sum(x**2) ** 2 + 0.7 * np.sum(x**2)
 
 
@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     PIMSSampler = mod.PIMSSampler
 
-    def objective(trial):
+    def objective(trial: optuna.Trial) -> float:
         x = trial.suggest_float("x", 0, 1)
         y = trial.suggest_float("y", 0, 1)
         return f(np.asarray([x, y]))

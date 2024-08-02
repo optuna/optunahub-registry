@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from abc import abstractmethod
-
-#########################################################################################
+from abc.collections import Callable
 import time
 from typing import Any
 
@@ -16,15 +15,14 @@ from scipy import optimize
 from scipy.stats import qmc
 
 
-#########################################################################################
-
-
 class RFM_RBF:
     """
     rbf(gaussian) kernel of GPy k(x, y) = variance * exp(- 0.5 * ||x - y||_2^2 / lengthscale**2)
     """
 
-    def __init__(self, lengthscales, input_dim, variance=1, basis_dim=1000):
+    def __init__(
+        self, lengthscales: float, input_dim: int, variance: float = 1, basis_dim: int = 1000
+    ) -> None:
         self.basis_dim = basis_dim
         self.std = np.sqrt(variance)
         self.random_weights = (1 / np.atleast_2d(lengthscales)) * np.random.normal(
@@ -32,17 +30,13 @@ class RFM_RBF:
         )
         self.random_offset = np.random.uniform(0, 2 * np.pi, size=basis_dim)
 
-    def transform(self, X):
+    def transform(self, X: np.ndarray) -> np.ndarray:
         X = np.atleast_2d(X)
         X_transform = X.dot(self.random_weights.T) + self.random_offset
         X_transform = self.std * np.sqrt(2 / self.basis_dim) * np.cos(X_transform)
         return X_transform
 
-    """
-    Xは一点のみ
-    """
-
-    def transform_grad(self, X):
+    def transform_grad(self, X: np.ndarray) -> np.ndarray:
         X = np.atleast_2d(X)
         X_transform_grad = X.dot(self.random_weights.T) + self.random_offset
         X_transform_grad = (
@@ -54,7 +48,14 @@ class RFM_RBF:
         return X_transform_grad
 
 
-def minimize(func, start_points, bounds, jac=None, first_ftol=1e-1, second_ftol=1e-2):
+def minimize(
+    func: Callable,
+    start_points: np.ndarray,
+    bounds: np.ndarray,
+    jac: Callable | None = None,
+    first_ftol: float = 1e-1,
+    second_ftol: float = 1e-2,
+) -> tuple[np.ndarray, float]:
     x = np.copy(start_points)
     func_values = list()
     for i in range(np.shape(x)[0]):
@@ -86,7 +87,14 @@ def minimize(func, start_points, bounds, jac=None, first_ftol=1e-1, second_ftol=
 
 
 class GPy_model(GPy.models.GPRegression):
-    def __init__(self, X, Y, kernel, noise_var=1e-6, normalizer=True):
+    def __init__(
+        self,
+        X: np.ndarray,
+        Y: np.ndarray,
+        kernel: GPy.kern.src.kern.Kern,
+        noise_var: float = 1e-6,
+        normalizer: bool = True,
+    ) -> None:
         super().__init__(X=X, Y=Y, kernel=kernel, noise_var=noise_var, normalizer=normalizer)
         self[".*Gaussian_noise.variance"].constrain_fixed(noise_var)
 
@@ -97,18 +105,18 @@ class GPy_model(GPy.models.GPRegression):
             self.std = 1.0
             self.mean = 0.0
 
-    def minus_predict(self, x):
+    def minus_predict(self, x: np.ndarray) -> float:
         x = np.atleast_2d(x)
         return -1 * super().predict_noiseless(x)[0]
 
-    def minus_predict_gradients(self, x):
+    def minus_predict_gradients(self, x: np.ndarray) -> np.ndarray:
         x = np.atleast_2d(x)
-        # タプルで[0]に平均の勾配, [1]に分散の勾配が返ってくる
+        # This returns a tuple with the gradient of the mean in [0] and the gradient of the variance in [1]
         # mu_jac = np.array(list(super().predictive_gradients(x))[0]).ravel()
         mu_jac = super().predictive_gradients(x)[0].ravel()
         return -1 * mu_jac
 
-    def posterior_covariance_between_points(self, X1, X2):
+    def posterior_covariance_between_points(self, X1: np.ndarray, X2: np.ndarray) -> np.ndarray:
         Kx1 = self.kern.K(X1, self.X)
         Kx2 = self.kern.K(self.X, X2)
         K12 = self.kern.K(X1, X2)
@@ -116,8 +124,8 @@ class GPy_model(GPy.models.GPRegression):
         cov = K12 - Kx1 @ self.posterior.woodbury_inv @ Kx2
         return (self.std**2) * cov
 
-    # X1とX2の共分散行列を求めるものは元からあるが, X1とX2(fidelityの特徴量以外は共通)の共分散行列の対角項だけ求めるものが欲しいため作った
-    def diag_covariance_between_points(self, X1, X2):
+    # This method is to compute the diagonal of the covariance matrix between X1 and X2.
+    def diag_covariance_between_points(self, X1: np.ndarray, X2: np.ndarray) -> np.ndarray:
         assert np.shape(X1) == np.shape(X2), "cannot compute diag (not square matrix)"
         Kx1 = self.kern.K(X1, self.X)
         Kx2 = self.kern.K(self.X, X2)
@@ -129,11 +137,11 @@ class GPy_model(GPy.models.GPRegression):
         diag_var = K12 - np.c_[np.einsum("ij,jk,ki->i", Kx1, self.posterior.woodbury_inv, Kx2)]
         return (self.std**2) * diag_var
 
-    def my_optimize(self, num_restarts=10):
+    def my_optimize(self, num_restarts: int = 10) -> None:
         super().optimize()
         super().optimize_restarts(num_restarts=num_restarts)
 
-    def add_XY(self, X, Y):
+    def add_XY(self, X: np.ndarray, Y: np.ndarray) -> None:
         new_X = np.r_[self.X, X]
         new_Y = np.r_[self.Y, Y]
 
@@ -151,8 +159,15 @@ class GPy_model(GPy.models.GPRegression):
 
 
 def set_gpy_regressor(
-    GPmodel, X, Y, kernel_bounds, noise_var=1e-6, optimize_num=10, optimize=True, normalizer=True
-):
+    GPmodel: GPy_model | None,
+    X: np.ndarray,
+    Y: np.ndarray,
+    kernel_bounds: np.ndarray,
+    noise_var: float = 1e-6,
+    optimize_num: int = 10,
+    optimize: bool = True,
+    normalizer: bool = True,
+) -> GPy_model:
     data_num, input_dim = np.shape(X)
     if GPmodel is None:
         # カーネルの設定
@@ -188,7 +203,15 @@ def set_gpy_regressor(
 class BO_core(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, X, Y, bounds, kernel_bounds, GPmodel=None, optimize=True):
+    def __init__(
+        self,
+        X: np.ndarray,
+        Y: np.ndarray,
+        bounds: np.ndarray,
+        kernel_bounds: np.ndarray,
+        GPmodel: GPy_model | None = None,
+        optimize: bool = True,
+    ) -> None:
         if GPmodel is None:
             self.GPmodel = set_gpy_regressor(GPmodel, X, Y, kernel_bounds, optimize=optimize)
         else:
@@ -201,10 +224,10 @@ class BO_core(object):
         self.sampling_num = 10
         self.inference_point = None
         self.top_number = 50
-        self.preprocessing_time = 0
+        self.preprocessing_time = 0.0
         self.max_inputs = None
 
-    def update(self, X, Y, optimize=False):
+    def update(self, X: np.ndarray, Y: np.ndarray, optimize: bool = False) -> None:
         self.GPmodel.add_XY(X, Y)
         if optimize:
             self.GPmodel.my_optimize()
@@ -213,28 +236,24 @@ class BO_core(object):
         self.unique_X = np.unique(self.GPmodel.X, axis=0)
 
     @abstractmethod
-    def acq(self, x):
+    def acq(self, x: np.ndarray) -> np.ndarray:
         pass
 
     @abstractmethod
-    def next_input_pool(self, X):
+    def next_input(self) -> np.ndarray:
         pass
 
-    @abstractmethod
-    def next_input(self):
-        pass
-
-    def _upper_bound(self, x):
+    def _upper_bound(self, x: np.ndarray) -> np.ndarray:
         x = np.atleast_2d(x)
         mean, var = self.GPmodel.predict_noiseless(x)
         return mean + 5.0 * np.sqrt(var)
 
-    def _lower_bound(self, x):
+    def _lower_bound(self, x: np.ndarray) -> np.ndarray:
         x = np.atleast_2d(x)
         mean, var = self.GPmodel.predict_noiseless(x)
         return mean - 5.0 * np.sqrt(var)
 
-    def posteriori_maximum(self):
+    def posteriori_maximum(self) -> tuple[np.ndarray, float]:
         num_start = 100
 
         sampler = qmc.Halton(d=self.input_dim, scramble=False)
@@ -262,7 +281,9 @@ class BO_core(object):
         self.inference_point = np.atleast_2d(x_min)
         return x_min, -1 * f_min
 
-    def sampling_RFM(self, pool_X=None, MES_correction=True):
+    def sampling_RFM(
+        self, pool_X: np.ndarray | None = None, MES_correction: bool = True
+    ) -> tuple[np.ndarray, np.ndarray]:
         # 基底をサンプリング, n_compenontsは基底数, random_stateは基底サンプリング時のseed的なの
         basis_dim = 500 + np.shape(self.GPmodel.X)[0]
         self.rbf_features = RFM_RBF(
@@ -317,12 +338,12 @@ class BO_core(object):
 
         for j in range(self.sampling_num):
 
-            def BLR(x):
+            def BLR(x: np.ndarray) -> np.ndarray:
                 X_features = self.rbf_features.transform(x)
                 sampled_value = X_features.dot(np.c_[self.weights_sample[:, j]])
                 return -(sampled_value * self.GPmodel.std + self.GPmodel.mean).ravel()
 
-            def BLR_gradients(x):
+            def BLR_gradients(x: np.ndarray) -> np.ndarray:
                 X_features = self.rbf_features.transform_grad(x)
                 sampled_value = X_features.dot(np.c_[self.weights_sample[:, j]])
                 return -(sampled_value * self.GPmodel.std).ravel()
@@ -340,7 +361,7 @@ class BO_core(object):
                 max_sample[j] = -1 * pool_Y[min_index]
                 max_inputs.append(pool_X[min_index])
 
-        # 観測最大値 + 3×観測ノイズより小さい値は補正
+        # Values smaller than the observed maximum + 3 times the observed noise are corrected.
         if MES_correction:
             correction_value = self.y_max + 5 * np.sqrt(
                 self.GPmodel[".*Gaussian_noise.variance"].values
@@ -348,9 +369,9 @@ class BO_core(object):
             max_sample[max_sample < correction_value] = correction_value
         return max_sample, np.array(max_inputs)
 
-    def sample_path(self, X):
+    def sample_path(self, X: np.ndarray) -> np.ndarray:
         """
-        入力集合 Xに対して, sampling_num個のRFMを用いたsample_pathの対応する値を返す
+        Return the corresponding value of the sample_path using sampling_num RFMs for the input set X.
 
         Parameter
         -----------------------
@@ -372,20 +393,18 @@ class BO_core(object):
 class BO(BO_core):
     __metaclass__ = ABCMeta
 
-    def __init__(self, X, Y, bounds, kernel_bounds, GPmodel=None, optimize=True):
+    def __init__(
+        self,
+        X: np.ndarray,
+        Y: np.ndarray,
+        bounds: np.ndarray,
+        kernel_bounds: np.ndarray,
+        GPmodel: GPy_model | None = None,
+        optimize: bool = True,
+    ) -> None:
         super().__init__(X, Y, bounds, kernel_bounds, GPmodel, optimize=optimize)
 
-    def next_input_pool(self, X):
-        self.acquisition_values = self.acq(X)
-        min_idx = np.argmin(self.acquisition_values)
-        next_input = np.atleast_2d(X[min_idx])
-        idx = np.where(np.all(X == next_input, axis=1) == True)[0][0]
-        idx_list = np.arange(np.shape(X)[0]).tolist()
-        idx_list.remove(idx)
-        X = X[idx_list, :]
-        return next_input, X
-
-    def next_input(self):
+    def next_input(self) -> np.ndarray:
         num_start = 100 * self.input_dim
 
         sampler = qmc.Halton(d=self.input_dim, scramble=False)
@@ -412,7 +431,16 @@ class BO(BO_core):
 
 
 class PI_from_MaxSample(BO):
-    def __init__(self, X, Y, bounds, kernel_bounds, GPmodel=None, pool_X=None, optimize=True):
+    def __init__(
+        self,
+        X: np.ndarray,
+        Y: np.ndarray,
+        bounds: np.ndarray,
+        kernel_bounds: np.ndarray,
+        GPmodel: GPy_model | None = None,
+        pool_X: np.ndarray | None = None,
+        optimize: bool = True,
+    ) -> None:
         super().__init__(X, Y, bounds, kernel_bounds, GPmodel=GPmodel, optimize=optimize)
 
         self.input_dim = np.shape(X)[1]
@@ -425,7 +453,7 @@ class PI_from_MaxSample(BO):
         print("sampled maximums:", self.maximums)
         # print('sampled max inputs:', self.max_inputs)
 
-    def update(self, X, Y, optimize=False):
+    def update(self, X: np.ndarray, Y: np.ndarray, optimize: bool = False) -> None:
         super().update(X, Y, optimize=optimize)
         start = time.time()
         self.maximums, self.max_inputs = self.sampling_RFM(self.pool_X, MES_correction=False)
@@ -433,32 +461,18 @@ class PI_from_MaxSample(BO):
         print("sampled maximums:", self.maximums)
         # print('sampled max inputs:', self.max_inputs)
 
-    def acq(self, x):
+    def acq(self, x: np.ndarray) -> np.ndarray:
         x = np.atleast_2d(x)
         mean, var = self.GPmodel.predict_noiseless(x)
         std = np.sqrt(var)
 
         return ((self.maximums - mean) / std).ravel()
 
-    def next_input_pool(self, X):
-        self.acquisition_values = self.acq(X)
-        min_idx = np.argmin(self.acquisition_values)
-        next_input = np.atleast_2d(X[min_idx])
-        idx = np.where(np.all(X == next_input, axis=1) == True)[0][0]
-        idx_list = np.arange(np.shape(X)[0]).tolist()
-        idx_list.remove(idx)
-        X = X[idx_list, :]
-        return next_input, X, self.acquisition_values[min_idx]
-
-
-#########################################################################################
 
 SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
 class PIMSSampler(SimpleBaseSampler):  # type: ignore
-    # By default, search space will be estimated automatically like Optuna's built-in samplers.
-    # You can fix the search spacd by `search_space` argument of `SimpleSampler` class.
     def __init__(
         self,
         search_space: dict[str, optuna.distributions.BaseDistribution],
@@ -476,23 +490,14 @@ class PIMSSampler(SimpleBaseSampler):  # type: ignore
             self.bounds[0, i] = d.low
             self.bounds[1, i] = d.high
 
-        self.optimizer = None
+        self.optimizer: PI_from_MaxSample | None = None
 
-    # You need to implement `sample_relative` method.
-    # This method returns a dictionary of hyperparameters.
-    # The keys of the dictionary are the names of the hyperparameters, which must be the same as the keys of the `search_space` argument.
-    # The values of the dictionary are the values of the hyperparameters.
-    # In this example, `sample_relative` method returns a dictionary of randomly sampled hyperparameters.
     def sample_relative(
         self,
         study: optuna.study.Study,
         trial: optuna.trial.FrozenTrial,
         search_space: dict[str, optuna.distributions.BaseDistribution],
     ) -> dict[str, Any]:
-        # `search_space` argument must be identical to `search_space` argument input to `__init__` method.
-        # This method is automatically invoked by Optuna and `SimpleBaseSampler`.
-
-        # If search space is empty, all parameter values are sampled randomly by SimpleBaseSampler.
         if search_space == {}:
             return {}
 
@@ -518,6 +523,7 @@ class PIMSSampler(SimpleBaseSampler):  # type: ignore
                 kernel_bounds=self.kernel_bounds,
             )
         else:
+            assert self.optimizer is not None
             X_new = np.asarray(list(trials[-1].params.values()))
             _sign = -1.0 if study.direction == optuna.study.StudyDirection.MINIMIZE else 1.0
             Y_new = _sign * trials[-1].value
@@ -533,31 +539,3 @@ class PIMSSampler(SimpleBaseSampler):  # type: ignore
         for name, value in zip(search_space.keys(), new_inputs[0]):
             params[name] = value
         return params
-
-
-########################################################
-def f(x):
-    return -np.sin(3 * np.sum(x**2)) - np.sum(x**2) ** 2 + 0.7 * np.sum(x**2)
-
-
-if __name__ == "__main__":
-
-    def objective(trial):
-        x = trial.suggest_float("x", 0, 1)
-        y = trial.suggest_float("y", 0, 1)
-        return f(np.asarray([x, y]))
-
-    search_space = {
-        "x": optuna.distributions.FloatDistribution(0, 1),
-        "y": optuna.distributions.FloatDistribution(0, 1),
-    }
-
-    kernel_bounds = np.array([[1e-3, 1e-3], [1e3, 1e3]])
-    sampler = PIMSSampler(search_space=search_space, kernel_bounds=kernel_bounds)
-    study = optuna.create_study(sampler=sampler, direction="maximize")
-    # study = optuna.create_study(sampler=sampler)
-    study.optimize(objective, n_trials=20)
-    # optuna.visualization.plot_optimization_history(study)
-
-    fig = optuna.visualization.plot_optimization_history(study)
-    fig.write_image("optuna_history.png")
