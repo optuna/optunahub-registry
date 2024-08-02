@@ -174,7 +174,7 @@ class ImplicitNaturalGradientSampler(BaseSampler):
         study._storage.set_trial_system_attr(
             trial_id, _GENERATION_ATTR_KEY, self._get_optimizer().generation
         )
-        return self._param_queue.pop()
+        return self._param_queue.pop(0)
 
     def _check_trial_is_generation(self, trial: FrozenTrial) -> bool:
         current_gen = self._get_optimizer().generation
@@ -233,9 +233,8 @@ class ImplicitNaturalGradientSampler(BaseSampler):
             for i, t in enumerate(solution_trials[: self._optimizer.population_size]):
                 assert t.value is not None, "completed trials must have a value"
                 solutions_x[i, :] = trans.transform(t.params)
-                # TODO(c-bata): Check whether FastINGO assumes maximize or minimize problem
                 solutions_y[i] = (
-                    -t.value if study.direction == StudyDirection.MINIMIZE else t.value
+                    -t.value if study.direction == StudyDirection.MAXIMIZE else t.value
                 )
             self._optimizer.tell(solutions_x, solutions_y)
 
