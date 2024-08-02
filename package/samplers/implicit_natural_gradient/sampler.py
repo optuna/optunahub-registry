@@ -192,7 +192,7 @@ class ImplicitNaturalGradientSampler(BaseSampler):
         if len(search_space) == 0:
             return {}
 
-        completed_trials = study.get_trials(deepcopy=True, states=[TrialState.COMPLETE])
+        completed_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
         if len(completed_trials) < self._n_startup_trials:
             return {}
 
