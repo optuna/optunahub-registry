@@ -18,7 +18,7 @@ See the `template directory <https://github.com/optuna/optunahub-registry/tree/m
 |         ├── __init__.py
 |         ├── README.md
 |         ├── LICENSE
-|         ├── (example.py)
+|         ├── (example.py, example.ipynb)
 |         ├── (requirements.txt)
 |         └── (images)
 |             ├──  (figure1.png)
@@ -36,7 +36,7 @@ The created directory should include the following files:
 - `__init__.py`: An initialization file. This file must implement your algorithm or import its implementation from another file, e.g., `YOUR_ALGORITHM_NAME.py`.
 - `README.md`: A description of your algorithm. This file is used to create an `web page of OptunaHub <https://hub.optuna.org/>`_. Let me explain the format of the `README.md` file later.
 - `LICENSE`: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version of OptunaHub.
-- `example.py`: This is optional. This file should contain a simple example of how to use your algorithm (Example: `example.py for Simulated Annealing Sampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simulated_annealing/example.py>`_).
+- `example.py`, `example.ipynb`: This is optional. This file should contain a simple example of how to use your algorithm (Example: `example.py for Simulated Annealing Sampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simulated_annealing/example.py>`_). You can provide examples in both formats.
 - `requirements.txt`: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies other than Optuna and OptunaHub, you do not need to create this file.
 - `images`: This is optional. A directory that contains images. Only relative references to images in this directory are allowed in README.md, e.g., ``![Numrical Results](images/numerical_results.png)``, and absolute paths to images are not allowed. The first image that appears in README.md will be used as the thumbnail.
 
