@@ -10,13 +10,10 @@ def f(x):
 
 
 if __name__ == "__main__":
-    # mod = optunahub.load_module(
-    #     package="samplers/gp_pims",
-    # )
-
-    mod = optunahub.load_local_module(
-        package="/Users/takeno/Library/CloudStorage/Dropbox/MyFiles/Projects/optunahub-registry/package/samplers/gp_pims",
+    mod = optunahub.load_module(
+        package="samplers/gp_pims",
     )
+
     PIMSSampler = mod.PIMSSampler
 
     def objective(trial):
