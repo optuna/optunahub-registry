@@ -7,7 +7,7 @@ class GammaFunc:
     def __init__(self, strategy: str, beta: float):
         strategy_choices = ["linear", "sqrt"]
         if strategy not in strategy_choices:
-            raise ValueError(f"strategy must be in {strategy_choices}.")
+            raise ValueError(f"strategy must be in {strategy_choices}, but got {strategy}.")
 
         self._strategy = strategy
         self._beta = beta
@@ -26,9 +26,10 @@ class GammaFunc:
 class WeightFunc:
     def __init__(self, strategy: str):
         strategy_choices = ["old-decay", "old-drop", "uniform", "EI"]
-        self._strategy = strategy
         if strategy not in strategy_choices:
-            raise ValueError(f"strategy must be in {strategy_choices}.")
+            raise ValueError(f"strategy must be in {strategy_choices}, but got {strategy}.")
+
+        self._strategy = strategy
 
     def __call__(self, x: int) -> np.ndarray:
         if x == 0:
@@ -40,7 +41,7 @@ class WeightFunc:
             flat = np.ones(25)
             return np.concatenate([ramp, flat], axis=0)
         elif self._strategy == "old-drop":
-            weights = np.ones(x)
+            weights = np.zeros(x)
             weights[-25:] = 1.0
             return weights
         elif self._strategy == "EI":
