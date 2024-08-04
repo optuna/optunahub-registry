@@ -18,21 +18,20 @@ from .parzen_estimator import _CustomizableParzenEstimatorParameters
 class CustomizableTPESampler(TPESampler):
     def __init__(
         self,
+        *,
         consider_prior: bool = True,
         prior_weight: float = 1.0,
         consider_magic_clip: bool = True,
         n_startup_trials: int = 10,
         n_ei_candidates: int = 24,
         seed: int | None = None,
-        *,
         categorical_prior_weight: float | None = None,
-        multivariate: bool = False,
-        warn_independent_sampling: bool = True,
-        b_magic_exponent: float = 1.0,
-        min_bandwidth_factor: float = 0.01,
+        multivariate: bool = True,
+        b_magic_exponent: float = 2.0,
+        min_bandwidth_factor: float = 0.03,
         gamma_strategy: str = "linear",
-        gamma_beta: float = 0.1,
-        weight_strategy: str = "old-decay",
+        gamma_beta: float = 0.15,
+        weight_strategy: str = "EI",
         bandwidth_strategy: str = "hyperopt",
     ):
         gamma = GammaFunc(strategy=gamma_strategy, beta=gamma_beta)
@@ -42,13 +41,13 @@ class CustomizableTPESampler(TPESampler):
             prior_weight=prior_weight,
             consider_magic_clip=consider_magic_clip,
             consider_endpoints=True,
+            warn_independent_sampling=False,
             n_startup_trials=n_startup_trials,
             n_ei_candidates=n_ei_candidates,
             gamma=gamma,
             weights=weights,
             seed=seed,
             multivariate=multivariate,
-            warn_independent_sampling=warn_independent_sampling,
         )
         self._parzen_estimator_cls = _CustomizableParzenEstimator
         self._parzen_estimator_parameters = _CustomizableParzenEstimatorParameters(
@@ -71,7 +70,13 @@ class CustomizableTPESampler(TPESampler):
         trials: list[FrozenTrial],
         handle_below: bool,
     ) -> _ParzenEstimator:
-        if study._is_multi_objective() or self._weight_strategy != "EI" or not handle_below:
+        use_ei = self._weight_strategy == "EI"
+        observations = self._get_internal_repr(trials, search_space)
+        if study._is_multi_objective() and handle_below and not use_ei:
+            return self._parzen_estimator_cls(
+                observations, search_space, self._parzen_estimator_parameters
+            )
+        if not use_ei or not handle_below:
             return super()._build_parzen_estimator(study, search_space, trials, handle_below)
 
         # Not multi-objective and EI and below.
@@ -94,7 +99,6 @@ class CustomizableTPESampler(TPESampler):
                 prior_weight=np.mean(weights_below)
             )
 
-        observations = self._get_internal_repr(trials, search_space)
         return self._parzen_estimator_cls(
             observations, search_space, parzen_estimator_parameters, weights_below
         )
