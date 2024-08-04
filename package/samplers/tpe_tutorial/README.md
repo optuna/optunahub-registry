@@ -13,7 +13,7 @@ license: MIT License
 
 ## Example
 
-This sampler can be used in this way.
+This sampler supports the arguments discussed in [the original paper](https://arxiv.org/abs/2304.11127) and can be used in this way.
 
 ```python
 import numpy as np
@@ -66,7 +66,7 @@ In the paper, the following arguments, which do not exist in Optuna, were resear
 - `min_bandwidth_factor`: The minimum bandwidth factor in Table 6. This value must be positive.
 - `b_magic_exponent`: The exponent alpha in Table 6. Optuna takes 1.0 by default.
 
-For more details, please check the paper.
+For more details, please check [the paper](https://arxiv.org/abs/2304.11127).
 
 ### Bibtex
 
