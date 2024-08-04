@@ -71,12 +71,13 @@ class CustomizableTPESampler(TPESampler):
         handle_below: bool,
     ) -> _ParzenEstimator:
         use_ei = self._weight_strategy == "EI"
+        is_multi_objective = study._is_multi_objective()
         observations = self._get_internal_repr(trials, search_space)
-        if study._is_multi_objective() and handle_below and not use_ei:
+        if is_multi_objective and handle_below and not use_ei:
             return self._parzen_estimator_cls(
                 observations, search_space, self._parzen_estimator_parameters
             )
-        if not use_ei or not handle_below:
+        if (not use_ei or not handle_below) or (use_ei and is_multi_objective and handle_below):
             return super()._build_parzen_estimator(study, search_space, trials, handle_below)
 
         # Not multi-objective and EI and below.
