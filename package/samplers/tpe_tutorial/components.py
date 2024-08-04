@@ -41,8 +41,8 @@ class WeightFunc:
             flat = np.ones(25)
             return np.concatenate([ramp, flat], axis=0)
         elif self._strategy == "old-drop":
-            weights = np.zeros(x)
-            weights[-25:] = 1.0
+            weights = np.ones(x)
+            weights[:-25] = 1e-12
             return weights
         elif self._strategy == "EI":
             # For below_trials, weights will be calculated separately.
