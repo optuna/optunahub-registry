@@ -17,7 +17,9 @@ Please read the [contributor agreements](https://github.com/optuna/optunahub-reg
 
 ## TODO List towards PR Merge
 
-If you introduce a new package in this PR, please check the following TODO list.
+Please remove this section if this PR is not an addition of a new package.
+Otherwise, please check the following TODO list:
+
 
 - [ ] Copy `./template/` to create your package
 - [ ] Replace `<COPYRIGHT HOLDER>` in `LICENSE` of your package with your name
