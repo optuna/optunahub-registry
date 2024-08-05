@@ -5,7 +5,7 @@ Please read the [contributor agreements](https://github.com/optuna/optunahub-reg
 - [ ] I agree to the contributor agreements.
 
 > [!TIP]
-> Please follow the [Quick TODO list](https://github.com/optuna/optunahub-registry/tree/main) to smoothly merge your PR.
+> Please follow the [Quick TODO list](https://github.com/optuna/optunahub-registry/tree/main?tab=readme-ov-file#quick-todo-list-towards-contribution) to smoothly merge your PR.
 
 ## Motivation
 
@@ -16,6 +16,10 @@ Please read the [contributor agreements](https://github.com/optuna/optunahub-reg
 <!-- Describe the changes in this PR. -->
 
 ## TODO List towards PR Merge
+
+Please remove this section if this PR is not an addition of a new package.
+Otherwise, please check the following TODO list:
+
 
 - [ ] Copy `./template/` to create your package
 - [ ] Replace `<COPYRIGHT HOLDER>` in `LICENSE` of your package with your name
