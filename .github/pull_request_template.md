@@ -5,7 +5,7 @@ Please read the [contributor agreements](https://github.com/optuna/optunahub-reg
 - [ ] I agree to the contributor agreements.
 
 > [!TIP]
-> Please follow the [Quick TODO list](https://github.com/optuna/optunahub-registry/tree/main) to smoothly merge your PR.
+> Please follow the [Quick TODO list](https://github.com/optuna/optunahub-registry/tree/main?tab=readme-ov-file#quick-todo-list-towards-contribution) to smoothly merge your PR.
 
 ## Motivation
 
