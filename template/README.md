@@ -31,13 +31,14 @@ Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/rec
 You can find more detailed explanation of the following contents in the tutorial.
 Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
 
-## Class or Function Names
+## Abstract
 
-Please fill in the class/function names which you implement here.
+You can provide an abstract for your package here.
+This section is helpful to advertise your package to potential users.
 
 **Example**
 
-- GPSampler
+This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
 
 ## Installation
 
@@ -49,6 +50,37 @@ If no additional dependencies is required, **this section can be removed**.
 ```shell
 $ pip install scipy torch
 ```
+
+## APIs
+
+Please provide documentation for the classes/functions in your package.
+We highly recommend you provide enough information for users to use your package.
+
+**Example**
+
+### GPSampler(\*, seed=None, independent_sampler=None, n_startup_trials=10, deterministic_objective=False)
+
+A sampler class of a Gaussian process-based surrogate Bayesian optimization algorithm.
+
+#### Parameters
+
+- `seed (int | None)` – Random seed to initialize internal random number generator. Defaults to None (a seed is picked randomly).
+- `independent_sampler (BaseSampler | None)` – Sampler used for initial sampling (for the first n_startup_trials trials) and for conditional parameters. Defaults to None (a random sampler with the same seed is used).
+- `n_startup_trials (int)` – Number of initial trials. Defaults to 10.
+- `deterministic_objective (bool)` – Whether the objective function is deterministic or not. If True, the sampler will fix the noise variance of the surrogate model to the minimum value (slightly above 0 to ensure numerical stability). Defaults to False.
+
+### load_study(\*, study_name, storage, sampler=None, pruner=None)
+
+#### Parameters
+
+- `study_name (str | None)` – Study’s name. Each study has a unique name as an identifier. If None, checks whether the storage contains a single study, and if so loads that study. study_name is required if there are multiple studies in the storage.
+- `storage (str | storages.BaseStorage)` – Database URL such as sqlite:///example.db.
+- `sampler` ('samplers.BaseSampler' | None) – A sampler object that implements background algorithm for value suggestion.
+- `pruner (pruners.BasePruner | None)` – A pruner object that decides early stopping of unpromising trials.
+
+#### Return type
+
+Study
 
 ## Example
 

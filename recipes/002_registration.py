@@ -56,7 +56,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
   # mypy: ignore-errors
 
 
-`README.md` must contain the following sections:
+`README.md <https://github.com/optuna/optunahub-registry/blob/main/template/README.md>`__ must contain the following sections:
 
 - A header section written in the following format:
 
@@ -78,19 +78,37 @@ Although we recommend you write proper type hints, if you find it difficult to c
   - `optuna_versions` (list[string]): A list of Optuna versions that the package supports. It should be a list of strings. You can find your Optuna version with `python -c 'import optuna; print(optuna.__version__)'`.
   - `license` (string): The license of the package. It should be a string. For example, `MIT License`. The license must be `MIT License` in the current version of OptunaHub.
 
-- `Class or Function Names` section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can simply write the class or function name. Note that the documentation of the classes or functions must be written in their docstrings. If you want to refer to the documentation, please leave the source code link, or write them in the following `Others` section. For example:
-
-  .. code-block:: markdown
-
-      - `DemoSampler1`
-      - `DemoSampler2`
-      - `demo_function1`
-
 - An `Installation` section that describes how to install the additional dependencies if required. For example:
 
   .. code-block:: markdown
 
       $ pip install -r requirements.txt
+
+
+- `APIs` section that describes the documentation for classes/functions provided by the package. We highly recommend you provide enough information for users to use your package. For example:
+
+  .. code-block:: markdown
+
+      ### GPSampler(*, seed=None, independent_sampler=None, n_startup_trials=10, deterministic_objective=False)
+
+      A sampler class of a Gaussian process-based surrogate Bayesian optimization algorithm.
+
+      #### Parameters
+        - `seed (int | None)` – Random seed to initialize internal random number generator. Defaults to None (a seed is picked randomly).
+        - `independent_sampler (BaseSampler | None)` – Sampler used for initial sampling (for the first n_startup_trials trials) and for conditional parameters. Defaults to None (a random sampler with the same seed is used).
+        - `n_startup_trials (int)` – Number of initial trials. Defaults to 10.
+        - `deterministic_objective (bool)` – Whether the objective function is deterministic or not. If True, the sampler will fix the noise variance of the surrogate model to the minimum value (slightly above 0 to ensure numerical stability). Defaults to False.
+
+      ### load_study(*, study_name, storage, sampler=None, pruner=None)
+
+      #### Parameters
+        - `study_name (str | None)` – Study’s name. Each study has a unique name as an identifier. If None, checks whether the storage contains a single study, and if so loads that study. study_name is required if there are multiple studies in the storage.
+        - `storage (str | storages.BaseStorage)` – Database URL such as sqlite:///example.db.
+        - `sampler` ('samplers.BaseSampler' | None) – A sampler object that implements background algorithm for value suggestion.
+        - `pruner (pruners.BasePruner | None)` – A pruner object that decides early stopping of unpromising trials.
+
+      #### Return type
+        Study
 
 - An `Example` section that describes how to use the package. It should be a python code block. It should be a few lines of code snippets that show how to use the package. If you want to provide a full example, please create a separete file like `example.py` and refer to it. For example:
 
