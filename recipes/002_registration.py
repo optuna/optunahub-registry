@@ -56,7 +56,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
   # mypy: ignore-errors
 
 
-`README.md` must contain the following sections:
+`README.md <https://github.com/optuna/optunahub-registry/blob/main/template/README.md>`__ must contain the following sections:
 
 - A header section written in the following format:
 
@@ -77,6 +77,8 @@ Although we recommend you write proper type hints, if you find it difficult to c
   - `tags` (list[string]): The package tags. It should be a list of strings. The tags must include `sampler`, `visualization`, or `pruner` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
   - `optuna_versions` (list[string]): A list of Optuna versions that the package supports. It should be a list of strings. You can find your Optuna version with `python -c 'import optuna; print(optuna.__version__)'`.
   - `license` (string): The license of the package. It should be a string. For example, `MIT License`. The license must be `MIT License` in the current version of OptunaHub.
+
+- `Abstract` section that describes the summary of your package. It should be a markdown paragraph. This section is helpful to advertise your package to potential users. For example:
 
 - `Class or Function Names` section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can simply write the class or function name. Note that the documentation of the classes or functions must be written in their docstrings. If you want to refer to the documentation, please leave the source code link, or write them in the following `Others` section. For example:
 
