@@ -58,7 +58,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
 
 `README.md <https://github.com/optuna/optunahub-registry/blob/main/template/README.md>`__ must contain the following sections:
 
-- A header section written in the following format:
+- A `header <https://github.com/optuna/optunahub-registry/blob/main/template/README.md>`__ section written in the following format:
 
   .. code-block:: markdown
 
@@ -78,9 +78,9 @@ Although we recommend you write proper type hints, if you find it difficult to c
   - `optuna_versions` (list[string]): A list of Optuna versions that the package supports. It should be a list of strings. You can find your Optuna version with `python -c 'import optuna; print(optuna.__version__)'`.
   - `license` (string): The license of the package. It should be a string. For example, `MIT License`. The license must be `MIT License` in the current version of OptunaHub.
 
-- `Abstract` section that describes the summary of your package. It should be a markdown paragraph. This section is helpful to advertise your package to potential users.
+- `Abstract <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#abstract>`__ section that describes the summary of your package. It should be a markdown paragraph. This section is helpful to advertise your package to potential users.
 
-- `Class or Function Names` section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can simply write the class or function name. Note that the documentation of the classes or functions must be written in their docstrings. If you want to refer to the documentation, please leave the source code link, or write them in the following `Others` section. For example:
+- `Class or Function Names <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#class-or-function-names>`__ section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can simply write the class or function name. Note that the documentation of the classes or functions must be written in their docstrings. If you want to refer to the documentation, please leave the source code link, or write them in the following `Others` section. For example:
 
   .. code-block:: markdown
 
@@ -88,13 +88,13 @@ Although we recommend you write proper type hints, if you find it difficult to c
       - `DemoSampler2`
       - `demo_function1`
 
-- An `Installation` section that describes how to install the additional dependencies if required. For example:
+- An `Installation <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#installation>`__ section that describes how to install the additional dependencies if required. For example:
 
   .. code-block:: markdown
 
       $ pip install -r requirements.txt
 
-- An `Example` section that describes how to use the package. It should be a python code block. It should be a few lines of code snippets that show how to use the package. If you want to provide a full example, please create a separete file like `example.py` and refer to it. For example:
+- An `Example <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#example>`__ section that describes how to use the package. It should be a python code block. It should be a few lines of code snippets that show how to use the package. If you want to provide a full example, please create a separete file like `example.py` and refer to it. For example:
 
   .. code-block:: markdown
 
@@ -104,7 +104,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
       ```
       See `example.py <path/to/example.py>` for more details.
 
-- An `Others` section that describes supplementary information about the package such as the paper reference or the original source code link. For example:
+- An `Others <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#others>`__ section that describes supplementary information about the package such as the paper reference or the original source code link. For example:
 
   .. code-block:: markdown
 
