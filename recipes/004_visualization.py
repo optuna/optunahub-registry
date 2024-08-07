@@ -20,7 +20,7 @@ import plotly.graph_objects as go
 
 
 ###################################################################################################
-# If you use `plotly` (https://plotly.com/python/) for visualization, the function should return a `plotly.graph_objects.Figure` object.
+# If you use `plotly <https://plotly.com/python/>`__ for visualization, the function should return a ``plotly.graph_objects.Figure`` object.
 
 
 def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
@@ -42,7 +42,7 @@ def plot_optimizaiton_history(study: optuna.study.Study) -> go.Figure:
 
 
 ###################################################################################################
-# If you use `matplotlib` (https://matplotlib.org/) for visualization, the function should return a `matplotlib.figure.Figure` object.
+# If you use `matplotlib <https://matplotlib.org/>`__ for visualization, the function should return a ``matplotlib.figure.Figure`` object.
 
 
 def plot_optimizaiton_history_matplotlib(study: optuna.study.Study) -> matplotlib.figure.Figure:
