@@ -34,7 +34,7 @@ Looking at [other packages' implementations](https://github.com/optuna/optunahub
 ## Abstract
 
 You can provide an abstract for your package here.
-This section is helpful to advertise your package to potential users.
+This section will help attract potential users to your package.
 
 **Example**
 
