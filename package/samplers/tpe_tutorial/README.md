@@ -38,7 +38,7 @@ def objective(trial):
     return len(z) * (x**2 + y**2)
 
 
-module = optunahub.load_module(package="samplers/tpe_tutorial", repo_owner="nabenabe0928", ref="add-tpe-tutorial")
+module = optunahub.load_module(package="samplers/tpe_tutorial")
 optuna.logging.set_verbosity(optuna.logging.CRITICAL)
 arg_choices = {
     "consider_prior": [True, False],
