@@ -7,6 +7,14 @@ optuna_versions: [v4.0.0b0]
 license: MIT License
 ---
 
+## Abstract
+
+This package aims to reproduce the TPE algorithm used in the paper:
+
+- [Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance](https://arxiv.org/abs/2304.11127)
+
+The default parameter set of this sampler is the recommended setup from the paper and the experiments in the paper can also be reproduced by this sampler.
+
 ## Class or Function Names
 
 - CustomizableTPESampler
