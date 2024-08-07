@@ -31,6 +31,15 @@ Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/rec
 You can find more detailed explanation of the following contents in the tutorial.
 Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
 
+## Abstract
+
+You can provide an abstract for your package here.
+This section will help attract potential users to your package.
+
+**Example**
+
+This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+
 ## Class or Function Names
 
 Please fill in the class/function names which you implement here.
