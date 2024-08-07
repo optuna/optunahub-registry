@@ -1,0 +1,2 @@
+scipy
+git+https://github.com/ZebinYang/pyunidoe.git
