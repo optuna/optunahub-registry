@@ -13,11 +13,11 @@ If you want to implement algorithms other than a sampler, please refer to the ot
 - :doc:`003_pruner`
 - :doc:`004_visualization`
 
-Usually, Optuna provides `BaseSampler` class to implement your own sampler.
+Usually, Optuna provides ``BaseSampler`` class to implement your own sampler.
 However, it is a bit complicated to implement a sampler from scratch.
 Instead, in OptunaHub, you can use `samplers/simple/SimpleBaseSampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simple/__init__.py>`__ class, which is a sampler template that can be easily extended.
 
-You need to install `optuna` to implement your own sampler, and `optunahub` to use the template `SimpleBaseSampler`.
+You need to install ``optuna`` to implement your own sampler, and ``optunahub`` to use the template ``SimpleBaseSampler``.
 
 .. code-block:: bash
 
@@ -26,7 +26,7 @@ You need to install `optuna` to implement your own sampler, and `optunahub` to u
 """
 
 ###################################################################################################
-# First of all, import `optuna`, `optunahub`, and other required modules.
+# First of all, import ``optuna``, ``optunahub``, and other required modules.
 from __future__ import annotations
 
 from typing import Any
@@ -37,11 +37,11 @@ import optunahub
 
 
 ###################################################################################################
-# Next, define your own sampler class by inheriting `SimpleBaseSampler` class.
+# Next, define your own sampler class by inheriting ``SimpleBaseSampler`` class.
 # In this example, we implement a sampler that returns a random value.
-# `SimpleBaseSampler` class can be loaded using `optunahub.load_module` function.
-# `force_reload=True` argument forces downloading the sampler from the registry.
-# If we set `force_reload` to `False`, we use the cached data in our local storage if available.
+# ``SimpleBaseSampler`` class can be loaded using ``optunahub.load_module`` function.
+# ``force_reload=True`` argument forces downloading the sampler from the registry.
+# If we set ``force_reload`` to :obj:`False`, we use the cached data in our local storage if available.
 
 SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
@@ -55,19 +55,19 @@ class MySampler(SimpleBaseSampler):  # type: ignore
         super().__init__(search_space)
         self._rng = np.random.RandomState()
 
-    # You need to implement `sample_relative` method.
+    # You need to implement sample_relative method.
     # This method returns a dictionary of hyperparameters.
-    # The keys of the dictionary are the names of the hyperparameters, which must be the same as the keys of the `search_space` argument.
+    # The keys of the dictionary are the names of the hyperparameters, which must be the same as the keys of the search_space argument.
     # The values of the dictionary are the values of the hyperparameters.
-    # In this example, `sample_relative` method returns a dictionary of randomly sampled hyperparameters.
+    # In this example, sample_relative method returns a dictionary of randomly sampled hyperparameters.
     def sample_relative(
         self,
         study: optuna.study.Study,
         trial: optuna.trial.FrozenTrial,
         search_space: dict[str, optuna.distributions.BaseDistribution],
     ) -> dict[str, Any]:
-        # `search_space` argument must be identical to `search_space` argument input to `__init__` method.
-        # This method is automatically invoked by Optuna and `SimpleBaseSampler`.
+        # search_space argument must be identical to search_space argument input to __init__ method.
+        # This method is automatically invoked by Optuna and SimpleBaseSampler.
 
         # If search space is empty, all parameter values are sampled randomly by SimpleBaseSampler.
         if search_space == {}:
@@ -99,7 +99,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 ###################################################################################################
 # This sampler can be used in the same way as other Optuna samplers.
-# In the following example, we create a study and optimize it using `MySampler` class.
+# In the following example, we create a study and optimize it using ``MySampler`` class.
 sampler = MySampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
@@ -118,7 +118,7 @@ print(f"Best params: {best_params}, Best value: {best_value}")
 # In the above examples, search space is estimated at the first trial and updated dynamically through optimization.
 # If your sampler requires the search space to be fixed before optimization, you can pass the search space to the sampler at initialization.
 # Passing the search space also allows the sampler to avoid the overhead of estimating the search space.
-# See `the documentation <https://optuna.readthedocs.io/en/stable/reference/distributions.html>`__ for more information about the optuna.distributions to define search space.
+# See `the documentation <https://optuna.readthedocs.io/en/stable/reference/distributions.html>`__ for more information about the ``optuna.distributions`` to define search space.
 sampler = MySampler(
     search_space={
         "x": optuna.distributions.FloatDistribution(-10, 10),

@@ -25,7 +25,7 @@ First, you can use the `optunahub.load_local_module <https://optuna.github.io/op
 Load Your Package from Your Fork of The optunahub-registry Repository
 ---------------------------------------------------------------------
 
-Second, you can use the `optunahub.load_module <https://optuna.github.io/optunahub/reference.html#optunahub.load_module>`__ function with `repo_owner={YOUR_GITHUB_ID}` and `ref={YOUR_BRANCH_NAME}` to load your package from your fork of the optunahub-registry repository and check if it works correctly.
+Second, you can use the `optunahub.load_module <https://optuna.github.io/optunahub/reference.html#optunahub.load_module>`__ function with ``repo_owner={YOUR_GITHUB_ID}`` and ``ref={YOUR_BRANCH_NAME}`` to load your package from your fork of the optunahub-registry repository and check if it works correctly.
 
 .. code-block:: python
 
