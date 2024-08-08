@@ -19,6 +19,8 @@ pip install -r requirements.txt
 
 ## Example
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/optuna/optunahub-registry/blob/main/package/samplers/catcma/example.ipynb)
+
 ```python
 import numpy as np
 import optuna
