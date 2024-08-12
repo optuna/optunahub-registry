@@ -1,4 +1,4 @@
-from .YOUR_TEMPLATE import YOUR_FEATURE
+from .sampler import EnsembledSampler
 
 
-__all__ = ["YOUR_FEATURE"]
+__all__ = ["EnsembledSampler"]
