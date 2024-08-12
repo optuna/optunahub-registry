@@ -1,9 +1,9 @@
 ---
-author: Please fill in the author name here. (e.g., John Smith)
-title: Please fill in the title of the feature here. (e.g., Gaussian-Process Expected Improvement Sampler)
-description: Please fill in the description of the feature here. (e.g., This sampler searches for each trial based on expected improvement using Gaussian process.)
-tags: [Please fill in the list of tags here. (e.g., sampler, visualization, pruner)]
-optuna_versions: ['Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1.']
+author: Kenshin Abe
+title: Ensembled Sampler
+description: A sampler that ensembles multiple samplers.
+tags: [sampler, ensemble]
+optuna_versions: [3.6.1]
 license: MIT License
 ---
 
@@ -27,78 +27,34 @@ license: "MIT License"
 ---
 -->
 
-Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub.
-You can find more detailed explanation of the following contents in the tutorial.
-Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
+## Installation
+
+No additional packages are required.
 
 ## Abstract
 
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
-
-**Example**
-
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+This package provides a sampler that ensembles multiple samplers.
+You can specify the list of samplers to be ensembled. 
 
 ## Class or Function Names
 
-Please fill in the class/function names which you implement here.
+- EnsembledSampler
 
-**Example**
-
-- GPSampler
-
-## Installation
-
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
-```shell
-$ pip install scipy torch
-```
 
 ## Example
-
-Please fill in the code snippet to use the implemented feature here.
-
-**Example**
 
 ```python
 import optuna
 import optunahub
 
+mod = optunahub.load_module("samplers/ensembled")
 
-def objective(trial):
-  x = trial.suggest_float("x", -5, 5)
-  return x**2
-
-
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=100)
+samplers = [
+    optuna.samplers.RandomSampler(),
+    optuna.samplers.TPESampler(),
+    optuna.samplers.CmaEsSampler(),
+]
+sampler = mod.EnsembledSampler(samplers)
 ```
 
-## Others
-
-Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, **this section can be removed**.
-
-<!--
-For example, you can add sections to introduce a corresponding paper.
-
-### Reference
-Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
-Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
-
-### Bibtex
-```
-@inproceedings{optuna_2019,
-    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
-    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
-    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
-    year={2019}
-}
-```
--->
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/ensembled/example.py) for more details.
