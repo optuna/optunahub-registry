@@ -34,12 +34,11 @@ No additional packages are required.
 ## Abstract
 
 This package provides a sampler that ensembles multiple samplers.
-You can specify the list of samplers to be ensembled. 
+You can specify the list of samplers to be ensembled.
 
 ## Class or Function Names
 
 - EnsembledSampler
-
 
 ## Example
 
