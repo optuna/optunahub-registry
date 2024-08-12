@@ -9,7 +9,7 @@ if __name__ == "__main__":
         optuna.samplers.CmaEsSampler(),
     ]
 
-    mod = optunahub.load_module("samplers/implicit_natural_gradient")
+    mod = optunahub.load_module("samplers/ensembled")
     EnsembledSampler = mod.EnsembledSampler
     study = optuna.create_study(sampler=EnsembledSampler(samplers))
 
