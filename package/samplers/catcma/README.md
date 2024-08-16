@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
 Ryoki Hamano, Shota Saito, Masahiro Nomura, Kento Uchida, Shinichi Shirakawa , CatCMA : Stochastic Optimization for Mixed-Category Problems, GECCO'24
 
-See the [arXiv paper](https://arxiv.org/abs/2405.09962) or [ACM paper](https://dl.acm.org/doi/abs/10.1145/3638529.3654198) for more details.
+See the [arXiv paper](https://arxiv.org/abs/2405.09962) or [ACM paper](https://doi.org/10.1145/3638529.3654198) for more details.
 
 ### BibTeX
 
