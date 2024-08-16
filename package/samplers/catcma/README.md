@@ -7,6 +7,13 @@ optuna_versions: [3.6.1]
 license: MIT License
 ---
 
+## Abstract
+
+The cutting-edge evolutionary computation algorithm CatCMA has been published on OptunaHub.
+CatCMA is an algorithm that excels in mixed search spaces with continuous and discrete variables.
+
+![The performance comparison results of CatCMA and other algorithms](images/catcma-performance.png)
+
 ## Class or Function Names
 
 - CatCmaSampler
@@ -78,7 +85,7 @@ if __name__ == "__main__":
 
 Ryoki Hamano, Shota Saito, Masahiro Nomura, Kento Uchida, Shinichi Shirakawa , CatCMA : Stochastic Optimization for Mixed-Category Problems, GECCO'24
 
-See the [paper](https://arxiv.org/abs/2405.09962) for more details.
+See the [arXiv paper](https://arxiv.org/abs/2405.09962) or [ACM paper](https://dl.acm.org/doi/abs/10.1145/3638529.3654198) for more details.
 
 ### BibTeX
 
