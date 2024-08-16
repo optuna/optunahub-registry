@@ -12,7 +12,8 @@ license: MIT License
 The cutting-edge evolutionary computation algorithm CatCMA has been published on OptunaHub.
 CatCMA is an algorithm that excels in mixed search spaces with continuous and discrete variables.
 
-![The performance comparison results of CatCMA and other algorithms from https://arxiv.org/abs/2405.09962](images/catcma-performance.png)
+![The performance comparison results of CatCMA and other algorithms](images/catcma-performance.png)
+This figure from https://arxiv.org/abs/2405.09962.
 
 ## Class or Function Names
 
