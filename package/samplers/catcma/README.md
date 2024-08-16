@@ -13,7 +13,7 @@ The cutting-edge evolutionary computation algorithm CatCMA has been published on
 CatCMA is an algorithm that excels in mixed search spaces with continuous and discrete variables.
 
 ![The performance comparison results of CatCMA and other algorithms](images/catcma-performance.png)
-This figure from https://arxiv.org/abs/2405.09962.
+This figure is from https://arxiv.org/abs/2405.09962.
 
 ## Class or Function Names
 
