@@ -79,15 +79,16 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             # Linearly decrease from 2 to 0
             a = 2 * (1 - len(study.trials) / (self.max_iter * self.population_size))
 
-            for i in range(self.population_size):
-                r1 = self._rng.rand(self.num_leaders, self.dim)
-                r2 = self._rng.rand(self.num_leaders, self.dim)
-                A = 2 * a * r1 - a
-                C = 2 * r2
-                D = np.abs(C * self.leaders - self.wolves[i])
-                X = np.mean(self.leaders - A * D, axis=0)
+            # Calculate A, C, D, X values for position update
+            r1 = self._rng.rand(self.population_size, self.num_leaders, self.dim)
+            r2 = self._rng.rand(self.population_size, self.num_leaders, self.dim)
+            A = 2 * a * r1 - a
+            C = 2 * r2
+            D = np.abs(C * self.leaders - self.wolves[:, np.newaxis, :])
+            X = self.leaders - A * D
 
-                self.wolves[i] = np.clip(X, self.lower_bound, self.upper_bound)
+            # Update wolves' positions
+            self.wolves = np.mean(X, axis=1)
 
         next_wolf_position = self.wolves[len(study.trials) % self.population_size]
 
