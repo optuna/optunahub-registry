@@ -4,7 +4,7 @@ title: Sampler based on Grey Wolf Optimization (GWO)
 description: Swarm algorithm inspired by the leadership and hunting behavior of grey wolves
 tags: [sampler]
 optuna_versions: [3.6.1]
-license: "MIT License"
+license: MIT License
 ---
 
 ## Class or Function Names
