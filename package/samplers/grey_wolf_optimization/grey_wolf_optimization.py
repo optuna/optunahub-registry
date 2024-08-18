@@ -4,9 +4,9 @@ from typing import Any
 
 import numpy as np
 import optuna
-import optunahub
 from optuna.distributions import BaseDistribution
 from optuna.samplers import RandomSampler
+import optunahub
 
 
 class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").SimpleBaseSampler):  # type: ignore
@@ -24,9 +24,7 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self.num_leaders = min(max(1, num_leaders), self.population_size // 2)
         self._rng = np.random.RandomState(seed)
         self.dim = 0
-        self.leaders: np.ndarray = np.array(
-            []
-        )  # Leaders (alpha, beta, gamma, ...) positions
+        self.leaders: np.ndarray = np.array([])  # Leaders (alpha, beta, gamma, ...) positions
         self.wolves: np.ndarray = np.array([])  # Wolf positions
         self.fitnesses: np.ndarray = np.full(population_size, np.inf)  # Fitness values
         self._random_sampler = RandomSampler(seed=seed)
@@ -37,8 +35,7 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self.lower_bound = np.array([dist.low for dist in search_space.values()])
         self.upper_bound = np.array([dist.high for dist in search_space.values()])
         self.wolves = (
-            np.random.rand(self.population_size, self.dim)
-            * (self.upper_bound - self.lower_bound)
+            np.random.rand(self.population_size, self.dim) * (self.upper_bound - self.lower_bound)
             + self.lower_bound
         )
         self.leaders = np.zeros((self.num_leaders, self.dim))  # Initialize as zeros
@@ -69,9 +66,7 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
 
         if len(study.trials) % self.population_size == 0:
             # Perform one iteration of GWO
-            completed_trials = study.get_trials(
-                states=[optuna.trial.TrialState.COMPLETE]
-            )
+            completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
             self.fitnesses = np.array(
                 [trial.value for trial in completed_trials[-self.population_size :]]
             )
@@ -94,10 +89,7 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             # Update wolves' positions and store them in the queue
             self.wolves = np.mean(X, axis=1)
             self.queue.extend(
-                [
-                    {k: v for k, v in zip(search_space.keys(), pos)}
-                    for pos in self.wolves
-                ]
+                [{k: v for k, v in zip(search_space.keys(), pos)} for pos in self.wolves]
             )
 
         return self.queue.pop(0)
