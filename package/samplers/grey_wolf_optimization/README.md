@@ -1,7 +1,7 @@
 ---
 author: k-onoue
 title: Sampler based on Grey Wolf Optimization (GWO)
-description: Metaheuristic algorithm inspired by the leadership and hunting behavior of grey wolves
+description: Swarm algorithm inspired by the leadership and hunting behavior of grey wolves
 tags: [sampler]
 optuna_versions: [3.6.1]
 license: "MIT License"
