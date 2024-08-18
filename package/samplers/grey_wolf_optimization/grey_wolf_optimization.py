@@ -24,7 +24,9 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self.num_leaders = min(max(1, num_leaders), self.population_size // 2)
         self._rng = np.random.RandomState(seed)
         self.dim = 0
-        self.leaders: list[np.ndarray] = []  # Leader positions
+        self.leaders: np.ndarray = np.array(
+            []
+        )  # Leaders (alpha, beta, gamma, ...) positions
         self.wolves: np.ndarray = np.array([])  # Wolf positions
         self.fitnesses: np.ndarray = np.full(population_size, np.inf)  # Fitness values
         self._random_sampler = RandomSampler(seed=seed)
@@ -33,9 +35,12 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self.dim = len(search_space)
         self.lower_bound = np.array([dist.low for dist in search_space.values()])
         self.upper_bound = np.array([dist.high for dist in search_space.values()])
-        self.wolves = np.random.rand(self.population_size, self.dim) * (
-            self.upper_bound - self.lower_bound) + self.lower_bound
-        self.leaders = [None] * self.num_leaders  # Initialize as None
+        self.wolves = (
+            np.random.rand(self.population_size, self.dim)
+            * (self.upper_bound - self.lower_bound)
+            + self.lower_bound
+        )
+        self.leaders = np.zeros((self.num_leaders, self.dim))  # Initialize as zeros
 
     def sample_relative(
         self,
@@ -60,26 +65,32 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
 
         if len(study.trials) % self.population_size == 0:
             # Perform one iteration of GWO
-            completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
-            self.fitnesses = np.array([trial.value for trial in completed_trials[-self.population_size:]])
+            completed_trials = study.get_trials(
+                states=[optuna.trial.TrialState.COMPLETE]
+            )
+            self.fitnesses = np.array(
+                [trial.value for trial in completed_trials[-self.population_size :]]
+            )
 
             # Update leaders (alpha, beta, gamma, ...)
             sorted_indices = np.argsort(self.fitnesses)
-            self.leaders = [self.wolves[sorted_indices[i]] for i in range(self.num_leaders)]
+            self.leaders = self.wolves[sorted_indices[: self.num_leaders]]
 
             # Linearly decrease from 2 to 0
             a = 2 * (1 - len(study.trials) / (self.max_iter * self.population_size))
 
             for i in range(self.population_size):
-                A = [a * (2 * self._rng.rand(self.dim) - 1) for _ in range(self.num_leaders)]
-                C = [2 * self._rng.rand(self.dim) for _ in range(self.num_leaders)]
+                r1 = self._rng.rand(self.num_leaders, self.dim)
+                r2 = self._rng.rand(self.num_leaders, self.dim)
+                A = 2 * a * r1 - a
+                C = 2 * r2
+                D = np.abs(C * self.leaders - self.wolves[i])
+                X = np.mean(self.leaders - A * D, axis=0)
 
-                D = [np.abs(C[j] * self.leaders[j] - self.wolves[i]) for j in range(self.num_leaders)]
-                X = [self.leaders[j] - A[j] * D[j] for j in range(self.num_leaders)]
-
-                self.wolves[i] = np.mean(X, axis=0)
+                self.wolves[i] = np.clip(X, self.lower_bound, self.upper_bound)
 
         next_wolf_position = self.wolves[len(study.trials) % self.population_size]
+
         return {k: v for k, v in zip(search_space.keys(), next_wolf_position)}
 
 
@@ -95,9 +106,11 @@ if __name__ == "__main__":
         {
             "x": optuna.distributions.FloatDistribution(-10, 10),
             "y": optuna.distributions.FloatDistribution(-10, 10),
-        }
+        },
+        num_leaders=5,
     )
     study = optuna.create_study(sampler=sampler, direction="minimize")
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
     study.optimize(objective, n_trials=100)
     optuna.visualization.matplotlib.plot_optimization_history(study)
     plt.show()
