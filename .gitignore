@@ -114,6 +114,3 @@ docs/build/
 docs/source/reference/generated/
 docs/source/sg_execution_times.rst
 docs/source/recipes/**
-
-# requirements
-requirements.txt
