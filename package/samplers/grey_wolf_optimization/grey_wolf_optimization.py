@@ -30,6 +30,7 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self.wolves: np.ndarray = np.array([])  # Wolf positions
         self.fitnesses: np.ndarray = np.full(population_size, np.inf)  # Fitness values
         self._random_sampler = RandomSampler(seed=seed)
+        self.queue: list[dict[str, Any]] = []  # Queue to hold candidate positions
 
     def _lazy_init(self, search_space: dict[str, BaseDistribution]) -> None:
         self.dim = len(search_space)
@@ -53,6 +54,9 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
 
         if self.dim != len(search_space):
             self._lazy_init(search_space)
+
+        if len(self.queue) != 0:
+            return self.queue.pop(0)
 
         if len(study.trials) < self.population_size:
             # Fill the initial population using sample_independent
@@ -87,31 +91,21 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             D = np.abs(C * self.leaders - self.wolves[:, np.newaxis, :])
             X = self.leaders - A * D
 
-            # Update wolves' positions
+            # Update wolves' positions and store them in the queue
             self.wolves = np.mean(X, axis=1)
+            self.queue.extend(
+                [
+                    {k: v for k, v in zip(search_space.keys(), pos)}
+                    for pos in self.wolves
+                ]
+            )
 
-        next_wolf_position = self.wolves[len(study.trials) % self.population_size]
+        return self.queue.pop(0)
 
-        return {k: v for k, v in zip(search_space.keys(), next_wolf_position)}
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    def objective(trial: optuna.trial.Trial) -> float:
-        x = trial.suggest_float("x", -10, 10)
-        y = trial.suggest_float("y", -10, 10)
-        return x**2 + y**2
-
-    sampler = GreyWolfOptimizationSampler(
-        {
-            "x": optuna.distributions.FloatDistribution(-10, 10),
-            "y": optuna.distributions.FloatDistribution(-10, 10),
-        },
-        num_leaders=5,
-    )
-    study = optuna.create_study(sampler=sampler, direction="minimize")
-    optuna.logging.set_verbosity(optuna.logging.WARNING)
-    study.optimize(objective, n_trials=100)
-    optuna.visualization.matplotlib.plot_optimization_history(study)
-    plt.show()
+    def tell(self, new_positions: np.ndarray, fitnesses: np.ndarray) -> None:
+        self.wolves = np.clip(new_positions, self.lower_bound, self.upper_bound)
+        min_index = np.argmin(fitnesses)
+        min_fitness = fitnesses[min_index]
+        if min_fitness < self.fitnesses[min_index]:
+            self.fitnesses[min_index] = min_fitness
+            self.leaders[min_index] = self.wolves[min_index].copy()
