@@ -1,6 +1,6 @@
 ---
 author: k-onoue
-title: Sampler based on Grey Wolf Optimization (GWO)
+title: Grey Wolf Optimization (GWO) Sampler
 description: Swarm algorithm inspired by the leadership and hunting behavior of grey wolves
 tags: [sampler]
 optuna_versions: [3.6.1]
