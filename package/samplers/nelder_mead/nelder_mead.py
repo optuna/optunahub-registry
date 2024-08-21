@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from generate_initial_simplex import generate_initial_simplex
 import numpy as np
 import optuna
 import optuna.study.study
 import optunahub
+
+from .generate_initial_simplex import generate_initial_simplex
 
 
 SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
