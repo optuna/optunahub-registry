@@ -15,7 +15,7 @@ If you want to implement algorithms other than a sampler, please refer to the ot
 
 Usually, Optuna provides ``BaseSampler`` class to implement your own sampler.
 However, it is a bit complicated to implement a sampler from scratch.
-Instead, in OptunaHub, you can use `samplers/simple/SimpleBaseSampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simple/__init__.py>`__ class, which is a sampler template that can be easily extended.
+Instead, in OptunaHub, you can use `optunahub.samplers.SimpleBaseSampler <https://optuna.github.io/optunahub/generated/optunahub.samplers.SimpleBaseSampler.html>`__ class, which is a sampler template that can be easily extended.
 
 You need to install ``optuna`` to implement your own sampler, and ``optunahub`` to use the template ``SimpleBaseSampler``.
 
@@ -39,14 +39,9 @@ import optunahub
 ###################################################################################################
 # Next, define your own sampler class by inheriting ``SimpleBaseSampler`` class.
 # In this example, we implement a sampler that returns a random value.
-# ``SimpleBaseSampler`` class can be loaded using ``optunahub.load_module`` function.
-# ``force_reload=True`` argument forces downloading the sampler from the registry.
-# If we set ``force_reload`` to :obj:`False`, we use the cached data in our local storage if available.
-
-SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
-class MySampler(SimpleBaseSampler):  # type: ignore
+class MySampler(optunahub.samplers.SimpleBaseSampler):
     # By default, search space will be estimated automatically like Optuna's built-in samplers.
     # You can fix the search spacd by `search_space` argument of `SimpleSampler` class.
     def __init__(
