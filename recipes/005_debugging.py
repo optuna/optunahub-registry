@@ -18,7 +18,7 @@ First, you can use the `optunahub.load_local_module <https://optuna.github.io/op
 
     module = optunahub.load_local_module(
         package="category/your_package_name",
-        registry_root="/path/to/optunahub-registry/packages",
+        registry_root="/path/to/optunahub-registry/package",
     )
 
 
