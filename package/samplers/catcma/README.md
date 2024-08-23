@@ -15,7 +15,7 @@ CatCMA is an algorithm that excels in mixed search spaces with continuous and di
 ![The performance comparison results of CatCMA and other algorithms](images/catcma-performance.png)
 This figure is from https://arxiv.org/abs/2405.09962.
 
-📝 [**Introduction to CatCMA in OptunaHub**](https://medium.com/optuna/introduction-to-catcma-in-optunahub-ffa316309cb8): Blog post by Hideki Imamura.
+📝 [**Introduction to CatCMA in OptunaHub**](https://medium.com/optuna/introduction-to-catcma-in-optunahub-ffa316309cb8): Blog post by Hideaki Imamura.
 
 ## Class or Function Names
 
