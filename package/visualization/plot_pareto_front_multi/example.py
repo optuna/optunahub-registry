@@ -27,8 +27,6 @@ for sampler in samplers:
     study.set_metric_names(["v0", "v1"])
     studies.append(study)
 
-m = optunahub.load_module(
-    "visualization/plot_pareto_front_multi"
-)
+m = optunahub.load_module("visualization/plot_pareto_front_multi")
 fig = m.plot_pareto_front(studies)
 fig.show()

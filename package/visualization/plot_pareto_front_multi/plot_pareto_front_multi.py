@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+
 from optuna.logging import get_logger
 from optuna.study import Study
 from optuna.trial import FrozenTrial
-from optuna.visualization._pareto_front import (
-    _get_pareto_front_info,
-    _ParetoFrontInfo,
-)
-from optuna.visualization._utils import _make_hovertext
+from optuna.visualization._pareto_front import _get_pareto_front_info
+from optuna.visualization._pareto_front import _ParetoFrontInfo
 from optuna.visualization._plotly_imports import _imports
+from optuna.visualization._utils import _make_hovertext
 
 
 if _imports.is_successful():
@@ -40,9 +39,7 @@ def plot_pareto_front(
             "please use plot_optimization_history instead."
         )
 
-    if not all(
-        len(studies[0].directions) == len(study.directions) for study in studies
-    ):
+    if not all(len(studies[0].directions) == len(study.directions) for study in studies):
         raise ValueError("The number of objectives must be the same for all studies.")
 
     if not all(len(study.directions) in [2, 3] for study in studies):
