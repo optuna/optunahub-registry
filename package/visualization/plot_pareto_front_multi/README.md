@@ -1,7 +1,7 @@
 ---
 author: Hiroaki Natsume
 title: Plot Pareto Front for Multiple Studies
-description: Plot pareto front for multiple studies to compare their optimization performance.
+description: Plot Pareto front for multiple studies to compare their optimization performance.
 tags: [visualization, multi-objective optimization, pareto-front]
 optuna_versions: [3.6.1]
 license: MIT License
