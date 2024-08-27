@@ -14,7 +14,7 @@ license: MIT License
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install -r https://hub.optuna.org/samplers/hebo/requirements.txt
 git clone git@github.com:huawei-noah/HEBO.git
 cd HEBO/HEBO
 pip install -e .

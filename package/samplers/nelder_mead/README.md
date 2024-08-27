@@ -20,7 +20,7 @@ This Nelder-Mead method implemenation employs the effective initialization metho
 ## Installation
 
 ```bash
-pip install -r https://raw.githubusercontent.com/optuna/optunahub-registry/main/package/samplers/nelder_mead/requirements.txt
+pip install -r https://hub.optuna.org/samplers/nelder_mead/requirements.txt
 ```
 
 ## Example
