@@ -40,7 +40,9 @@ if __name__ == "__main__":
 
 ## Others
 
-📝 [**A Natural Gradient-Based Optimization Algorithm Registered on OptunaHub**](https://medium.com/optuna/a-natural-gradient-based-optimization-algorithm-registered-on-optunahub-0dbe17cb0f7d): Blog post by Hiroki Takizawa.
+📝 [**A Natural Gradient-Based Optimization Algorithm Registered on OptunaHub**](https://medium.com/optuna/a-natural-gradient-based-optimization-algorithm-registered-on-optunahub-0dbe17cb0f7d): Blog post by Hiroki Takizawa. In the post, benchmark results are presented as shown in the figure below.
+
+![The performance comparison results of this sampler and CMA-ES](images/ingo-performance.png)
 
 ### Reference
 
