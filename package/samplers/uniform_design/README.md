@@ -19,7 +19,7 @@ UD is a variety of design-of-experiment (DOE) methods, and it has better sample 
 ## Installation
 
 ```shell
-$ pip install -r requirements.txt
+$ pip install -r https://hub.optuna.org/samplers/uniform_design/requirements.txt
 ```
 
 ## Example

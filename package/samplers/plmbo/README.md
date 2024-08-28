@@ -14,7 +14,7 @@ license: MIT License
 ## Installation
 
 ```sh
-pip install -r https://raw.githubusercontent.com/optuna/optunahub-registry/main/package/samplers/plmbo/requirements.txt
+pip install -r https://hub.optuna.org/samplers/plmbo/requirements.txt
 ```
 
 ## Example

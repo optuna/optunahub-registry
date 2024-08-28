@@ -24,7 +24,7 @@ This figure is from https://arxiv.org/abs/2405.09962.
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install -r https://hub.optuna.org/samplers/catcma/requirements.txt
 ```
 
 ## Example

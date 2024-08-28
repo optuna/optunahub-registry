@@ -14,7 +14,7 @@ license: MIT License
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install -r https://hub.optuna.org/samplers/pfns4bo/requirements.txt
 ```
 
 ## Example

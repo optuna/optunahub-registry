@@ -34,7 +34,7 @@ license: "MIT License"
 ## Installation
 
 ```shell
-$ pip install -r requirements.txt
+$ pip install -r https://hub.optuna.org/samplers/gp_pims/requirements.txt
 ```
 
 ## Example
