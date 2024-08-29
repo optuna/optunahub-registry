@@ -59,6 +59,12 @@ If no additional dependencies is required, **this section can be removed**.
 $ pip install scipy torch
 ```
 
+If your package has `requirements.txt`, it will be automatically uploaded to the OptunaHub, and the package dependencies will be available to install as follows.
+
+```shell
+ pip install -r https://hub.optuna.org/{category}/{your_package_name}/requirements.txt
+```
+
 ## Example
 
 Please fill in the code snippet to use the implemented feature here.
