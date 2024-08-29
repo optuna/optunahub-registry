@@ -88,11 +88,11 @@ Although we recommend you write proper type hints, if you find it difficult to c
       - `DemoSampler2`
       - `demo_function1`
 
-- An `Installation <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#installation>`__ section that describes how to install the additional dependencies if required. For example:
+- An `Installation <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#installation>`__ section that describes how to install the additional dependencies if required. If your package contains ``requirements.txt``, it will be available at ``https://hub.optuna.org/package/{category}/{your_package_name}/requirements.txt``. Then, the package dependencies can be installed as follows.
 
   .. code-block:: markdown
 
-      $ pip install -r requirements.txt
+      $ pip install -r https://hub.optuna.org/package/{category}/{your_package_name}/requirements.txt
 
 - An `Example <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#example>`__ section that describes how to use the package. It should be a python code block. It should be a few lines of code snippets that show how to use the package. If you want to provide a full example, please create a separete file like ``example.py`` and refer to it. For example:
 
