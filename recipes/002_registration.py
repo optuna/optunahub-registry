@@ -88,7 +88,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
       - `DemoSampler2`
       - `demo_function1`
 
-- An `Installation <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#installation>`__ section that describes how to install the additional dependencies if required. If your package contains ``requirements.txt``, it will be available at ``https://hub.optuna.org/package/{category}/{your_package_name}/requirements.txt``. Then, the package dependencies can be installed as follows.
+- An `Installation <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#installation>`__ section that describes how to install the additional dependencies if required. If your package contains ``requirements.txt``, it will be available at ``https://hub.optuna.org/{category}/{your_package_name}/requirements.txt``. Then, the package dependencies can be installed as follows.
 
   .. code-block:: markdown
 
