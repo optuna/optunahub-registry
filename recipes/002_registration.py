@@ -67,7 +67,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
       title: Demo Sampler
       description: Demo Sampler of OptunaHub
       tags: [sampler]
-      optuna_versions: [3.6.1]
+      optuna_versions: [4.0.0]
       license: MIT License
       ---
 
