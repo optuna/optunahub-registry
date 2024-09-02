@@ -3,7 +3,7 @@ author: Shuhei Watanabe
 title: Tree-Structured Parzen Estimator; Understanding Its Algorithm Components and Their Roles for Better Empirical Performance
 description: The optimizer that reproduces the algorithm described in the paper ``Tree-Structured Parzen Estimator; Understanding Its Algorithm Components and Their Roles for Better Empirical Performance''.
 tags: [sampler, tpe, paper, research]
-optuna_versions: [v4.0.0b0]
+optuna_versions: [v4.0.0]
 license: MIT License
 ---
 
@@ -18,6 +18,18 @@ The default parameter set of this sampler is the recommended setup from the pape
 ## Class or Function Names
 
 - CustomizableTPESampler
+
+## Installation
+
+The version constraint of this package is Optuna v4.0.0 or later.
+
+```shell
+# The requirement is only Optuna.
+$ pip install optuna
+
+# You can also optionally install as follows:
+$ pip install -r https://hub.optuna.org/samplers/tpe_tutorial/requirements.txt
+```
 
 ## Example
 
