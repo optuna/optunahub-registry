@@ -27,7 +27,7 @@ _GENERATION_KEY = "moead:generation"
 _POPULATION_CACHE_KEY_PREFIX = "moead:population"
 
 
-class MOEAdSampler(BaseSampler):
+class MOEADSampler(BaseSampler):
     def __init__(
         self,
         *,

@@ -3,19 +3,29 @@ from optuna.trial import FrozenTrial
 
 
 def weighted_sum(
-    weight_vector: list[float], trial: FrozenTrial, reference_point: list[float]
+    weight_vector: list[float],
+    trial: FrozenTrial,
+    reference_point: list[float],
+    nadir_point: list[float],
 ) -> float:
+    lambda_ = np.array(weight_vector)
     value = np.array(trial.values)
     ref = np.array(reference_point)
-    return np.sum(weight_vector * (value - ref))
+    nadir = np.array(nadir_point)
+    return float(np.sum(lambda_ * (value - ref) / (nadir - ref)))
 
 
 def tchebycheff(
-    weight_vector: list[float], trial: FrozenTrial, reference_point: list[float]
+    weight_vector: list[float],
+    trial: FrozenTrial,
+    reference_point: list[float],
+    nadir_point: list[float],
 ) -> float:
+    lambda_ = np.array(weight_vector)
     value = np.array(trial.values)
     ref = np.array(reference_point)
-    return np.max(weight_vector * np.abs(value - ref))
+    nadir = np.array(nadir_point)
+    return float(np.max(lambda_ * np.abs((value - ref) / (nadir - ref))))
 
 
 # TODO: Is this method correct?
@@ -23,6 +33,7 @@ def pbi(
     weight_vector: list[float],
     trial: FrozenTrial,
     reference_point: list[float],
+    nadir_point: list[float],
     theta: float = 5.0,
 ) -> float:
     diff = trial.values - reference_point

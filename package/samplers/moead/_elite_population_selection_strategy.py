@@ -58,23 +58,23 @@ class MOEAdElitePopulationSelectionStrategy:
     ) -> list[FrozenTrial]:
         elite_population: list[FrozenTrial] = []
         middle_index = len(population) // 2
-        population_old = population[:middle_index]
-        population_new = population[middle_index:]
 
         trial_numbers = []
         for id, neighbor_ids in self._neighbors.items():
-            reference_point = self._reference_point
-            elite = population_old[id]
+            lambda_ = weight_vectors[id]
+            id_old = middle_index + id
+            elite = population[id_old]
             g_old = self._scalar_aggregation_func(
-                weight_vectors[id], population_old[id], reference_point
+                lambda_, population[id_old], self._reference_point, self._nadir_point
             )
             for n_id in neighbor_ids:
                 g_new = self._scalar_aggregation_func(
-                    weight_vectors[id], population_new[n_id], reference_point
+                    lambda_, population[n_id], self._reference_point, self._nadir_point
                 )
-                if g_new < g_old and population_new[n_id].number not in trial_numbers:
-                    elite = population_new[n_id]
+                if g_new < g_old and population[n_id].number not in trial_numbers:
+                    elite = population[n_id]
                     g_old = g_new
+
             trial_numbers.append(elite.number)
             elite_population.append(elite)
 
@@ -84,22 +84,29 @@ class MOEAdElitePopulationSelectionStrategy:
         self, directions: list[StudyDirection], population: list[FrozenTrial]
     ) -> None:
         self._reference_point = []
+        self._nadir_point = []  # using for normalize of subproblem objective values
+
         for i, direction in enumerate(directions):
+            target_values = np.array([trial.values[i] for trial in population])
             if direction == StudyDirection.MINIMIZE:
-                self._reference_point.append(
-                    np.min([trial.values[i] for trial in population], axis=0)
-                )
+                self._reference_point.append(np.min(target_values, axis=0))
+                self._nadir_point.append(np.max(target_values, axis=0))
             else:
-                self._reference_point.append(
-                    np.max([trial.values[i] for trial in population], axis=0)
-                )
+                self._reference_point.append(np.max(target_values, axis=0))
+                self._nadir_point.append(np.min(target_values, axis=0))
 
     # TODO: More uniform sequences generation method is better?
     def _generate_weight_vectors(self, n_vector: int, n_objective: int) -> np.ndarray:
-        sampler = qmc.Halton(d=n_objective, seed=self._seed, scramble=True)
-        vectors = sampler.random(n_vector)
-        sum = np.sum(vectors, axis=1, keepdims=True)
-        self._weight_vectors = vectors / sum
+        if n_objective == 2:
+            x = np.linspace(0, 1, n_vector)
+            y = 1 - x
+            self._weight_vectors = np.column_stack((x, y))
+        else:
+            sampler = qmc.Halton(d=n_objective, seed=self._seed, scramble=True)
+            vectors = sampler.random(n_vector)
+            sum = np.sum(vectors, axis=1, keepdims=True)
+            self._weight_vectors = vectors / sum
+
         return self._weight_vectors
 
     def _compute_neighborhoods(self, weight_vectors: np.ndarray) -> None:

@@ -70,6 +70,7 @@ class MOEAdChildGenerationStrategy:
         self._swapping_prob = swapping_prob
         self._crossover = crossover
         self._rng = rng
+        self._subproblem_id = 0
 
     def __call__(
         self,
@@ -86,12 +87,14 @@ class MOEAdChildGenerationStrategy:
                 A dictionary containing the parameter names and parameter's distributions.
             parent_population:
                 A list of trials that are selected as parent population.
+            neighbors:
+                A dictionary containing the subproblem id and its neighboring subproblems.
         Returns:
             A dictionary containing the parameter names and parameter's values.
         """
-        # Check: Does it work properly when parallelized?
-        subproblem_id = len(study.trials) % len(neighbors)
-        subproblem_parent_population = [parent_population[i] for i in neighbors[subproblem_id]]
+        subproblem_parent_population = [
+            parent_population[i] for i in neighbors[self._subproblem_id]
+        ]
 
         # We choose a child based on the specified crossover method.
         if self._rng.rng.rand() < self._crossover_prob:
@@ -118,6 +121,10 @@ class MOEAdChildGenerationStrategy:
         for param_name in child_params.keys():
             if self._rng.rng.rand() >= mutation_prob:
                 params[param_name] = child_params[param_name]
+
+        self._subproblem_id += 1
+        if self._subproblem_id >= len(neighbors):
+            self._subproblem_id = 0
         return params
 
     def _perform_crossover(

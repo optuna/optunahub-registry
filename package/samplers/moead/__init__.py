@@ -1,4 +1,4 @@
-from .moead import MOEAdSampler
+from .moead import MOEADSampler
 
 
-__all__ = ["MOEAdSampler"]
+__all__ = ["MOEADSampler"]
