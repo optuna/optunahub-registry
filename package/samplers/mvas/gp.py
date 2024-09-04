@@ -1,4 +1,4 @@
-# mypy; ignore-errors
+# mypy: ignore-errors
 import numpy as np
 from scipy.linalg import cho_solve
 
@@ -30,9 +30,7 @@ class GP:
         self.K = self.kern.K(x, x)
         self.K_varI = self.K + noise_var * np.eye(self.n_data)
 
-        self.K_varI_L = np.linalg.cholesky(
-            self.K + np.eye(self.n_data) * self.noise_var
-        ).T
+        self.K_varI_L = np.linalg.cholesky(self.K + np.eye(self.n_data) * self.noise_var).T
 
     @staticmethod
     def prior_sampling(xs, rng, kern):
@@ -61,9 +59,7 @@ class GP:
         """
         k1 = self.kern.K(x1, self.x)
         k2 = self.kern.K(self.x, x2)
-        return self.kern.K(x1, x2) - np.matmul(
-            k1, cho_solve((self.K_varI_L, False), k2)
-        )
+        return self.kern.K(x1, x2) - np.matmul(k1, cho_solve((self.K_varI_L, False), k2))
 
     def predict_f(self, x, full_var=False):
         """Return predict mean and variance of unobserved f
@@ -83,9 +79,7 @@ class GP:
         k = self.kern.K(x, self.x)
         mean = np.matmul(k, cho_solve((self.K_varI_L, False), self.y))
         if full_var:
-            var = self.kern.K(x, x) - np.matmul(
-                k, cho_solve((self.K_varI_L, False), k.T)
-            )
+            var = self.kern.K(x, x) - np.matmul(k, cho_solve((self.K_varI_L, False), k.T))
         else:
             var = self.kern.K(x, x, diag=True) - np.sum(
                 k * cho_solve((self.K_varI_L, False), k.T).T, axis=1
@@ -109,9 +103,7 @@ class GP:
         """
         k = self.kern.K(x, self.x)
         if full_var:
-            return self.kern.K(x, x) - np.matmul(
-                k, cho_solve((self.K_varI_L, False), k.T)
-            )
+            return self.kern.K(x, x) - np.matmul(k, cho_solve((self.K_varI_L, False), k.T))
         else:
             return self.kern.K(x, x, diag=True) - np.sum(
                 k * cho_solve((self.K_varI_L, False), k.T).T, axis=1

@@ -1,4 +1,4 @@
-# mypy; ignore-errors
+# mypy: ignore-errors
 # flake8: noqa
 import numpy as np
 
@@ -32,9 +32,7 @@ class Rbf:
             )
         else:
             return self.outputscale * np.exp(
-                -np.sum(
-                    (x1[:, np.newaxis, :] - x2[np.newaxis, :, :]) ** 2, axis=2
-                )
+                -np.sum((x1[:, np.newaxis, :] - x2[np.newaxis, :, :]) ** 2, axis=2)
                 / (2 * self.lengthscale**2)
             )
 
@@ -70,11 +68,7 @@ class Matern32:
                 * np.exp(-np.sqrt(3) * dist / self.lengthscale)
             )
         else:
-            dist = np.sqrt(
-                np.sum(
-                    (x1[:, np.newaxis, :] - x2[np.newaxis, :, :]) ** 2, axis=2
-                )
-            )
+            dist = np.sqrt(np.sum((x1[:, np.newaxis, :] - x2[np.newaxis, :, :]) ** 2, axis=2))
             return (
                 self.outputscale
                 * (1 + np.sqrt(3) * dist / self.lengthscale)
@@ -117,11 +111,7 @@ class Matern52:
                 * np.exp(-np.sqrt(5) * dist / self.lengthscale)
             )
         else:
-            dist = np.sqrt(
-                np.sum(
-                    (x1[:, np.newaxis, :] - x2[np.newaxis, :, :]) ** 2, axis=2
-                )
-            )
+            dist = np.sqrt(np.sum((x1[:, np.newaxis, :] - x2[np.newaxis, :, :]) ** 2, axis=2))
             return (
                 self.outputscale
                 * (

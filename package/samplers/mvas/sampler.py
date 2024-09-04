@@ -1,4 +1,4 @@
-# mypy; ignore-errors
+# mypy: ignore-errors
 # flake8: noqa
 from __future__ import annotations
 
@@ -27,9 +27,7 @@ def get_input_candidate(x_n_grids):
     return xs
 
 
-class MeanVarianceAnalysisScalarizationSimulatorSampler(
-    optunahub.samplers.SimpleBaseSampler
-):
+class MeanVarianceAnalysisScalarizationSimulatorSampler(optunahub.samplers.SimpleBaseSampler):
     # By default, search space will be estimated automatically like Optuna's built-in samplers.
     # You can fix the search spacd by `search_space` argument of `SimpleSampler` class.
     def __init__(
@@ -55,9 +53,7 @@ class MeanVarianceAnalysisScalarizationSimulatorSampler(
         super().__init__(search_space)
         self._rng = np.random.RandomState()
         self._beta = beta
-        self._kern = Rbf(
-            len(search_space), lengthscale=lengthscale, outputscale=outputscale
-        )
+        self._kern = Rbf(len(search_space), lengthscale=lengthscale, outputscale=outputscale)
         self._noise_var = noise_var
         self._wdim = wdim
         self._xdim = len(search_space) - wdim
@@ -79,9 +75,7 @@ class MeanVarianceAnalysisScalarizationSimulatorSampler(
             return {}
 
         states = (optuna.trial.TrialState.COMPLETE,)
-        trials = study._get_trials(
-            deepcopy=False, states=states, use_cache=True
-        )
+        trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
 
         if len(trials) < 1:
             return {}
@@ -90,11 +84,7 @@ class MeanVarianceAnalysisScalarizationSimulatorSampler(
         for i, trial in enumerate(trials):
             X[i, :] = np.asarray(list(trial.params.values()))
 
-        _sign = (
-            -1.0
-            if study.direction == optuna.study.StudyDirection.MINIMIZE
-            else 1.0
-        )
+        _sign = -1.0 if study.direction == optuna.study.StudyDirection.MINIMIZE else 1.0
         Y = np.zeros((len(trials), 1))
         for i, trial in enumerate(trials):
             Y[i, 0] = _sign * trial.value
@@ -117,15 +107,11 @@ class MeanVarianceAnalysisScalarizationSimulatorSampler(
         fmean_lcb = np.sum(flcb * pws, axis=1)
         fdev_ucb = fucb - fmean_lcb[:, np.newaxis]
         fdev_lcb = flcb - fmean_ucb[:, np.newaxis]
-        fsqdev_lcb = ((fdev_ucb * fdev_lcb) > 0) * np.minimum(
-            fdev_ucb**2, fdev_lcb**2
-        )
+        fsqdev_lcb = ((fdev_ucb * fdev_lcb) > 0) * np.minimum(fdev_ucb**2, fdev_lcb**2)
         fsqdev_ucb = np.maximum(fdev_ucb**2, fdev_lcb**2)
         fvar_lcb = np.sum(fsqdev_lcb * pws, axis=1)
         fvar_ucb = np.sum(fsqdev_ucb * pws, axis=1)
-        fmv_ucb = self._alpha * fmean_ucb - (1 - self._alpha) * np.sqrt(
-            fvar_lcb
-        )
+        fmv_ucb = self._alpha * fmean_ucb - (1 - self._alpha) * np.sqrt(fvar_lcb)
         next_xidx = fmv_ucb.argmax()
         xt = xs[next_xidx].flatten()
         next_widx = pos_var.reshape([nx, nw])[next_xidx, :].argmax()

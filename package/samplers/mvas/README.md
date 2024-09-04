@@ -3,7 +3,7 @@ author: Shogo Iwazaki
 title: Mean Variance Analysis Scalarization Sampler)
 description: This sampler searches for each trial based on the UCB  criterion of the scalarized mean-variance objective using Gaussian process.
 tags: [sampler, Gaussian process, mean-variance analysis]
-optuna_versions: ['4.0.0']
+optuna_versions: [4.0.0]
 license: MIT License
 ---
 
@@ -27,7 +27,6 @@ license: "MIT License"
 ---
 -->
 
-
 ## Class or Function Names
 
 - MeanVarianceAnalysisScalarizationSimulatorSampler
@@ -47,9 +46,11 @@ Please see example.ipynb
 For example, you can add sections to introduce a corresponding paper.
 
 ### Reference
+
 Iwazaki, Shogo, Yu Inatsu, and Ichiro Takeuchi. "Mean-variance analysis in Bayesian optimization under uncertainty." International Conference on Artificial Intelligence and Statistics. PMLR, 2021.
 
 ### Bibtex
+
 ```
 @inproceedings{iwazaki2021mean,
   title={Mean-variance analysis in Bayesian optimization under uncertainty},
