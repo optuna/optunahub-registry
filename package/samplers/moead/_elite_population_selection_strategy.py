@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from _scalar_aggregation_func import pbi
-from _scalar_aggregation_func import tchebycheff
-from _scalar_aggregation_func import weighted_sum
 import numpy as np
 from optuna import Study
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from scipy.spatial import cKDTree
 from scipy.stats import qmc
+
+from ._scalar_aggregation_func import tchebycheff
+from ._scalar_aggregation_func import weighted_sum
 
 
 class MOEAdElitePopulationSelectionStrategy:
@@ -26,8 +26,6 @@ class MOEAdElitePopulationSelectionStrategy:
 
         if scalar_aggregation_func == "tchebycheff":
             self._scalar_aggregation_func = tchebycheff
-        elif scalar_aggregation_func == "PBI":
-            self._scalar_aggregation_func = pbi
         elif scalar_aggregation_func == "weighted_sum":
             self._scalar_aggregation_func = weighted_sum
         else:

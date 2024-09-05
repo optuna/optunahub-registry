@@ -6,8 +6,6 @@ from typing import Any
 from typing import Dict
 from typing import TYPE_CHECKING
 
-from _child_generation_strategy import MOEAdChildGenerationStrategy
-from _elite_population_selection_strategy import MOEAdElitePopulationSelectionStrategy
 import optuna
 from optuna.distributions import BaseDistribution
 from optuna.samplers import BaseSampler
@@ -17,6 +15,9 @@ from optuna.samplers.nsgaii._crossovers._base import BaseCrossover
 from optuna.samplers.nsgaii._crossovers._uniform import UniformCrossover
 from optuna.search_space import IntersectionSearchSpace
 from optuna.trial import FrozenTrial
+
+from ._child_generation_strategy import MOEAdChildGenerationStrategy
+from ._elite_population_selection_strategy import MOEAdElitePopulationSelectionStrategy
 
 
 if TYPE_CHECKING:
