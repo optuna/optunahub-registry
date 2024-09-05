@@ -64,7 +64,7 @@ class MOEADSampler(BaseSampler):
         if n_neighbors is None:
             n_neighbors = population_size // 10
         elif n_neighbors >= population_size:
-            raise ValueError("`T` must be less than `population_size`.")
+            raise ValueError("`n_neighbors` must be less than `population_size`.")
 
         if scalar_aggregation_func not in ["weighted_sum", "tchebycheff", "PBI"]:
             raise ValueError(
@@ -144,7 +144,6 @@ class MOEADSampler(BaseSampler):
             search_space[name] = distribution
         return search_space
 
-    # This method is same as `optuna.samplers.nsgaii._sampler._collect_parent_population`.
     def _collect_parent_population(self, study: Study) -> tuple[int, list[FrozenTrial]]:
         trials = study._get_trials(deepcopy=False, use_cache=True)
 

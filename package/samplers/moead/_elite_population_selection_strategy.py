@@ -36,16 +36,15 @@ class MOEAdElitePopulationSelectionStrategy:
             )
 
     def __call__(self, study: Study, population: list[FrozenTrial]) -> list[FrozenTrial]:
-        if len(population) == self._population_size:
-            if self._weight_vectors is None:
-                weight_vectors = self._generate_weight_vectors(
-                    self._population_size, len(study.directions)
-                )
-                self._compute_neighborhoods(weight_vectors)
+        if self._weight_vectors is None:
+            weight_vectors = self._generate_weight_vectors(
+                self._population_size, len(study.directions)
+            )
+            self._compute_neighborhoods(weight_vectors)
 
+        if len(population) == self._population_size:
             return population
 
-        # TODO: The reference paper is updated with each new child generate.
         self._update_reference_point(study.directions, population)
 
         if self._weight_vectors is not None:
@@ -57,25 +56,35 @@ class MOEAdElitePopulationSelectionStrategy:
         self, population: list[FrozenTrial], weight_vectors: np.ndarray
     ) -> list[FrozenTrial]:
         elite_population: list[FrozenTrial] = []
-        middle_index = len(population) // 2
+        offset = len(population) // 2
 
-        trial_numbers = []
         for id, neighbor_ids in self._neighbors.items():
-            lambda_ = weight_vectors[id]
-            id_old = middle_index + id
+            id_old = offset + id
             elite = population[id_old]
+            lambda_ = weight_vectors[id]
+
             g_old = self._scalar_aggregation_func(
                 lambda_, population[id_old], self._reference_point, self._nadir_point
             )
             for n_id in neighbor_ids:
+                # check new population
+                target_population = population[n_id]
                 g_new = self._scalar_aggregation_func(
-                    lambda_, population[n_id], self._reference_point, self._nadir_point
+                    lambda_, target_population, self._reference_point, self._nadir_point
                 )
-                if g_new < g_old and population[n_id].number not in trial_numbers:
-                    elite = population[n_id]
+                if g_new < g_old:
+                    elite = target_population
                     g_old = g_new
 
-            trial_numbers.append(elite.number)
+                # check old population
+                target_population = population[n_id + offset]
+                g_new = self._scalar_aggregation_func(
+                    lambda_, target_population, self._reference_point, self._nadir_point
+                )
+                if g_new < g_old:
+                    elite = target_population
+                    g_old = g_new
+
             elite_population.append(elite)
 
         return elite_population
@@ -95,7 +104,7 @@ class MOEAdElitePopulationSelectionStrategy:
                 self._reference_point.append(np.max(target_values, axis=0))
                 self._nadir_point.append(np.min(target_values, axis=0))
 
-    # TODO: More uniform sequences generation method is better?
+    # More uniform sequences generation method is better.
     def _generate_weight_vectors(self, n_vector: int, n_objective: int) -> np.ndarray:
         if n_objective == 2:
             x = np.linspace(0, 1, n_vector)
