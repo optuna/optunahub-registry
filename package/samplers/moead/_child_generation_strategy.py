@@ -79,7 +79,7 @@ class MOEAdChildGenerationStrategy:
         parent_population: list[FrozenTrial],
         neighbors: dict[int, list[int]],
     ) -> dict[str, Any]:
-        """Generate a child parameter from the given parent population by NSGA-II algorithm.
+        """Generate a child parameter from the given parent population by MOEA/D algorithm.
         Args:
             study:
                 Target study object.
@@ -92,6 +92,7 @@ class MOEAdChildGenerationStrategy:
         Returns:
             A dictionary containing the parameter names and parameter's values.
         """
+        # TODO: this implementation might have unexpected behavior in the case of multi-threading.
         subproblem_parent_population = [
             parent_population[i] for i in neighbors[self._subproblem_id]
         ]

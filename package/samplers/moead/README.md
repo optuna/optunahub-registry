@@ -2,7 +2,7 @@
 author: Hiroaki Natsume
 title: MOEA/D sampler
 description: Sampler using MOEA/D algorithm. MOEA/D stands for "Multi-Objective Evolutionary Algorithm based on Decomposition.
-tags: [sampler, multiobjective]
+tags: [sampler, multi-objective optimization]
 optuna_versions: [4.0.0]
 license: MIT License
 ---
@@ -23,6 +23,12 @@ This sampler is specialized for multiobjective optimization. The objective funct
 pip install scipy
 ```
 
+or
+
+```
+pip install -r https://hub.optuna.org/samplers/moead/requirements.txt
+```
+
 ## Example
 
 ```python
@@ -38,18 +44,17 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
     return v0, v1
 
 
-if __name__ == "__main__":
-    population_size = 100
-    n_trials = 1000
+population_size = 100
+n_trials = 1000
 
-    mod = optunahub.load_module("samplers/moead")
-    sampler = mod.MOEADSampler(
-        population_size=population_size,
-        scalar_aggregation_func="tchebycheff",
-        n_neighbors=population_size // 10,
-    )
-    study = optuna.create_study(sampler=sampler)
-    study.optimize(objective, n_trials=n_trials)
+mod = optunahub.load_module("samplers/moead")
+sampler = mod.MOEADSampler(
+    population_size=population_size,
+    scalar_aggregation_func="tchebycheff",
+    n_neighbors=population_size // 10,
+)
+study = optuna.create_study(sampler=sampler)
+study.optimize(objective, n_trials=n_trials)
 ```
 
 ## Others
@@ -71,4 +76,4 @@ See `compare_2objective.py` in moead directory for details.
 
 Q. Zhang and H. Li,
 "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007,
-doi: 10.1109/TEVC.2007.892759.
+[doi: 10.1109/TEVC.2007.892759](https://doi.org/10.1109/TEVC.2007.892759).

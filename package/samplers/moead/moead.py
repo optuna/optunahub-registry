@@ -4,6 +4,7 @@ from collections import defaultdict
 import hashlib
 from typing import Any
 from typing import Dict
+from typing import Literal
 from typing import TYPE_CHECKING
 
 import optuna
@@ -34,7 +35,7 @@ class MOEADSampler(BaseSampler):
         *,
         population_size: int = 100,
         n_neighbors: int | None = None,
-        scalar_aggregation_func: str = "tchebycheff",
+        scalar_aggregation_func: Literal["weighted_sum", "tchebycheff"] = "tchebycheff",
         mutation_prob: float | None = None,
         crossover: BaseCrossover | None = None,
         crossover_prob: float = 0.9,
