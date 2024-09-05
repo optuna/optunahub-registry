@@ -30,7 +30,7 @@ class MOEAdElitePopulationSelectionStrategy:
             self._scalar_aggregation_func = weighted_sum
         else:
             raise ValueError(
-                "`scalar_aggregation_function` must be one of 'weighted_sum', 'tchebycheff', 'PBI'."
+                "`scalar_aggregation_func` must be one of 'weighted_sum', 'tchebycheff'."
             )
 
     def __call__(self, study: Study, population: list[FrozenTrial]) -> list[FrozenTrial]:
