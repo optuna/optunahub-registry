@@ -111,10 +111,10 @@ class MOEAdElitePopulationSelectionStrategy:
             y = 1 - x
             self._weight_vectors = np.column_stack((x, y))
         else:
-            sampler = qmc.Halton(d=n_objective, seed=self._seed, scramble=True)
-            vectors = sampler.random(n_vector)
-            sum = np.sum(vectors, axis=1, keepdims=True)
-            self._weight_vectors = vectors / sum
+            sampler = qmc.Sobol(d=n_objective, scramble=True, optimization="lloyd")
+            sample = sampler.random_base2(m=int(np.ceil(np.log2(n_vector))))
+            vectors = sample[:n_vector]
+            self._weight_vectors = vectors / np.sum(vectors, axis=1, keepdims=True)
 
         return self._weight_vectors
 
