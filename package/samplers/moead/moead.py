@@ -51,12 +51,37 @@ class MOEADSampler(BaseSampler):
         Args:
             seed:
                 Seed for random number generator.
-            population_size:
-                The number of individuals in the population.
-            T:
+
+            n_neighbors:
                 The number of the weight vectors in the neighborhood of each weight vector.
+                The larger this value, the more weight is applied to the exploration.
+
             scalar_aggregation_function:
-                The scalar aggregation function to use. The default is "weighted_sum". Other options are "tchebycheff" and "PBI".
+                The scalar aggregation function to use. The default is "tchebycheff". Other options is "weight_sum".
+
+            population_size:
+                Number of individuals (trials) in a generation.
+                ``population_size`` must be greater than or equal to ``crossover.n_parents``.
+                For :class:`~optuna.samplers.nsgaii.UNDXCrossover` and
+                :class:`~optuna.samplers.nsgaii.SPXCrossover`, ``n_parents=3``, and for the other
+                algorithms, ``n_parents=2``.
+
+            mutation_prob:
+                Probability of mutating each parameter when creating a new individual.
+                If :obj:`None` is specified, the value ``1.0 / len(parent_trial.params)`` is used
+                where ``parent_trial`` is the parent trial of the target individual.
+
+            crossover:
+                Crossover to be applied when creating child individuals.
+                For more information on each of the crossover method, please refer to
+                optuna crossover documentation.
+
+            crossover_prob:
+                Probability that a crossover (parameters swapping between parents) will occur
+                when creating a new individual.
+
+            swapping_prob:
+                Probability of swapping each parameter of the parents during crossover.
         """
         if population_size < 2:
             raise ValueError("`population_size` must be greater than or equal to 2.")

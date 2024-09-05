@@ -1,104 +1,74 @@
 ---
-author: Please fill in the author name here. (e.g., John Smith)
-title: Please fill in the title of the feature here. (e.g., Gaussian-Process Expected Improvement Sampler)
-description: Please fill in the description of the feature here. (e.g., This sampler searches for each trial based on expected improvement using Gaussian process.)
-tags: [Please fill in the list of tags here. (e.g., sampler, visualization, pruner)]
-optuna_versions: ['Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1.']
+author: Hiroaki Natsume
+title: MOEA/D sampler
+description: Sampler using MOEA/D algorithm. MOEA/D stands for "Multi-Objective Evolutionary Algorithm based on Decomposition.
+tags: [sampler, multiobjective]
+optuna_versions: [4.0.0]
 license: MIT License
 ---
 
-<!--
-This is an example of the frontmatters.
-All columns must be string.
-You can omit quotes when value types are not ambiguous.
-For tags, a package placed in
-- package/samplers/ must include the tag "sampler"
-- package/visualilzation/ must include the tag "visualization"
-- package/pruners/ must include the tag "pruner"
-respectively.
-
----
-author: Optuna team
-title: My Sampler
-description: A description for My Sampler.
-tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
-optuna_versions: [3.6.1]
-license: "MIT License"
----
--->
-
-Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub.
-You can find more detailed explanation of the following contents in the tutorial.
-Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
-
 ## Abstract
 
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
+Sampler using MOEA/D algorithm. MOEA/D stands for "Multi-Objective Evolutionary Algorithm based on Decomposition.
 
-**Example**
-
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+This sampler is specialized for multiobjective optimization. The objective function is internally decomposed into multiple single-objective subproblems to perform optimization.
 
 ## Class or Function Names
 
-Please fill in the class/function names which you implement here.
-
-**Example**
-
-- GPSampler
+- MOEADSampler
 
 ## Installation
 
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
-```shell
-$ pip install scipy torch
+```
+pip install scipy
 ```
 
 ## Example
-
-Please fill in the code snippet to use the implemented feature here.
-
-**Example**
 
 ```python
 import optuna
 import optunahub
 
+def objective(trial: optuna.Trial) -> tuple[float, float]:
+    x = trial.suggest_float("x", 0, 5)
+    y = trial.suggest_float("y", 0, 3)
 
-def objective(trial):
-  x = trial.suggest_float("x", -5, 5)
-  return x**2
+    v0 = 4 * x**2 + 4 * y**2
+    v1 = (x - 5) ** 2 + (y - 5) ** 2
+    return v0, v1
 
 
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=100)
+if __name__ == "__main__":
+    population_size = 100
+    n_trials = 1000
+
+    mod = optunahub.load_module("samplers/moead")
+    sampler = mod.MOEADSampler(
+        population_size=population_size,
+        scalar_aggregation_func="tchebycheff",
+        n_neighbors=population_size // 10,
+    )
+    study = optuna.create_study(sampler=sampler)
+    study.optimize(objective, n_trials=n_trials)
 ```
 
 ## Others
 
-Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, **this section can be removed**.
+Comparison between Random, NSGAII and MOEA/D with ZDT1 as the objective function.
+See `compare_2objective.py` in moead directory for details.
 
-<!--
-For example, you can add sections to introduce a corresponding paper.
+### Pareto Front Plot
+
+| MOEA/D                      | NSGAII                       | Random                       |
+| --------------------------- | ---------------------------- | ---------------------------- |
+| ![MOEA/D](images/moead.png) | ![NSGAII](images/nsgaii.png) | ![Random](images/random.png) |
+
+### Compare
+
+![Compare](images/compare_pareto_front.png)
 
 ### Reference
-Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
-Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
 
-### Bibtex
-```
-@inproceedings{optuna_2019,
-    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
-    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
-    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
-    year={2019}
-}
-```
--->
+Q. Zhang and H. Li,
+"MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007,
+doi: 10.1109/TEVC.2007.892759.
