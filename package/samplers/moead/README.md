@@ -13,6 +13,8 @@ Sampler using MOEA/D algorithm. MOEA/D stands for "Multi-Objective Evolutionary 
 
 This sampler is specialized for multiobjective optimization. The objective function is internally decomposed into multiple single-objective subproblems to perform optimization.
 
+It may not work well with multi-threading. Check results carefully.
+
 ## Class or Function Names
 
 - MOEADSampler
