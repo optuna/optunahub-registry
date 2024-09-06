@@ -2,7 +2,7 @@
 author: Hiroaki Natsume
 title: MOEA/D sampler
 description: Sampler using MOEA/D algorithm. MOEA/D stands for "Multi-Objective Evolutionary Algorithm based on Decomposition.
-tags: [sampler, multi-objective optimization]
+tags: [Sampler, Multi-Objective Optimization, Evolutionary Algorithms]
 optuna_versions: [4.0.0]
 license: MIT License
 ---
