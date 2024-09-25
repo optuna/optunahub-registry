@@ -1,4 +1,4 @@
-from .YOUR_TEMPLATE import YOUR_FEATURE
+from .multi_armed_bandit import MultiArmedBanditSampler
 
 
-__all__ = ["YOUR_FEATURE"]
+__all__ = ["MultiArmedBanditSampler"]
