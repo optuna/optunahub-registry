@@ -33,6 +33,15 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self.queue: list[dict[str, Any]] = []  # Queue to hold candidate positions
 
     def _lazy_init(self, search_space: dict[str, BaseDistribution]) -> None:
+        # Workaround for the limitation of the type of distributions
+        if any(
+            isinstance(dist, optuna.distributions.CategoricalDistribution) 
+            for dist in search_space.values()
+        ):
+            raise NotImplementedError(
+                "CategoricalDistribution is not supported in GreyWolfOptimizationSampler."
+            )
+
         self.dim = len(search_space)
         self.lower_bound = np.array([dist.low for dist in search_space.values()])
         self.upper_bound = np.array([dist.high for dist in search_space.values()])
