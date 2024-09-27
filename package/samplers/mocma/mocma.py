@@ -156,7 +156,10 @@ class MoCmaSampler(BaseSampler):
             return {}  # Fall back to random sampling.
         elif g == 1 and generation_finished:
             # Set parameters for the first generation (g = 0).
-            elites = [instance[0] for instance in classified_trials[g - 1].values()]
+            elites = [
+                list(sorted(instance, key=lambda x: x.datetime_complete))[0]
+                for instance in classified_trials[g - 1].values()
+            ]
             for a in elites:
                 study._storage.set_study_system_attr(
                     study._study_id, f"mocma:trial:{a._trial_id}:sigma", sigma
@@ -198,7 +201,10 @@ class MoCmaSampler(BaseSampler):
                     study._study_id, f"mocma:trial:{a._trial_id}:p_c", p_c_a.tolist()
                 )
 
-            offsprings = [instance[0] for instance in classified_trials[g - 1].values()]
+            offsprings = [
+                list(sorted(instance, key=lambda x: x.datetime_complete))[0]
+                for instance in classified_trials[g - 1].values()
+            ]
             # Handling conditional parameters for offsprings
             for a_ in offsprings:
                 a_.params = {n: a_.params[n] for n in search_space}
