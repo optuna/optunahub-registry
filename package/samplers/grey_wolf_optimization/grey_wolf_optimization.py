@@ -6,6 +6,7 @@ import numpy as np
 import optuna
 from optuna.distributions import BaseDistribution
 from optuna.samplers import RandomSampler
+from optuna.study._study_direction import StudyDirection
 import optunahub
 
 
@@ -81,13 +82,21 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             self.fitnesses = np.array(
                 [trial.value for trial in completed_trials[-self.population_size :]]
             )
+            self.fitnesses = np.array([
+                trial.value if study.direction == StudyDirection.MINIMIZE else -trial.value
+                for trial in completed_trials[-self.population_size :]
+            ])
 
             # Update leaders (alpha, beta, gamma, ...)
             sorted_indices = np.argsort(self.fitnesses)
             self.leaders = self.wolves[sorted_indices[: self.num_leaders]]
 
+            # Track the current iteration
+            current_iter = len(study.trials) // self.population_size
+            max_iter = self.max_iter
+
             # Linearly decrease from 2 to 0
-            a = 2 * (1 - len(study.trials) / (self.max_iter * self.population_size))
+            a = max(0, 2 * (1 - current_iter / max_iter))
 
             # Calculate A, C, D, X values for position update
             r1 = self._rng.rand(self.population_size, self.num_leaders, self.dim)
