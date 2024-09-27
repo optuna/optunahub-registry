@@ -36,7 +36,7 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
     def _lazy_init(self, search_space: dict[str, BaseDistribution]) -> None:
         # Workaround for the limitation of the type of distributions
         if any(
-            isinstance(dist, optuna.distributions.CategoricalDistribution) 
+            isinstance(dist, optuna.distributions.CategoricalDistribution)
             for dist in search_space.values()
         ):
             raise NotImplementedError(
@@ -82,10 +82,12 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             self.fitnesses = np.array(
                 [trial.value for trial in completed_trials[-self.population_size :]]
             )
-            self.fitnesses = np.array([
-                trial.value if study.direction == StudyDirection.MINIMIZE else -trial.value
-                for trial in completed_trials[-self.population_size :]
-            ])
+            self.fitnesses = np.array(
+                [
+                    (trial.value if study.direction == StudyDirection.MINIMIZE else -trial.value)
+                    for trial in completed_trials[-self.population_size :]
+                ]
+            )
 
             # Update leaders (alpha, beta, gamma, ...)
             sorted_indices = np.argsort(self.fitnesses)
