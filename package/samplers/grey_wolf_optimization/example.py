@@ -24,7 +24,7 @@ if __name__ == "__main__":
             "x": optuna.distributions.FloatDistribution(-10, 10),
             "y": optuna.distributions.FloatDistribution(-10, 10),
         },
-        max_iter=n_trials, # This should be equal to `n_trials` in `study.optimize`.
+        max_iter=n_trials,  # This should be equal to `n_trials` in `study.optimize`.
     )
     study = optuna.create_study(sampler=sampler)
     study.optimize(objective, n_trials=n_trials)
