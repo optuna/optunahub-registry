@@ -25,7 +25,7 @@ if __name__ == "__main__":
             sampler=sampler,
             study_name=f"{sampler.__class__.__name__}",
         )
-        study.optimize(objective, n_trials=1000, n_jobs=1)
+        study.optimize(objective, n_trials=1000)
         studies.append(study)
 
     optunahub.load_module("visualization/plot_pareto_front_multi").plot_pareto_front(
