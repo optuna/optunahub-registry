@@ -21,7 +21,7 @@
 # SOFTWARE.
 #
 # This file is taken from Optuna (https://github.com/optuna/optuna/blob/master/tests/samplers_tests/test_samplers.py)
-# and modified to test MoCMASampler.
+# and modified to test MoCmaSampler.
 
 from __future__ import annotations
 
