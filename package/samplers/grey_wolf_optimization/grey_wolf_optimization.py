@@ -18,7 +18,9 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         num_leaders: int = 3,
         seed: int = 0,
     ) -> None:
-        self.search_space = search_space
+        # Initialize the base class
+        super().__init__(search_space, seed)
+
         self.population_size = population_size
         self.max_iter = max_iter
         self.num_leaders = min(max(1, num_leaders), self.population_size // 2)
