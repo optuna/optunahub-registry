@@ -86,8 +86,11 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             D = np.abs(C * self.leaders - self.wolves[:, np.newaxis, :])
             X = self.leaders - A * D
 
-            # Update wolves' positions and store them in the queue
+            # Update wolves' positions and clip to fit into the search space
             self.wolves = np.mean(X, axis=1)
+            self.wolves = np.clip(self.wolves, self.lower_bound, self.upper_bound)
+
+            # Store the wolves in the queue
             self.queue.extend(
                 [{k: v for k, v in zip(search_space.keys(), pos)} for pos in self.wolves]
             )
