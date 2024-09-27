@@ -93,12 +93,8 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             sorted_indices = np.argsort(self.fitnesses)
             self.leaders = self.wolves[sorted_indices[: self.num_leaders]]
 
-            # Track the current iteration
-            current_iter = len(study.trials) // self.population_size
-            max_iter = self.max_iter
-
             # Linearly decrease from 2 to 0
-            a = max(0, 2 * (1 - current_iter / max_iter))
+            a = 2 * (1 - len(study.trials) / (self.max_iter * self.population_size))
 
             # Calculate A, C, D, X values for position update
             r1 = self._rng.rand(self.population_size, self.num_leaders, self.dim)
