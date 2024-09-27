@@ -19,6 +19,15 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         num_leaders: int = 3,
         seed: int = 0,
     ) -> None:
+        """
+        max_iter : int, optional
+            The maximum number of iterations (should correspond to `n_trials` in `study.optimize`).
+        population_size : int, optional
+            The number of wolves in the population. This should be larger than the number of leaders.
+        num_leaders : int, optional
+            The number of leaders in the population. This should be smaller than the population size.
+        """
+
         # Initialize the base class
         super().__init__(search_space, seed)
 
@@ -93,8 +102,10 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             sorted_indices = np.argsort(self.fitnesses)
             self.leaders = self.wolves[sorted_indices[: self.num_leaders]]
 
-            # Linearly decrease from 2 to 0
-            a = 2 * (1 - len(study.trials) / (self.max_iter * self.population_size))
+            # Linearly decrease from 2 to 0, ensuring a is clipped between 0 and 2
+            current_iter = len(study.trials)
+            a = 2 * (1 - current_iter / self.max_iter)
+            a = np.clip(a, 0, 2)
 
             # Calculate A, C, D, X values for position update
             r1 = self._rng.rand(self.population_size, self.num_leaders, self.dim)
