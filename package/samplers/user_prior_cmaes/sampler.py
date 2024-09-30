@@ -142,7 +142,7 @@ class UserPriorCmaEsSampler(CmaEsSampler):
         cov0 = self._cov0 / (domain_sizes * domain_sizes[:, np.newaxis])
         sigma0 = math.pow(np.linalg.det(cov0), 1.0 / 2.0 / dim)
         # Avoid ZeroDivisionError in cmaes.
-        sigma0 = max(self._sigma0, 1e-10)
+        sigma0 = max(sigma0, 1e-10)
 
         # Make the determinant of cov0 1 so that it agrees with the CMA-ES convention.
         cov0 /= sigma0**2
