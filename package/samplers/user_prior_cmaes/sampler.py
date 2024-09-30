@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from typing import Any
+from typing import Union
 
 import cmaes
 import numpy as np
@@ -12,9 +13,11 @@ from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 from optuna.samplers import BaseSampler
 from optuna.samplers import CmaEsSampler
-from optuna.samplers._cmaes import CmaClass
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
+
+
+CmaClass = Union[cmaes.CMA, cmaes.SepCMA, cmaes.CMAwM]
 
 
 class UserPriorCmaEsSampler(CmaEsSampler):
