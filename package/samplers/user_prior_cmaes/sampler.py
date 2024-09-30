@@ -11,8 +11,8 @@ from optuna.distributions import BaseDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 from optuna.samplers import BaseSampler
-from optuna.samplers import CmaClass
 from optuna.samplers import CmaEsSampler
+from optuna.samplers._cmaes import CmaClass
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 
