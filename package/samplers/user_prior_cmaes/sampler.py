@@ -72,8 +72,8 @@ class UserPriorCmaEsSampler(CmaEsSampler):
         )
         self._validate_user_prior(param_names, mu0, cov0)
         self._param_names = param_names[:]
-        self._mu0 = mu0.copy()
-        self._cov0 = cov0.copy()
+        self._mu0 = mu0.astype(float)
+        self._cov0 = cov0.astype(float)
 
     def _validate_user_prior(
         self, param_names: list[str], mu0: np.ndarray, cov0: np.ndarray

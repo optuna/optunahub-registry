@@ -23,40 +23,59 @@ $ pip install optunahub cmaes
 
 ## Example
 
+The simplest code example is as follows:
+
 ```python
+import numpy as np
 import optuna
 import optunahub
 
 
-def objective(trial):
-  x = trial.suggest_float("x", -5, 5)
-  return x**2
+def objective(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x", -50, -40)
+    y = trial.suggest_int("y", -5, 5)
+    return (x + 43)**2 + (y - 2)**2
 
 
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=100)
+if __name__ == "__main__":
+    module = optunahub.load_module(package="samplers/user_prior_cmaes")
+    sampler = module.UserPriorCmaEsSampler(param_names=["x", "y"], mu0=np.array([3., -48.]), cov0=np.diag([0.2, 2.0]))
+    study = optuna.create_study(sampler=sampler)
+    study.optimize(objective, n_trials=20)
+    print(study.best_trial.value, study.best_trial.params)
+
 ```
 
-## Others
+Although `UserPriorCmaEsSampler` CANNOT support log scale from the sampler side, we have a workaround to do so:
 
-Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, **this section can be removed**.
+```python
+import math
 
-<!--
-For example, you can add sections to introduce a corresponding paper.
+import numpy as np
+import optuna
+import optunahub
 
-### Reference
-Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
-Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
 
-### Bibtex
+def objective(trial: optuna.Trial) -> float:
+    # For example, trial.suggest_float("x", 1e-5, 1.0, log=True) can be encoded as:
+    x = 10 ** trial.suggest_float("log10_x", -5, 0)
+    # trial.suggest_float("y", 2, 1024, log=True) can be encoded as:
+    y = 2 ** trial.suggest_float("log2_y", 1, 10)
+    # In general, trial.suggest_float("z", low, high, log=True) can be encoded as:
+    low, high = 3, 81
+    b = 3  # The base of log can be any positive number.
+    z = b ** trial.suggest_float("logb_z", math.log(low, b), math.log(high, b))
+    return x**2 + y**2 + z**2
+
+
+if __name__ == "__main__":
+    module = optunahub.load_module(package="samplers/user_prior_cmaes")
+    sampler = module.UserPriorCmaEsSampler(
+        param_names=["log10_x", "log2_y", "logb_z"],
+        mu0=np.array([-4, 8, 3]),
+        cov0=np.diag([0.2, 1., 0.1]),
+    )
+    study = optuna.create_study(sampler=sampler)
+    study.optimize(objective, n_trials=20)
+    print(study.best_trial.value, study.best_trial.params)
 ```
-@inproceedings{optuna_2019,
-    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
-    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
-    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
-    year={2019}
-}
-```
--->
