@@ -17,7 +17,7 @@ class MultiArmedBanditSampler(RandomSampler):
         epsilon (float):
             Params for epsolon-greedy algorithm.
             epsilon is probability of selecting arm randomly.
-        seed (int):
+        seed (int | None):
             Seed for random number generator and arm selection.
 
     """
