@@ -117,6 +117,10 @@ class UserPriorCmaEsSampler(CmaEsSampler):
     def _calculate_initial_params(
         self, trans: _SearchSpaceTransform
     ) -> tuple[np.ndarray, float, np.ndarray]:
+        # NOTE(nabenabe): Except this method, everything is basically based on Optuna v4.0.0.
+        # As this class does not support some cases supported by Optuna, I simply added validation
+        # to each method, but otherwise, nothing changed. In principle, if users find a bug, it is
+        # likely that the bug exists in this method.
         search_space = trans._search_space.copy()
         if any(
             not isinstance(d, (IntDistribution, FloatDistribution)) for d in search_space.values()
