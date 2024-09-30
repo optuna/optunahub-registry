@@ -15,6 +15,14 @@ As the Optuna CMA-ES sampler does not support any flexible ways to initialize th
 
 - UserPriorCmaEsSampler
 
+In principle, most arguments follow [`optuna.samplers.CmaEsSampler`](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.CmaEsSampler.html), but some parts are modified.
+
+For example, `UserPriorCmaEsSampler` does not support `source_trials` and `use_separable_cma` due to their incompatibility.
+Instead, we replaced `x0` and `sigma0` in `CmaEsSampler` with `mu0` and `cov0`.
+In `CmaEsSampler`, we needed to provide `x0` as `dict` and `sigma0` only as `float`.
+By adding `param_names` to the requirement, we can now give `mu0` (previously `x0`) and `cov0` (previously `sigma0`) as `np.ndarray`.
+Note that the order of each dimension in `mu0` and `cov0` must be consistent with that in `param_names`.
+
 ## Installation
 
 ```shell
