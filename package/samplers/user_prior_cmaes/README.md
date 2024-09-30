@@ -1,75 +1,27 @@
 ---
-author: Please fill in the author name here. (e.g., John Smith)
-title: Please fill in the title of the feature here. (e.g., Gaussian-Process Expected Improvement Sampler)
-description: Please fill in the description of the feature here. (e.g., This sampler searches for each trial based on expected improvement using Gaussian process.)
-tags: [Please fill in the list of tags here. (e.g., sampler, visualization, pruner)]
-optuna_versions: ['Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1.']
+author: Shuhei Watanabe
+title: CMA-ES with User Prior
+description: You can provide the initial parameters, i.e. mean vector and covariance matrix, for CMA-ES with this sampler.
+tags: [sampler, cma-es, meta-learning, prior]
+optuna_versions: [4.0.0]
 license: MIT License
 ---
 
-<!--
-This is an example of the frontmatters.
-All columns must be string.
-You can omit quotes when value types are not ambiguous.
-For tags, a package placed in
-- package/samplers/ must include the tag "sampler"
-- package/visualilzation/ must include the tag "visualization"
-- package/pruners/ must include the tag "pruner"
-respectively.
-
----
-author: Optuna team
-title: My Sampler
-description: A description for My Sampler.
-tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
-optuna_versions: [3.6.1]
-license: "MIT License"
----
--->
-
-Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub.
-You can find more detailed explanation of the following contents in the tutorial.
-Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
-
 ## Abstract
 
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
-
-**Example**
-
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+As the Optuna CMA-ES sampler does not support any flexible ways to initialize the parameters of the Gaussian distribution, so I created a workaround to do so.
 
 ## Class or Function Names
 
-Please fill in the class/function names which you implement here.
-
-**Example**
-
-- GPSampler
+- UserPriorCmaEsSampler
 
 ## Installation
 
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
 ```shell
-$ pip install scipy torch
-```
-
-If your package has `requirements.txt`, it will be automatically uploaded to the OptunaHub, and the package dependencies will be available to install as follows.
-
-```shell
- pip install -r https://hub.optuna.org/{category}/{your_package_name}/requirements.txt
+$ pip install optunahub cmaes
 ```
 
 ## Example
-
-Please fill in the code snippet to use the implemented feature here.
-
-**Example**
 
 ```python
 import optuna

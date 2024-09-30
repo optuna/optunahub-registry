@@ -137,14 +137,16 @@ class UserPriorCmaEsSampler(CmaEsSampler):
 
         mu0 = self._mu0.copy()
         mu0[is_single] = 0.5
+        # Clip into [0, 1].
         mu0[~is_single] = (mu0[~is_single] - raw_bounds[~is_single, 0]) / domain_sizes[~is_single]
 
+        # We also need to transform the covariance matrix accordingly to adapt to the [0, 1] scale.
         cov0 = self._cov0 / (domain_sizes * domain_sizes[:, np.newaxis])
+
+        # Make the determinant of cov0 1 so that it agrees with the CMA-ES convention.
         sigma0 = math.pow(np.linalg.det(cov0), 1.0 / 2.0 / dim)
         # Avoid ZeroDivisionError in cmaes.
         sigma0 = max(sigma0, 1e-10)
-
-        # Make the determinant of cov0 1 so that it agrees with the CMA-ES convention.
         cov0 /= sigma0**2
 
         return mu0, sigma0, cov0
