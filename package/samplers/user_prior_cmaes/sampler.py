@@ -26,7 +26,7 @@ class UserPriorCmaEsSampler(CmaEsSampler):
     Please check ``CmaEsSampler`` in Optuna for more details of each argument.
     This class modified the arguments ``x0`` and ``sigma0`` in ``CmaEsSampler`` of Optuna.
     Furthermore, due to the incompatibility,
-    This class does not support ``source_trials`` and ``use_separable_cma`` due to their incompatibility.
+    This class does not support ``source_trials`` and ``use_separable_cma``.
 
     Args:
         param_names:
