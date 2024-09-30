@@ -103,7 +103,10 @@ class UserPriorCmaEsSampler(CmaEsSampler):
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
         if len(search_space) != 0 and set(search_space.keys()) != set(self._param_names):
-            raise
+            raise ValueError(
+                "The keys in search_space and param_names did not match. "
+                "The most probable reason is duplicated names in param_names."
+            )
         elif len(search_space) != 0:
             search_space = {
                 param_name: search_space[param_name] for param_name in self._param_names
