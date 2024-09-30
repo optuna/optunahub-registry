@@ -157,7 +157,7 @@ class UserPriorCmaEsSampler(CmaEsSampler):
         randomize_start_point: bool = False,
     ) -> CmaClass:
         n_dimension = len(trans.bounds)
-        mu0, sigma0, cov0 = self._calculate_initial_params(trans._search_space)
+        mu0, sigma0, cov0 = self._calculate_initial_params(trans)
 
         if self._with_margin:
             steps = np.empty(len(trans._search_space), dtype=float)
