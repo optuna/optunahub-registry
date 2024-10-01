@@ -47,7 +47,7 @@ def objective(trial: optuna.Trial) -> float:
 
 if __name__ == "__main__":
     module = optunahub.load_module(package="samplers/user_prior_cmaes")
-    sampler = module.UserPriorCmaEsSampler(param_names=["x", "y"], mu0=np.array([3., -48.]), cov0=np.diag([0.2, 2.0]))
+    sampler = module.UserPriorCmaEsSampler(param_names=["x", "y"], mu0=np.array([-48., 3.]), cov0=np.diag([2., 0.2]))
     study = optuna.create_study(sampler=sampler)
     study.optimize(objective, n_trials=20)
     print(study.best_trial.value, study.best_trial.params)

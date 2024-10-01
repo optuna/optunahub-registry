@@ -108,6 +108,7 @@ class UserPriorCmaEsSampler(CmaEsSampler):
                 "The most probable reason is duplicated names in param_names."
             )
         elif len(search_space) != 0:
+            # Ensure the parameter order is identical to that in param_names.
             search_space = {
                 param_name: search_space[param_name] for param_name in self._param_names
             }
