@@ -4,9 +4,9 @@ import optunahub
 
 if __name__ == "__main__":
     module = optunahub.load_module(
-        package="samplers/multi_armed_bandit",
+        package="samplers/mab_epsilon_greedy",
     )
-    sampler = module.MultiArmedBanditSampler()
+    sampler = module.MABEpsilonGreedySampler()
 
     def objective(trial: optuna.Trial) -> float:
         x = trial.suggest_categorical("arm_1", [1, 2, 3])

@@ -10,7 +10,7 @@ from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
 
-class MultiArmedBanditSampler(RandomSampler):
+class MABEpsilonGreedySampler(RandomSampler):
     """Sampler based on Multi-armed Bandit Algorithm.
 
     Args:
