@@ -1,4 +1,4 @@
-from .auto_sampler.sampler import AutoSampler
+from .sampler import AutoSampler
 
 
 __all__ = ["AutoSampler"]

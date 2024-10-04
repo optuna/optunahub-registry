@@ -98,7 +98,11 @@ class AutoSampler(BaseSampler):
             warm_start_trials = study.get_trials(
                 deepcopy=False, states=(TrialState.COMPLETE, TrialState.PRUNED)
             )
-            self._sampler = CmaEsSampler(seed=self._seed, source_trials=warm_start_trials)
+            # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
+            # 1D problems.
+            self._sampler = CmaEsSampler(
+                seed=self._seed, source_trials=warm_start_trials, warn_independent_sampling=False
+            )
 
     def infer_relative_search_space(
         self, study: Study, trial: FrozenTrial
