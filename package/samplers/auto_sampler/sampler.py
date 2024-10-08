@@ -10,6 +10,7 @@ from optuna.samplers import CmaEsSampler
 from optuna.samplers import GPSampler
 from optuna.samplers import RandomSampler
 from optuna.samplers import TPESampler
+from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.search_space import IntersectionSearchSpace
 from optuna.trial import TrialState
 
@@ -51,10 +52,12 @@ class AutoSampler(BaseSampler):
     """
 
     def __init__(self, seed: int | None = None) -> None:
-        self._seed = seed
-        self._sampler: BaseSampler = RandomSampler(seed=seed)
+        self._rng = LazyRandomState(seed)
+        seed_for_random_sampler = self._rng.rng.randint(1 << 32)
+        self._sampler: BaseSampler = RandomSampler(seed=seed_for_random_sampler)
 
     def reseed_rng(self) -> None:
+        self._rng.rng.seed()
         self._sampler.reseed_rng()
 
     def _include_conditional_param(self, study: Study) -> bool:
@@ -75,6 +78,7 @@ class AutoSampler(BaseSampler):
         if isinstance(self._sampler, TPESampler):
             return
 
+        seed = self._rng.rng.randint(1 << 32)
         if any(
             isinstance(d, CategoricalDistribution) for d in search_space.values()
         ) or self._include_conditional_param(study):
@@ -82,14 +86,14 @@ class AutoSampler(BaseSampler):
             # Use ``TPESampler`` if search space includes conditional or categorical parameters.
             # TBD: group=True?
             self._sampler = TPESampler(
-                seed=self._seed, multivariate=True, warn_independent_sampling=False
+                seed=seed, multivariate=True, warn_independent_sampling=False
             )
             return
 
         if trial.number < 250:
             # Use ``GPSampler`` if search space is numerical and n_trials <= 250.
             if not isinstance(self._sampler, GPSampler):
-                self._sampler = GPSampler(seed=self._seed)
+                self._sampler = GPSampler(seed=seed)
             return
 
         if not isinstance(self._sampler, CmaEsSampler):
@@ -101,7 +105,7 @@ class AutoSampler(BaseSampler):
             # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
             # 1D problems.
             self._sampler = CmaEsSampler(
-                seed=self._seed, source_trials=warm_start_trials, warn_independent_sampling=False
+                seed=seed, source_trials=warm_start_trials, warn_independent_sampling=False
             )
 
     def infer_relative_search_space(
