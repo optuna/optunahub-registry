@@ -6,6 +6,7 @@ import numpy as np
 import optuna
 from optuna.distributions import BaseDistribution
 from optuna.samplers import RandomSampler
+from optuna.study._study_direction import StudyDirection
 import optunahub
 
 
@@ -14,13 +15,24 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self,
         search_space: dict[str, BaseDistribution] | None = None,
         population_size: int = 10,
-        max_iter: int = 40,
+        n_trials: int = 40,
         num_leaders: int = 3,
         seed: int = 0,
     ) -> None:
-        self.search_space = search_space
+        """
+        n_trials : int, optional
+            The number of trials (should correspond to `n_trials` in `study.optimize`).
+        population_size : int, optional
+            The number of wolves in the population. This should be larger than the number of leaders.
+        num_leaders : int, optional
+            The number of leaders in the population. This should be smaller than the population size.
+        """
+
+        # Initialize the base class
+        super().__init__(search_space, seed)
+
         self.population_size = population_size
-        self.max_iter = max_iter
+        self.n_trials = n_trials
         self.num_leaders = min(max(1, num_leaders), self.population_size // 2)
         self._rng = np.random.RandomState(seed)
         self.dim = 0
@@ -31,6 +43,15 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
         self.queue: list[dict[str, Any]] = []  # Queue to hold candidate positions
 
     def _lazy_init(self, search_space: dict[str, BaseDistribution]) -> None:
+        # Workaround for the limitation of the type of distributions
+        if any(
+            isinstance(dist, optuna.distributions.CategoricalDistribution)
+            for dist in search_space.values()
+        ):
+            raise NotImplementedError(
+                "CategoricalDistribution is not supported in GreyWolfOptimizationSampler."
+            )
+
         self.dim = len(search_space)
         self.lower_bound = np.array([dist.low for dist in search_space.values()])
         self.upper_bound = np.array([dist.high for dist in search_space.values()])
@@ -70,13 +91,21 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             self.fitnesses = np.array(
                 [trial.value for trial in completed_trials[-self.population_size :]]
             )
+            self.fitnesses = np.array(
+                [
+                    (trial.value if study.direction == StudyDirection.MINIMIZE else -trial.value)
+                    for trial in completed_trials[-self.population_size :]
+                ]
+            )
 
             # Update leaders (alpha, beta, gamma, ...)
             sorted_indices = np.argsort(self.fitnesses)
             self.leaders = self.wolves[sorted_indices[: self.num_leaders]]
 
-            # Linearly decrease from 2 to 0
-            a = 2 * (1 - len(study.trials) / (self.max_iter * self.population_size))
+            # Linearly decrease from 2 to 0, ensuring a is clipped between 0 and 2
+            current_iter = len(study.trials)
+            a = 2 * (1 - current_iter / self.n_trials)
+            a = np.clip(a, 0, 2)
 
             # Calculate A, C, D, X values for position update
             r1 = self._rng.rand(self.population_size, self.num_leaders, self.dim)
@@ -86,8 +115,11 @@ class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").Simpl
             D = np.abs(C * self.leaders - self.wolves[:, np.newaxis, :])
             X = self.leaders - A * D
 
-            # Update wolves' positions and store them in the queue
+            # Update wolves' positions and clip to fit into the search space
             self.wolves = np.mean(X, axis=1)
+            self.wolves = np.clip(self.wolves, self.lower_bound, self.upper_bound)
+
+            # Store the wolves in the queue
             self.queue.extend(
                 [{k: v for k, v in zip(search_space.keys(), pos)} for pos in self.wolves]
             )
