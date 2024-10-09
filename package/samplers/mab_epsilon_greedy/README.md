@@ -1,6 +1,6 @@
 ---
 author: Ryota Nishijima
-title: MAB Epsilon-Greedy Sampler
+title: Sampler Using Multi-Aarmed Bandit Epsilon-Greedy Algorithm
 description: Sampler based on multi-armed bandit algorithm with epsilon-greedy arm selection.
 tags: [sampler, multi-armed bandit]
 optuna_versions: [4.0.0]

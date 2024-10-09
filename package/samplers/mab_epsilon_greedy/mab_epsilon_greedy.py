@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from typing import Any
-from typing import Optional
 
 from optuna.distributions import BaseDistribution
 from optuna.samplers import RandomSampler
@@ -25,7 +26,7 @@ class MABEpsilonGreedySampler(RandomSampler):
     def __init__(
         self,
         epsilon: float = 0.7,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ) -> None:
         super().__init__(seed)
         self._epsilon = epsilon
