@@ -25,6 +25,6 @@ Otherwise, please check the following TODO list:
 - [ ] Replace `<COPYRIGHT HOLDER>` in `LICENSE` of your package with your name
 - [ ] Fill out `README.md` in your package
 - [ ] Add import statements of your function or class names to be used in `__init__.py`
-- [ ] (Optional) Add `from __future__ import annotations` at the head of any Python files that include MyPy typing to support older Python versions
+- [ ] (Optional) Add `from __future__ import annotations` at the head of any Python files that include typing to support older Python versions
 - [ ] Apply the formatter based on the tips in [`README.md`](https://github.com/optuna/optunahub-registry/tree/main)
 - [ ] Check whether your module works as intended based on the tips in [`README.md`](https://github.com/optuna/optunahub-registry/tree/main)
