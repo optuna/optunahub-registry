@@ -12,7 +12,7 @@ if __name__ == "__main__":
         return v0, v1
 
     samplers = [
-        optunahub.load_local_module("samplers/mocma", registry_root="package").MoCmaSampler(
+        optunahub.load_module("samplers/mocma").MoCmaSampler(
             popsize=100,
             seed=42,
         ),
