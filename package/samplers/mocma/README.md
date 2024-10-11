@@ -43,7 +43,7 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
     return v0, v1
 
 samplers = [
-    optunahub.load_local_module("samplers/mocma", registry_root="package").MoCmaSampler(popsize=100, seed=42),
+    optunahub.load_module("samplers/mocma").MoCmaSampler(popsize=100, seed=42),
     optuna.samplers.NSGAIISampler(population_size=100, seed=42),
 ]
 studies = []
