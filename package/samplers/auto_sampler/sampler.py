@@ -90,7 +90,9 @@ class AutoSampler(BaseSampler):
             )
             return
 
-        if trial.number < 250:
+        complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
+        complete_trials.sort(key=lambda trial: trial.datetime_complete)
+        if len(complete_trials) < 250:
             # Use ``GPSampler`` if search space is numerical and n_trials <= 250.
             if not isinstance(self._sampler, GPSampler):
                 self._sampler = GPSampler(seed=seed)
@@ -99,9 +101,7 @@ class AutoSampler(BaseSampler):
         if not isinstance(self._sampler, CmaEsSampler):
             # Use ``CmaEsSampler`` if search space is numerical and n_trials > 250.
             # Warm start CMA-ES with trials up to trial.number of 249.
-            warm_start_trials = study.get_trials(
-                deepcopy=False, states=(TrialState.COMPLETE, TrialState.PRUNED)
-            )
+            warm_start_trials = complete_trials[:250]
             # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
             # 1D problems.
             self._sampler = CmaEsSampler(
