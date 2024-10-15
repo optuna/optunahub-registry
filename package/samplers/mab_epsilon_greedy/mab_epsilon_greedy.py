@@ -62,10 +62,10 @@ class MABEpsilonGreedySampler(RandomSampler):
             if study.direction == StudyDirection.MINIMIZE:
                 return min(
                     param_distribution.choices,
-                    key=lambda x: rewards_by_choice[x] / max(cnt_by_choice[x], 1),
+                    key=lambda x: rewards_by_choice[x] / cnt_by_choice[x],
                 )
             else:
                 return max(
                     param_distribution.choices,
-                    key=lambda x: rewards_by_choice[x] / max(cnt_by_choice[x], 1),
+                    key=lambda x: rewards_by_choice[x] / cnt_by_choice[x],
                 )
