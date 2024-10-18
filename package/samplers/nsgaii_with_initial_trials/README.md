@@ -1,35 +1,24 @@
 ---
 author: Hiroaki Natsume
-title: MOEA/D sampler
-description: Sampler using MOEA/D algorithm. MOEA/D stands for "Multi-Objective Evolutionary Algorithm based on Decomposition.
-tags: [Sampler, Multi-Objective Optimization, Evolutionary Algorithms]
+title: NSGAII sampler with Initial Trials
+description: Sampler using NSGAII algorithm with initial trials.
+tags: [Sampler, Multi-Objective, Genetic Algorithm]
 optuna_versions: [4.0.0]
 license: MIT License
 ---
 
 ## Abstract
 
-Sampler using MOEA/D algorithm. MOEA/D stands for "Multi-Objective Evolutionary Algorithm based on Decomposition.
+If Optuna's built-in NSGAII has a study obtained from another sampler, but continues with that study, it cannot be used as the first generation, and optimization starts from zero.
+This means that even if you already know good individuals, you cannot use it in the GA.
+In this implementation, the already sampled results are included in the initial individuals of the GA to perform the optimization.
 
-This sampler is specialized for multiobjective optimization. The objective function is internally decomposed into multiple single-objective subproblems to perform optimization.
-
-It may not work well with multi-threading. Check results carefully.
+Note, however, that this has the effect that the implementation does not necessarily support multi-threading in the generation of the initial generation.
+After the initial generation, the implementation is similar to the built-in NSGAII.
 
 ## Class or Function Names
 
-- MOEADSampler
-
-## Installation
-
-```
-pip install scipy
-```
-
-or
-
-```
-pip install -r https://hub.optuna.org/samplers/moead/requirements.txt
-```
+- NSGAIIwITSampler
 
 ## Example
 
@@ -37,45 +26,52 @@ pip install -r https://hub.optuna.org/samplers/moead/requirements.txt
 import optuna
 import optunahub
 
+
 def objective(trial: optuna.Trial) -> tuple[float, float]:
     x = trial.suggest_float("x", 0, 5)
     y = trial.suggest_float("y", 0, 3)
-
     v0 = 4 * x**2 + 4 * y**2
     v1 = (x - 5) ** 2 + (y - 5) ** 2
     return v0, v1
 
 
-population_size = 100
-n_trials = 1000
+storage = optuna.storages.InMemoryStorage()
 
-mod = optunahub.load_module("samplers/moead")
-sampler = mod.MOEADSampler(
-    population_size=population_size,
-    scalar_aggregation_func="tchebycheff",
-    n_neighbors=population_size // 10,
+# Sampling 0 generation using enqueueing & qmc sampler
+study = optuna.create_study(
+    directions=["minimize", "minimize"],
+    sampler=optuna.samplers.QMCSampler(seed=42),
+    study_name="test",
+    storage=storage,
 )
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=n_trials)
+study.enqueue_trial(
+    {
+        "x": 0,
+        "y": 0,
+    }
+)
+study.optimize(objective, n_trials=128)
+
+# Using sampling results as the initial generation
+sampler = optunahub.load_module(
+    "samplers/nsgaii_with_initial_trials",
+).NSGAIIwITSampler(population_size=25, seed=42)
+
+study = optuna.create_study(
+    directions=["minimize", "minimize"],
+    sampler=sampler,
+    study_name="test",
+    storage=storage,
+    load_if_exists=True,
+)
+study.optimize(objective, n_trials=100)
+
+optuna.visualization.plot_pareto_front(study).show()
 ```
 
 ## Others
 
-Comparison between Random, NSGAII and MOEA/D with ZDT1 as the objective function.
-See `compare_2objective.py` in moead directory for details.
+The implementation is similar to Optuna's NSGAII except for the handling of initial generations. The license and documentation are below.
 
-### Pareto Front Plot
-
-| MOEA/D                      | NSGAII                       | Random                       |
-| --------------------------- | ---------------------------- | ---------------------------- |
-| ![MOEA/D](images/moead.png) | ![NSGAII](images/nsgaii.png) | ![Random](images/random.png) |
-
-### Compare
-
-![Compare](images/compare_pareto_front.png)
-
-### Reference
-
-Q. Zhang and H. Li,
-"MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007,
-[doi: 10.1109/TEVC.2007.892759](https://doi.org/10.1109/TEVC.2007.892759).
+- [Documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.NSGAIISampler.html)
+- [License](https://github.com/optuna/optuna/blob/master/LICENSE)
