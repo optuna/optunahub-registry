@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from collections.abc import Sequence
 from typing import Any
-from typing import Callable
 from typing import TYPE_CHECKING
 
 from optuna.distributions import CategoricalDistribution
