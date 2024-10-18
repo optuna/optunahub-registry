@@ -19,8 +19,10 @@ This sampler currently accepts only `seed`.
 
 ## Installation
 
+This sampler requires optional dependencies of Optuna.
+
 ```shell
-$ pip install scipy torch cmaes
+$ pip install "optuna[optional]"
 ```
 
 ## Example
