@@ -152,7 +152,7 @@ class AutoSampler(BaseSampler):
                 seed=seed,
                 multivariate=True,
                 warn_independent_sampling=False,
-                constraines_func=self._constraints_func,
+                constraints_func=self._constraints_func,
                 constant_liar=True,
             )
             return
