@@ -11,6 +11,8 @@ license: MIT License
 
 This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
 
+![Conceptual Visualization](images/thumbnail.png "Conceptual Visualization")
+
 ## Class or Function Names
 
 - AutoSampler
