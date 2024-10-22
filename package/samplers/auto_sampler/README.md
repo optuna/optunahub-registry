@@ -15,13 +15,16 @@ This package provides a sampler based on Gaussian process-based Bayesian optimiz
 
 - AutoSampler
 
-This sampler currently accepts only `seed`.
+This sampler currently accepts only `seed` and `constraints_func`.
+`constraints_func` enables users to handle constraints along with the objective function.
+This argument follows the same convention as the other samplers, so please take a look at [the reference](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.TPESampler.html).
 
 ## Installation
 
 This sampler requires optional dependencies of Optuna.
 
 ```shell
+# TODO
 $ pip install "optuna[optional]"
 ```
 
@@ -39,4 +42,16 @@ def objective(trial):
 module = optunahub.load_module(package="samplers/auto_sampler")
 study = optuna.create_study(sampler=module.AutoSampler())
 study.optimize(objective, n_trials=300)
+```
+
+### Test
+
+To execute the tests for `AutoSampler`, please run the following commands. The test file is provided in the package.
+
+```sh
+pip install pytest
+```
+
+```python
+python -m pytest package/samplers/tests/test_auto_sampler.py
 ```

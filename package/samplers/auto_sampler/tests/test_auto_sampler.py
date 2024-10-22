@@ -5,6 +5,7 @@ import optunahub
 import pytest
 
 
+# TODO(nabaenabe): Add the CI for this sampler.
 optuna.logging.set_verbosity(optuna.logging.CRITICAL)
 
 
