@@ -9,7 +9,7 @@ license: MIT License
 
 ## Abstract
 
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+This package automatically selects an appropriate sampler for the provided search space based on the developers' recommendation.
 
 ![Conceptual Visualization](images/thumbnail.png "Conceptual Visualization")
 
@@ -19,15 +19,14 @@ This package provides a sampler based on Gaussian process-based Bayesian optimiz
 
 This sampler currently accepts only `seed` and `constraints_func`.
 `constraints_func` enables users to handle constraints along with the objective function.
-This argument follows the same convention as the other samplers, so please take a look at [the reference](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.TPESampler.html).
+These arguments follow the same convention as the other samplers, so please take a look at [the reference](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.TPESampler.html).
 
 ## Installation
 
 This sampler requires optional dependencies of Optuna.
 
 ```shell
-# TODO
-$ pip install "optuna[optional]"
+$ pip install optunahub cmaes torch
 ```
 
 ## Example
