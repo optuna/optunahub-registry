@@ -121,13 +121,9 @@ class AutoSampler(BaseSampler):
             # Use ``NSGAIISampler`` if search space is numerical and len(trials) <= 1000.
             self._sampler = NSGAIISampler(constraints_func=self._constraints_func, seed=seed)
 
-    def _determine_sampler(
+    def _determine_single_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> None:
-        if len(study.directions) > 1:
-            self._determine_multi_objective_sampler(study, trial, search_space)
-            return
-
         if isinstance(self._sampler, TPESampler):
             return
 
@@ -166,6 +162,14 @@ class AutoSampler(BaseSampler):
             self._sampler = CmaEsSampler(
                 seed=seed, source_trials=warm_start_trials, warn_independent_sampling=False
             )
+
+    def _determine_sampler(
+        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    ) -> None:
+        if len(study.directions) == 1:
+            self._determine_single_objective_sampler(study, trial, search_space)
+        else:
+            self._determine_multi_objective_sampler(study, trial, search_space)
 
     def infer_relative_search_space(
         self, study: Study, trial: FrozenTrial
