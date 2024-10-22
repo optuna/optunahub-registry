@@ -13,6 +13,7 @@ from optuna.samplers import NSGAIIISampler
 from optuna.samplers import NSGAIISampler
 from optuna.samplers import RandomSampler
 from optuna.samplers import TPESampler
+from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.samplers._nsgaiii._sampler import _GENERATION_KEY as NSGA3_GENERATION_KEY
 from optuna.samplers.nsgaii._sampler import _GENERATION_KEY as NSGA2_GENERATION_KEY
@@ -159,9 +160,9 @@ class AutoSampler(BaseSampler):
 
         complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
         complete_trials.sort(key=lambda trial: trial.datetime_complete)
-        if len(complete_trials) <= self._N_COMPLETE_TRIALS_FOR_CMAES:
+        if len(complete_trials) < self._N_COMPLETE_TRIALS_FOR_CMAES:
             # Use ``GPSampler`` if search space is numerical and
-            # len(complete_trials) <= _N_COMPLETE_TRIALS_FOR_CMAES.
+            # len(complete_trials) < _N_COMPLETE_TRIALS_FOR_CMAES.
             if not isinstance(self._sampler, GPSampler):
                 self._sampler = GPSampler(seed=seed)
             return
@@ -238,4 +239,10 @@ class AutoSampler(BaseSampler):
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
+        assert state in [TrialState.COMPLETE, TrialState.FAIL, TrialState.PRUNED]
+        if isinstance(self._sampler, RandomSampler) and self._constraints_func is not None:
+            # NOTE(nabenabe): Since RandomSampler does not handle constraints, we need to
+            # separately set the constraints here.
+            _process_constraints_after_trial(self._constraints_func, study, trial, state)
+
         self._sampler.after_trial(study, trial, state, values)
