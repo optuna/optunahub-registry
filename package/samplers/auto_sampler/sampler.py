@@ -9,11 +9,13 @@ from optuna.distributions import CategoricalDistribution
 from optuna.samplers import BaseSampler
 from optuna.samplers import CmaEsSampler
 from optuna.samplers import GPSampler
+from optuna.samplers import NSGAIIISampler
 from optuna.samplers import NSGAIISampler
 from optuna.samplers import RandomSampler
 from optuna.samplers import TPESampler
 from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.samplers.nsgaii._sampler import _GENERATION_KEY
+from optuna.samplers._nsgaiii._sampler import _GENERATION_KEY as NSGA3_GENERATION_KEY
+from optuna.samplers.nsgaii._sampler import _GENERATION_KEY as NSGA2_GENERATION_KEY
 from optuna.search_space import IntersectionSearchSpace
 from optuna.trial import TrialState
 
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
 
 
 MAXINT32 = (1 << 31) - 1
+THRESHOLD_OF_MANY_OBJECTIVES = 4
 
 
 class AutoSampler(BaseSampler):
@@ -101,7 +104,7 @@ class AutoSampler(BaseSampler):
     def _determine_multi_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> None:
-        if isinstance(self._sampler, NSGAIISampler):
+        if isinstance(self._sampler, (NSGAIISampler, NSGAIIISampler)):
             return
 
         seed = self._rng.rng.randint(MAXINT32)
@@ -110,16 +113,21 @@ class AutoSampler(BaseSampler):
                 seed=seed,
                 multivariate=True,
                 warn_independent_sampling=False,
-                constraines_func=self._constraints_func,
+                constraints_func=self._constraints_func,
                 constant_liar=True,
             )
             return
 
         complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
         complete_trials.sort(key=lambda trial: trial.datetime_complete)
-        if len(complete_trials) <= 1000:
+        if len(complete_trials) >= 1000:
+            nsga_sampler_cls = (
+                NSGAIISampler
+                if len(study.directions) < THRESHOLD_OF_MANY_OBJECTIVES
+                else NSGAIIISampler
+            )
             # Use ``NSGAIISampler`` if search space is numerical and len(trials) <= 1000.
-            self._sampler = NSGAIISampler(constraints_func=self._constraints_func, seed=seed)
+            self._sampler = nsga_sampler_cls(constraints_func=self._constraints_func, seed=seed)
 
     def _determine_single_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -191,9 +199,16 @@ class AutoSampler(BaseSampler):
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
-        if len(study.directions) > 1 and isinstance(self._sampler, TPESampler):
+        n_objectives = len(study.directions)
+        if n_objectives > 1 and isinstance(self._sampler, TPESampler):
             # NOTE(nabenabe): Set generation 0 so that NSGAIISampler can use the trial information
             # obtained during the optimization using TPESampler.
+            # NOTE(nabenabe): Use NSGA-III for many objective problems.
+            _GENERATION_KEY = (
+                NSGA2_GENERATION_KEY
+                if n_objectives < THRESHOLD_OF_MANY_OBJECTIVES
+                else NSGA3_GENERATION_KEY
+            )
             study._storage.set_trial_system_attr(trial._trial_id, _GENERATION_KEY, 0)
 
         return self._sampler.sample_relative(study, trial, search_space)
