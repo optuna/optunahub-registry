@@ -13,6 +13,7 @@ from optuna.samplers import NSGAIISampler
 from optuna.samplers import RandomSampler
 from optuna.samplers import TPESampler
 from optuna.samplers._lazy_random_state import LazyRandomState
+from optuna.samplers.nsgaii._sampler import _GENERATION_KEY
 from optuna.search_space import IntersectionSearchSpace
 from optuna.trial import TrialState
 
@@ -104,7 +105,21 @@ class AutoSampler(BaseSampler):
             return
 
         seed = self._rng.rng.randint(MAXINT32)
-        self._sampler = NSGAIISampler(constraints_func=self._constraints_func, seed=seed)
+        if not isinstance(self._sampler, TPESampler):
+            self._sampler = TPESampler(
+                seed=seed,
+                multivariate=True,
+                warn_independent_sampling=False,
+                constraines_func=self._constraints_func,
+                constant_liar=True,
+            )
+            return
+
+        complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
+        complete_trials.sort(key=lambda trial: trial.datetime_complete)
+        if len(complete_trials) <= 1000:
+            # Use ``NSGAIISampler`` if search space is numerical and len(trials) <= 1000.
+            self._sampler = NSGAIISampler(constraints_func=self._constraints_func, seed=seed)
 
     def _determine_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -172,6 +187,11 @@ class AutoSampler(BaseSampler):
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
+        if len(study.directions) > 1 and isinstance(self._sampler, TPESampler):
+            # NOTE(nabenabe): Set generation 0 so that NSGAIISampler can use the trial information
+            # obtained during the optimization using TPESampler.
+            study._storage.set_trial_system_attr(trial._trial_id, _GENERATION_KEY, 0)
+
         return self._sampler.sample_relative(study, trial, search_space)
 
     def sample_independent(
