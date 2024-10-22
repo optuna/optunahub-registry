@@ -34,9 +34,10 @@ if __name__ == "__main__":
         y = trial.suggest_float("y", -10, 10)
         return x**2 + y**2
 
-    sampler = GreyWolfOptimizationSampler()
+    # Note: `n_trials` should match the `n_trials` passed to `study.optimize`.
+    sampler = GreyWolfOptimizationSampler(n_trials=100)
     study = optuna.create_study(sampler=sampler)
-    study.optimize(objective, n_trials=100)
+    study.optimize(objective, n_trials=sampler.n_trials)
     optuna.visualization.matplotlib.plot_optimization_history(study)
     plt.show()
 ```
