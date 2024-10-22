@@ -13,6 +13,7 @@ from optuna.samplers import NSGAIIISampler
 from optuna.samplers import NSGAIISampler
 from optuna.samplers import RandomSampler
 from optuna.samplers import TPESampler
+from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.samplers._nsgaiii._sampler import _GENERATION_KEY as NSGA3_GENERATION_KEY
 from optuna.samplers.nsgaii._sampler import _GENERATION_KEY as NSGA2_GENERATION_KEY
@@ -84,19 +85,9 @@ class AutoSampler(BaseSampler):
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
         self._rng = LazyRandomState(seed)
-        seed_for_first_sampler = self._rng.rng.randint(MAXINT32)
+        seed_for_random_sampler = self._rng.rng.randint(MAXINT32)
+        self._sampler: BaseSampler = RandomSampler(seed=seed_for_random_sampler)
         self._constraints_func = constraints_func
-        self._sampler: BaseSampler = (
-            RandomSampler(seed=seed_for_first_sampler)
-            if constraints_func is None
-            else TPESampler(
-                seed=seed_for_first_sampler,
-                multivariate=True,
-                warn_independent_sampling=False,
-                constraints_func=self._constraints_func,
-                constant_liar=True,
-            )
-        )
 
     def reseed_rng(self) -> None:
         self._rng.rng.seed()
@@ -248,4 +239,10 @@ class AutoSampler(BaseSampler):
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
+        assert state in [TrialState.COMPLETE, TrialState.FAIL, TrialState.PRUNED]
+        if isinstance(self._sampler, RandomSampler) and self._constraints_func is not None:
+            # NOTE(nabenabe): Since RandomSampler does not handle constraints, we need to
+            # separately set the constraints here.
+            _process_constraints_after_trial(self._constraints_func, study, trial, state)
+
         self._sampler.after_trial(study, trial, state, values)
