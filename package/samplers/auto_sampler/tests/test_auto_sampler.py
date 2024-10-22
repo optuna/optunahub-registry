@@ -21,6 +21,23 @@ def objective(trial: optuna.Trial) -> float:
     return x**2 + y**2
 
 
+def objective_with_categorical(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x", -5, 5)
+    y = trial.suggest_int("y", -5, 5)
+    c = trial.suggest_categorical("c", [True, False])
+    return x**2 + y**2 if c else (x - 2) ** 2 + (y - 2) ** 2
+
+
+def objective_with_conditional(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x", -5, 5)
+    if trial.number < 15:
+        y = trial.suggest_int("y", -5, 5)
+        return x**2 + y**2
+    else:
+        z = trial.suggest_float("z", -5, 5)
+        return x**2 + z**2
+
+
 def multi_objective(trial: optuna.Trial) -> tuple[float, float]:
     x = trial.suggest_float("x", -5, 5)
     y = trial.suggest_int("y", -5, 5)
@@ -84,6 +101,7 @@ def test_choose_nsga2(use_constraint: bool) -> None:
 
 
 def test_choose_cmaes() -> None:
+    # This test must be performed with a numerical objective function.
     n_trials_of_cmaes = 100
     n_trials_before_cmaes = 20
     auto_sampler = AutoSampler()
@@ -94,3 +112,34 @@ def test_choose_cmaes() -> None:
     assert ["RandomSampler"] + ["GPSampler"] * (n_trials_before_cmaes - 1) + [
         "CmaEsSampler"
     ] * n_trials_of_cmaes == sampler_names
+
+
+def test_choose_tpe_in_single_with_constraints() -> None:
+    n_trials = 30
+    auto_sampler = AutoSampler(constraints_func=constraints_func)
+    study = optuna.create_study(sampler=auto_sampler)
+    study.optimize(objective, n_trials=n_trials)
+    sampler_names = _get_used_sampler_names(study)
+    assert ["RandomSampler"] + ["TPESampler"] * (n_trials - 1) == sampler_names
+
+
+def test_choose_tpe_with_categorical_params() -> None:
+    n_trials = 30
+    auto_sampler = AutoSampler()
+    study = optuna.create_study(sampler=auto_sampler)
+    study.optimize(objective_with_categorical, n_trials=n_trials)
+    sampler_names = _get_used_sampler_names(study)
+    assert ["RandomSampler"] + ["TPESampler"] * (n_trials - 1) == sampler_names
+
+
+def test_choose_tpe_with_conditional_params() -> None:
+    n_trials = 30
+    auto_sampler = AutoSampler()
+    study = optuna.create_study(sampler=auto_sampler)
+    study.optimize(objective_with_conditional, n_trials=n_trials)
+    sampler_names = _get_used_sampler_names(study)
+    # NOTE(nabenabe): When the conditional parameter is detected for the first time, GPSampler
+    # simply falls back to sample_independent, so sample_relative of GPSampler is called 15 times.
+    assert ["RandomSampler"] + ["GPSampler"] * 15 + ["TPESampler"] * (
+        n_trials - 16
+    ) == sampler_names
