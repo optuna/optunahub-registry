@@ -31,6 +31,9 @@ THRESHOLD_OF_MANY_OBJECTIVES = 4
 
 
 class AutoSampler(BaseSampler):
+    _N_COMPLETE_TRIALS_FOR_CMAES = 250
+    _N_COMPLETE_TRIALS_FOR_NSGA = 1000
+
     """Sampler automatically choosing an appropriate sampler based on search space.
 
     This sampler is convenient when you are unsure what sampler to use.
@@ -120,13 +123,14 @@ class AutoSampler(BaseSampler):
 
         complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
         complete_trials.sort(key=lambda trial: trial.datetime_complete)
-        if len(complete_trials) >= 1000:
+        if len(complete_trials) >= self._N_COMPLETE_TRIALS_FOR_NSGA:
             nsga_sampler_cls = (
                 NSGAIISampler
                 if len(study.directions) < THRESHOLD_OF_MANY_OBJECTIVES
                 else NSGAIIISampler
             )
-            # Use ``NSGAIISampler`` if search space is numerical and len(trials) <= 1000.
+            # Use ``NSGAIISampler`` if search space is numerical and
+            # len(complete_trials) <= _N_COMPLETE_TRIALS_FOR_NSGA.
             self._sampler = nsga_sampler_cls(constraints_func=self._constraints_func, seed=seed)
 
     def _determine_single_objective_sampler(
@@ -155,16 +159,18 @@ class AutoSampler(BaseSampler):
 
         complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
         complete_trials.sort(key=lambda trial: trial.datetime_complete)
-        if len(complete_trials) <= 250:
-            # Use ``GPSampler`` if search space is numerical and len(trials) <= 250.
+        if len(complete_trials) <= self._N_COMPLETE_TRIALS_FOR_CMAES:
+            # Use ``GPSampler`` if search space is numerical and
+            # len(complete_trials) <= _N_COMPLETE_TRIALS_FOR_CMAES.
             if not isinstance(self._sampler, GPSampler):
                 self._sampler = GPSampler(seed=seed)
             return
 
         if not isinstance(self._sampler, CmaEsSampler):
-            # Use ``CmaEsSampler`` if search space is numerical and len(trials) > 250.
-            # Warm start CMA-ES with the first 250 complete trials.
-            warm_start_trials = complete_trials[:250]
+            # Use ``CmaEsSampler`` if search space is numerical and
+            # len(complete_trials) > _N_COMPLETE_TRIALS_FOR_CMAES.
+            # Warm start CMA-ES with the first _N_COMPLETE_TRIALS_FOR_CMAES complete trials.
+            warm_start_trials = complete_trials[: self._N_COMPLETE_TRIALS_FOR_CMAES]
             # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
             # 1D problems.
             self._sampler = CmaEsSampler(
