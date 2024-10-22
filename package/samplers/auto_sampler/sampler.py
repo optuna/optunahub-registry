@@ -57,7 +57,7 @@ class AutoSampler(BaseSampler):
 
     .. note::
         This sampler requires optional dependencies of Optuna.
-        You can install them with ``pip install "optuna[optional]"``.
+        You can install them with ``pip install optunahub scipy torch cmaes``.
         Alternatively, you can install them with ``pip install -r https://hub.optuna.org/samplers/auto_sampler/requirements.txt``.
 
     Args:
@@ -73,10 +73,6 @@ class AutoSampler(BaseSampler):
             The ``constraints_func`` will be evaluated after each successful trial.
             The function won't be called when trials fail or they are pruned, but this behavior is
             subject to change in the future releases.
-
-            .. note::
-                If you enable this feature, Optuna's default sampler will be selected automatically.
-
     """
 
     def __init__(
@@ -130,8 +126,7 @@ class AutoSampler(BaseSampler):
                 if len(study.directions) < THRESHOLD_OF_MANY_OBJECTIVES
                 else NSGAIIISampler
             )
-            # Use ``NSGAIISampler`` if search space is numerical and
-            # len(complete_trials) <= _N_COMPLETE_TRIALS_FOR_NSGA.
+            # Use NSGA-II/III if len(complete_trials) <= _N_COMPLETE_TRIALS_FOR_NSGA.
             self._sampler = nsga_sampler_cls(constraints_func=self._constraints_func, seed=seed)
 
     def _determine_single_objective_sampler(
@@ -208,7 +203,7 @@ class AutoSampler(BaseSampler):
     ) -> dict[str, Any]:
         n_objectives = len(study.directions)
         if n_objectives > 1 and isinstance(self._sampler, TPESampler):
-            # NOTE(nabenabe): Set generation 0 so that NSGAIISampler can use the trial information
+            # NOTE(nabenabe): Set generation 0 so that NSGA-II/III can use the trial information
             # obtained during the optimization using TPESampler.
             # NOTE(nabenabe): Use NSGA-III for many objective problems.
             _GENERATION_KEY = (

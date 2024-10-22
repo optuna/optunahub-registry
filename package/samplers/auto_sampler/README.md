@@ -26,7 +26,7 @@ These arguments follow the same convention as the other samplers, so please take
 This sampler requires optional dependencies of Optuna.
 
 ```shell
-$ pip install optunahub cmaes torch
+$ pip install optunahub cmaes torch scipy
 ```
 
 ## Example
