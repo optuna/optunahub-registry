@@ -164,7 +164,6 @@ class NSGAIIwITSampler(BaseSampler):
     def __init__(
         self,
         *,
-        n_init_trials: int = 50,
         population_size: int = 50,
         mutation_prob: float | None = None,
         crossover: BaseCrossover | None = None,
@@ -216,7 +215,6 @@ class NSGAIIwITSampler(BaseSampler):
                 f" The specified `population_size` is {population_size}."
             )
 
-        self._n_init_trials = n_init_trials
         self._population_size = population_size
         self._random_sampler = RandomSampler(seed=seed)
         self._rng = LazyRandomState(seed)
