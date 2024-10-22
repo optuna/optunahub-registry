@@ -109,20 +109,20 @@ class AutoSampler(BaseSampler):
             return
 
         seed = self._rng.rng.randint(1 << 32)
-        if self._constraints_func is not None:
-            # Fallback to the default sampler if the study has constraints.
-            # TODO(toshihikoyanase): add warning message about fallback.
-            self._sampler = TPESampler(seed=seed, constraines_func=self._constraints_func)
-            return
-
-        if any(
-            isinstance(d, CategoricalDistribution) for d in search_space.values()
-        ) or self._include_conditional_param(study):
+        if (
+            self._constraints_func is not None
+            or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
+            or self._include_conditional_param(study)
+        ):
             # NOTE(nabenabe): The statement above is always true for Trial#1.
             # Use ``TPESampler`` if search space includes conditional or categorical parameters.
             # TBD: group=True?
             self._sampler = TPESampler(
-                seed=seed, multivariate=True, warn_independent_sampling=False
+                seed=seed,
+                multivariate=True,
+                warn_independent_sampling=False,
+                constraines_func=self._constraints_func,
+                constant_liar=True,
             )
             return
 
