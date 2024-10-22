@@ -23,6 +23,9 @@ if TYPE_CHECKING:
     from optuna.trial import FrozenTrial
 
 
+MAXINT32 = (1 << 31) - 1
+
+
 class AutoSampler(BaseSampler):
     """Sampler automatically choosing an appropriate sampler based on search space.
 
@@ -74,7 +77,7 @@ class AutoSampler(BaseSampler):
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
         self._rng = LazyRandomState(seed)
-        seed_for_random_sampler = self._rng.rng.randint(1 << 32)
+        seed_for_random_sampler = self._rng.rng.randint(MAXINT32)
         self._sampler: BaseSampler = RandomSampler(seed=seed_for_random_sampler)
         self._constraints_func = constraints_func
 
@@ -94,21 +97,26 @@ class AutoSampler(BaseSampler):
 
         return False
 
+    def _determine_multi_objective_sampler(
+        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    ) -> None:
+        if isinstance(self._sampler, NSGAIISampler):
+            return
+
+        seed = self._rng.rng.randint(MAXINT32)
+        self._sampler = NSGAIISampler(constraints_func=self._constraints_func, seed=seed)
+
     def _determine_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> None:
         if len(study.directions) > 1:
-            # Fallback to the default sampler if the study has multiple objectives.
-            if isinstance(self._sampler, NSGAIISampler):
-                return
-            # TODO(toshihikoyanase): add warning message about fallback.
-            self._sampler = NSGAIISampler(constraints_func=self._constraints_func)
+            self._determine_multi_objective_sampler(study, trial, search_space)
             return
 
         if isinstance(self._sampler, TPESampler):
             return
 
-        seed = self._rng.rng.randint(1 << 32)
+        seed = self._rng.rng.randint(MAXINT32)
         if (
             self._constraints_func is not None
             or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
@@ -128,15 +136,15 @@ class AutoSampler(BaseSampler):
 
         complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
         complete_trials.sort(key=lambda trial: trial.datetime_complete)
-        if len(complete_trials) < 250:
-            # Use ``GPSampler`` if search space is numerical and n_trials <= 250.
+        if len(complete_trials) <= 250:
+            # Use ``GPSampler`` if search space is numerical and len(trials) <= 250.
             if not isinstance(self._sampler, GPSampler):
                 self._sampler = GPSampler(seed=seed)
             return
 
         if not isinstance(self._sampler, CmaEsSampler):
-            # Use ``CmaEsSampler`` if search space is numerical and n_trials > 250.
-            # Warm start CMA-ES with trials up to trial.number of 249.
+            # Use ``CmaEsSampler`` if search space is numerical and len(trials) > 250.
+            # Warm start CMA-ES with the first 250 complete trials.
             warm_start_trials = complete_trials[:250]
             # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
             # 1D problems.
