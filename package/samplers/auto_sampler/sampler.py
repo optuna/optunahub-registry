@@ -77,6 +77,7 @@ class AutoSampler(BaseSampler):
 
     def __init__(
         self,
+        *,
         seed: int | None = None,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
