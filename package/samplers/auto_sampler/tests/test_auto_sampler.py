@@ -144,3 +144,6 @@ def test_choose_tpe_with_conditional_params() -> None:
     assert ["RandomSampler"] + ["GPSampler"] * 15 + ["TPESampler"] * (
         n_trials - 16
     ) == sampler_names
+
+
+# TODO: Add a test with enqueue_trial.

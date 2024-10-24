@@ -211,8 +211,7 @@ class AutoSampler(BaseSampler):
         return self._sampler.sample_independent(study, trial, param_name, param_distribution)
 
     def before_trial(self, study: Study, trial: FrozenTrial) -> None:
-        # NOTE(nabenabe): Use the states used in IntersectionSearchSpace().calculate.
-        states_of_interest = [TrialState.COMPLETE, TrialState.WAITING, TrialState.RUNNING]
+        states_of_interest = [TrialState.COMPLETE, TrialState.WAITING]
         if len(study._get_trials(deepcopy=False, states=states_of_interest)) != 0:
             search_space = IntersectionSearchSpace().calculate(study)
             self._sampler = self._determine_sampler(study, trial, search_space)
