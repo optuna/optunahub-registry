@@ -182,10 +182,6 @@ class AutoSampler(BaseSampler):
     def infer_relative_search_space(
         self, study: Study, trial: FrozenTrial
     ) -> dict[str, BaseDistribution]:
-        search_space = IntersectionSearchSpace().calculate(study)
-        if len(search_space) == 0:
-            return {}
-
         return self._sampler.infer_relative_search_space(study, trial)
 
     def sample_relative(
@@ -215,9 +211,10 @@ class AutoSampler(BaseSampler):
         return self._sampler.sample_independent(study, trial, param_name, param_distribution)
 
     def before_trial(self, study: Study, trial: FrozenTrial) -> None:
-        search_space = IntersectionSearchSpace().calculate(study)
-        if len(search_space) != 0:
-            # Cannot determine sampler in before we know the search space, i.e. len(search_space) == 0.
+        # NOTE(nabenabe): Use the states used in IntersectionSearchSpace().calculate.
+        states_of_interest = [TrialState.COMPLETE, TrialState.WAITING, TrialState.RUNNING]
+        if len(study._get_trials(deepcopy=False, states=states_of_interest)) != 0:
+            search_space = IntersectionSearchSpace().calculate(study)
             self._sampler = self._determine_sampler(study, trial, search_space)
 
         study._storage.set_trial_system_attr(
