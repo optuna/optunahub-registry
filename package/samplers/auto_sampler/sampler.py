@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 MAXINT32 = (1 << 31) - 1
 THRESHOLD_OF_MANY_OBJECTIVES = 4
+SAMPLER_KEY = "auto:sampler"
 
 
 class AutoSampler(BaseSampler):
@@ -172,27 +173,19 @@ class AutoSampler(BaseSampler):
 
     def _determine_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> None:
+    ) -> BaseSampler:
         if len(study.directions) == 1:
-            self._sampler = self._determine_single_objective_sampler(study, trial, search_space)
+            return self._determine_single_objective_sampler(study, trial, search_space)
         else:
-            self._sampler = self._determine_multi_objective_sampler(study, trial, search_space)
+            return self._determine_multi_objective_sampler(study, trial, search_space)
 
     def infer_relative_search_space(
         self, study: Study, trial: FrozenTrial
     ) -> dict[str, BaseDistribution]:
         search_space = IntersectionSearchSpace().calculate(study)
-        sampler_key = "auto:sampler"
         if len(search_space) == 0:
-            study._storage.set_trial_system_attr(
-                trial._trial_id, sampler_key, self._sampler.__class__.__name__
-            )
             return {}
 
-        self._determine_sampler(study, trial, search_space)
-        study._storage.set_trial_system_attr(
-            trial._trial_id, sampler_key, self._sampler.__class__.__name__
-        )
         return self._sampler.infer_relative_search_space(study, trial)
 
     def sample_relative(
@@ -222,6 +215,14 @@ class AutoSampler(BaseSampler):
         return self._sampler.sample_independent(study, trial, param_name, param_distribution)
 
     def before_trial(self, study: Study, trial: FrozenTrial) -> None:
+        search_space = IntersectionSearchSpace().calculate(study)
+        if len(search_space) != 0:
+            # Cannot determine sampler in before we know the search space, i.e. len(search_space) == 0.
+            self._sampler = self._determine_sampler(study, trial, search_space)
+
+        study._storage.set_trial_system_attr(
+            trial._trial_id, SAMPLER_KEY, self._sampler.__class__.__name__
+        )
         self._sampler.before_trial(study, trial)
 
     def after_trial(
