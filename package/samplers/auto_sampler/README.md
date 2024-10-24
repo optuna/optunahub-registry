@@ -11,8 +11,6 @@ license: MIT License
 
 This package automatically selects an appropriate sampler for the provided search space based on the developers' recommendation.
 
-![Conceptual Visualization](images/thumbnail.png "Conceptual Visualization")
-
 ## Class or Function Names
 
 - AutoSampler
