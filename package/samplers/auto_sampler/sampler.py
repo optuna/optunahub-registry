@@ -125,11 +125,11 @@ class AutoSampler(BaseSampler):
             # Use NSGA-II/III if len(complete_trials) <= _N_COMPLETE_TRIALS_FOR_NSGA.
             return nsga_sampler_cls(constraints_func=self._constraints_func, seed=seed)
 
-        return self._sampler
+        return self._sampler  # No update happens to self._sampler.
 
     def _determine_single_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> BaseSampler | None:
+    ) -> BaseSampler:
         if isinstance(self._sampler, TPESampler):
             return self._sampler
 
@@ -168,7 +168,7 @@ class AutoSampler(BaseSampler):
                 seed=seed, source_trials=warm_start_trials, warn_independent_sampling=False
             )
 
-        return self._sampler
+        return self._sampler  # No update happens to self._sampler.
 
     def _determine_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
