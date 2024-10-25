@@ -135,7 +135,3 @@ def test_choose_tpe_with_conditional_params() -> None:
     assert ["RandomSampler"] + ["GPSampler"] * 15 + ["TPESampler"] * (
         n_trials - 16
     ) == sampler_names
-
-
-# TODO(c-bata): Check the test_samplers.py to cover a wider range of edge cases.
-# TODO: Add a test with enqueue_trial.
