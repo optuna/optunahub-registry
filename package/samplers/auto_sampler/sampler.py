@@ -7,6 +7,7 @@ from typing import Any
 from typing import TYPE_CHECKING
 
 from optuna.distributions import CategoricalDistribution
+from optuna.logging import get_logger
 from optuna.samplers import BaseSampler
 from optuna.samplers import CmaEsSampler
 from optuna.samplers import GPSampler
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
 
 MAXINT32 = (1 << 31) - 1
 SAMPLER_KEY = "auto:sampler"
+_logger = get_logger(f"optuna.{__name__}")
 
 
 class _ThreadLocalSampler(threading.local):
@@ -197,9 +199,9 @@ class AutoSampler(BaseSampler):
             search_space = IntersectionSearchSpace().calculate(study)
             self._sampler = self._determine_sampler(study, trial, search_space)
 
-        study._storage.set_trial_system_attr(
-            trial._trial_id, SAMPLER_KEY, self._sampler.__class__.__name__
-        )
+        sampler_name = self._sampler.__class__.__name__
+        _logger.debug(f"Sample trial#{trial.number} with {sampler_name}.")
+        study._storage.set_trial_system_attr(trial._trial_id, SAMPLER_KEY, sampler_name)
         self._sampler.before_trial(study, trial)
 
     def after_trial(
