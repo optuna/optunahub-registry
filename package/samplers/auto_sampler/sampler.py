@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from collections.abc import Sequence
+import threading
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,12 @@ if TYPE_CHECKING:
 
 MAXINT32 = (1 << 31) - 1
 SAMPLER_KEY = "auto:sampler"
+
+
+class _ThreadLocalSampler(threading.local):
+    def __init__(self, sampler: BaseSampler) -> None:
+        self._sampler = sampler
+        super().__init__()
 
 
 class AutoSampler(BaseSampler):
@@ -79,8 +86,17 @@ class AutoSampler(BaseSampler):
     ) -> None:
         self._rng = LazyRandomState(seed)
         seed_for_random_sampler = self._rng.rng.randint(MAXINT32)
-        self._sampler: BaseSampler = RandomSampler(seed=seed_for_random_sampler)
+        sampler: BaseSampler = RandomSampler(seed=seed_for_random_sampler)
+        self._thread_local_sampler = _ThreadLocalSampler(sampler)
         self._constraints_func = constraints_func
+
+    @property
+    def _sampler(self) -> BaseSampler:
+        return self._thread_local_sampler._sampler
+
+    @_sampler.setter
+    def _sampler(self, sampler: BaseSampler) -> None:
+        self._thread_local_sampler._sampler = sampler
 
     def reseed_rng(self) -> None:
         self._rng.rng.seed()
