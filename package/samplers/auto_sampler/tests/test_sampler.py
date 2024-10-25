@@ -5,9 +5,7 @@ from collections.abc import Sequence
 import multiprocessing
 from multiprocessing.managers import DictProxy
 import os
-import pickle
 from typing import Any
-from unittest.mock import patch
 import warnings
 
 from _pytest.fixtures import SubRequest
@@ -20,78 +18,29 @@ from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 from optuna.samplers import BaseSampler
-from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import Study
-from optuna.testing.objectives import fail_objective
-from optuna.testing.objectives import pruned_objective
 from optuna.trial import FrozenTrial
 from optuna.trial import Trial
 from optuna.trial import TrialState
+import optunahub
 import pytest
 
 
 # NOTE(nabenabe): This file content is mostly copied from the Optuna repository.
+AutoSampler = optunahub.load_local_module(
+    package="samplers/auto_sampler", registry_root="package/"
+).AutoSampler
 
 
-def get_gp_sampler(
-    *, n_startup_trials: int = 0, deterministic_objective: bool = False, seed: int | None = None
-) -> optuna.samplers.GPSampler:
-    return optuna.samplers.GPSampler(
-        n_startup_trials=n_startup_trials,
-        seed=seed,
-        deterministic_objective=deterministic_objective,
-    )
-
-
-parametrize_sampler = pytest.mark.parametrize(
-    "sampler_class",
-    [
-        optuna.samplers.RandomSampler,
-        lambda: optuna.samplers.TPESampler(n_startup_trials=0),
-        lambda: optuna.samplers.TPESampler(n_startup_trials=0, multivariate=True),
-        lambda: optuna.samplers.CmaEsSampler(n_startup_trials=0),
-        lambda: optuna.samplers.CmaEsSampler(n_startup_trials=0, use_separable_cma=True),
-        optuna.samplers.NSGAIISampler,
-        optuna.samplers.NSGAIIISampler,
-        optuna.samplers.QMCSampler,
-        lambda: get_gp_sampler(n_startup_trials=0),
-        lambda: get_gp_sampler(n_startup_trials=0, deterministic_objective=True),
-    ],
-)
-parametrize_relative_sampler = pytest.mark.parametrize(
-    "relative_sampler_class",
-    [
-        lambda: optuna.samplers.TPESampler(n_startup_trials=0, multivariate=True),
-        lambda: optuna.samplers.CmaEsSampler(n_startup_trials=0),
-        lambda: optuna.samplers.CmaEsSampler(n_startup_trials=0, use_separable_cma=True),
-        lambda: get_gp_sampler(n_startup_trials=0),
-        lambda: get_gp_sampler(n_startup_trials=0, deterministic_objective=True),
-    ],
-)
+parametrize_sampler = pytest.mark.parametrize("sampler_class", [AutoSampler])
+parametrize_relative_sampler = pytest.mark.parametrize("relative_sampler_class", [AutoSampler])
 parametrize_multi_objective_sampler = pytest.mark.parametrize(
-    "multi_objective_sampler_class",
-    [
-        optuna.samplers.NSGAIISampler,
-        optuna.samplers.NSGAIIISampler,
-        lambda: optuna.samplers.TPESampler(n_startup_trials=0),
-    ],
+    "multi_objective_sampler_class", [AutoSampler]
 )
 
 
 sampler_class_with_seed: dict[str, Callable[[int], BaseSampler]] = {
-    "RandomSampler": lambda seed: optuna.samplers.RandomSampler(seed=seed),
-    "TPESampler": lambda seed: optuna.samplers.TPESampler(seed=seed),
-    "multivariate TPESampler": lambda seed: optuna.samplers.TPESampler(
-        multivariate=True, seed=seed
-    ),
-    "CmaEsSampler": lambda seed: optuna.samplers.CmaEsSampler(seed=seed),
-    "separable CmaEsSampler": lambda seed: optuna.samplers.CmaEsSampler(
-        seed=seed, use_separable_cma=True
-    ),
-    "NSGAIISampler": lambda seed: optuna.samplers.NSGAIISampler(seed=seed),
-    "NSGAIIISampler": lambda seed: optuna.samplers.NSGAIIISampler(seed=seed),
-    "QMCSampler": lambda seed: optuna.samplers.QMCSampler(seed=seed),
-    "GPSampler": lambda seed: get_gp_sampler(seed=seed, n_startup_trials=0),
+    "AutoSampler": lambda seed: AutoSampler(seed=seed)
 }
 param_sampler_with_seed = []
 param_sampler_name_with_seed = []
@@ -104,26 +53,10 @@ parametrize_sampler_name_with_seed = pytest.mark.parametrize(
 )
 
 
+"""
 @pytest.mark.parametrize(
-    "sampler_class,expected_has_rng,expected_has_another_sampler",
-    [
-        (optuna.samplers.RandomSampler, True, False),
-        (lambda: optuna.samplers.TPESampler(n_startup_trials=0), True, True),
-        (lambda: optuna.samplers.TPESampler(n_startup_trials=0, multivariate=True), True, True),
-        (lambda: optuna.samplers.CmaEsSampler(n_startup_trials=0), True, True),
-        (optuna.samplers.NSGAIISampler, True, True),
-        (optuna.samplers.NSGAIIISampler, True, True),
-        (
-            lambda: optuna.samplers.PartialFixedSampler(
-                fixed_params={"x": 0}, base_sampler=optuna.samplers.RandomSampler()
-            ),
-            False,
-            True,
-        ),
-        (lambda: optuna.samplers.GridSampler(search_space={"x": [0]}), True, False),
-        (lambda: optuna.samplers.QMCSampler(), False, True),
-        (lambda: get_gp_sampler(n_startup_trials=0), True, True),
-    ],
+    # TODO: 知らん
+    "sampler_class,expected_has_rng,expected_has_another_sampler", [(AutoSampler, ..., ...)]
 )
 def test_sampler_reseed_rng(
     sampler_class: Callable[[], BaseSampler],
@@ -174,6 +107,7 @@ def test_sampler_reseed_rng(
         had_sampler = sampler.__dict__[had_sampler_name]
         had_sampler_random_state = had_sampler.__dict__[had_sampler_rng_name].rng.get_state()
         assert str(original_had_sampler_random_state) != str(had_sampler_random_state)
+"""
 
 
 def parametrize_suggest_method(name: str) -> MarkDecorator:
@@ -190,33 +124,10 @@ def parametrize_suggest_method(name: str) -> MarkDecorator:
     )
 
 
-@pytest.mark.parametrize(
-    "sampler_class",
-    [
-        lambda: optuna.samplers.CmaEsSampler(n_startup_trials=0),
-    ],
-)
-def test_raise_error_for_samplers_during_multi_objectives(
-    sampler_class: Callable[[], BaseSampler],
-) -> None:
-    study = optuna.study.create_study(directions=["maximize", "maximize"], sampler=sampler_class())
-
-    distribution = FloatDistribution(0.0, 1.0)
-    with pytest.raises(ValueError):
-        study.sampler.sample_independent(study, _create_new_trial(study), "x", distribution)
-
-    with pytest.raises(ValueError):
-        trial = _create_new_trial(study)
-        study.sampler.sample_relative(
-            study, trial, study.sampler.infer_relative_search_space(study, trial)
-        )
-
-
-@pytest.mark.parametrize("seed", [0, 169208])
-def test_pickle_random_sampler(seed: int) -> None:
-    sampler = optuna.samplers.RandomSampler(seed)
-    restored_sampler = pickle.loads(pickle.dumps(sampler))
-    assert sampler._rng.rng.bytes(10) == restored_sampler._rng.rng.bytes(10)
+def _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study: optuna.Study) -> None:
+    # NOTE(nabenabe): Choose a sampler inside AutoSampler.
+    study.sampler.before_trial(study, trial=_create_new_trial(study))
+    study.sampler._sampler._n_startup_trials = 0
 
 
 @parametrize_sampler
@@ -231,10 +142,7 @@ def test_pickle_random_sampler(seed: int) -> None:
         FloatDistribution(-10.2, 10.2, step=0.1),
     ],
 )
-def test_float(
-    sampler_class: Callable[[], BaseSampler],
-    distribution: FloatDistribution,
-) -> None:
+def test_float(sampler_class: Callable[[], BaseSampler], distribution: FloatDistribution) -> None:
     study = optuna.study.create_study(sampler=sampler_class())
     points = np.array(
         [
@@ -341,6 +249,7 @@ def test_sample_relative_numerical(
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
     study.tell(trial, sum(trial.params.values()))
+    _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
 
     def sample() -> list[int | float]:
         params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
@@ -374,6 +283,7 @@ def test_sample_relative_categorical(relative_sampler_class: Callable[[], BaseSa
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
     study.tell(trial, sum(trial.params.values()))
+    _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
 
     def sample() -> list[float]:
         params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
@@ -409,6 +319,7 @@ def test_sample_relative_mixed(
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
     study.tell(trial, sum(trial.params.values()))
+    _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
 
     def sample() -> list[float]:
         params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
@@ -480,69 +391,6 @@ def _create_new_trial(study: Study) -> FrozenTrial:
     return study._storage.get_trial(trial_id)
 
 
-class FixedSampler(BaseSampler):
-    def __init__(
-        self,
-        relative_search_space: dict[str, BaseDistribution],
-        relative_params: dict[str, Any],
-        unknown_param_value: Any,
-    ) -> None:
-        self.relative_search_space = relative_search_space
-        self.relative_params = relative_params
-        self.unknown_param_value = unknown_param_value
-
-    def infer_relative_search_space(
-        self, study: Study, trial: FrozenTrial
-    ) -> dict[str, BaseDistribution]:
-        return self.relative_search_space
-
-    def sample_relative(
-        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, Any]:
-        return self.relative_params
-
-    def sample_independent(
-        self,
-        study: Study,
-        trial: FrozenTrial,
-        param_name: str,
-        param_distribution: BaseDistribution,
-    ) -> Any:
-        return self.unknown_param_value
-
-
-def test_sample_relative() -> None:
-    relative_search_space: dict[str, BaseDistribution] = {
-        "a": FloatDistribution(low=0, high=5),
-        "b": CategoricalDistribution(choices=("foo", "bar", "baz")),
-        "c": IntDistribution(low=20, high=50),  # Not exist in `relative_params`.
-    }
-    relative_params = {
-        "a": 3.2,
-        "b": "baz",
-    }
-    unknown_param_value = 30
-
-    sampler = FixedSampler(relative_search_space, relative_params, unknown_param_value)
-    study = optuna.study.create_study(sampler=sampler)
-
-    def objective(trial: Trial) -> float:
-        # Predefined parameters are sampled by `sample_relative()` method.
-        assert trial.suggest_float("a", 0, 5) == 3.2
-        assert trial.suggest_categorical("b", ["foo", "bar", "baz"]) == "baz"
-
-        # Other parameters are sampled by `sample_independent()` method.
-        assert trial.suggest_int("c", 20, 50) == unknown_param_value
-        assert trial.suggest_float("d", 1, 100, log=True) == unknown_param_value
-        assert trial.suggest_float("e", 20, 40) == unknown_param_value
-
-        return 0.0
-
-    study.optimize(objective, n_trials=10, catch=())
-    for trial in study.trials:
-        assert trial.params == {"a": 3.2, "b": "baz", "c": 30, "d": 30, "e": 30}
-
-
 @parametrize_sampler
 def test_nan_objective_value(sampler_class: Callable[[], BaseSampler]) -> None:
     study = optuna.create_study(sampler=sampler_class())
@@ -562,29 +410,6 @@ def test_nan_objective_value(sampler_class: Callable[[], BaseSampler]) -> None:
     # Non NaN objective value.
     study.optimize(lambda t: objective(t, 1), n_trials=1, catch=())
     assert int(study.best_value) == 1
-
-
-@parametrize_sampler
-def test_partial_fixed_sampling(sampler_class: Callable[[], BaseSampler]) -> None:
-    study = optuna.create_study(sampler=sampler_class())
-
-    def objective(trial: Trial) -> float:
-        x = trial.suggest_float("x", -1, 1)
-        y = trial.suggest_int("y", -1, 1)
-        z = trial.suggest_float("z", -1, 1)
-        return x + y + z
-
-    # First trial.
-    study.optimize(objective, n_trials=1)
-
-    # Second trial. Here, the parameter ``y`` is fixed as 0.
-    fixed_params = {"y": 0}
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", optuna.exceptions.ExperimentalWarning)
-        study.sampler = optuna.samplers.PartialFixedSampler(fixed_params, study.sampler)
-    study.optimize(objective, n_trials=1)
-    trial_params = study.trials[-1].params
-    assert trial_params["y"] == fixed_params["y"]
 
 
 @parametrize_multi_objective_sampler
@@ -633,176 +458,6 @@ def test_multi_objective_sample_independent(
                 value /= distribution.step
                 round_value = np.round(value)
                 np.testing.assert_almost_equal(round_value, value)
-
-
-def test_before_trial() -> None:
-    n_calls = 0
-    n_trials = 3
-
-    class SamplerBeforeTrial(optuna.samplers.RandomSampler):
-        def before_trial(self, study: Study, trial: FrozenTrial) -> None:
-            assert len(study.trials) - 1 == trial.number
-            assert trial.state == TrialState.RUNNING
-            assert trial.values is None
-            nonlocal n_calls
-            n_calls += 1
-
-    sampler = SamplerBeforeTrial()
-    study = optuna.create_study(directions=["minimize", "minimize"], sampler=sampler)
-
-    study.optimize(
-        lambda t: [t.suggest_float("y", -3, 3), t.suggest_int("x", 0, 10)], n_trials=n_trials
-    )
-    assert n_calls == n_trials
-
-
-def test_after_trial() -> None:
-    n_calls = 0
-    n_trials = 3
-
-    class SamplerAfterTrial(optuna.samplers.RandomSampler):
-        def after_trial(
-            self,
-            study: Study,
-            trial: FrozenTrial,
-            state: TrialState,
-            values: Sequence[float] | None,
-        ) -> None:
-            assert len(study.trials) - 1 == trial.number
-            assert trial.state == TrialState.RUNNING
-            assert trial.values is None
-            assert state == TrialState.COMPLETE
-            assert values is not None
-            assert len(values) == 2
-            nonlocal n_calls
-            n_calls += 1
-
-    sampler = SamplerAfterTrial()
-    study = optuna.create_study(directions=["minimize", "minimize"], sampler=sampler)
-
-    study.optimize(lambda t: [t.suggest_float("y", -3, 3), t.suggest_int("x", 0, 10)], n_trials=3)
-
-    assert n_calls == n_trials
-
-
-def test_after_trial_pruning() -> None:
-    n_calls = 0
-    n_trials = 3
-
-    class SamplerAfterTrial(optuna.samplers.RandomSampler):
-        def after_trial(
-            self,
-            study: Study,
-            trial: FrozenTrial,
-            state: TrialState,
-            values: Sequence[float] | None,
-        ) -> None:
-            assert len(study.trials) - 1 == trial.number
-            assert trial.state == TrialState.RUNNING
-            assert trial.values is None
-            assert state == TrialState.PRUNED
-            assert values is None
-            nonlocal n_calls
-            n_calls += 1
-
-    sampler = SamplerAfterTrial()
-    study = optuna.create_study(directions=["minimize", "minimize"], sampler=sampler)
-
-    study.optimize(pruned_objective, n_trials=n_trials)
-
-    assert n_calls == n_trials
-
-
-def test_after_trial_failing() -> None:
-    n_calls = 0
-    n_trials = 3
-
-    class SamplerAfterTrial(optuna.samplers.RandomSampler):
-        def after_trial(
-            self,
-            study: Study,
-            trial: FrozenTrial,
-            state: TrialState,
-            values: Sequence[float] | None,
-        ) -> None:
-            assert len(study.trials) - 1 == trial.number
-            assert trial.state == TrialState.RUNNING
-            assert trial.values is None
-            assert state == TrialState.FAIL
-            assert values is None
-            nonlocal n_calls
-            n_calls += 1
-
-    sampler = SamplerAfterTrial()
-    study = optuna.create_study(directions=["minimize", "minimize"], sampler=sampler)
-
-    with pytest.raises(ValueError):
-        study.optimize(fail_objective, n_trials=n_trials)
-
-    # Called once after the first failing trial before returning from optimize.
-    assert n_calls == 1
-
-
-def test_after_trial_failing_in_after_trial() -> None:
-    n_calls = 0
-    n_trials = 3
-
-    class SamplerAfterTrialAlwaysFail(optuna.samplers.RandomSampler):
-        def after_trial(
-            self,
-            study: Study,
-            trial: FrozenTrial,
-            state: TrialState,
-            values: Sequence[float] | None,
-        ) -> None:
-            nonlocal n_calls
-            n_calls += 1
-            raise NotImplementedError  # Arbitrary error for testing purpose.
-
-    sampler = SamplerAfterTrialAlwaysFail()
-    study = optuna.create_study(sampler=sampler)
-
-    with pytest.raises(NotImplementedError):
-        study.optimize(lambda t: t.suggest_int("x", 0, 10), n_trials=n_trials)
-
-    assert len(study.trials) == 1
-    assert n_calls == 1
-
-    sampler = SamplerAfterTrialAlwaysFail()
-    study = optuna.create_study(sampler=sampler)
-
-    # Not affected by `catch`.
-    with pytest.raises(NotImplementedError):
-        study.optimize(
-            lambda t: t.suggest_int("x", 0, 10), n_trials=n_trials, catch=(NotImplementedError,)
-        )
-
-    assert len(study.trials) == 1
-    assert n_calls == 2
-
-
-def test_after_trial_with_study_tell() -> None:
-    n_calls = 0
-
-    class SamplerAfterTrial(optuna.samplers.RandomSampler):
-        def after_trial(
-            self,
-            study: Study,
-            trial: FrozenTrial,
-            state: TrialState,
-            values: Sequence[float] | None,
-        ) -> None:
-            nonlocal n_calls
-            n_calls += 1
-
-    sampler = SamplerAfterTrial()
-    study = optuna.create_study(sampler=sampler)
-
-    assert n_calls == 0
-
-    study.tell(study.ask(), 1.0)
-
-    assert n_calls == 1
 
 
 @parametrize_sampler
