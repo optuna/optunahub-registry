@@ -30,12 +30,14 @@ $ pip install optunahub cmaes torch scipy
 ## Example
 
 ```python
+import optuna
 import optunahub
 
 
 def objective(trial):
   x = trial.suggest_float("x", -5, 5)
-  return x**2
+  y = trial.suggest_float("y", -5, 5)
+  return x**2 + y**2
 
 
 module = optunahub.load_module(package="samplers/auto_sampler")
@@ -54,3 +56,9 @@ pip install pytest
 ```python
 python -m pytest package/samplers/auto_sampler/tests/test_auto_sampler.py
 ```
+
+## Others
+
+### Algorithm Switch Heurtistic in AutoSampler
+
+TODO
