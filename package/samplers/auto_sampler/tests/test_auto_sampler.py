@@ -70,33 +70,25 @@ def _check_constraints_of_all_trials(study: optuna.Study) -> None:
 
 
 @parametrize_constraints
-def test_choose_nsga3(use_constraint: bool) -> None:
-    n_trials_of_nsga = 100
-    n_trials_before_nsga = 100
+def test_choose_for_many_objective(use_constraint: bool) -> None:
+    n_trials = 200
     auto_sampler = AutoSampler(constraints_func=constraints_func if use_constraint else None)
-    auto_sampler._N_COMPLETE_TRIALS_FOR_NSGA = n_trials_before_nsga
     study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 4)
-    study.optimize(many_objective, n_trials=n_trials_before_nsga + n_trials_of_nsga)
+    study.optimize(many_objective, n_trials=n_trials)
     sampler_names = _get_used_sampler_names(study)
-    assert ["RandomSampler"] + ["TPESampler"] * (n_trials_before_nsga - 1) + [
-        "NSGAIIISampler"
-    ] * n_trials_of_nsga == sampler_names
+    assert ["RandomSampler"] + ["NSGAIISampler"] * (n_trials - 1) == sampler_names
     if use_constraint:
         _check_constraints_of_all_trials(study)
 
 
 @parametrize_constraints
-def test_choose_nsga2(use_constraint: bool) -> None:
-    n_trials_of_nsga = 100
-    n_trials_before_nsga = 100
+def test_choose_for_multi_objective(use_constraint: bool) -> None:
+    n_trials = 200
     auto_sampler = AutoSampler(constraints_func=constraints_func if use_constraint else None)
-    auto_sampler._N_COMPLETE_TRIALS_FOR_NSGA = n_trials_before_nsga
     study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 2)
-    study.optimize(multi_objective, n_trials=n_trials_before_nsga + n_trials_of_nsga)
+    study.optimize(multi_objective, n_trials=n_trials)
     sampler_names = _get_used_sampler_names(study)
-    assert ["RandomSampler"] + ["TPESampler"] * (n_trials_before_nsga - 1) + [
-        "NSGAIISampler"
-    ] * n_trials_of_nsga == sampler_names
+    assert ["RandomSampler"] + ["NSGAIISampler"] * (n_trials - 1) == sampler_names
     if use_constraint:
         _check_constraints_of_all_trials(study)
 
