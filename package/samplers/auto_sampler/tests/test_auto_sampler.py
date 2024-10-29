@@ -135,3 +135,15 @@ def test_choose_tpe_with_conditional_params() -> None:
     assert ["RandomSampler"] + ["GPSampler"] * 15 + ["TPESampler"] * (
         n_trials - 16
     ) == sampler_names
+
+
+def test_multi_thread() -> None:
+    n_trials = 30
+    auto_sampler = AutoSampler()
+    auto_sampler._N_COMPLETE_TRIALS_FOR_CMAES = 10
+    study = optuna.create_study(sampler=auto_sampler)
+    study.optimize(objective, n_trials=n_trials)
+    sampler_names = _get_used_sampler_names(study)
+    assert "RandomSampler" in sampler_names
+    assert "GPSampler" in sampler_names
+    assert "CmaEsSampler" in sampler_names

@@ -85,15 +85,18 @@ class AutoSampler(BaseSampler):
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
         self._rng = LazyRandomState(seed)
-        seed_for_random_sampler = self._rng.rng.randint(_MAXINT32)
-        sampler: BaseSampler = RandomSampler(seed=seed_for_random_sampler)
         self._thread_local_sampler = _ThreadLocalSampler()
-        self._thread_local_sampler._sampler = sampler
         self._constraints_func = constraints_func
 
     @property
     def _sampler(self) -> BaseSampler:
-        assert self._sampler is not None
+        if self._thread_local_sampler._sampler is None:
+            # NOTE(nabenabe): Do not do this process in the __init__ method because the
+            # substitution at the init does not update attributes in self._thread_local_sampler
+            # in each thread.
+            seed_for_random_sampler = self._rng.rng.randint(_MAXINT32)
+            self._sampler = RandomSampler(seed=seed_for_random_sampler)
+
         return self._thread_local_sampler._sampler
 
     @_sampler.setter
