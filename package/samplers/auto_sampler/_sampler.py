@@ -141,7 +141,6 @@ class AutoSampler(BaseSampler):
             or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
             or self._include_conditional_param(study)
         ):
-            # NOTE(nabenabe): The statement above is always true for Trial#1.
             # Use ``TPESampler`` if search space includes conditional or categorical parameters.
             # TBD: group=True?
             return TPESampler(
