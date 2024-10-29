@@ -56,9 +56,3 @@ pip install pytest
 ```python
 python -m pytest package/samplers/auto_sampler/tests/test_auto_sampler.py
 ```
-
-## Others
-
-### Algorithm Switch Heurtistic in AutoSampler
-
-TODO
