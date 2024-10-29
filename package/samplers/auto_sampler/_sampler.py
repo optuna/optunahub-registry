@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 _MAXINT32 = (1 << 31) - 1
 _SAMPLER_KEY = "auto:sampler"
+# NOTE(nabenabe): The prefix `optuna.` enables us to use the optuna logger externally.
 _logger = get_logger(f"optuna.{__name__}")
 
 
@@ -52,7 +53,8 @@ class AutoSampler(BaseSampler):
 
             def objective(trial):
                 x = trial.suggest_float("x", -5, 5)
-                return x**2
+                y = trial.suggest_float("y", -5, 5)
+                return x**2 + y**2
 
             module = optunahub.load_module("samplers/auto_sampler")
             study = optuna.create_study(sampler=module.AutoSampler())
@@ -120,6 +122,7 @@ class AutoSampler(BaseSampler):
     def _determine_multi_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> BaseSampler:
+        # TODO(nabenabe): Add more efficient heuristic for MO.
         if isinstance(self._sampler, NSGAIISampler):
             return self._sampler
 
@@ -152,7 +155,6 @@ class AutoSampler(BaseSampler):
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
         )
-        complete_trials.sort(key=lambda trial: trial.datetime_complete)
         if len(complete_trials) < self._N_COMPLETE_TRIALS_FOR_CMAES:
             # Use ``GPSampler`` if search space is numerical and
             # len(complete_trials) < _N_COMPLETE_TRIALS_FOR_CMAES.
@@ -162,6 +164,7 @@ class AutoSampler(BaseSampler):
             # Use ``CmaEsSampler`` if search space is numerical and
             # len(complete_trials) > _N_COMPLETE_TRIALS_FOR_CMAES.
             # Warm start CMA-ES with the first _N_COMPLETE_TRIALS_FOR_CMAES complete trials.
+            complete_trials.sort(key=lambda trial: trial.datetime_complete)
             warm_start_trials = complete_trials[: self._N_COMPLETE_TRIALS_FOR_CMAES]
             # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
             # 1D problems.

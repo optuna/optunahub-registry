@@ -6,7 +6,6 @@ import pytest
 
 
 # TODO(nabaenabe): Add the CI for this sampler.
-# optuna.logging.set_verbosity(optuna.logging.CRITICAL)
 
 AutoSampler = optunahub.load_local_module(
     package="samplers/auto_sampler", registry_root="package/"
