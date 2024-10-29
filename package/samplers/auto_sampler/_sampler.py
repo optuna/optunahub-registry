@@ -32,9 +32,7 @@ _logger = get_logger(f"optuna.{__name__}")
 
 
 class _ThreadLocalSampler(threading.local):
-    def __init__(self, sampler: BaseSampler) -> None:
-        self._sampler = sampler
-        super().__init__()
+    _sampler: BaseSampler | None = None
 
 
 class AutoSampler(BaseSampler):
@@ -89,11 +87,13 @@ class AutoSampler(BaseSampler):
         self._rng = LazyRandomState(seed)
         seed_for_random_sampler = self._rng.rng.randint(_MAXINT32)
         sampler: BaseSampler = RandomSampler(seed=seed_for_random_sampler)
-        self._thread_local_sampler = _ThreadLocalSampler(sampler)
+        self._thread_local_sampler = _ThreadLocalSampler()
+        self._thread_local_sampler._sampler = sampler
         self._constraints_func = constraints_func
 
     @property
     def _sampler(self) -> BaseSampler:
+        assert self._sampler is not None
         return self._thread_local_sampler._sampler
 
     @_sampler.setter
