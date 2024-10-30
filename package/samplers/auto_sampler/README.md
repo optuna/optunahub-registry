@@ -54,5 +54,5 @@ pip install pytest
 ```
 
 ```python
-python -m pytest package/samplers/auto_sampler/tests/test_auto_sampler.py
+pytest package/samplers/auto_sampler/tests/
 ```

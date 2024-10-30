@@ -32,8 +32,8 @@ _SAMPLER_KEY = "auto:sampler"
 _logger = get_logger(f"optuna.{__name__}")
 
 
-class _ThreadLocalSampler(threading.local):
-    _sampler: BaseSampler | None = None
+class ThreadLocalSampler(threading.local):
+    sampler: BaseSampler | None = None
 
 
 class AutoSampler(BaseSampler):
@@ -87,23 +87,23 @@ class AutoSampler(BaseSampler):
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
         self._rng = LazyRandomState(seed)
-        self._thread_local_sampler = _ThreadLocalSampler()
+        self._thread_local_sampler = ThreadLocalSampler()
         self._constraints_func = constraints_func
 
     @property
     def _sampler(self) -> BaseSampler:
-        if self._thread_local_sampler._sampler is None:
+        if self._thread_local_sampler.sampler is None:
             # NOTE(nabenabe): Do not do this process in the __init__ method because the
             # substitution at the init does not update attributes in self._thread_local_sampler
             # in each thread.
             seed_for_random_sampler = self._rng.rng.randint(_MAXINT32)
             self._sampler = RandomSampler(seed=seed_for_random_sampler)
 
-        return self._thread_local_sampler._sampler
+        return self._thread_local_sampler.sampler
 
     @_sampler.setter
     def _sampler(self, sampler: BaseSampler) -> None:
-        self._thread_local_sampler._sampler = sampler
+        self._thread_local_sampler.sampler = sampler
 
     def reseed_rng(self) -> None:
         self._rng.rng.seed()
