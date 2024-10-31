@@ -168,7 +168,7 @@ class AutoSampler(BaseSampler):
             # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
             # 1D problems.
             return CmaEsSampler(
-                seed=seed, source_trials=warm_start_trials, warn_independent_sampling=False
+                seed=seed, source_trials=warm_start_trials, warn_independent_sampling=True
             )
 
         return self._sampler  # No update happens to self._sampler.
