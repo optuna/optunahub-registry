@@ -3,7 +3,7 @@ author: Optuna Team
 title: AutoSampler
 description: This sampler automatically chooses an appropriate built-in sampler for the provided objective function.
 tags: [sampler, automatic, automated]
-optuna_versions: [4.0.0]
+optuna_versions: [4.1.0]
 license: MIT License
 ---
 

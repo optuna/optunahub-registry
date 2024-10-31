@@ -1,3 +1,4 @@
 scipy
 torch
 cmaes
+optuna>=4.1.0
