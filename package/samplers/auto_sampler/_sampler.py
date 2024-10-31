@@ -159,16 +159,23 @@ class AutoSampler(BaseSampler):
             # len(complete_trials) < _N_COMPLETE_TRIALS_FOR_CMAES.
             if not isinstance(self._sampler, GPSampler):
                 return GPSampler(seed=seed)
-        elif not isinstance(self._sampler, CmaEsSampler):
-            # Use ``CmaEsSampler`` if search space is numerical and
-            # len(complete_trials) > _N_COMPLETE_TRIALS_FOR_CMAES.
-            # Warm start CMA-ES with the first _N_COMPLETE_TRIALS_FOR_CMAES complete trials.
-            complete_trials.sort(key=lambda trial: trial.datetime_complete)
-            warm_start_trials = complete_trials[: self._N_COMPLETE_TRIALS_FOR_CMAES]
-            # NOTE(nabenabe): ``CmaEsSampler`` internally falls back to ``RandomSampler`` for
-            # 1D problems.
-            return CmaEsSampler(
-                seed=seed, source_trials=warm_start_trials, warn_independent_sampling=True
+        elif len(search_space) > 1:
+            if not isinstance(self._sampler, CmaEsSampler):
+                # Use ``CmaEsSampler`` if search space is numerical and
+                # len(complete_trials) > _N_COMPLETE_TRIALS_FOR_CMAES.
+                # Warm start CMA-ES with the first _N_COMPLETE_TRIALS_FOR_CMAES complete trials.
+                complete_trials.sort(key=lambda trial: trial.datetime_complete)
+                warm_start_trials = complete_trials[: self._N_COMPLETE_TRIALS_FOR_CMAES]
+                return CmaEsSampler(
+                    seed=seed, source_trials=warm_start_trials, warn_independent_sampling=True
+                )
+        else:
+            return TPESampler(
+                seed=seed,
+                multivariate=True,
+                warn_independent_sampling=False,
+                constraints_func=self._constraints_func,
+                constant_liar=True,
             )
 
         return self._sampler  # No update happens to self._sampler.

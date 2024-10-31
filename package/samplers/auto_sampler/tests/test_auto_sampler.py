@@ -14,6 +14,11 @@ AutoSampler = optunahub.load_local_module(
 parametrize_constraints = pytest.mark.parametrize("use_constraint", [True, False])
 
 
+def objective_1d(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x", -5, 5)
+    return x**2
+
+
 def objective(trial: optuna.Trial) -> float:
     x = trial.suggest_float("x", -5, 5)
     y = trial.suggest_int("y", -5, 5)
@@ -103,6 +108,21 @@ def test_choose_cmaes() -> None:
     assert ["RandomSampler"] + ["GPSampler"] * (n_trials_before_cmaes - 1) + [
         "CmaEsSampler"
     ] * n_trials_of_cmaes == sampler_names
+
+
+def test_choose_tpe_for_1d() -> None:
+    # This test must be performed with a numerical objective function.
+    # For 1d problems, TPESampler will be chosen instead of CmaEsSampler.
+    n_trials_of_tpe = 100
+    n_trials_before_tpe = 20
+    auto_sampler = AutoSampler()
+    auto_sampler._N_COMPLETE_TRIALS_FOR_CMAES = n_trials_before_tpe
+    study = optuna.create_study(sampler=auto_sampler)
+    study.optimize(objective_1d, n_trials=n_trials_of_tpe + n_trials_before_tpe)
+    sampler_names = _get_used_sampler_names(study)
+    assert ["RandomSampler"] + ["GPSampler"] * (n_trials_before_tpe - 1) + [
+        "TPESampler"
+    ] * n_trials_of_tpe == sampler_names
 
 
 def test_choose_tpe_in_single_with_constraints() -> None:
