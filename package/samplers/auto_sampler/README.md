@@ -27,6 +27,8 @@ This sampler requires optional dependencies of Optuna.
 $ pip install optunahub cmaes torch scipy
 ```
 
+Note that since we may update the implementation of `AutoSampler`, it is highly encouraged to use the latest version of Optuna.
+
 ## Example
 
 ```python
