@@ -2,7 +2,7 @@ import optuna
 import optunahub
 
 if __name__ == "__main__":
-    mod = optunahub.load_module("samplers/hill_climb_search")
+    mod = optunahub.load_module(package="samplers/hill_climb_search")
     
     def objective(trial):
         x = trial.suggest_discrete_uniform("x", -10, 10)
