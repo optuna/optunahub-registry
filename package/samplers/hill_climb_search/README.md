@@ -2,11 +2,10 @@
 author: Chinmaya Sahu
 title: Hill Climb Local Search Sampler
 description: This sampler used the Hill Climb Algorithm to improve the searching, by selecting the best neighbors and moving in that direction.
-tags: [sampler,hill climb]
+tags: [sampler, hill climb]
 optuna_versions: [4.0.0]
 license: MIT License
 ---
-
 
 ## Abstract
 
