@@ -158,19 +158,4 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
             else:
                 #Process as normal
                 current_point = self._remaining_points.pop()
-                return current_point         
-       
-        
-if __name__ == "__main__":
-    def objective(trial):
-        x = trial.suggest_float("x", -10, 10, step=1)
-        y = trial.suggest_float("y", -10, 10, step=1)
-        z = trial.suggest_float("z", -10, 10, step=1)
-        
-        return x**2+y**2-z
-
-    sampler = HillClimbSearch()
-    study = optuna.create_study(sampler=sampler)
-    study.optimize(objective, n_trials=100)
-
-    print(study.best_trial.value, study.best_trial.params)
+                return current_point
