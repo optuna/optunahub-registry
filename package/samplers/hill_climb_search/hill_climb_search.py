@@ -8,23 +8,25 @@ import optunahub
 
 class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
     """A sampler based on the Hill Climb Local Search Algorithm dealing with discrete values.
-    
-        Args:
-            
-
     """
 
     def __init__(self,search_space: dict[str, optuna.distributions.BaseDistribution] | None = None) -> None:
         super().__init__(search_space)
         self._remaining_points = []
         self._rng = np.random.RandomState()
+        
+        #This is for storing the current point whose neighbors are under analysis
         self._current_point = None
         self._current_point_value = None
         self._current_state = "Not Initialized"
+        
+        #This is for keeping track of the best neighbor
         self._best_neighbor = None
         self._best_neighbor_value = None
         
     def _generate_random_point(self, search_space):
+        """This function generates a random discrete point in the search space
+        """
         params = {}
         for param_name, param_distribution in search_space.items():
             if isinstance(param_distribution, optuna.distributions.FloatDistribution):
@@ -34,7 +36,9 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
                 raise NotImplementedError
         return params
     
-    def _remove_tried_points(self, neighbors, search_space, current_point):
+    def _remove_tried_points(self, neighbors, study, current_point):
+        """This function removes the points that have already been tried from the list of neighbors
+        """
         final_neighbors = []
         
         tried_points = [trial.params for trial in study.get_trials(deepcopy=False)]
@@ -48,7 +52,9 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
                 
         return final_neighbors        
     
-    def _generate_neighbors(self, current_point, search_space):
+    def _generate_neighbors(self, current_point, search_space, study):
+        """This function generates the neighbors of the current point
+        """
         neighbors = []
         for param_name, param_distribution in search_space.items():
             if isinstance(param_distribution, optuna.distributions.FloatDistribution):
@@ -68,15 +74,9 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
             else:
                 raise NotImplementedError
                 
-        valid_neighbors = self._remove_tried_points(neighbors, search_space, current_point)        
+        valid_neighbors = self._remove_tried_points(neighbors, study, current_point)        
         
         return valid_neighbors
-        
-    def _get_previous_trial_value(self, study:optuna.study.Study) -> float:
-        if len(study.trials) > 1:
-            return study.trials[-2].value
-        else:
-            return None
         
     def sample_relative(self, study:optuna.study.Study, trial:optuna.trial.FrozenTrial, search_space: dict[str, optuna.distributions.BaseDistribution]) -> dict[str, Any]:
         if search_space == {}:
@@ -87,8 +87,8 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
             starting_point = self._generate_random_point(search_space)  
             self._current_point = starting_point
             
-            #Add the neighbours
-            neighbors = self._generate_neighbors(starting_point, search_space)
+            #Add the neighbors
+            neighbors = self._generate_neighbors(starting_point, search_space, study)
             self._remaining_points.extend(neighbors)
             
             #Change the state to initialized
@@ -105,8 +105,8 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
                 #Store the value of the current point
                 self._current_point_value = previous_trial.value
             else:
-                #The neighbour was evaluated
-                #Store the value of the neighbour, if it improves upon the current point
+                #The neighbor was evaluated
+                #Store the value of the neighbor, if it improves upon the current point
                 neighbor_value = previous_trial.value
                 
                 if neighbor_value < self._current_point_value:
@@ -115,22 +115,21 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
             
             #This section is for the next point to be evaluated
             if len(self._remaining_points) == 0:
-                #This means that all the neighbours have been processed
-                #Now you have to select the best neighbour
-                #Change the state to Neighbours Processed
-                self._current_state = "Neighbours Processed"
+                #This means that all the neighbors have been processed
+                #Now you have to select the best neighbor
                 
                 if self._best_neighbor is not None:
-                    #Select the best neighbour, make that the current point and add its neighbours
+                    #There was an improvement
+                    #Select the best neighbor, make that the current point and add its neighbors
                     self._current_point = self._best_neighbor
                     self._current_point_value = self._best_neighbor_value
                     
                     self._best_neighbor = None
                     self._best_neighbor_value = None
-                    self._remaining_points = [] #Just for clarity
+                    self._remaining_points = [] #Happens by virtue of the condition, but just for clarity
                     
-                    #Add the neighbours
-                    neighbors = self._generate_neighbors(self._current_point, search_space)
+                    #Add the neighbors
+                    neighbors = self._generate_neighbors(self._current_point, search_space, study)
                     self._remaining_points.extend(neighbors)
                     
                     self._current_state = "Initialized"
@@ -138,7 +137,7 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
                     return self._current_point
                 
                 else:
-                    #If none of the neighbours are better then do a random restart
+                    #If none of the neighbors are better then do a random restart
                     self._current_state = "Not Initialized"
                     restarting_point = self._generate_random_point(search_space)
                     self._current_point = restarting_point
@@ -146,8 +145,8 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
                     self._best_neighbor = None
                     self._best_neighbor_value = None
             
-                    #Add the neighbours
-                    neighbors = self._generate_neighbors(restarting_point, search_space)
+                    #Add the neighbors
+                    neighbors = self._generate_neighbors(restarting_point, search_space, study)
                     self._remaining_points.extend(neighbors)
                     
                     #Change the state to initialized
@@ -168,7 +167,7 @@ if __name__ == "__main__":
         y = trial.suggest_float("y", -10, 10, step=1)
         z = trial.suggest_float("z", -10, 10, step=1)
         
-        return x**2+y**2+z
+        return x**2+y**2-z
 
     sampler = HillClimbSearch()
     study = optuna.create_study(sampler=sampler)
