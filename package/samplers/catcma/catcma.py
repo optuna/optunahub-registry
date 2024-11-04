@@ -208,11 +208,16 @@ class CatCmaSampler(BaseSampler):
 
             for t in solution_trials[:popsize]:
                 assert t.value is not None, "completed trials must have a value"
+                # Convert Optuna's representation to cmaes.CatCma's internal representation.
 
                 # Convert numerical parameters
                 x = trans.transform({k: t.params[k] for k in numerical_search_space.keys()})
-
-                # Initialize c with the correct shape
+                
+                # Convert categorial values to one-hot vectors.
+                # Example:
+                #   choices = ['a', 'b', 'c']
+                #   value = 'b'
+                #   one_hot_vec = [False, True, False]
                 c = np.zeros((num_categorical_vars, max_num_choices))
 
                 for idx, k in enumerate(categorical_search_space.keys()):
@@ -223,7 +228,7 @@ class CatCmaSampler(BaseSampler):
                         c[idx, index] = 1
 
                 y = t.value if study.direction == StudyDirection.MINIMIZE else -t.value
-                solutions.append(((x, c), y))
+                solutions.append(((x, c), y)) # type: ignore
 
             optimizer.tell(solutions)
 
