@@ -228,7 +228,7 @@ class CatCmaSampler(BaseSampler):
                         c[idx, index] = 1
 
                 y = t.value if study.direction == StudyDirection.MINIMIZE else -t.value
-                solutions.append(((x, c), y)) # type: ignore
+                solutions.append(((x, c), y))  # type: ignore
 
             optimizer.tell(solutions)
 
