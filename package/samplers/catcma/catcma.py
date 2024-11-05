@@ -201,7 +201,9 @@ class CatCmaSampler(BaseSampler):
         if len(solution_trials) >= popsize:
             # Calculate the number of categorical variables and maximum number of choices
             num_categorical_vars = len(categorical_search_space)
-            max_num_choices = max(len(space.choices) for space in categorical_search_space.values())
+            max_num_choices = max(
+                len(space.choices) for space in categorical_search_space.values()
+            )
 
             # Prepare solutions list
             solutions: List[Tuple[Tuple[np.ndarray, np.ndarray], float]] = []
@@ -212,7 +214,7 @@ class CatCmaSampler(BaseSampler):
 
                 # Convert numerical parameters
                 x = trans.transform({k: t.params[k] for k in numerical_search_space.keys()})
-                
+
                 # Convert categorial values to one-hot vectors.
                 # Example:
                 #   choices = ['a', 'b', 'c']
