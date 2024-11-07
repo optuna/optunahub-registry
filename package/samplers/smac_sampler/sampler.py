@@ -222,7 +222,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         )
         return n_discrete_values, (distribution.low, distribution.step)  # type: ignore
 
-    def _step_hp_to_intger(
+    def _step_hp_to_integer(
         self, hp_value: float | int, scale_info: tuple[int | float, int | float]
     ) -> int:
         return int(np.round((hp_value - scale_info[0]) / scale_info[1]))
