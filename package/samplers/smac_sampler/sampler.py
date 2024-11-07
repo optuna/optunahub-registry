@@ -12,7 +12,8 @@ from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
-from optuna.study import Study, StudyDirection
+from optuna.study import Study
+from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 import optunahub
@@ -191,7 +192,10 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
             cfg_params[name] = hp_value
 
         # params to smac HP, in SMAC, we always do the minimization
-        values_to_minimize = [v if d == StudyDirection.MINIMIZE else -v for d, v in zip(study.directions, values)]
+        values_to_minimize = [
+            v if d == StudyDirection.MINIMIZE else -v
+            for d, v in zip(study.directions, values)  # type: ignore
+        ]
         y = np.asarray(values_to_minimize)
         if state == TrialState.COMPLETE:
             status = StatusType.SUCCESS
