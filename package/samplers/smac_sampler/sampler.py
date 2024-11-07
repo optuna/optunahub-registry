@@ -12,7 +12,7 @@ from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
-from optuna.study import Study
+from optuna.study import Study, StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 import optunahub
@@ -61,7 +61,6 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
     ) -> None:
         super().__init__(search_space)
         self._cs, self._hp_scale_value = self._convert_to_config_space_design_space(search_space)
-        # TODO init SMAC facade according to the given arguments
         scenario = Scenario(configspace=self._cs, deterministic=True, n_trials=n_trials)
         surrogate_model = self._get_surrogate_model(
             scenario,
@@ -191,8 +190,9 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
                 hp_value = self._step_hp_to_intger(hp_value, scale_info=self._hp_scale_value[name])
             cfg_params[name] = hp_value
 
-        # params to smac HP
-        y = np.asarray(values)
+        # params to smac HP, in SMAC, we always do the minimization
+        values_to_minimize = [v if d == StudyDirection.MINIMIZE else -v for d, v in zip(study.directions, values)]
+        y = np.asarray(values_to_minimize)
         if state == TrialState.COMPLETE:
             status = StatusType.SUCCESS
         elif state == TrialState.RUNNING:
@@ -209,7 +209,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
 
     def _transform_step_hp_to_integer(
         self, distribution: FloatDistribution | IntDistribution
-    ) -> tuple[int, tuple[int | float]]:
+    ) -> tuple[int, tuple[int | float, int | float]]:
         """
         Given that step discretises the target Float distribution and this is not supported by ConfigSpace, we need to
         manually transform this type of HP into integral values. To construct a new integer value, we need to know the
