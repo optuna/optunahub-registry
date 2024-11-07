@@ -14,8 +14,7 @@ license: MIT License
 ## Installation
 
 ```bash
-pip install -r https://hub.optuna.org/samplers/hebo/requirements.txt
-pip install smac==2.2.0
+pip install -r https://hub.optuna.org/samplers/smac_sampler/requirements.txt
 ```
 
 ## Example
