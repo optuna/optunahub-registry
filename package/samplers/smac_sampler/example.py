@@ -2,7 +2,7 @@ import optuna
 import optunahub
 
 
-module = optunahub.load_module("sampler/smac_sampler")
+module = optunahub.load_module("samplers/smac_sampler")
 SMACSampler = module.SMACSampler
 
 
