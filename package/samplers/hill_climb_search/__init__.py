@@ -1,4 +1,4 @@
-from .hill_climb_search import HillClimbSearch
+from .hill_climb_search import HillClimbingSampler
 
 
-__all__ = ["HillClimbSearch"]
+__all__ = ["HillClimbingSampler"]

@@ -7,7 +7,7 @@ import optuna
 import optunahub
 
 
-class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
+class HillClimbingSampler(optunahub.samplers.SimpleBaseSampler):
     """A sampler based on the Hill Climb Local Search Algorithm dealing with discrete values."""
 
     def __init__(
@@ -32,7 +32,7 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
         """This function generates a random discrete point in the search space"""
         params = {}
         for param_name, param_distribution in search_space.items():
-            if isinstance(param_distribution, optuna.distributions.FloatDistribution):
+            if isinstance(param_distribution, optuna.distributions.IntDistribution):
                 total_points = int(
                     (param_distribution.high - param_distribution.low) / param_distribution.step
                 )
@@ -70,7 +70,7 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
         """This function generates the neighbors of the current point"""
         neighbors = []
         for param_name, param_distribution in search_space.items():
-            if isinstance(param_distribution, optuna.distributions.FloatDistribution):
+            if isinstance(param_distribution, optuna.distributions.IntDistribution):
                 current_value = current_point[param_name]
                 step = param_distribution.step
 
@@ -127,7 +127,13 @@ class HillClimbSearch(optunahub.samplers.SimpleBaseSampler):
                 # Store the value of the neighbor, if it improves upon the current point
                 neighbor_value = previous_trial.value
 
-                if neighbor_value < self._current_point_value:
+                criteria = (
+                    neighbor_value < self._current_point_value
+                    if study.direction == "minimize"
+                    else neighbor_value > self._current_point_value
+                )
+
+                if criteria:
                     self._best_neighbor = previous_trial.params
                     self._best_neighbor_value = neighbor_value
 
