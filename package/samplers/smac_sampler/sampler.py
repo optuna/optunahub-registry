@@ -38,16 +38,11 @@ from smac.utils.configspace import get_config_hash
 SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
-def dummmy_target_func(config: Configuration, seed: int = 0) -> float:
-    # This is only a placed holder function that allows us to initialize a new SMAC facade
-    return 0
-
-
 class SMACSampler(SimpleBaseSampler):  # type: ignore
     def __init__(
         self,
         search_space: dict[str, BaseDistribution],
-        n_trials: int = 100,  # This is required for initial design
+        n_trials: int = 100,  # Required for initial design.
         *,
         surrogate_model_type: str = "rf",
         acq_func_type: str = "ei_log",
@@ -82,9 +77,14 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         config_selector = HyperparameterOptimizationFacade.get_config_selector(
             scenario=scenario, retrain_after=1
         )
+
+        def _dummmy_target_func(config: Configuration, seed: int = 0) -> float:
+            # A placeholder function that allows us to initialize a new SMAC facade.
+            return 0
+
         smac = HyperparameterOptimizationFacade(
             scenario,
-            target_function=dummmy_target_func,
+            target_function=_dummmy_target_func,
             model=surrogate_model,
             acquisition_function=acq_func,
             config_selector=config_selector,
@@ -93,7 +93,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         )
         self.smac = smac
 
-        # this value is used to store the instance-seed paris of each evaluated configuraitons
+        # Used to store the instance-seed pairs of each evaluated configurations.
         self._runs_instance_seed_keys: dict[str, tuple[str | None, int]] = {}
 
     def _get_surrogate_model(
@@ -183,7 +183,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
-        # Transform the trail info to smac
+        # Transform the trial info to smac.
         params = trial.params
         cfg_params = {}
         for name, hp_value in params.items():
@@ -191,10 +191,10 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
                 hp_value = self._step_hp_to_intger(hp_value, scale_info=self._hp_scale_value[name])
             cfg_params[name] = hp_value
 
-        # params to smac HP, in SMAC, we always do the minimization
+        # params to smac HP, in SMAC, we always perform the minimization.
+        assert values is not None
         values_to_minimize = [
-            v if d == StudyDirection.MINIMIZE else -v
-            for d, v in zip(study.directions, values)  # type: ignore
+            v if d == StudyDirection.MINIMIZE else -v for d, v in zip(study.directions, values)
         ]
         y = np.asarray(values_to_minimize)
         if state == TrialState.COMPLETE:
@@ -215,16 +215,17 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         self, distribution: FloatDistribution | IntDistribution
     ) -> tuple[int, tuple[int | float, int | float]]:
         """
-        Given that step discretises the target Float distribution and this is not supported by ConfigSpace, we need to
-        manually transform this type of HP into integral values. To construct a new integer value, we need to know the
-        amount of possible values contained in the hyperparameter and the information required to transform the integral
-        values back to the target function
+        ConfigSpace does not support Float distribution with step, so we need to manually transform
+        this type of HP into an integer value, i.e. the corresponding index of the grid.
+        To construct a new integer value, we need to know the possible values contained in the
+        hyperparameter and the information required to transform the integral values back to the
+        target function.
         """
         assert distribution.step is not None
         n_discrete_values = int(
             np.round((distribution.high - distribution.low) / distribution.step)
         )
-        return n_discrete_values, (distribution.low, distribution.step)  # type: ignore
+        return n_discrete_values, (distribution.low, distribution.step)
 
     def _step_hp_to_integer(
         self, hp_value: float | int, scale_info: tuple[int | float, int | float]
@@ -235,8 +236,8 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         self, integer_value: int, scale_info: tuple[int | float, int | float]
     ) -> float | int:
         """
-        This function is the inverse of _transform_step_hp_to_intger, we will transform the integer_value back to the
-        target hyperparameter values
+        This method is the inverse of _transform_step_hp_to_integer, we will transform the
+        integer_value back to the target hyperparameter values.
         """
         return integer_value * scale_info[1] + scale_info[0]
 
@@ -248,9 +249,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         for name, distribution in search_space.items():
             if isinstance(distribution, (FloatDistribution, IntDistribution)):
                 if distribution.step is not None:
-                    # Given that step discretises the target Float distribution and this is not supported by
-                    # ConfigSpace, we need to manually transform this type of HP into integral values to sampler and
-                    # transform them back to the raw HP values during evaluation phases. Hence,
+                    # See the doc-string of _transform_step_hp_to_integer.
                     n_discrete_values, scale_values_hp = self._transform_step_hp_to_integer(
                         distribution
                     )
