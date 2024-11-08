@@ -38,16 +38,67 @@ from smac.utils.configspace import get_config_hash
 SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
-def dummmy_target_func(config: Configuration, seed: int = 0) -> float:
-    # This is only a placed holder function that allows us to initialize a new SMAC facade
-    return 0
-
-
 class SMACSampler(SimpleBaseSampler):  # type: ignore
+    """
+    A sampler that uses SMAC3 v2.2.0.
+
+    Please check the API reference for more details:
+        https://automl.github.io/SMAC3/main/5_api.html
+
+    Args:
+        search_space:
+            A dictionary of Optuna distributions.
+        n_trials:
+            Number of trials to be evaluated in a study.
+            This argument is used to determine the number of initial configurations by SMAC3.
+            Use at most ``n_trials * init_design_max_ratio`` number of configurations in the
+            initial design.
+            This argument does not have to be precise, but it is better to be exact for better
+            performance.
+        surrogate_model_type:
+            What model to use for the probabilistic model.
+            Either "gp" (Gaussian process), "gp_mcmc" (Gaussian process with MCMC), or "rf"
+            (random forest). Default to "rf" (random forest).
+        acq_func_type:
+            What acquisition function to use.
+            Either "ei" (expected improvement), "ei_log" (expected improvement with log-scaled
+            function), "pi" (probability of improvement), or "lcb" (lower confidence bound).
+            Default to "ei_log".
+        init_design_type:
+            What initialization sampler to use.
+            Either "sobol" (Sobol sequence), "lhd" (Latin hypercube), or "random".
+            Default to "sobol".
+        surrogate_model_rf_num_trees:
+            The number of trees used for random forest.
+            Equivalent to ``n_estimators`` in ``RandomForestRegressor`` in sklearn.
+        surrogate_model_rf_ratio_features:
+            The ratio of features to use for each tree training in random forest.
+            Equivalent to ``max_features`` in ``RandomForestRegressor`` in sklearn.
+        surrogate_model_rf_min_samples_split:
+            The minimum number of samples required to split an internal node:
+            Equivalent to ``min_samples_split`` in ``RandomForestRegressor`` in sklearn.
+        surrogate_model_rf_min_samples_leaf:
+            The minimum number of samples required to be at a leaf node.
+            A split point at any depth will only be considered if it leaves at least
+            ``min_samples_leaf`` training samples in each of the left and right branches.
+            This may have the effect of smoothing the model, especially in regression.
+            Equivalent to ``min_samples_leaf`` in ``RandomForestRegressor`` in sklearn.
+        init_design_n_configs:
+            Number of initial configurations.
+        init_design_n_configs_per_hyperparameter:
+            Number of initial configurations per hyperparameter.
+            For example, if my configuration space covers five hyperparameters and
+            n_configs_per_hyperparameter is set to 10, then 50 initial configurations will be
+            sampled.
+        init_design_max_ratio:
+            Use at most ``n_trials * init_design_max_ratio`` number of configurations in the
+            initial design. Additional configurations are not affected by this parameter.
+    """
+
     def __init__(
         self,
         search_space: dict[str, BaseDistribution],
-        n_trials: int = 100,  # This is required for initial design
+        n_trials: int = 100,
         *,
         surrogate_model_type: str = "rf",
         acq_func_type: str = "ei_log",
@@ -82,9 +133,14 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         config_selector = HyperparameterOptimizationFacade.get_config_selector(
             scenario=scenario, retrain_after=1
         )
+
+        def _dummmy_target_func(config: Configuration, seed: int = 0) -> float:
+            # A placeholder function that allows us to initialize a new SMAC facade.
+            return 0
+
         smac = HyperparameterOptimizationFacade(
             scenario,
-            target_function=dummmy_target_func,
+            target_function=_dummmy_target_func,
             model=surrogate_model,
             acquisition_function=acq_func,
             config_selector=config_selector,
@@ -93,7 +149,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         )
         self.smac = smac
 
-        # this value is used to store the instance-seed paris of each evaluated configuraitons
+        # Used to store the instance-seed pairs of each evaluated configurations.
         self._runs_instance_seed_keys: dict[str, tuple[str | None, int]] = {}
 
     def _get_surrogate_model(
@@ -183,7 +239,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
-        # Transform the trail info to smac
+        # Transform the trial info to smac.
         params = trial.params
         cfg_params = {}
         for name, hp_value in params.items():
@@ -191,10 +247,10 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
                 hp_value = self._step_hp_to_intger(hp_value, scale_info=self._hp_scale_value[name])
             cfg_params[name] = hp_value
 
-        # params to smac HP, in SMAC, we always do the minimization
+        # params to smac HP, in SMAC, we always perform the minimization.
+        assert values is not None
         values_to_minimize = [
-            v if d == StudyDirection.MINIMIZE else -v
-            for d, v in zip(study.directions, values)  # type: ignore
+            v if d == StudyDirection.MINIMIZE else -v for d, v in zip(study.directions, values)
         ]
         y = np.asarray(values_to_minimize)
         if state == TrialState.COMPLETE:
@@ -215,16 +271,17 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         self, distribution: FloatDistribution | IntDistribution
     ) -> tuple[int, tuple[int | float, int | float]]:
         """
-        Given that step discretises the target Float distribution and this is not supported by ConfigSpace, we need to
-        manually transform this type of HP into integral values. To construct a new integer value, we need to know the
-        amount of possible values contained in the hyperparameter and the information required to transform the integral
-        values back to the target function
+        ConfigSpace does not support Float distribution with step, so we need to manually transform
+        this type of HP into an integer value, i.e. the corresponding index of the grid.
+        To construct a new integer value, we need to know the possible values contained in the
+        hyperparameter and the information required to transform the integral values back to the
+        target function.
         """
         assert distribution.step is not None
         n_discrete_values = int(
             np.round((distribution.high - distribution.low) / distribution.step)
         )
-        return n_discrete_values, (distribution.low, distribution.step)  # type: ignore
+        return n_discrete_values, (distribution.low, distribution.step)
 
     def _step_hp_to_integer(
         self, hp_value: float | int, scale_info: tuple[int | float, int | float]
@@ -235,8 +292,8 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         self, integer_value: int, scale_info: tuple[int | float, int | float]
     ) -> float | int:
         """
-        This function is the inverse of _transform_step_hp_to_intger, we will transform the integer_value back to the
-        target hyperparameter values
+        This method is the inverse of _transform_step_hp_to_integer, we will transform the
+        integer_value back to the target hyperparameter values.
         """
         return integer_value * scale_info[1] + scale_info[0]
 
@@ -248,9 +305,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         for name, distribution in search_space.items():
             if isinstance(distribution, (FloatDistribution, IntDistribution)):
                 if distribution.step is not None:
-                    # Given that step discretises the target Float distribution and this is not supported by
-                    # ConfigSpace, we need to manually transform this type of HP into integral values to sampler and
-                    # transform them back to the raw HP values during evaluation phases. Hence,
+                    # See the doc-string of _transform_step_hp_to_integer.
                     n_discrete_values, scale_values_hp = self._transform_step_hp_to_integer(
                         distribution
                     )

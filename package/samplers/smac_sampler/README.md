@@ -30,7 +30,7 @@ study = optuna.create_study(sampler=sampler)
 ```
 
 See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/hebo/example.py) for a full example.
-![History Plot](images/smac_optimization_history.png "History Plot")
+![History Plot](images/smac_sampler_history.png "History Plot")
 
 ## Others
 
