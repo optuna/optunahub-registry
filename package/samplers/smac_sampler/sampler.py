@@ -40,7 +40,7 @@ SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 class SMACSampler(SimpleBaseSampler):  # type: ignore
     """
-    A sampler that uses the default SMAC3.
+    A sampler that uses SMAC3 v2.2.0.
 
     Please check the API reference for more details:
         https://automl.github.io/SMAC3/main/5_api.html
@@ -98,7 +98,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
     def __init__(
         self,
         search_space: dict[str, BaseDistribution],
-        n_trials: int = 100,  # Required for initial design.
+        n_trials: int = 100,
         *,
         surrogate_model_type: str = "rf",
         acq_func_type: str = "ei_log",
@@ -111,7 +111,6 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         init_design_n_configs_per_hyperparameter: int = 10,
         init_design_max_ratio: float = 0.25,
     ) -> None:
-        # https://github.com/automl/SMAC3/blob/v2.2.0/smac/initial_design/abstract_initial_design.py#L40-L42
         super().__init__(search_space)
         self._cs, self._hp_scale_value = self._convert_to_config_space_design_space(search_space)
         scenario = Scenario(configspace=self._cs, deterministic=True, n_trials=n_trials)
