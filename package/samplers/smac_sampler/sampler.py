@@ -39,6 +39,62 @@ SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
 
 class SMACSampler(SimpleBaseSampler):  # type: ignore
+    """
+    A sampler that uses the default SMAC3.
+
+    Please check the API reference for more details:
+        https://automl.github.io/SMAC3/main/5_api.html
+
+    Args:
+        search_space:
+            A dictionary of Optuna distributions.
+        n_trials:
+            Number of trials to be evaluated in a study.
+            This argument is used to determine the number of initial configurations by SMAC3.
+            Use at most ``n_trials * init_design_max_ratio`` number of configurations in the
+            initial design.
+            This argument does not have to be precise, but it is better to be exact for better
+            performance.
+        surrogate_model_type:
+            What model to use for the probabilistic model.
+            Either "gp" (Gaussian process), "gp_mcmc" (Gaussian process with MCMC), or "rf"
+            (random forest). Default to "rf" (random forest).
+        acq_func_type:
+            What acquisition function to use.
+            Either "ei" (expected improvement), "ei_log" (expected improvement with log-scaled
+            function), "pi" (probability of improvement), or "lcb" (lower confidence bound).
+            Default to "ei_log".
+        init_design_type:
+            What initialization sampler to use.
+            Either "sobol" (Sobol sequence), "lhd" (Latin hypercube), or "random".
+            Default to "sobol".
+        surrogate_model_rf_num_trees:
+            The number of trees used for random forest.
+            Equivalent to ``n_estimators`` in ``RandomForestRegressor`` in sklearn.
+        surrogate_model_rf_ratio_features:
+            The ratio of features to use for each tree training in random forest.
+            Equivalent to ``max_features`` in ``RandomForestRegressor`` in sklearn.
+        surrogate_model_rf_min_samples_split:
+            The minimum number of samples required to split an internal node:
+            Equivalent to ``min_samples_split`` in ``RandomForestRegressor`` in sklearn.
+        surrogate_model_rf_min_samples_leaf:
+            The minimum number of samples required to be at a leaf node.
+            A split point at any depth will only be considered if it leaves at least
+            ``min_samples_leaf`` training samples in each of the left and right branches.
+            This may have the effect of smoothing the model, especially in regression.
+            Equivalent to ``min_samples_leaf`` in ``RandomForestRegressor`` in sklearn.
+        init_design_n_configs:
+            Number of initial configurations.
+        init_design_n_configs_per_hyperparameter:
+            Number of initial configurations per hyperparameter.
+            For example, if my configuration space covers five hyperparameters and
+            n_configs_per_hyperparameter is set to 10, then 50 initial configurations will be
+            sampled.
+        init_design_max_ratio:
+            Use at most ``n_trials * init_design_max_ratio`` number of configurations in the
+            initial design. Additional configurations are not affected by this parameter.
+    """
+
     def __init__(
         self,
         search_space: dict[str, BaseDistribution],
@@ -55,6 +111,7 @@ class SMACSampler(SimpleBaseSampler):  # type: ignore
         init_design_n_configs_per_hyperparameter: int = 10,
         init_design_max_ratio: float = 0.25,
     ) -> None:
+        # https://github.com/automl/SMAC3/blob/v2.2.0/smac/initial_design/abstract_initial_design.py#L40-L42
         super().__init__(search_space)
         self._cs, self._hp_scale_value = self._convert_to_config_space_design_space(search_space)
         scenario = Scenario(configspace=self._cs, deterministic=True, n_trials=n_trials)
