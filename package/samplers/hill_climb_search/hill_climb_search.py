@@ -129,7 +129,7 @@ class HillClimbingSampler(optunahub.samplers.SimpleBaseSampler):
 
                 criteria = (
                     neighbor_value < self._current_point_value
-                    if study.direction == "minimize"
+                    if study.direction == optuna.study.StudyDirection.MINIMIZE
                     else neighbor_value > self._current_point_value
                 )
 
