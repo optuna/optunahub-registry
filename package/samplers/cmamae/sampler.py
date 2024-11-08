@@ -4,13 +4,16 @@ from collections.abc import Sequence
 from typing import Iterable
 
 import numpy as np
-import optunahub
-from optuna.distributions import BaseDistribution, FloatDistribution
+from optuna.distributions import BaseDistribution
+from optuna.distributions import FloatDistribution
 from optuna.study import Study
-from optuna.trial import FrozenTrial, TrialState
+from optuna.trial import FrozenTrial
+from optuna.trial import TrialState
+import optunahub
 from ribs.archives import GridArchive
 from ribs.emitters import EvolutionStrategyEmitter
 from ribs.schedulers import Scheduler
+
 
 SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 
@@ -69,14 +72,11 @@ class CmaMaeSampler(SimpleBaseSampler):
         emitter_sigma0: float,
         emitter_batch_size: int,
     ) -> None:
-
         self._validate_params(param_names, emitter_x0)
         self._param_names = param_names[:]
 
         # NOTE: SimpleBaseSampler must know Optuna search_space information.
-        search_space = {
-            name: FloatDistribution(-1e9, 1e9) for name in self._param_names
-        }
+        search_space = {name: FloatDistribution(-1e9, 1e9) for name in self._param_names}
         super().__init__(search_space=search_space)
 
         emitter_x0_np = self._convert_to_pyribs_params(emitter_x0)
@@ -102,7 +102,8 @@ class CmaMaeSampler(SimpleBaseSampler):
                 selection_rule="mu",
                 restart_rule="basic",
                 batch_size=emitter_batch_size,
-            ) for _ in range(n_emitters)
+            )
+            for _ in range(n_emitters)
         ]
 
         # Number of solutions generated in each batch from pyribs.
@@ -114,10 +115,9 @@ class CmaMaeSampler(SimpleBaseSampler):
             result_archive=result_archive,
         )
 
-        self._values_to_tell: list[list[float]] = []
+        self._values_to_tell: list[Sequence[float]] = []
 
-    def _validate_params(self, param_names: list[str],
-                         emitter_x0: dict[str, float]) -> None:
+    def _validate_params(self, param_names: list[str], emitter_x0: dict[str, float]) -> None:
         dim = len(param_names)
         param_set = set(param_names)
         if dim != len(param_set):
@@ -128,12 +128,15 @@ class CmaMaeSampler(SimpleBaseSampler):
         if set(param_names) != emitter_x0.keys():
             raise ValueError(
                 "emitter_x0 does not contain the parameters listed in param_names. "
-                "Please provide an initial value for each parameter.")
+                "Please provide an initial value for each parameter."
+            )
 
     def _validate_param_names(self, given_param_names: Iterable[str]) -> None:
         if set(self._param_names) != set(given_param_names):
-            raise ValueError("The given param names must match the param names "
-                             "initially passed to this sampler.")
+            raise ValueError(
+                "The given param names must match the param names "
+                "initially passed to this sampler."
+            )
 
     def _convert_to_pyribs_params(self, params: dict[str, float]) -> np.ndarray:
         np_params = np.empty(len(self._param_names), dtype=float)
@@ -148,8 +151,8 @@ class CmaMaeSampler(SimpleBaseSampler):
         return dict_params
 
     def sample_relative(
-            self, study: Study, trial: FrozenTrial,
-            search_space: dict[str, BaseDistribution]) -> dict[str, float]:
+        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, float]:
         self._validate_param_names(search_space.keys())
 
         # Note: Batch optimization means we need to enqueue trials.
@@ -185,6 +188,8 @@ class CmaMaeSampler(SimpleBaseSampler):
 
         # Tell the batch results to external sampler once the batch is ready.
         values = np.asarray(self._values_to_tell)
+        # TODO: This assumes the objective is the first value while measures are
+        # the remaining values; we should document this somewhere.
         self._scheduler.tell(objective=values[:, 0], measures=values[:, 1:])
 
         # Empty the results.
