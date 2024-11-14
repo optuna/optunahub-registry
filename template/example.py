@@ -16,7 +16,7 @@ def objective(trial: optuna.Trial) -> float:
     return x**2 + y**2
 
 
-# TODO: Change the variables here to test your package.
+# TODO: Change package_name to test your package.
 package_name = "samplers/your_sampler"
 test_local = True
 
