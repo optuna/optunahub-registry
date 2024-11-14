@@ -7,10 +7,7 @@ import optuna
 import optunahub
 
 
-SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
-
-
-class WhaleOptimizationSampler(SimpleBaseSampler):  # type: ignore
+class WhaleOptimizationSampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(
         self,
         search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,

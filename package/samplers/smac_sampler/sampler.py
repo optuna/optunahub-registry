@@ -34,12 +34,11 @@ from smac.runhistory.enumerations import StatusType
 from smac.scenario import Scenario
 
 
-SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
 _SMAC_INSTANCE_KEY = "smac:instance"
 _SMAC_SEED_KEY = "smac:seed"
 
 
-class SMACSampler(SimpleBaseSampler):  # type: ignore
+class SMACSampler(optunahub.samplers.SimpleBaseSampler):
     """
     A sampler that uses SMAC3 v2.2.0.
 
