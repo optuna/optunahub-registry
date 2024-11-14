@@ -9,6 +9,7 @@ from optuna.distributions import BaseDistribution
 from optuna.logging import get_logger
 from optuna.samplers import TPESampler
 from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
+from optuna.samplers._tpe.sampler import _split_trials
 from optuna.study import Study
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
@@ -22,7 +23,7 @@ from .parzen_estimator import _CustomizableParzenEstimatorParameters
 _logger = get_logger(f"optuna.{__name__}")
 
 
-def _split_trials(
+def _ctpe_split_trials(
     study: Study, trials: list[FrozenTrial], n_below: int, enable_constriants: bool
 ) -> tuple[list[FrozenTrial], list[FrozenTrial]]:
     return [], []
@@ -62,6 +63,7 @@ class cTPESampler(TPESampler):
             weights=weights,
             seed=seed,
             multivariate=multivariate,
+            constraints_func=constraints_func,
         )
         self._parzen_estimator_cls = _CustomizableParzenEstimator
         self._parzen_estimator_parameters = _CustomizableParzenEstimatorParameters(
@@ -75,7 +77,6 @@ class cTPESampler(TPESampler):
             bandwidth_strategy=bandwidth_strategy,
             categorical_prior_weight=categorical_prior_weight,
         )
-        self._weight_strategy = weight_strategy
 
     def _sample(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -84,16 +85,16 @@ class cTPESampler(TPESampler):
             _logger.warning("Multi-objective c-TPE does not exist in the original paper.")
 
         trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
+        # n_below_feasible = self._gamma(len(trials))
+        # constraints_vals = np.asarray([self._constraints_func(t) for t in trials])
+        n_below = ...
+        # qs = ...
 
         # We divide data into below and above.
-        n_trials = len(trials)
+        # n_trials = len(trials)
         below_trials, above_trials = _split_trials(
-            study,
-            trials,
-            self._gamma(n_trials),
-            self._constraints_func is not None,
+            study, trials, n_below, constraints_enabled=False
         )
-
         mpe_below = self._build_parzen_estimator(
             study, search_space, below_trials, handle_below=True
         )
@@ -102,7 +103,7 @@ class cTPESampler(TPESampler):
         )
 
         samples_below = mpe_below.sample(self._rng.rng, self._n_ei_candidates)
-        acq_func_vals = self._compute_acquisition_func(samples_below, mpe_below, mpe_above)
+        acq_func_vals = self._compute_acquisition_func(samples_below, mpe_below, mpe_above, [])
         ret = TPESampler._compare(samples_below, acq_func_vals)
 
         for param_name, dist in search_space.items():
@@ -113,10 +114,16 @@ class cTPESampler(TPESampler):
     def _compute_acquisition_func(
         self,
         samples: dict[str, np.ndarray],
-        mpe_below: _ParzenEstimator,
-        mpe_above: _ParzenEstimator,
+        mpes_below: list[_ParzenEstimator],
+        mpes_above: list[_ParzenEstimator],
+        quantiles: list[float],
     ) -> np.ndarray:
-        log_likelihoods_below = mpe_below.log_pdf(samples)
-        log_likelihoods_above = mpe_above.log_pdf(samples)
-        acq_func_vals = log_likelihoods_below - log_likelihoods_above
+        _EPS = 1e-12
+        assert len(mpes_above) == len(mpes_below) == len(quantiles)
+        lls_above = np.asarray([mpe_above.log_pdf(samples) for mpe_above in mpes_above])
+        lls_below = np.asarray([mpe_below.log_pdf(samples) for mpe_below in mpes_below])
+        _q = np.asarray(quantiles)[:, np.newaxis]
+        log_first_term = np.log(_q + _EPS)
+        log_second_term = np.log(1.0 - _q + _EPS) + lls_above - lls_below
+        acq_func_vals = np.sum(-np.logaddexp(log_first_term, log_second_term), axis=0)
         return acq_func_vals
