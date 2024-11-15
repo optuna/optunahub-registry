@@ -9,7 +9,7 @@ license: MIT License
 
 ## Abstract
 
-This package automatically selects an appropriate sampler for the provided search space based on the developers' recommendation. The following article provide detaled information about AutoSampler.
+This package automatically selects an appropriate sampler for the provided search space based on the developers' recommendation. The following article provides detailed information about AutoSampler.
 
 - 📰 [AutoSampler: Automatic Selection of Optimization Algorithms in Optuna](https://medium.com/optuna/autosampler-automatic-selection-of-optimization-algorithms-in-optuna-1443875fd8f9)
 
