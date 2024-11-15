@@ -10,7 +10,7 @@ from optuna.study._study_direction import StudyDirection
 import optunahub
 
 
-class GreyWolfOptimizationSampler(optunahub.load_module("samplers/simple").SimpleBaseSampler):  # type: ignore
+class GreyWolfOptimizationSampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(
         self,
         search_space: dict[str, BaseDistribution] | None = None,

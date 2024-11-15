@@ -10,10 +10,7 @@ import optunahub
 from .generate_initial_simplex import generate_initial_simplex
 
 
-SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
-
-
-class NelderMeadSampler(SimpleBaseSampler):  # type: ignore
+class NelderMeadSampler(optunahub.samplers.SimpleBaseSampler):
     """A sampler based on the Nelder-Mead simplex algorithm.
        This algorithm does not support conditional parameters that make a tree-structured search space.
        Sampling for such parameters is delegated to independent_sampler (default: RandomSampler).

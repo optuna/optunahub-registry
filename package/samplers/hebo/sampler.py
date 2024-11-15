@@ -17,10 +17,7 @@ from hebo.design_space.design_space import DesignSpace
 from hebo.optimizers.hebo import HEBO
 
 
-SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
-
-
-class HEBOSampler(SimpleBaseSampler):  # type: ignore
+class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(self, search_space: dict[str, BaseDistribution]) -> None:
         super().__init__(search_space)
         self._hebo = HEBO(self._convert_to_hebo_design_space(search_space))

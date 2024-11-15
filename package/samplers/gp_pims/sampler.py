@@ -469,10 +469,7 @@ class PI_from_MaxSample(BO):
         return ((self.maximums - mean) / std).ravel()
 
 
-SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
-
-
-class PIMSSampler(SimpleBaseSampler):  # type: ignore
+class PIMSSampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(
         self,
         search_space: dict[str, optuna.distributions.BaseDistribution],

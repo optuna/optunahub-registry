@@ -7,6 +7,8 @@ optuna_versions: [3.6.1]
 license: MIT License
 ---
 
+`SimpleBaseSampler` has been moved to [`optunahub.samplers`](https://optuna.github.io/optunahub/samplers.html). Please use [`optunahub.samplers.SimpleBaseSampler`](https://optuna.github.io/optunahub/generated/optunahub.samplers.SimpleBaseSampler.html#optunahub.samplers.SimpleBaseSampler) instead of this package.
+
 ## Class or Function Names
 
 - SimpleBaseSampler
@@ -14,8 +16,10 @@ license: MIT License
 ## Example
 
 ```python
+import optunahub
+
 class UserDefinedSampler(
-    optunahub.load_module("samplers/simple").SimpleBaseSampler
+    optunahub.samplers.SimpleBaseSampler
 ):
     ...
 ```
