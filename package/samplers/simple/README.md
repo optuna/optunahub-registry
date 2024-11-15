@@ -20,7 +20,6 @@ import optunahub
 
 class UserDefinedSampler(
     optunahub.samplers.SimpleBaseSampler
-    # optunahub.load_module("samplers/simple").SimpleBaseSampler
 ):
     ...
 ```
