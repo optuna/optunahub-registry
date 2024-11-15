@@ -6,6 +6,7 @@ import threading
 from typing import Any
 from typing import TYPE_CHECKING
 
+import cmaes as _  # NOQA
 from optuna.distributions import CategoricalDistribution
 from optuna.logging import get_logger
 from optuna.samplers import BaseSampler
@@ -18,6 +19,8 @@ from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.search_space import IntersectionSearchSpace
 from optuna.trial import TrialState
+import scipy as _  # NOQA
+import torch as _  # NOQA
 
 
 if TYPE_CHECKING:
