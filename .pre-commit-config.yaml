@@ -10,18 +10,19 @@ repos:
         types_or: [python, pyi]
       - id: ruff-format
         types_or: [python, pyi]
+
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.9.0
     hooks:
-    - id: mypy
-      additional_dependencies: [
-        "types-PyYAML",
-      ]
-  - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.16
-    hooks:
-      - id: mdformat
+      - id: mypy
         additional_dependencies:
-          - mdformat-frontmatter
-        # Ignore only the `README.md` for this repository and check the others in `packages`.
-        exclude: ^(.github/|README.md)
+          - types-PyYAML
+
+  # Uncomment this section if you want to include mdformat with exclusions
+  # - repo: https://github.com/executablebooks/mdformat
+  #   rev: 0.7.16
+  #   hooks:
+  #     - id: mdformat
+  #       additional_dependencies:
+  #         - mdformat-frontmatter
+  #       exclude: ^(README.md|.github/)
