@@ -24,4 +24,4 @@ repos:
         additional_dependencies:
           - mdformat-frontmatter
         # Ignore only the `README.md` for this repository and check the others in `packages`.
-        exclude: ^(.github/|README.md)
+        exclude: ^(README\.md|\.github/)
