@@ -29,8 +29,8 @@ For more details, please check [OptunaHub tutorial](https://optuna.github.io/opt
 > Please also try the following to make sure that your module can be loaded from the registry:
 >
 > ```python
-> import optunahub
->
+> import optuna 
+> from optuna_enhanced_visualization import plot_optimization_history
 > module = optunahub.load_module(
 >     # category is one of [pruners, samplers, visualization].
 >     package="<category>/<your_package_name>",
