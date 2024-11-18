@@ -14,6 +14,7 @@ Recipes
 - :doc:`recipes/003_pruner`
 - :doc:`recipes/004_visualization`
 - :doc:`recipes/005_debugging`
+- :doc:`recipes/006_batch_opt`
 
 
 License
