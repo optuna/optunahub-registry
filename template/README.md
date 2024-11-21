@@ -40,13 +40,28 @@ This section will help attract potential users to your package.
 
 This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
 
-## Class or Function Names
+## APIs
 
-Please fill in the class/function names which you implement here.
+Please provide API documentation describing how to use your package's functionalities.
+The documentation format is arbitrary, but at least the important class/function names that you implemented should be listed here.
+More users will take advantage of your package by providing detailed and helpful documentation.
 
 **Example**
 
-- GPSampler
+- `MoCmaSampler(*, search_space: dict[str, BaseDistribution] | None = None, popsize: int | None = None, seed: int | None = None)`
+  - `search_space`: A dictionary containing the search space that defines the parameter space. The keys are the parameter names and the values are [the parameter's distribution](https://optuna.readthedocs.io/en/stable/reference/distributions.html). If the search space is not provided, the sampler will infer the search space dynamically.
+    Example:
+    ```python
+    search_space = {
+        "x": optuna.distributions.FloatDistribution(-5, 5),
+        "y": optuna.distributions.FloatDistribution(-5, 5),
+    }
+    MoCmaSampler(search_space=search_space)
+    ```
+  - `popsize`: Population size of the CMA-ES algorithm. If not provided, the population size will be set based on the search space dimensionality. If you have a sufficient evaluation budget, it is recommended to increase the popsize.
+  - `seed`: Seed for random number generator.
+
+Note that because of the limitation of the algorithm, only non-conditional numerical parameters are sampled by the MO-CMA-ES algorithm, and categorical parameters and conditional parameters are handled by random sampling.
 
 ## Installation
 
