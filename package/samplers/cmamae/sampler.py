@@ -19,12 +19,12 @@ from ribs.schedulers import Scheduler
 class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
     """A sampler using CMA-MAE as implemented in pyribs.
 
-    `CMA-MAE <https://arxiv.org/abs/2205.10752>`_ is a quality diversity
-    algorithm that has demonstrated state-of-the-art performance in a variety of
-    domains. `pyribs <https://pyribs.org>`_ is a bare-bones Python library for
-    quality diversity optimization algorithms. For a primer on CMA-MAE and
-    pyribs, we recommend referring to the series of `pyribs tutorials
-    <https://docs.pyribs.org/en/stable/tutorials.html>`_.
+    `CMA-MAE <https://dl.acm.org/doi/abs/10.1145/3583131.3590389>`_ is a quality
+    diversity algorithm that has demonstrated state-of-the-art performance in a
+    variety of domains. `Pyribs <https://pyribs.org>`_ is a bare-bones Python
+    library for quality diversity optimization algorithms. For a primer on
+    CMA-MAE, quality diversity, and pyribs, we recommend referring to the series
+    of `pyribs tutorials <https://docs.pyribs.org/en/stable/tutorials.html>`_.
 
     For simplicity, this implementation provides a default instantiation of
     CMA-MAE with a `GridArchive
@@ -33,6 +33,8 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
     <https://docs.pyribs.org/en/stable/api/ribs.emitters.EvolutionStrategyEmitter.html>`_
     with improvement ranking, all wrapped up in a `Scheduler
     <https://docs.pyribs.org/en/stable/api/ribs.schedulers.Scheduler.html>`_.
+    However, it is possible to implement many variations of CMA-MAE and other
+    quality diversity algorithms using pyribs.
 
     Args:
         param_names: List of names of parameters to optimize.

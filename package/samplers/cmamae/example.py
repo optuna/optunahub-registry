@@ -1,6 +1,10 @@
 import optuna
 from optuna.study import StudyDirection
-from sampler import CmaMaeSampler
+import optunahub
+
+
+module = optunahub.load_module("samplers/cmamae")
+CmaMaeSampler = module.CmaMaeSampler
 
 
 def objective(trial: optuna.trial.Trial) -> tuple[float, float, float]:
@@ -29,10 +33,9 @@ if __name__ == "__main__":
         sampler=sampler,
         directions=[
             StudyDirection.MINIMIZE,
-            # The remaining values are measures, which do not have an
-            # optimization direction.
-            # TODO: Currently, using StudyDirection.NOT_SET is not allowed as
-            # Optuna assumes we either minimize or maximize.
+            # The remaining directions are for the measures, which do not have
+            # an optimization direction. However, we set MINIMIZE as a
+            # placeholder direction.
             StudyDirection.MINIMIZE,
             StudyDirection.MINIMIZE,
         ],
