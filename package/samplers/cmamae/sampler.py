@@ -36,6 +36,10 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
     However, it is possible to implement many variations of CMA-MAE and other
     quality diversity algorithms using pyribs.
 
+    Note that this sampler assumes the objective function will return a list of
+    values. The first value will be the objective, and the remaining values will
+    be the measures.
+
     Args:
         param_names: List of names of parameters to optimize.
         archive_dims: Number of archive cells in each dimension of the measure
@@ -172,11 +176,6 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
-        # TODO: Is it safe to assume the parameters will always come back in the
-        # order that they were sent out by the scheduler? Pyribs makes that
-        # assumption and stores the solutions internally. If not, maybe we can
-        # retrieve solutions based on their trial ID?
-
         self._validate_param_names(trial.params.keys())
 
         # Store the trial result.
@@ -197,8 +196,6 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
 
         # Tell the batch results to external sampler once the batch is ready.
         values_to_tell = np.asarray(self._values_to_tell)[np.argsort(self._stored_trial_numbers)]
-        # TODO: This assumes the objective is the first value while measures are
-        # the remaining values; we should document this somewhere.
         self._scheduler.tell(objective=values_to_tell[:, 0], measures=values_to_tell[:, 1:])
 
         # Empty the results.
