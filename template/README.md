@@ -61,7 +61,7 @@ More users will take advantage of your package by providing detailed and helpful
   - `popsize`: Population size of the CMA-ES algorithm. If not provided, the population size will be set based on the search space dimensionality. If you have a sufficient evaluation budget, it is recommended to increase the popsize.
   - `seed`: Seed for random number generator.
 
-Note that because of the limitation of the algorithm, only non-conditional numerical parameters are sampled by the MO-CMA-ES algorithm, and categorical parameters and conditional parameters are handled by random sampling.
+Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.
 
 ## Installation
 
