@@ -15,10 +15,7 @@ from ribs.emitters import EvolutionStrategyEmitter
 from ribs.schedulers import Scheduler
 
 
-SimpleBaseSampler = optunahub.load_module("samplers/simple").SimpleBaseSampler
-
-
-class CmaMaeSampler(SimpleBaseSampler):
+class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
     """A sampler using CMA-MAE as implemented in pyribs.
 
     `CMA-MAE <https://arxiv.org/abs/2205.10752>`_ is a quality diversity
@@ -115,7 +112,8 @@ class CmaMaeSampler(SimpleBaseSampler):
             result_archive=result_archive,
         )
 
-        self._values_to_tell: list[Sequence[float]] = []
+        self._values_to_tell: list[list[float]] = []
+        self._stored_trial_numbers: list[int] = []
 
     def _validate_params(self, param_names: list[str], emitter_x0: dict[str, float]) -> None:
         dim = len(param_names)
@@ -179,7 +177,15 @@ class CmaMaeSampler(SimpleBaseSampler):
         self._validate_param_names(trial.params.keys())
 
         # Store the trial result.
-        self._values_to_tell.append(values)
+        direction0 = study.directions[0]
+        minimize_in_optuna = study.StudyDirection.MINIMIZE == direction0
+        assert values is not None, "MyPy redefinition."
+        modified_values = list([float(v) for v in values])
+        if minimize_in_optuna:
+            # The direction of the first objective (pyribs maximizes).
+            modified_values[0] = -values[0]
+        self._values_to_tell.append(modified_values)
+        self._stored_trial_numbers.append(trial.number)
 
         # If we have not retrieved the whole batch of solutions, then we should
         # not tell() the results to the scheduler yet.
@@ -187,10 +193,11 @@ class CmaMaeSampler(SimpleBaseSampler):
             return
 
         # Tell the batch results to external sampler once the batch is ready.
-        values = np.asarray(self._values_to_tell)
+        values_to_tell = np.asarray(self._values_to_tell)[np.argsort(self._stored_trial_numbers)]
         # TODO: This assumes the objective is the first value while measures are
         # the remaining values; we should document this somewhere.
-        self._scheduler.tell(objective=values[:, 0], measures=values[:, 1:])
+        self._scheduler.tell(objective=values_to_tell[:, 0], measures=values_to_tell[:, 1:])
 
         # Empty the results.
         self._values_to_tell = []
+        self._stored_trial_numbers = []
