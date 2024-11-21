@@ -178,7 +178,7 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
 
         # Store the trial result.
         direction0 = study.directions[0]
-        minimize_in_optuna = study.StudyDirection.MINIMIZE == direction0
+        minimize_in_optuna = direction0 == study.StudyDirection.MINIMIZE
         assert values is not None, "MyPy redefinition."
         modified_values = list([float(v) for v in values])
         if minimize_in_optuna:
