@@ -7,6 +7,7 @@ import numpy as np
 from optuna.distributions import BaseDistribution
 from optuna.distributions import FloatDistribution
 from optuna.study import Study
+from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 import optunahub
@@ -178,7 +179,7 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
 
         # Store the trial result.
         direction0 = study.directions[0]
-        minimize_in_optuna = direction0 == study.StudyDirection.MINIMIZE
+        minimize_in_optuna = direction0 == StudyDirection.MINIMIZE
         assert values is not None, "MyPy redefinition."
         modified_values = list([float(v) for v in values])
         if minimize_in_optuna:
