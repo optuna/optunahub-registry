@@ -2,7 +2,7 @@
 author: Bryon Tjanaka
 title: CMA-MAE Sampler
 description: This sampler searches for solutions using CMA-MAE, a quality diversity algorihm implemented in pyribs.
-tags: [sampler, quality diversity]
+tags: [sampler, quality diversity, pyribs]
 optuna_versions: [4.0.0]
 license: MIT License
 ---
