@@ -12,5 +12,5 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
 
 package_name = "samplers/nsgaii_with_tpe_warmup"
 sampler = optunahub.load_module(package=package_name).NSGAIIWithTPEWarmupSampler()
-study = optuna.create_study(sampler=sampler)
+study = optuna.create_study(sampler=sampler, directions=["minimize"] * 2)
 study.optimize(objective, n_trials=60)
