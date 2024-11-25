@@ -42,6 +42,7 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
 
     Args:
         param_names: List of names of parameters to optimize.
+        measure_names: List of names of measures.
         archive_dims: Number of archive cells in each dimension of the measure
             space, e.g. ``[20, 30, 40]`` indicates there should be 3 dimensions
             with 20, 30, and 40 cells. (The number of dimensions is implicitly
