@@ -67,6 +67,7 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         self,
         *,
         param_names: list[str],
+        measure_names: list[str],
         archive_dims: list[int],
         archive_ranges: list[tuple[float, float]],
         archive_learning_rate: float,
@@ -77,7 +78,8 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         emitter_batch_size: int,
     ) -> None:
         self._validate_params(param_names, emitter_x0)
-        self._param_names = param_names[:]
+        self._param_names = param_names.copy()
+        self._measure_names = measure_names.copy()
 
         # NOTE: SimpleBaseSampler must know Optuna search_space information.
         search_space = {name: FloatDistribution(-1e9, 1e9) for name in self._param_names}
@@ -182,8 +184,25 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         # Store the trial result.
         direction0 = study.directions[0]
         minimize_in_optuna = direction0 == StudyDirection.MINIMIZE
-        assert values is not None, "MyPy redefinition."
-        modified_values = list([float(v) for v in values])
+        if values is None:
+            raise RuntimeError(
+                f"{self.__class__.__name__} does not support Failed trials, "
+                f"but trial#{trial.number} failed."
+            )
+        user_attrs = trial.user_attrs
+        if any(measure_name not in user_attrs for measure_name in self._measure_names):
+            raise KeyError(
+                f"All of measure in measure_names={self._measure_names} must be set to "
+                "trial.user_attrs. Please call trial.set_user_attr(<measure_name>, <value>) "
+                "for each measure."
+            )
+
+        self._raise_error_if_multi_objective(study)
+        modified_values = [
+            float(values[0]),
+            float(user_attrs[self._measure_names[0]]),
+            float(user_attrs[self._measure_names[1]]),
+        ]
         if minimize_in_optuna:
             # The direction of the first objective (pyribs maximizes).
             modified_values[0] = -values[0]
