@@ -36,9 +36,9 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
     However, it is possible to implement many variations of CMA-MAE and other
     quality diversity algorithms using pyribs.
 
-    Note that this sampler assumes the objective function will return a list of
-    values. The first value will be the objective, and the remaining values will
-    be the measures.
+    Note that this sampler assumes the measures are set to user_attrs of each trial.
+    To do so, please call ``trial.set_user_attr("YOUR MEASURE NAME", measure_value)`` for each
+    measure.
 
     Args:
         param_names: List of names of parameters to optimize.
