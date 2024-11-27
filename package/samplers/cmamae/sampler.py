@@ -81,6 +81,11 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         self._validate_params(param_names, emitter_x0)
         self._param_names = param_names.copy()
         self._measure_names = measure_names.copy()
+        if len(set(self._measure_names)) != 2:
+            raise ValueError(
+                "measure_names must be a list of two unique measure names, "
+                f"but got measure_names={measure_names}."
+            )
 
         # NOTE: SimpleBaseSampler must know Optuna search_space information.
         search_space = {name: FloatDistribution(-1e9, 1e9) for name in self._param_names}
@@ -193,9 +198,9 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         user_attrs = trial.user_attrs
         if any(measure_name not in user_attrs for measure_name in self._measure_names):
             raise KeyError(
-                f"All of measure in measure_names={self._measure_names} must be set to "
-                "trial.user_attrs. Please call trial.set_user_attr(<measure_name>, <value>) "
-                "for each measure."
+                f"All of measures in measure_names={self._measure_names} must be set to "
+                "trial.user_attrs. Please call `trial.set_user_attr(<measure_name>, <value>)` "
+                "for each measure in your objective function."
             )
 
         self._raise_error_if_multi_objective(study)
