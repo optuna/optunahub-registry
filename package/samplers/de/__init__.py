@@ -1,4 +1,3 @@
-from de import DESampler
-
+from .de import DESampler
 
 __all__ = ["DESampler"]

@@ -118,7 +118,7 @@ sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reprodu
 
 # Parameters for experiments
 num_experiments = 10
-number_of_trials = 10000
+number_of_trials = 100
 
 # Store results for each experiment
 results_de = np.zeros((num_experiments , number_of_trials))
