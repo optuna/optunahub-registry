@@ -66,6 +66,9 @@ def objective_toy(trial: optuna.Trial) -> float:
 
     return result
 
+
+
+
 def objective_ML(trial: optuna.Trial) -> float :
     # Load dataset
     data = load_digits()
@@ -114,8 +117,8 @@ sampler = optunahub.load_local_module(
 sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
 
 # Parameters for experiments
-num_experiments = 1
-number_of_trials = 3000
+num_experiments = 10
+number_of_trials = 10000
 
 # Store results for each experiment
 results_de = np.zeros((num_experiments , number_of_trials))

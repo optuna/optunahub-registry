@@ -12,9 +12,9 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             self,
             search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
             population_size: int = 50,
-            F: float = 0.8,  # Mutation factor
-            CR: float = 0.7,  # Crossover probability,
-            debug: bool = False,  # Toggle for debug messages
+            F: float = 0.8,
+            CR: float = 0.7,
+            debug: bool = False,
     ) -> None:
         super().__init__(search_space)
         self._rng = np.random.RandomState()
@@ -22,26 +22,43 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         self.F = F
         self.CR = CR
         self.debug = debug
-        self.queue: list[dict[str, Any]] = []  # Stores individuals as parameter dictionaries
-        self.dim = 0  # Will represent the dimension of the search space
-        self.population = None  # Population array
-        self.fitness = None  # Array to store fitness values
-        self.trial_vectors = None  # Store trial vectors for selection
-        self.current_generation = 0  # Track current generation
-        self.pending_evaluations = 0  # Track pending evaluations in current generation
-        self.last_processed_trial = 0  # Track the last processed trial
-
-        # Speed tracking variables
+        self.dim = 0
+        self.population = None
+        self.fitness = None
+        self.trial_vectors = None
         self.last_time = time.time()
         self.last_trial_count = 0
+        self.last_processed_gen = -1
+        self.current_gen_vectors = None  # Store vectors for current generation
+
+    def _generate_trial_vectors(self) -> np.ndarray:
+        """Generate new trial vectors using DE mutation and crossover."""
+        trial_vectors = np.zeros_like(self.population)
+        for i in range(self.population_size):
+            # Mutation
+            indices = [idx for idx in range(self.population_size) if idx != i]
+            r1, r2, r3 = self._rng.choice(indices, 3, replace=False)
+            mutant = (
+                    self.population[r1]
+                    + self.F * (self.population[r2] - self.population[r3])
+            )
+            mutant = np.clip(mutant, self.lower_bound, self.upper_bound)
+
+            # Crossover
+            trial = np.copy(self.population[i])
+            crossover_mask = self._rng.rand(self.dim) < self.CR
+            if not np.any(crossover_mask):
+                crossover_mask[self._rng.randint(self.dim)] = True
+            trial[crossover_mask] = mutant[crossover_mask]
+
+            trial_vectors[i] = trial
+        return trial_vectors
 
     def _debug_print(self, message: str) -> None:
-        """Helper method for debug printing"""
         if self.debug:
             print(message)
 
     def _calculate_speed(self, n_completed: int) -> None:
-        """Calculate and print the speed for recent trials"""
         if not self.debug:
             return
 
@@ -50,16 +67,24 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             elapsed_time = current_time - self.last_time
             trials_processed = n_completed - self.last_trial_count
 
-            if elapsed_time > 0:  # Avoid division by zero
+            if elapsed_time > 0:
                 speed = trials_processed / elapsed_time
                 print(f"\n[Speed Stats] Trials {self.last_trial_count} to {n_completed}")
                 print(f"Speed: {speed:.2f} trials/second")
                 print(f"Time elapsed: {elapsed_time:.2f} seconds")
                 print("-" * 50)
 
-            # Update tracking variables
             self.last_time = current_time
             self.last_trial_count = n_completed
+
+    def _get_generation_trials(self, study: optuna.study.Study, generation: int) -> list:
+        """Get trials for a specific generation using trial system attributes."""
+        all_trials = study.get_trials(deepcopy=False)
+        return [
+            t for t in all_trials
+            if (t.state == optuna.trial.TrialState.COMPLETE and
+                t.system_attrs.get("de:generation") == generation)
+        ]
 
     def sample_relative(
             self,
@@ -70,10 +95,14 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         if len(search_space) == 0:
             return {}
 
-        completed_trials = study.get_trials(states=(optuna.trial.TrialState.COMPLETE,))
-        n_completed = len(completed_trials)
-        self._calculate_speed(n_completed)  # Calculate speed statistics
-        self._debug_print(f"\nTotal completed trials: {n_completed}")
+        # Use trial_id for position tracking
+        current_generation = trial._trial_id // self.population_size
+        individual_index = trial._trial_id % self.population_size
+
+        study._storage.set_trial_system_attr(trial._trial_id, "de:generation", current_generation)
+        study._storage.set_trial_system_attr(trial._trial_id, "de:individual", individual_index)
+
+        self._calculate_speed(trial._trial_id)
 
         # Initialize search space dimensions and bounds
         if self.population is None:
@@ -86,87 +115,43 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                     + self.lower_bound
             )
             self.fitness = np.full(self.population_size, np.inf)
-            self.trial_vectors = np.zeros_like(self.population)
+            study._storage.set_trial_system_attr(trial._trial_id, "de:dim", self.dim)
 
-            # Initial population evaluation
-        if self.current_generation == 0:
-            if n_completed < self.population_size:
-                self._debug_print(f"Evaluating initial individual {n_completed + 1}/{self.population_size}")
-                params = {
-                    k: v for k, v in zip(search_space.keys(), self.population[n_completed])
-                }
-                return params
-            else:
-                self._debug_print("\nInitial population evaluation complete.")
-                self._debug_print("Starting evolution process...")
+        # Initial population evaluation
+        if current_generation == 0:
+            self._debug_print(f"Evaluating initial individual {individual_index + 1}/{self.population_size}")
+            return {k: v for k, v in zip(search_space.keys(), self.population[individual_index])}
+
+        # Process previous generation if needed
+        if current_generation != self.last_processed_gen:
+            prev_gen = current_generation - 1
+            prev_trials = self._get_generation_trials(study, prev_gen)
+
+            if len(prev_trials) == self.population_size:
+                self._debug_print(f"\nProcessing generation {prev_gen}")
+
+                # Get fitness values and parameters
+                trial_fitness = np.array([t.value for t in prev_trials])
+                trial_vectors = np.array([
+                    [t.params[f"x{i}"] for i in range(self.dim)]
+                    for t in prev_trials
+                ])
+
+                # Selection
                 for i in range(self.population_size):
-                    self.fitness[i] = completed_trials[i].value
-                self.current_generation = 1
-                self.pending_evaluations = 0
+                    if trial_fitness[i] <= self.fitness[i]:
+                        self.population[i] = trial_vectors[i]
+                        self.fitness[i] = trial_fitness[i]
 
-            # Check if we need to process the previous generation's results
-        if self.pending_evaluations >= self.population_size and n_completed >= (
-                self.current_generation * self.population_size):
-            self._debug_print(f"\nGeneration {self.current_generation} Selection:")
-            self._debug_print("-" * 50)
+                self._debug_print(f"Best fitness: {np.min(self.fitness):.6f}")
 
-            # Get the fitness values for the trial vectors from the most recent trials
-            start_idx = n_completed - self.population_size
-            recent_trials = completed_trials[start_idx:n_completed]
-            trial_fitness = np.array([trial.value for trial in recent_trials])
+                # Generate new trial vectors for current generation
+                self.current_gen_vectors = self._generate_trial_vectors()
+                self.last_processed_gen = current_generation
 
-            # Selection: compare each trial vector with its target vector
-            for i in range(self.population_size):
-                self._debug_print(f"\nIndividual {i + 1}:")
-                self._debug_print(f"Target Vector Fitness: {self.fitness[i]:.6f}")
-                self._debug_print(f"Trial Vector Fitness:  {trial_fitness[i]:.6f}")
+        # If we haven't generated trial vectors for this generation yet, do it now
+        if self.current_gen_vectors is None:
+            self.current_gen_vectors = self._generate_trial_vectors()
 
-                if trial_fitness[i] <= self.fitness[i]:  # Minimization problem
-                    self.population[i] = self.trial_vectors[i]
-                    self.fitness[i] = trial_fitness[i]
-                    self._debug_print("=> Selected: Trial Vector (Better)")
-                else:
-                    self._debug_print("=> Selected: Target Vector (Better)")
-
-            self._debug_print(f"\nBest fitness in generation {self.current_generation}: {np.min(self.fitness):.6f}")
-            self._debug_print("-" * 50)
-
-            self.current_generation += 1
-            self.pending_evaluations = 0
-            self.last_processed_trial = n_completed
-            self.queue.clear()  # Clear the queue before generating new trial vectors
-
-            # Generate new trial vectors if queue is empty
-        if len(self.queue) == 0:
-            self._debug_print(f"\nGenerating trial vectors for generation {self.current_generation}")
-            for i in range(self.population_size):
-                # Mutation
-                indices = [idx for idx in range(self.population_size) if idx != i]
-                r1, r2, r3 = self._rng.choice(indices, 3, replace=False)
-                mutant = (
-                        self.population[r1]
-                        + self.F * (self.population[r2] - self.population[r3])
-                )
-                mutant = np.clip(mutant, self.lower_bound, self.upper_bound)
-
-                # Crossover
-                trial = np.copy(self.population[i])
-                crossover_mask = self._rng.rand(self.dim) < self.CR
-                if not np.any(crossover_mask):
-                    crossover_mask[self._rng.randint(self.dim)] = True
-                trial[crossover_mask] = mutant[crossover_mask]
-
-                self.trial_vectors[i] = trial
-
-            # Convert trial vectors to parameter dictionaries
-            param_list = [
-                {k: v for k, v in zip(search_space.keys(), individual)}
-                for individual in self.trial_vectors
-            ]
-            self.queue.extend(param_list)
-
-        self.pending_evaluations += 1
-        self._debug_print(
-            f"Evaluating individual {self.pending_evaluations}/{self.population_size} in generation {self.current_generation}")
-
-        return self.queue.pop(0)
+        # Return parameters for current individual
+        return {k: v for k, v in zip(search_space.keys(), self.current_gen_vectors[individual_index])}
