@@ -30,6 +30,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         trial: optuna.trial.FrozenTrial,
         search_space: dict[str, optuna.distributions.BaseDistribution],
     ) -> dict[str, Any]:
+
         if len(search_space) == 0:
             return {}
         if len(self.queue) != 0:
@@ -72,6 +73,11 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 crossover_mask[self._rng.randint(self.dim)] = True
             trial[crossover_mask] = mutant[crossover_mask]
 
+            # Print vectors for debugging
+            print(f"Target Vector (Individual {i}): {self.population[i]}")
+            print(f"Mutant Vector: {mutant}")
+            print(f"Resultant Vector (After Crossover): {trial}")
+
             # Add trial vector to new population
             new_population[i] = trial
 
@@ -80,6 +86,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             {k: v for k, v in zip(search_space.keys(), individual)}
             for individual in new_population
         ]
+
         self.queue.extend(param_list)
 
         return self.queue.pop(0)

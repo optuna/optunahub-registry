@@ -79,14 +79,14 @@ package_name = "package/samplers/de"
 # This is an example of how to load a sampler from your local optunahub-registry.
 sampler = optunahub.load_local_module(
     package=package_name ,
-    registry_root="/home/j/experiments/optunahub-registry" ,  # Path to the root of the optunahub-registry.
+    registry_root="/home/j/PycharmProjects/optunahub-registry" ,  # Path to the root of the optunahub-registry.
     ).DESampler(population_size=100)
 
 sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
 
 # Parameters for experiments
-num_experiments = 10
-number_of_trials = 200
+num_experiments = 1
+number_of_trials = 5
 
 # Store results for each experiment
 results_de = np.zeros((num_experiments , number_of_trials))
