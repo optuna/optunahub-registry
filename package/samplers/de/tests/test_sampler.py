@@ -31,6 +31,9 @@ import os
 from typing import Any
 from unittest.mock import patch
 import warnings
+import logging
+from datetime import datetime
+
 
 from _pytest.fixtures import SubRequest
 from _pytest.mark.structures import MarkDecorator
@@ -51,20 +54,20 @@ import pytest
 
 
 # NOTE(nabenabe): This file content is mostly copied from the Optuna repository.
-AutoSampler = optunahub.load_local_module(
+The_Sampler = optunahub.load_local_module(
     package="package/samplers/de", registry_root="/home/j/PycharmProjects/optunahub-registry"
 ).DESampler
 
 
-parametrize_sampler = pytest.mark.parametrize("sampler_class", [AutoSampler])
-parametrize_relative_sampler = pytest.mark.parametrize("relative_sampler_class", [AutoSampler])
+parametrize_sampler = pytest.mark.parametrize("sampler_class", [The_Sampler])
+parametrize_relative_sampler = pytest.mark.parametrize("relative_sampler_class", [The_Sampler])
 parametrize_multi_objective_sampler = pytest.mark.parametrize(
-    "multi_objective_sampler_class", [AutoSampler]
+    "multi_objective_sampler_class", [The_Sampler]
 )
 
 
 sampler_class_with_seed: dict[str, Callable[[int], BaseSampler]] = {
-    "AutoSampler": lambda seed: AutoSampler(seed=seed)
+    "TheSampler": lambda seed: The_Sampler(seed=seed)
 }
 param_sampler_with_seed = []
 param_sampler_name_with_seed = []
@@ -216,7 +219,13 @@ def test_sample_relative_numerical(
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
     study.tell(trial, sum(trial.params.values()))
-    _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
+
+    """
+    This test checks if the relative sampler samples parameters correctly. Specifically, it checks
+    if the sampled parameters are within the search space and have the correct type. The test
+    samples 10 points and checks if the sampled parameters are within the search space and have the
+    correct type.
+    """
 
     def sample() -> list[int | float]:
         params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
@@ -230,16 +239,16 @@ def test_sample_relative_numerical(
                 FloatDistribution,
                 IntDistribution,
             ),
-        )
-        assert np.all(points[:, i] >= distribution.low)
-        assert np.all(points[:, i] <= distribution.high)
+        ), "The distribution must be either FloatDistribution or IntDistribution."
+        assert np.all(points[:, i] >= distribution.low), "The sampled value must be >= low."
+        assert np.all(points[:, i] <= distribution.high), "The sampled value must be <= high."
     for param_value, distribution in zip(sample(), search_space.values()):
-        assert not isinstance(param_value, np.floating)
-        assert not isinstance(param_value, np.integer)
+        assert not isinstance(param_value, np.floating), f"The sampled value must not be a numpy float, instead it is {param_value}"
+        assert not isinstance(param_value, np.integer), f"The sampled value must not be a numpy integer, instead it is {param_value}"
         if isinstance(distribution, IntDistribution):
-            assert isinstance(param_value, int)
+            assert isinstance(param_value, int), "The sampled value must be an integer."
         else:
-            assert isinstance(param_value, float)
+            assert isinstance(param_value, float), "The sampled value must be a float."
 
 
 @parametrize_relative_sampler
@@ -250,7 +259,6 @@ def test_sample_relative_categorical(relative_sampler_class: Callable[[], BaseSa
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
     study.tell(trial, sum(trial.params.values()))
-    _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
 
     def sample() -> list[float]:
         params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
@@ -286,7 +294,6 @@ def test_sample_relative_mixed(
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
     study.tell(trial, sum(trial.params.values()))
-    _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
 
     def sample() -> list[float]:
         params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
@@ -555,6 +562,12 @@ def test_reproducible(sampler_class: Callable[[int], BaseSampler], objective_fun
         g = trial.suggest_categorical("g", range(1, 10))
         return objective_func(a, b, c, d, e, f, g)
 
+    """
+    This test checks if the sampler is reproducible. Specifically, it checks if the same set of
+    parameters are suggested for the same seed. The test optimizes a constant objective function
+    with 15 trials and checks if the parameters are the same for the same seed.
+    """
+
     study = optuna.create_study(sampler=sampler_class(1))
     study.optimize(objective, n_trials=15)
 
@@ -599,27 +612,48 @@ def test_reseed_rng_change_sampling(sampler_class: Callable[[int], BaseSampler])
 # This function is used only in test_reproducible_in_other_process, but declared at top-level
 # because local function cannot be pickled, which occurs within multiprocessing.
 def run_optimize(
-    k: int,
-    sampler_name: str,
-    sequence_dict: DictProxy,
-    hash_dict: DictProxy,
+        k: int,
+        sampler_name: str,
+        sequence_dict: DictProxy,
+        hash_dict: DictProxy,
+        log_file: str,   # change from Jinglue: added log_file parameter
 ) -> None:
-    def objective(trial: Trial) -> float:
-        a = trial.suggest_float("a", 1, 9)
-        b = trial.suggest_float("b", 1, 9, log=True)
-        c = trial.suggest_float("c", 1, 9, step=1)
-        d = trial.suggest_int("d", 1, 9)
-        e = trial.suggest_int("e", 1, 9, log=True)
-        f = trial.suggest_int("f", 1, 9, step=2)
-        g = trial.suggest_categorical("g", range(1, 10))
-        return a + b + c + d + e + f + g
+    try: # change from Jinglue: added try-except block for error handling
+        # change from Jinglue: added logging setup
+        logging.basicConfig(
+            filename=log_file,
+            level=logging.DEBUG,
+            format=f'Process {k} - %(asctime)s - %(message)s'
+        )
 
-    hash_dict[k] = hash("nondeterministic hash")
-    sampler = sampler_class_with_seed[sampler_name](1)
-    study = optuna.create_study(sampler=sampler)
-    study.optimize(objective, n_trials=15)
-    sequence_dict[k] = list(study.trials[-1].params.values())
+        logging.info(f"Starting process {k}") # change from Jinglue: added logging
+        hash_dict[k] = hash("nondeterministic hash")
+        logging.info("Hash stored") # change from Jinglue: added logging
 
+        def objective(trial: Trial) -> float:
+            a = trial.suggest_float("a", 1, 9)
+            b = trial.suggest_float("b", 1, 9, log=True)
+            c = trial.suggest_float("c", 1, 9, step=1)
+            d = trial.suggest_int("d", 1, 9)
+            e = trial.suggest_int("e", 1, 9, log=True)
+            f = trial.suggest_int("f", 1, 9, step=2)
+            g = trial.suggest_categorical("g", range(1, 10))
+            return a + b + c + d + e + f + g
+
+        logging.info("Creating sampler")  # change from Jinglue: added logging
+        sampler = sampler_class_with_seed[sampler_name](1)
+        logging.info("Creating study")  # change from Jinglue: added logging
+        study = optuna.create_study(sampler=sampler)
+        logging.info("Starting optimization")  # change from Jinglue: added logging
+        study.optimize(objective, n_trials=15)
+        sequence_dict[k] = list(study.trials[-1].params.values())
+        logging.info("Optimization complete")  # change from Jinglue: added logging
+
+    except Exception as e: # change from Jinglue: added error handling
+        import traceback
+        logging.error(f"Error occurred: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise
 
 @pytest.fixture
 def unset_seed_in_test(request: SubRequest) -> None:
@@ -641,28 +675,51 @@ def unset_seed_in_test(request: SubRequest) -> None:
 @pytest.mark.slow
 @parametrize_sampler_name_with_seed
 def test_reproducible_in_other_process(sampler_name: str, unset_seed_in_test: None) -> None:
-    # This test should be tested without `PYTHONHASHSEED`. However, some tool such as tox
-    # set the environmental variable "PYTHONHASHSEED" by default.
-    # To do so, this test calls a finalizer: `unset_seed_in_test`.
-
-    # Multiprocessing supports three way to start a process.
-    # We use `spawn` option to create a child process as a fresh python process.
-    # For more detail, see https://github.com/optuna/optuna/pull/3187#issuecomment-997673037.
     multiprocessing.set_start_method("spawn", force=True)
+
+    # change from Jinglue: added log file creation
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = f"test_sampler_{timestamp}.log"
+
     manager = multiprocessing.Manager()
     sequence_dict: DictProxy = manager.dict()
     hash_dict: DictProxy = manager.dict()
+
+    # change from Jinglue: modified process management to track all processes
+    processes = []
     for i in range(3):
         p = multiprocessing.Process(
-            target=run_optimize, args=(i, sampler_name, sequence_dict, hash_dict)
+            target=run_optimize,
+            args=(i, sampler_name, sequence_dict, hash_dict, log_file)
         )
+        processes.append(p)
         p.start()
-        p.join()
 
-    # Hashes are expected to be different because string hashing is nondeterministic per process.
-    assert not (hash_dict[0] == hash_dict[1] == hash_dict[2])
-    # But the sequences are expected to be the same.
-    assert sequence_dict[0] == sequence_dict[1] == sequence_dict[2]
+    # change from Jinglue: modified process checking and added error reporting
+    failed = False
+    for i, p in enumerate(processes):
+        p.join()
+        if p.exitcode != 0:
+            failed = True
+
+    # change from Jinglue: added log file checking on failure
+    if failed:
+        print("\nTest failed! Log contents:")
+        print("-" * 50)
+        try:
+            with open(log_file, 'r') as f:
+                print(f.read())
+        except Exception as e:
+            print(f"Error reading log file: {str(e)}")
+        print("-" * 50)
+        os.remove(log_file)  # Clean up log file
+        raise RuntimeError("One or more processes failed. See log contents above.")
+
+    os.remove(log_file)  # change from Jinglue: added log file cleanup
+
+    # Rest of the assertions...
+    assert not (hash_dict[0] == hash_dict[1] == hash_dict[2]), "Hashes are expected to be different"
+    assert sequence_dict[0] == sequence_dict[1] == sequence_dict[2], "Sequences are expected to be same"
 
 
 @pytest.mark.parametrize("n_jobs", [1, 2])
