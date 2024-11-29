@@ -259,7 +259,6 @@ def test_sample_relative_categorical(relative_sampler_class: Callable[[], BaseSa
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
     study.tell(trial, sum(trial.params.values()))
-    _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
 
     def sample() -> list[float]:
         params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
