@@ -13,7 +13,6 @@ import numpy as np
 
 import math
 
-
 def objective_toy(trial: optuna.Trial) -> float :
     # Define the dimensionality of the problem
     n_dimensions = 10  # High-dimensional problem with 10 dimensions
@@ -36,6 +35,36 @@ def objective_toy(trial: optuna.Trial) -> float :
 
     return result
 
+def objective_toy(trial: optuna.Trial) -> float:
+    # Define the dimensionality of the problem
+    n_dimensions = 10  # 10 dimensions
+
+    # Suggest a value for each dimension
+    variables = [trial.suggest_float(f"x{i}", -10.0, 10.0) for i in range(n_dimensions)]
+
+    # Compute the summation of squares
+    result = sum(x ** 2 for x in variables)
+
+    return result
+
+
+def objective_toy(trial: optuna.Trial) -> float:
+    # Define the dimensionality of the problem
+    n_dimensions = 10  # High-dimensional problem with 10 dimensions
+
+    # Suggest a value for each dimension
+    variables = [trial.suggest_float(f"x{i}", -5.12, 5.12) for i in range(n_dimensions)]
+
+    # Rastrigin function parameters
+    A = 10
+
+    # Compute the Rastrigin function value
+    sum_term = sum(x ** 2 - A * math.cos(2 * math.pi * x) for x in variables)
+
+    # Rastrigin function formula
+    result = A * n_dimensions + sum_term
+
+    return result
 
 def objective_ML(trial: optuna.Trial) -> float :
     # Load dataset
@@ -80,13 +109,13 @@ package_name = "package/samplers/de"
 sampler = optunahub.load_local_module(
     package=package_name ,
     registry_root="/home/j/PycharmProjects/optunahub-registry" ,  # Path to the root of the optunahub-registry.
-    ).DESampler(population_size=100)
+    ).DESampler(population_size=50,F=0.8,CR=0.9, debug=True)
 
 sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
 
 # Parameters for experiments
 num_experiments = 1
-number_of_trials = 5
+number_of_trials = 3000
 
 # Store results for each experiment
 results_de = np.zeros((num_experiments , number_of_trials))
