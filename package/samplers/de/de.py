@@ -183,9 +183,11 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         numerical_space, categorical_space = self._split_search_space(search_space)
 
         # Sample categorical parameters using random sampler
-        categorical_params = self._random_sampler.sample_relative(
-            study, trial, categorical_space
-        )
+        categorical_params = {}
+        for param_name, distribution in categorical_space.items():
+            categorical_params[param_name] = self._random_sampler.sample_independent(
+                study, trial, param_name, distribution
+            )
 
         # If no numerical parameters, return only categorical
         if not numerical_space:
