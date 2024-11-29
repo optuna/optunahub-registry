@@ -256,19 +256,52 @@ def test_sample_relative_categorical(relative_sampler_class: Callable[[], BaseSa
     search_space: dict[str, BaseDistribution] = dict(
         x=CategoricalDistribution([1, 10, 100]), y=CategoricalDistribution([-1, -10, -100])
     )
+    print("\nTest Setup:")
+    print(f"Search space: {search_space}")
+    print(f"Sampler class: {relative_sampler_class.__name__}")
+
     study = optuna.study.create_study(sampler=relative_sampler_class())
     trial = study.ask(search_space)
+    print(f"\nInitial trial params: {trial.params}")
+
     study.tell(trial, sum(trial.params.values()))
+    print(f"Told study with value: {sum(trial.params.values())}")
 
     def sample() -> list[float]:
-        params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
+        new_trial = _create_new_trial(study)
+        print(f"\nCreated new trial: {new_trial}")
+        print(f"Trial system attrs: {new_trial[0].system_attrs}")
+
+        params = study.sampler.sample_relative(study, *new_trial, search_space)
+        print(f"Sampled params: {params}")
         return [params[name] for name in search_space]
 
-    points = np.array([sample() for _ in range(10)])
+    print("\nStarting sampling loop...")
+    points = []
+    for i in range(10):
+        print(f"\nSample {i + 1}:")
+        try:
+            point = sample()
+            print(f"Sampled point: {point}")
+            points.append(point)
+        except Exception as e:
+            print(f"Error during sampling: {str(e)}")
+            print(f"Error type: {type(e)}")
+            raise
+
+    points = np.array(points)
+    print("\nFinal points array:", points)
+
     for i, distribution in enumerate(search_space.values()):
         assert isinstance(distribution, CategoricalDistribution)
+        print(f"\nChecking distribution {i}:")
+        print(f"Choices: {distribution.choices}")
+        print(f"Values: {points[:, i]}")
         assert np.all([v in distribution.choices for v in points[:, i]])
+
+    print("\nChecking parameter types...")
     for param_value in sample():
+        print(f"Checking value: {param_value} (type: {type(param_value)})")
         assert not isinstance(param_value, np.floating)
         assert not isinstance(param_value, np.integer)
         assert isinstance(param_value, int)

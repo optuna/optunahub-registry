@@ -82,8 +82,8 @@ def objective_ML(trial: optuna.Trial) -> float :
     max_depth = trial.suggest_int("max_depth" , 5 , 30)
     min_samples_split = trial.suggest_int("min_samples_split" , 2 , 15)
     min_samples_leaf = trial.suggest_int("min_samples_leaf" , 1 , 10)
-    # max_features = trial.suggest_categorical("max_features" , ["sqrt" , "log2" , None])
-    # bootstrap = trial.suggest_categorical("bootstrap" , [True , False])
+    max_features = trial.suggest_categorical("max_features" , ["sqrt" , "log2" , None])
+    bootstrap = trial.suggest_categorical("bootstrap" , [True , False])
 
     # Build pipeline with scaling and RandomForestClassifier
     pipeline = Pipeline([
@@ -93,8 +93,8 @@ def objective_ML(trial: optuna.Trial) -> float :
             max_depth=max_depth ,
             min_samples_split=min_samples_split ,
             min_samples_leaf=min_samples_leaf ,
-            # max_features=max_features ,
-            # bootstrap=bootstrap ,
+            max_features=max_features ,
+            bootstrap=bootstrap ,
             random_state=42
             ))
         ])
@@ -117,8 +117,8 @@ sampler = optunahub.load_local_module(
 sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
 
 # Parameters for experiments
-num_experiments = 5
-number_of_trials = 3000
+num_experiments = 2
+number_of_trials = 100
 # Store results for each experiment
 results_de = np.zeros((num_experiments , number_of_trials))
 results_rs = np.zeros((num_experiments , number_of_trials))

@@ -3,23 +3,18 @@ from __future__ import annotations
 from typing import Any
 import numpy as np
 import optuna
+from optuna.samplers import RandomSampler
 import optunahub
 import time
 
 
 class DESampler(optunahub.samplers.SimpleBaseSampler):
-    """Differential Evolution Sampler for Optuna optimization.
+    """Differential Evolution Sampler with Random Sampling for categorical parameters.
 
-    This implements a DE algorithm that:
-    1. Initializes population randomly
-    2. For each generation:
-       - Evaluates all individuals
-       - For each individual:
-         * Generates trial vector (mutation + crossover)
-         * Evaluates trial vector
-         * Keeps better solution (selection)
-       - Generates new trial vectors for next generation
-    3. Repeats until stopping criterion met
+    This implements a hybrid sampling approach that:
+    1. Uses DE algorithm for numerical parameters (float, int)
+    2. Uses Random Sampling for categorical parameters
+    3. Combines both sampling strategies seamlessly
     """
 
     def __init__(
@@ -47,6 +42,9 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         self.seed = seed
         self._rng = np.random.RandomState(seed)
 
+        # Initialize random sampler for categorical parameters
+        self._random_sampler = RandomSampler(seed=seed)
+
         # DE algorithm parameters
         self.population_size = population_size
         self.F = F
@@ -61,6 +59,10 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         self.lower_bound = None
         self.upper_bound = None
 
+        # Parameter type tracking
+        self.numerical_params = []
+        self.categorical_params = []
+
         # Performance tracking
         self.last_time = time.time()
         self.last_trial_count = 0
@@ -68,6 +70,27 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         # Generation management
         self.last_processed_gen = -1
         self.current_gen_vectors = None
+
+    def _split_search_space(self, search_space: dict[str, optuna.distributions.BaseDistribution]) -> tuple[dict, dict]:
+        """Split search space into numerical and categorical parameters.
+
+        Args:
+            search_space: Complete search space dictionary
+
+        Returns:
+            tuple: (numerical_space, categorical_space)
+        """
+        numerical_space = {}
+        categorical_space = {}
+
+        for name, dist in search_space.items():
+            if isinstance(dist, (optuna.distributions.FloatDistribution,
+                                 optuna.distributions.IntDistribution)):
+                numerical_space[name] = dist
+            else:
+                categorical_space[name] = dist
+
+        return numerical_space, categorical_space
 
     def _generate_trial_vectors(self) -> np.ndarray:
         """Generate new trial vectors using DE mutation and crossover.
@@ -109,11 +132,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             print(message)
 
     def _calculate_speed(self, n_completed: int) -> None:
-        """Calculate and print optimization speed every 100 trials.
-
-        Args:
-            n_completed: Number of completed trials
-        """
+        """Calculate and print optimization speed every 100 trials."""
         if not self.debug:
             return
 
@@ -133,15 +152,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             self.last_trial_count = n_completed
 
     def _get_generation_trials(self, study: optuna.study.Study, generation: int) -> list:
-        """Get all completed trials for a specific generation.
-
-        Args:
-            study: Optuna study object
-            generation: Generation number to filter trials
-
-        Returns:
-            list: List of completed trials for the specified generation
-        """
+        """Get all completed trials for a specific generation."""
         all_trials = study.get_trials(deepcopy=False)
         return [
             t for t in all_trials
@@ -155,7 +166,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             trial: optuna.trial.FrozenTrial,
             search_space: dict[str, optuna.distributions.BaseDistribution],
     ) -> dict[str, Any]:
-        """Sample parameters for a trial using DE algorithm.
+        """Sample parameters for a trial using hybrid DE/Random sampling approach.
 
         Args:
             study: Optuna study object
@@ -167,6 +178,18 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         """
         if len(search_space) == 0:
             return {}
+
+        # Split search space into numerical and categorical
+        numerical_space, categorical_space = self._split_search_space(search_space)
+
+        # Sample categorical parameters using random sampler
+        categorical_params = self._random_sampler.sample_relative(
+            study, trial, categorical_space
+        )
+
+        # If no numerical parameters, return only categorical
+        if not numerical_space:
+            return categorical_params
 
         # Calculate current generation and individual index
         current_generation = trial._trial_id // self.population_size
@@ -181,9 +204,9 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         # Initialize search space dimensions and bounds if not done
         if self.population is None:
             self._debug_print("\nInitializing population...")
-            self.lower_bound = np.asarray([dist.low for dist in search_space.values()])
-            self.upper_bound = np.asarray([dist.high for dist in search_space.values()])
-            self.dim = len(search_space)
+            self.lower_bound = np.asarray([dist.low for dist in numerical_space.values()])
+            self.upper_bound = np.asarray([dist.high for dist in numerical_space.values()])
+            self.dim = len(numerical_space)
             # Initialize population using seeded RNG
             self.population = (
                     self._rng.rand(self.population_size, self.dim) *
@@ -192,14 +215,18 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             )
             self.fitness = np.full(self.population_size, np.inf)
             study._storage.set_trial_system_attr(trial._trial_id, "de:dim", self.dim)
+            # Store parameter names for later reference
+            self.numerical_params = list(numerical_space.keys())
 
         # Initial population evaluation
         if current_generation == 0:
             self._debug_print(f"Evaluating initial individual {individual_index + 1}/{self.population_size}")
-            return {
-                name: (float(value) if isinstance(dist, optuna.distributions.FloatDistribution) else int(value))
-                for (name, dist), value in zip(search_space.items(), self.population[individual_index])
+            numerical_params = {
+                name: (float(value) if isinstance(numerical_space[name],
+                                                  optuna.distributions.FloatDistribution) else int(value))
+                for name, value in zip(self.numerical_params, self.population[individual_index])
             }
+            return {**numerical_params, **categorical_params}
 
         # Process previous generation if needed
         if current_generation > 0 and current_generation != self.last_processed_gen:
@@ -212,7 +239,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 # Get fitness and parameter values from previous generation
                 trial_fitness = np.array([t.value for t in prev_trials])
                 trial_vectors = np.array([
-                    [t.params[name] for name in search_space.keys()]
+                    [t.params[name] for name in self.numerical_params]
                     for t in prev_trials
                 ])
 
@@ -232,8 +259,10 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         if self.current_gen_vectors is None:
             self.current_gen_vectors = self._generate_trial_vectors()
 
-        # Return parameters for current individual
-        return {
-            name: (float(value) if isinstance(dist, optuna.distributions.FloatDistribution) else int(value))
-            for (name, dist), value in zip(search_space.items(), self.current_gen_vectors[individual_index])
+        # Combine numerical and categorical parameters
+        numerical_params = {
+            name: (float(value) if isinstance(numerical_space[name],
+                                              optuna.distributions.FloatDistribution) else int(value))
+            for name, value in zip(self.numerical_params, self.current_gen_vectors[individual_index])
         }
+        return {**numerical_params, **categorical_params}
