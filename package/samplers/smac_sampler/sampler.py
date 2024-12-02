@@ -99,6 +99,7 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         self,
         search_space: dict[str, BaseDistribution],
         n_trials: int = 100,
+        seed: int = -1,
         *,
         surrogate_model_type: str = "rf",
         acq_func_type: str = "ei_log",
@@ -113,7 +114,7 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
     ) -> None:
         super().__init__(search_space)
         self._cs, self._hp_scale_value = self._convert_to_config_space_design_space(search_space)
-        scenario = Scenario(configspace=self._cs, deterministic=True, n_trials=n_trials)
+        scenario = Scenario(configspace=self._cs, deterministic=True, n_trials=n_trials, seed=seed)
         surrogate_model = self._get_surrogate_model(
             scenario,
             surrogate_model_type,
