@@ -27,6 +27,9 @@ with improvement ranking, all wrapped up in a
 However, it is possible to implement many variations of CMA-MAE and other
 quality diversity algorithms using pyribs.
 
+For visualizing the results of the `CmaMaeSampler`, note that we use the
+`plot_grid_archive_heatmap` function from the `plot_pyribs` plugin.
+
 ## Class or Function Names
 
 - CmaMaeSampler
