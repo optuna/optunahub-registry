@@ -1,31 +1,7 @@
----
-author: Bryon Tjanaka
-title: Pyribs Visualization Wrappers
-description: This visualizaton module provides wrappers around the visualization functions from pyribs, which is useful for plotting results from CmaMaeSampler.
-tags: [visualization, quality diversity, pyribs]
-optuna_versions: [4.0.0]
-license: MIT License
----
-
-## Class or Function Names
-
-- plot_grid_archive_heatmap
-
-## Installation
-
-```shell
-$ pip install ribs[visualize]
-```
-
-## Example
-
-A minimal example would be the following:
-
-```python
 import matplotlib.pyplot as plt
 import optuna
 import optunahub
-from optuna.study import StudyDirection
+
 
 module = optunahub.load_module("samplers/cmamae")
 CmaMaeSampler = module.CmaMaeSampler
@@ -66,6 +42,3 @@ if __name__ == "__main__":
     plot_grid_archive_heatmap(study, ax=ax)
     plt.savefig("archive.png")
     plt.show()
-```
-
-![Example of this Plot](images/archive.png)
