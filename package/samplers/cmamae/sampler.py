@@ -36,12 +36,13 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
     However, it is possible to implement many variations of CMA-MAE and other
     quality diversity algorithms using pyribs.
 
-    Note that this sampler assumes the objective function will return a list of
-    values. The first value will be the objective, and the remaining values will
-    be the measures.
+    Note that this sampler assumes the measures are set to user_attrs of each trial.
+    To do so, please call ``trial.set_user_attr("YOUR MEASURE NAME", measure_value)`` for each
+    measure.
 
     Args:
         param_names: List of names of parameters to optimize.
+        measure_names: List of names of measures.
         archive_dims: Number of archive cells in each dimension of the measure
             space, e.g. ``[20, 30, 40]`` indicates there should be 3 dimensions
             with 20, 30, and 40 cells. (The number of dimensions is implicitly
@@ -67,6 +68,7 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         self,
         *,
         param_names: list[str],
+        measure_names: list[str],
         archive_dims: list[int],
         archive_ranges: list[tuple[float, float]],
         archive_learning_rate: float,
@@ -77,7 +79,13 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         emitter_batch_size: int,
     ) -> None:
         self._validate_params(param_names, emitter_x0)
-        self._param_names = param_names[:]
+        self._param_names = param_names.copy()
+        self._measure_names = measure_names.copy()
+        if len(set(self._measure_names)) != 2:
+            raise ValueError(
+                "measure_names must be a list of two unique measure names, "
+                f"but got measure_names={measure_names}."
+            )
 
         # NOTE: SimpleBaseSampler must know Optuna search_space information.
         search_space = {name: FloatDistribution(-1e9, 1e9) for name in self._param_names}
@@ -182,8 +190,25 @@ class CmaMaeSampler(optunahub.samplers.SimpleBaseSampler):
         # Store the trial result.
         direction0 = study.directions[0]
         minimize_in_optuna = direction0 == StudyDirection.MINIMIZE
-        assert values is not None, "MyPy redefinition."
-        modified_values = list([float(v) for v in values])
+        if values is None:
+            raise RuntimeError(
+                f"{self.__class__.__name__} does not support Failed trials, "
+                f"but trial#{trial.number} failed."
+            )
+        user_attrs = trial.user_attrs
+        if any(measure_name not in user_attrs for measure_name in self._measure_names):
+            raise KeyError(
+                f"All of measures in measure_names={self._measure_names} must be set to "
+                "trial.user_attrs. Please call `trial.set_user_attr(<measure_name>, <value>)` "
+                "for each measure in your objective function."
+            )
+
+        self._raise_error_if_multi_objective(study)
+        modified_values = [
+            float(values[0]),
+            float(user_attrs[self._measure_names[0]]),
+            float(user_attrs[self._measure_names[1]]),
+        ]
         if minimize_in_optuna:
             # The direction of the first objective (pyribs maximizes).
             modified_values[0] = -values[0]
