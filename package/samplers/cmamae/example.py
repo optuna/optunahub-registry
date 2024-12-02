@@ -1,9 +1,13 @@
+import matplotlib.pyplot as plt
 import optuna
 import optunahub
 
 
 module = optunahub.load_module("samplers/cmamae")
 CmaMaeSampler = module.CmaMaeSampler
+
+plot_pyribs = optunahub.load_module(package="visualization/plot_pyribs")
+plot_grid_archive_heatmap = plot_pyribs.plot_grid_archive_heatmap
 
 
 def objective(trial: optuna.trial.Trial) -> float:
@@ -33,3 +37,8 @@ if __name__ == "__main__":
     )
     study = optuna.create_study(sampler=sampler)
     study.optimize(objective, n_trials=10000)
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    plot_grid_archive_heatmap(study, ax=ax)
+    plt.savefig("archive.png")
+    plt.show()
