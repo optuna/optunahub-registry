@@ -47,6 +47,7 @@ class cTPESampler(TPESampler):
         gamma_beta: float = 0.25,
         weight_strategy: str = "uniform",
         bandwidth_strategy: str = "scott",
+        use_min_bandwidth_discrete: bool = True,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ):
         gamma = GammaFunc(strategy=gamma_strategy, beta=gamma_beta)
@@ -76,13 +77,17 @@ class cTPESampler(TPESampler):
             min_bandwidth_factor=min_bandwidth_factor,
             bandwidth_strategy=bandwidth_strategy,
             categorical_prior_weight=categorical_prior_weight,
+            use_min_bandwidth_discrete=use_min_bandwidth_discrete,
         )
 
     def _sample(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
         if study._is_multi_objective():
-            _logger.warning("Multi-objective c-TPE does not exist in the original paper.")
+            _logger.warning(
+                "Multi-objective c-TPE does not exist in the original paper, "
+                "but sampling will be performed by c-TPE based on Optuna MOTPE."
+            )
 
         trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
         # n_below_feasible = self._gamma(len(trials))
@@ -127,3 +132,41 @@ class cTPESampler(TPESampler):
         log_second_term = np.log(1.0 - _q + _EPS) + lls_above - lls_below
         acq_func_vals = np.sum(-np.logaddexp(log_first_term, log_second_term), axis=0)
         return acq_func_vals
+
+
+def _get_reference_point(loss_vals: np.ndarray) -> np.ndarray:
+    worst_point = np.max(loss_vals, axis=0)
+    reference_point = np.maximum(1.1 * worst_point, 0.9 * worst_point)
+    reference_point[reference_point == 0] = EPS
+    return reference_point
+
+
+def _split_complete_trials_multi_objective(
+    trials: Sequence[FrozenTrial], study: Study, n_below: int
+) -> tuple[list[FrozenTrial], list[FrozenTrial]]:
+    if n_below == 0:
+        return [], list(trials)
+
+    assert 0 <= n_below <= len(trials)
+    lvals = np.array([trial.values for trial in trials])
+    lvals *= np.array([-1.0 if d == StudyDirection.MAXIMIZE else 1.0 for d in study.directions])
+    nondomination_ranks = _fast_non_domination_rank(lvals, n_below=n_below)
+    unique_sorted_ranks, counts_of_each_rank = np.unique(nondomination_ranks, return_counts=True)
+    last_rank_before_tie_break = unique_sorted_ranks[np.cumsum(counts_of_each_rank) <= n_below][-1]
+    is_rank_before_tie_break = nondomination_ranks <= last_rank_before_tie_break
+    indices = np.arange(len(lvals))
+    indices_below = indices[is_rank_before_tie_break]
+
+    if indices_below.size < n_below:  # Tie-break with Hypervolume subset selection problem (HSSP).
+        need_tie_break = nondomination_ranks == last_rank_before_tie_break + 1
+        rank_i_lvals = lvals[need_tie_break]
+        subset_size = n_below - indices_below.size
+        selected_indices = _solve_hssp(
+            rank_i_lvals, indices[need_tie_break], subset_size, _get_reference_point(rank_i_lvals)
+        )
+        indices_below = np.append(indices_below, selected_indices)
+
+    below_indices_set = set(indices_below.tolist())
+    below_trials = [trials[i] for i in range(len(trials)) if i in below_indices_set]
+    above_trials = [trials[i] for i in range(len(trials)) if i not in below_indices_set]
+    return below_trials, above_trials

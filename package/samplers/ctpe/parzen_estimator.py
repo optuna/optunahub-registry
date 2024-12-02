@@ -21,6 +21,7 @@ class _CustomizableParzenEstimatorParameters(NamedTuple):
     b_magic_exponent: float
     min_bandwidth_factor: float
     bandwidth_strategy: str
+    use_min_bandwidth_discrete: bool
     categorical_prior_weight: float | None
 
 
@@ -126,6 +127,11 @@ class _CustomizableParzenEstimator(_ParzenEstimator):
             b_magic_exponent=parameters.b_magic_exponent,
             min_bandwidth_factor=parameters.min_bandwidth_factor,
         )
+
+        if step is not None and parameters.use_min_bandwidth_discrete:
+            # NOTE(nabenabe0928): This hack is specifically for c-TPE.
+            n_grids = int((high - low) / step + 1)
+            sigmas = np.maximum(sigmas, domain_range / n_grids)
 
         if step is None:
             return _BatchedTruncNormDistributions(mus, sigmas, low, high)
