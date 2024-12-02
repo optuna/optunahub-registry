@@ -18,6 +18,10 @@ def plot_grid_archive_heatmap(  # type: ignore
 ) -> Axes:
     """Wrapper around pyribs grid_archive_heatmap.
 
+    Refer to the `grid_archive_heatmap
+    <https://docs.pyribs.org/en/stable/api/ribs.visualize.grid_archive_heatmap.html>`_
+    function from pyribs for information.
+
     Args:
         study: Optuna study with a sampler that uses pyribs. This function will
             plot the result archive from the sampler's scheduler.

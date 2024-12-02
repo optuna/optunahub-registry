@@ -25,7 +25,6 @@ A minimal example would be the following:
 import matplotlib.pyplot as plt
 import optuna
 import optunahub
-from optuna.study import StudyDirection
 
 module = optunahub.load_module("samplers/cmamae")
 CmaMaeSampler = module.CmaMaeSampler
