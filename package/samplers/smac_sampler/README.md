@@ -20,16 +20,34 @@ pip install -r https://hub.optuna.org/samplers/smac_sampler/requirements.txt
 ## Example
 
 ```python
-search_space = {
-    "x": FloatDistribution(-10, 10),
-    "y": IntDistribution(0, 10),
+import optuna
+import optunahub
 
-}
-sampler = SMACSampler(search_space)
+
+module = optunahub.load_module("samplers/smac_sampler")
+SMACSampler = module.SMACSampler
+
+
+def objective(trial: optuna.trial.Trial) -> float:
+    x = trial.suggest_float("x", -10, 10)
+    y = trial.suggest_int("y", -10, 10)
+    return x**2 + y**2
+
+
+n_trials = 100
+sampler = SMACSampler(
+    {
+        "x": optuna.distributions.FloatDistribution(-10, 10),
+        "y": optuna.distributions.IntDistribution(-10, 10),
+    },
+    n_trials=n_trials,
+)
 study = optuna.create_study(sampler=sampler)
+study.optimize(objective, n_trials=n_trials)
+print(study.best_trial.params)
 ```
 
-See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/hebo/example.py) for a full example.
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/smac_sampler/example.py) for a full example.
 ![History Plot](images/smac_sampler_history.png "History Plot")
 
 ## Others
