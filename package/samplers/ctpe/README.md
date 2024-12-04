@@ -15,6 +15,11 @@ This package aims to reproduce the TPE algorithm used in the paper published at 
 
 The default parameter set of this sampler is the recommended setup from the paper and the experiments in the paper can also be reproduced by this sampler.
 
+Note that this sampler is officially implemented by the first author of the original paper.
+The performance was verified using Optuna v4.1.0 by reproducing the results of Fig. 3 (Top Row) in the original paper.
+
+![Performance Verification](images/slide-localization.png)
+
 ## Class or Function Names
 
 - cTPESampler
