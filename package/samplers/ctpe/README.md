@@ -22,6 +22,7 @@ The default parameter set of this sampler is the recommended setup from the pape
 Although most arguments in [`TPESampler`](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.TPESampler.html) are also available for `cTPESampler`, the original paper uses the default arguments of this sampler.
 However, `constraints_func` must be provided to use this sampler.
 For the reproducibility purpose, please set a fixed `seed`.
+Please refer to [the documentation of CustomizableTPESampler](https://hub.optuna.org/samplers/tpe_tutorial/) for more details of the other arguments such as `bandwidth_strategy` and `b_magic_exponent`.
 
 ## Installation
 
