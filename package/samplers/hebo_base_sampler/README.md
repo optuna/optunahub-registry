@@ -1,5 +1,5 @@
 ---
-author: HirokiTakizawa
+author: Hiroki Takizawa
 title: HEBO (Heteroscedastic and Evolutionary Bayesian Optimisation) supporting Define-by-Run and parallelization
 description: This package offers HEBO algorithm using BaseSampler and supports parallelization in exchange for increased computation.
 tags: [sampler, Bayesian optimization, Heteroscedastic Gaussian process, Evolutionary algorithm]
