@@ -182,9 +182,11 @@ class HEBOSampler(BaseSampler):  # type: ignore
         return DesignSpace().parse(design_space)
 
     def infer_relative_search_space(
-            self, study: Study, trial: FrozenTrial
-        ) -> dict[str, BaseDistribution]:
-        return optuna.search_space.intersection_search_space(study._get_trials(deepcopy=False, use_cache=True))
+        self, study: Study, trial: FrozenTrial
+    ) -> dict[str, BaseDistribution]:
+        return optuna.search_space.intersection_search_space(
+            study._get_trials(deepcopy=False, use_cache=True)
+        )
 
     def sample_independent(
         self,
