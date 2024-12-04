@@ -16,7 +16,7 @@ This package aims to reproduce the TPE algorithm used in the paper published at 
 The default parameter set of this sampler is the recommended setup from the paper and the experiments in the paper can also be reproduced by this sampler.
 
 Note that this sampler is officially implemented by the first author of the original paper.
-The performance was verified using Optuna v4.1.0 by reproducing the results of Fig. 3 (Top Row) in the original paper.
+The performance was verified, c.f. [#177](https://github.com/optuna/optunahub-registry/pull/177#issuecomment-2517083730), using Optuna v4.1.0 by reproducing the results of Fig. 3 (Top Row) in the original paper.
 
 ![Performance Verification](images/slice-localization.png)
 
@@ -44,6 +44,7 @@ $ pip install -r https://hub.optuna.org/samplers/ctpe/requirements.txt
 ## Example
 
 This sampler is the official implementation of [the c-TPE paper](https://arxiv.org/abs/2211.14411).
+The interface for the constraint handling is identical to the Optuna API, so please check [the official API reference](https://optuna.readthedocs.io/en/stable/faq.html#how-can-i-optimize-a-model-with-some-constraints) for more details.
 
 ```python
 from __future__ import annotations
@@ -64,6 +65,8 @@ def constraints(trial: optuna.trial.FrozenTrial) -> tuple[float]:
     y = trial.params["y"]
     c = float(np.sin(x) * np.sin(y) + 0.95)
     trial.set_user_attr("c", c)
+    # For multiple constraints, we can simply include every constraint in the tuple below.
+    # e.g., if c1 <= t1 and c2 <= t2 are the constraints, return (c1 - t1, c2 - t2).
     return (c, )
 
 
