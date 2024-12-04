@@ -69,7 +69,9 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             by this sampler. If :obj:`None` is specified, :class:`~optuna.samplers.RandomSampler`
             is used as the default.
     """  # NOQA
-    def __init__(self,
+
+    def __init__(
+        self,
         search_space: dict[str, BaseDistribution] | None = None,
         seed: int | None = None,
         constant_liar: bool = False,
@@ -81,9 +83,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         else:
             self._hebo = None
         self._intersection_search_space = IntersectionSearchSpace()
-        self._independent_sampler = (
-            independent_sampler or optuna.samplers.RandomSampler(seed=seed)
-        )
+        self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._is_independent_sampler_specified = independent_sampler is not None
         self._constant_liar = constant_liar
 
@@ -114,18 +114,12 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         # Assume that the back-end HEBO implementation aims to minimize.
         if study.direction == StudyDirection.MINIMIZE:
-            worst_values = max(
-                [t.values for t in trials if t.state == TrialState.COMPLETE]
-            )
+            worst_values = max([t.values for t in trials if t.state == TrialState.COMPLETE])
         else:
-            worst_values = min(
-                [t.values for t in trials if t.state == TrialState.COMPLETE]
-            )
+            worst_values = min([t.values for t in trials if t.state == TrialState.COMPLETE])
         sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
 
-        hebo = HEBO(
-            self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed
-        )
+        hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed)
         for t in trials:
             if t.state == TrialState.COMPLETE:
                 hebo_params = {name: t.params[name] for name in search_space.keys()}
@@ -155,9 +149,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, float]:
         if study._is_multi_objective():
-            raise ValueError(
-                "This function does not support multi-objective optimization study."
-            )
+            raise ValueError("This function does not support multi-objective optimization study.")
         if self._hebo is None or self._constant_liar is True:
             return self._sample_relative_stateless(study, trial, search_space)
         else:
