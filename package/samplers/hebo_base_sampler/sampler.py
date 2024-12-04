@@ -111,11 +111,7 @@ class HEBOSampler(BaseSampler):  # type: ignore
         # during parallel execution.
         values_array = np.asarray(
             [
-                (
-                    map(lambda x: x * sign, t.values)
-                    if t.state == TrialState.COMPLETE
-                    else worst_values
-                )
+                (t.values[0] * sign if t.state == TrialState.COMPLETE else worst_values)
                 for t in trials
             ]
         )
