@@ -1,6 +1,7 @@
+import time
+
 import optuna
 import optunahub
-import time
 
 
 module = optunahub.load_module("samplers/hebo_base_sampler")
