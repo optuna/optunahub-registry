@@ -55,6 +55,9 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
             initial design.
             This argument does not have to be precise, but it is better to be exact for better
             performance.
+        seed:
+            Seed for random number generator.
+            If ``None`` is given, seed is generated randomly.
         surrogate_model_type:
             What model to use for the probabilistic model.
             Either "gp" (Gaussian process), "gp_mcmc" (Gaussian process with MCMC), or "rf"
@@ -99,6 +102,7 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         self,
         search_space: dict[str, BaseDistribution],
         n_trials: int = 100,
+        seed: int | None = None,
         *,
         surrogate_model_type: str = "rf",
         acq_func_type: str = "ei_log",
@@ -113,7 +117,9 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
     ) -> None:
         super().__init__(search_space)
         self._cs, self._hp_scale_value = self._convert_to_config_space_design_space(search_space)
-        scenario = Scenario(configspace=self._cs, deterministic=True, n_trials=n_trials)
+        scenario = Scenario(
+            configspace=self._cs, deterministic=True, n_trials=n_trials, seed=seed or -1
+        )
         surrogate_model = self._get_surrogate_model(
             scenario,
             surrogate_model_type,
