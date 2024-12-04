@@ -80,13 +80,12 @@ Although we recommend you write proper type hints, if you find it difficult to c
 
 - `Abstract <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#abstract>`__ section that describes the summary of your package. It should be a markdown paragraph. This section will help attract potential users to your package.
 
-- `Class or Function Names <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#class-or-function-names>`__ section that describes the classes or functions provided by the package. If you provide multiple classes or functions, you should list them in this section. Note that the section must be a markdown list. If you provide only one class or function, you can simply write the class or function name. Note that the documentation of the classes or functions must be written in their docstrings. If you want to refer to the documentation, please leave the source code link, or write them in the following `Others` section. For example:
+- `APIs <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#apis>`__ section that describes the APIs provided by the package. The documentation format is arbitrary, it is helpful to provide enough information about classes, functions, arguments, etc. to use your package. At least the important class/function names that you implemented should be listed here.
 
   .. code-block:: markdown
 
-      - `DemoSampler1`
-      - `DemoSampler2`
-      - `demo_function1`
+      - `ClassName(*, argment1: argument_type)`
+        - `argument1`: Description of `argument1`.
 
 - An `Installation <https://github.com/optuna/optunahub-registry/blob/main/template/README.md#installation>`__ section that describes how to install the additional dependencies if required. If your package contains ``requirements.txt``, it will be available at ``https://hub.optuna.org/{category}/{your_package_name}/requirements.txt``. Then, the package dependencies can be installed as follows.
 
