@@ -104,18 +104,23 @@ class HEBOSampler(BaseSampler):  # type: ignore
             worst_values = min(t.values for t in trials if t.state == TrialState.COMPLETE)
         sign = 1.0 if study.direction == StudyDirection.MINIMIZE else -1.0
 
-        hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed)
-        df_params = pd.DataFrame([t.params for t in trials])
-        # If `constant_liar == True`, assume that the RUNNING params result in bad values,
-        # thus preventing the simultaneous suggestion of (almost) the same params
-        # during parallel execution.
-        values_array = np.asarray(
-            [
-                (t.values[0] * sign if t.state == TrialState.COMPLETE else worst_values)
-                for t in trials
-            ]
+        hebo = HEBO(
+            self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed
         )
-        hebo.observe(df_params, values_array)
+        for t in trials:
+            hebo_params = {name: t.params[name] for name in search_space.keys()}
+            if t.state == TrialState.COMPLETE:
+                hebo.observe(
+                    pd.DataFrame([hebo_params]),
+                    np.asarray([map(lambda x: x * sign, t.values)]),
+                )
+            elif t.state == TrialState.RUNNING:
+                # If `constant_liar == True`, assume that the RUNNING params result in bad values,
+                # thus preventing the simultaneous suggestion of (almost) the same params
+                # during parallel execution.
+                hebo.observe(pd.DataFrame([hebo_params]), np.asarray([worst_values]))
+            else:
+                assert False
         params_pd = hebo.suggest()
         params = {}
         for name in search_space.keys():
