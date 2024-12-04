@@ -51,17 +51,9 @@ class HEBOSampler(BaseSampler):  # type: ignore
         sign = 1.0 if study.direction == StudyDirection.MINIMIZE else -1.0
 
         hebo = HEBO(self._convert_to_hebo_design_space(search_space))
-        for t in trials:
-            hebo_params = {name: t.params[name] for name in search_space.keys()}
-            if t.state == TrialState.COMPLETE:
-                hebo.observe(pd.DataFrame([hebo_params]), np.asarray([t.values * sign]))
-            elif t.state == TrialState.RUNNING:
-                # If `constant_liar == True`, assume that the RUNNING params result in bad values,
-                # thus preventing the simultaneous suggestion of (almost) the same params
-                # during parallel execution.
-                hebo.observe(pd.DataFrame([hebo_params]), np.asarray([worst_values]))
-            else:
-                assert False
+        df_params = pd.DataFrame([t.params for t in trials])
+        values_array = np.asarray([t.values * sign if t.state == TrialState.COMPLETE else worst_values for t in trials])
+         hebo.observe(df_params, values_array)
         params_pd = hebo.suggest()
         params = {}
         for name in search_space.keys():
