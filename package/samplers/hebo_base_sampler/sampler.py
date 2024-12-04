@@ -115,7 +115,7 @@ class HEBOSampler(BaseSampler):  # type: ignore
             elif t.state == TrialState.RUNNING:
                 try:
                     hebo_params = {name: t.params[name] for name in search_space.keys()}
-                except:
+                except:  # noqa: B001
                     # There are params which is not suggested yet.
                     continue
                 # If `constant_liar == True`, assume that the RUNNING params result in bad values,
