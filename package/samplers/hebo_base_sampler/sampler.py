@@ -108,13 +108,18 @@ class HEBOSampler(BaseSampler):  # type: ignore
             self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed
         )
         for t in trials:
-            hebo_params = {name: t.params[name] for name in search_space.keys()}
             if t.state == TrialState.COMPLETE:
+                hebo_params = {name: t.params[name] for name in search_space.keys()}
                 hebo.observe(
                     pd.DataFrame([hebo_params]),
-                    np.asarray([map(lambda x: x * sign, t.values)]),
+                    np.asarray([x * sign for x in t.values]),
                 )
             elif t.state == TrialState.RUNNING:
+                try:
+                    hebo_params = {name: t.params[name] for name in search_space.keys()}
+                except:
+                    # There are params which is not suggested yet.
+                    continue
                 # If `constant_liar == True`, assume that the RUNNING params result in bad values,
                 # thus preventing the simultaneous suggestion of (almost) the same params
                 # during parallel execution.
