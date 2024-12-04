@@ -64,6 +64,7 @@ class HEBOSampler(BaseSampler):  # type: ignore
             is used as the default.
 
     """  # NOQA
+
     def __init__(
         self,
         seed: int | None = None,
@@ -195,7 +196,6 @@ class HEBOSampler(BaseSampler):  # type: ignore
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
-
         if not self._is_independent_sampler_specified:
             warnings.warn(
                 "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space. Is this intended?"
