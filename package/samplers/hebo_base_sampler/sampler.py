@@ -40,7 +40,7 @@ class HEBOSampler(BaseSampler):  # type: ignore
         else:
             target_states = [TrialState.COMPLETE]
         trials = study.get_trials(deepcopy=False, states=target_states)
-        if len(t for t in trials if t.state == TrialState.COMPLETE) < 1:
+        if len([t for t in trials if t.state == TrialState.COMPLETE]) < 1:
             return {}
 
         # Assume that the back-end HEBO implementation aims to minimize.
@@ -131,10 +131,10 @@ class HEBOSampler(BaseSampler):  # type: ignore
                 raise NotImplementedError(f"Unsupported distribution: {distribution}")
         return DesignSpace().parse(design_space)
 
-    def infer_relative_search_space(self, study, trial):
+    def infer_relative_search_space(self, study, trial):  # type: ignore
         return optuna.search_space.intersection_search_space(study.get_trials(deepcopy=False))
 
-    def sample_independent(self, study, trial, param_name, param_distribution):
+    def sample_independent(self, study, trial, param_name, param_distribution):  # type: ignore
         return self._independent_sampler.sample_independent(
             study, trial, param_name, param_distribution
         )
