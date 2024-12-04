@@ -110,7 +110,7 @@ class cTPESampler(TPESampler):
         mpes_above: list[_ParzenEstimator] = []
         quantiles: list[float] = []
         for constraint_vals in constraints_vals.T:
-            is_satisfied = constraint_vals <= 0
+            is_satisfied = (constraint_vals <= 0) | (constraint_vals == min(constraint_vals))
             satisfied_trials = [t for t, include in zip(trials, is_satisfied) if include]
             unsatisfied_trials = [t for t, exclude in zip(trials, is_satisfied) if not exclude]
             mpes_below.append(
