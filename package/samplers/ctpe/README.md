@@ -18,7 +18,7 @@ The default parameter set of this sampler is the recommended setup from the pape
 Note that this sampler is officially implemented by the first author of the original paper.
 The performance was verified using Optuna v4.1.0 by reproducing the results of Fig. 3 (Top Row) in the original paper.
 
-![Performance Verification](images/slide-localization.png)
+![Performance Verification](images/slice-localization.png)
 
 ## Class or Function Names
 
