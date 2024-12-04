@@ -104,9 +104,7 @@ class HEBOSampler(BaseSampler):  # type: ignore
             worst_values = min(t.values for t in trials if t.state == TrialState.COMPLETE)
         sign = 1.0 if study.direction == StudyDirection.MINIMIZE else -1.0
 
-        hebo = HEBO(
-            self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed
-        )
+        hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed)
         for t in trials:
             if t.state == TrialState.COMPLETE:
                 hebo_params = {name: t.params[name] for name in search_space.keys()}
