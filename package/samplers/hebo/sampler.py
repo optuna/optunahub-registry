@@ -162,7 +162,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
-        if self._hebo is not None:
+        if self._hebo is not None and values is not None:
             # Assume that the back-end HEBO implementation aims to minimize.
             if study.direction == StudyDirection.MAXIMIZE:
                 values = [-x for x in values]
