@@ -110,7 +110,14 @@ class HEBOSampler(BaseSampler):  # type: ignore
         # thus preventing the simultaneous suggestion of (almost) the same params
         # during parallel execution.
         values_array = np.asarray(
-            [t.values * sign if t.state == TrialState.COMPLETE else worst_values for t in trials]
+            [
+                (
+                    map(lambda x: x * sign, t.values)
+                    if t.state == TrialState.COMPLETE
+                    else worst_values
+                )
+                for t in trials
+            ]
         )
         hebo.observe(df_params, values_array)
         params_pd = hebo.suggest()
