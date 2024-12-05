@@ -179,6 +179,9 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         if len(search_space) == 0:
             return {}
 
+        # Determine the direction of optimization
+        sign = 1 if study.direction == optuna.study.StudyDirection.MINIMIZE else -1
+
         # Split search space into numerical and categorical
         numerical_space, categorical_space = self._split_search_space(search_space)
 
@@ -215,7 +218,8 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                     (self.upper_bound - self.lower_bound) +
                     self.lower_bound
             )
-            self.fitness = np.full(self.population_size, np.inf)
+            # Initialize fitness based on direction
+            self.fitness = np.full(self.population_size , -np.inf if sign == -1 else np.inf)
             study._storage.set_trial_system_attr(trial._trial_id, "de:dim", self.dim)
             # Store parameter names for later reference
             self.numerical_params = list(numerical_space.keys())
@@ -239,7 +243,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 self._debug_print(f"\nProcessing generation {prev_gen}")
 
                 # Get fitness and parameter values from previous generation
-                trial_fitness = np.array([t.value for t in prev_trials])
+                trial_fitness = np.array([sign * t.value for t in prev_trials])
                 trial_vectors = np.array([
                     [t.params[name] for name in self.numerical_params]
                     for t in prev_trials
@@ -247,11 +251,11 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
 
                 # Selection: keep better solutions
                 for i in range(self.population_size):
-                    if trial_fitness[i] <= self.fitness[i]:
+                    if trial_fitness[i] <= sign * self.fitness[i]:
                         self.population[i] = trial_vectors[i]
-                        self.fitness[i] = trial_fitness[i]
+                        self.fitness[i] = sign * trial_fitness[i]
 
-                self._debug_print(f"Best fitness: {np.min(self.fitness):.6f}")
+                self._debug_print(f"Best fitness: {np.min(sign * self.fitness):.6f}")
 
                 # Generate new trial vectors for current generation
                 self.current_gen_vectors = self._generate_trial_vectors()
