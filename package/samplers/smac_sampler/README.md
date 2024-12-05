@@ -76,7 +76,7 @@ See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/packag
 
 SMAC is maintained by the SMAC team in [automl.org](https://www.automl.org/). If you have trouble using SMAC, a concrete question or found a bug, please create an issue under the [SMAC](https://github.com/automl/SMAC3) repository.
 
-For all other inquiries, please write an email to smac(at)ai(dot)uni(dash)hannover(dot)de.
+For all other inquiries, please write an email to smac\[at\]ai\[dot\]uni\[dash\]hannover\[dot\]de.
 
 ### Reference
 
