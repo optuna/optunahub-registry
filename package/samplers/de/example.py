@@ -5,7 +5,6 @@ import optunahub
 from sklearn.datasets import load_digits
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split , cross_val_score
-from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
@@ -13,6 +12,7 @@ import numpy as np
 
 import math
 
+# ---------------Objective functions---------------
 def objective_Ackley(trial: optuna.Trial) -> float :
     # Define the dimensionality of the problem
     n_dimensions = 10  # High-dimensional problem with 10 dimensions
@@ -81,7 +81,9 @@ def objective_Schwefel(trial: optuna.Trial) -> float:
     result = 418.9829 * n_dimensions - sum_term
 
     # Return the negative for maximization purposes
+    # Additionally added 10000 to make the result positive
     return - result + 10000
+
 
 
 def objective_ML(trial: optuna.Trial) -> float :
@@ -121,24 +123,69 @@ def objective_ML(trial: optuna.Trial) -> float :
     return mean_accuracy
 
 
+def objective_dynamic_1(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x" , -5.12 , 5.12)
+    y = trial.suggest_float("y" , -5.12 , 5.12)
+
+    if trial.number == 0:
+        z = trial.suggest_float("z", -5.12, 5.12)
+
+    return x ** 2 + y ** 2
+
+def objective_dynamic_2(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x" , -5.12 , 5.12)
+    y = trial.suggest_float("y" , -5.12 , 5.12)
+    if trial.number == 100 :
+        z = trial.suggest_float("z" , -5.12 , 5.12)
+    return x ** 2 + y ** 2
+
+
+objective_map = {
+    "Ackley": objective_Ackley,
+    "sphere": objective_sphere,
+    "Rastrigin": objective_Rastrigin,
+    "Schwefel": objective_Schwefel,
+    "ML": objective_ML,
+    "dynamic_1": objective_dynamic_1,
+    "dynamic_2": objective_dynamic_2,
+}
+
+# ---------------Settings---------------
+
+# Paths
 package_name = "package/samplers/de"
+registry_root = "/home/j/experiments/optunahub-registry"
 
-# This is an example of how to load a sampler from your local optunahub-registry.
-sampler = optunahub.load_local_module(
-    package=package_name ,
-    registry_root="/home/j/experiments/optunahub-registry" ,  # Path to the root of the optunahub-registry.
-    ).DESampler(population_size=50,F=0.8,CR=0.9, debug=True)
-
-sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
+# Settings for the DE Sampler
+population_size=50
+F=0.8
+CR=0.9
+debug=True
 
 # Local variable to set the direction: True for minimize, False for maximize
-minimize = False
-
-toy_function_selectin=
+minimize = True
 
 # Define the number of experiments and trials
-num_experiments = 5
-number_of_trials = 1000
+num_experiments = 3
+number_of_trials = 250
+
+# Select the objective function
+objective_function_choice = "dynamic_2"  # Choose objective function: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2"
+
+
+# ---------------Experiments and plotting---------------
+
+# Map the objective function
+objective_function = objective_map[objective_function_choice]
+
+# Load the DE Sampler
+sampler = optunahub.load_local_module(
+    package=package_name ,
+    registry_root=registry_root ,  # Path to the root of the optunahub-registry.
+    ).DESampler(population_size=population_size , F=F , CR=CR, debug=debug)
+
+# Load the Random Sampler
+sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
 
 # Store results for each experiment
 results_de = np.zeros((num_experiments, number_of_trials))
@@ -147,10 +194,11 @@ results_rs = np.zeros((num_experiments, number_of_trials))
 # Determine the optimization direction
 direction = "minimize" if minimize else "maximize"
 
+# Run multiple experiments
 for i in range(num_experiments):
     # DE Sampler
     study = optuna.create_study(sampler=sampler, direction=direction)
-    study.optimize(objective_toy, n_trials=number_of_trials)
+    study.optimize(objective_function, n_trials=number_of_trials)
 
     # Track best values for DE Sampler
     best_values_de = []
@@ -166,7 +214,7 @@ for i in range(num_experiments):
 
     # Random Sampler
     study_rs = optuna.create_study(sampler=sampler_rs, direction=direction)
-    study_rs.optimize(objective_toy, n_trials=number_of_trials)
+    study_rs.optimize(objective_function, n_trials=number_of_trials)
 
     # Track best values for Random Sampler
     best_values_rs = []
@@ -186,17 +234,15 @@ std_de = np.std(results_de, axis=0)
 mean_rs = np.mean(results_rs, axis=0)
 std_rs = np.std(results_rs, axis=0)
 
-# Ensure smaller values are plotted below larger values by always using positive log-scale
+# Plot the results
 plt.figure(figsize=(10, 6))
 plt.plot(mean_de, linestyle='-', label='DESampler (Mean Performance)', color='blue')
 plt.fill_between(range(number_of_trials), mean_de - std_de, mean_de + std_de, color='blue', alpha=0.2,
-                 label='DESampler (Error Band)')
+                 label='DESampler (Standard Deviation)')
 plt.plot(mean_rs, linestyle='--', label='RandomSampler (Mean Performance)', color='orange')
 plt.fill_between(range(number_of_trials), mean_rs - std_rs, mean_rs + std_rs, color='orange', alpha=0.2,
-                 label='RandomSampler (Error Band)')
-
-# Adjust title and y-axis label
-plt.title(f'Comparison of DE Sampler and Random Sampler ({num_experiments} Experiments)')
+                 label='RandomSampler (Standard Deviation)')
+plt.title(f'Comparison of DE Sampler and Random Sampler ({num_experiments} Experiments) - {objective_function_choice} - {direction.capitalize()}')
 plt.xlabel('Trial Number')
 plt.ylabel('Objective Value (Log Scale)')
 plt.yscale('log')  # Always use log scale for the y-axis

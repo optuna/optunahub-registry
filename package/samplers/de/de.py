@@ -59,6 +59,9 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         self.lower_bound = None
         self.upper_bound = None
 
+        # Search space dimensionality tracking
+        self.search_space_dimensions={}
+
         # Parameter type tracking
         self.numerical_params = []
         self.categorical_params = []
@@ -92,34 +95,43 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
 
         return numerical_space, categorical_space
 
-    def _generate_trial_vectors(self) -> np.ndarray:
+    def _generate_trial_vectors(self , active_indices: list[int]) -> np.ndarray :
         """Generate new trial vectors using DE mutation and crossover.
 
-        Returns:
-            np.ndarray: Array of trial vectors (population_size x dim)
-        """
-        trial_vectors = np.zeros_like(self.population)
+        Args:
+            active_indices: Indices of active dimensions in the current trial's search space.
 
-        for i in range(self.population_size):
+        Returns:
+            np.ndarray: Array of trial vectors (population_size x len(active_indices))
+        """
+        trial_vectors = np.zeros((self.population_size , len(active_indices)))
+
+        for i in range(self.population_size) :
             # Select three random distinct individuals for mutation
             indices = [idx for idx in range(self.population_size) if idx != i]
-            r1, r2, r3 = self._rng.choice(indices, 3, replace=False)
+            r1 , r2 , r3 = self._rng.choice(indices , 3 , replace=False)
 
-            # Mutation: v = x_r1 + F * (x_r2 - x_r3)
+            # Handle NaN values by filling with default (mean of bounds)
+            valid_population = np.nan_to_num(
+                self.population[: , active_indices] ,
+                nan=(self.lower_bound[active_indices] + self.upper_bound[active_indices]) / 2
+                )
+
+            # Mutation: v = x_r1 + F * (x_r2 - x_r3) for active indices only
             mutant = (
-                    self.population[r1]
-                    + self.F * (self.population[r2] - self.population[r3])
+                    valid_population[r1]
+                    + self.F * (valid_population[r2] - valid_population[r3])
             )
-            # Clip mutant vector to bounds
-            mutant = np.clip(mutant, self.lower_bound, self.upper_bound)
+            # Clip mutant vector to bounds for active dimensions
+            mutant = np.clip(mutant , self.lower_bound[active_indices] , self.upper_bound[active_indices])
 
             # Crossover: combine target vector with mutant vector
-            trial = np.copy(self.population[i])
-            # Generate crossover mask based on CR
-            crossover_mask = self._rng.rand(self.dim) < self.CR
+            trial = np.copy(valid_population[i])
+            crossover_mask = self._rng.rand(len(active_indices)) < self.CR
+
             # Ensure at least one parameter is taken from mutant vector
-            if not np.any(crossover_mask):
-                crossover_mask[self._rng.randint(self.dim)] = True
+            if not np.any(crossover_mask) :
+                crossover_mask[self._rng.randint(len(active_indices))] = True
             trial[crossover_mask] = mutant[crossover_mask]
 
             trial_vectors[i] = trial
@@ -161,11 +173,11 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         ]
 
     def sample_relative(
-            self,
-            study: optuna.study.Study,
-            trial: optuna.trial.FrozenTrial,
-            search_space: dict[str, optuna.distributions.BaseDistribution],
-    ) -> dict[str, Any]:
+            self ,
+            study: optuna.study.Study ,
+            trial: optuna.trial.FrozenTrial ,
+            search_space: dict[str , optuna.distributions.BaseDistribution] ,
+            ) -> dict[str , Any] :
         """Sample parameters for a trial using hybrid DE/Random sampling approach.
 
         Args:
@@ -176,99 +188,121 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         Returns:
             dict: Parameter values for the trial
         """
-        if len(search_space) == 0:
-            return {}
+        if len(search_space) == 0 :
+            return { }
 
         # Determine the direction of optimization
         sign = 1 if study.direction == optuna.study.StudyDirection.MINIMIZE else -1
 
         # Split search space into numerical and categorical
-        numerical_space, categorical_space = self._split_search_space(search_space)
+        numerical_space , categorical_space = self._split_search_space(search_space)
 
         # Sample categorical parameters using random sampler
-        categorical_params = {}
-        for param_name, distribution in categorical_space.items():
+        categorical_params = { }
+        for param_name , distribution in categorical_space.items() :
             categorical_params[param_name] = self._random_sampler.sample_independent(
-                study, trial, param_name, distribution
-            )
+                study , trial , param_name , distribution
+                )
 
         # If no numerical parameters, return only categorical
-        if not numerical_space:
+        if not numerical_space :
             return categorical_params
+
+        # Track active dimensions for the current trial
+        active_keys = list(numerical_space.keys())
+
+        # Ensure numerical_params includes all possible keys
+        if self.numerical_params is None :
+            self.numerical_params = active_keys
+        else :
+            # Dynamically adjust numerical_params to reflect the current trial's search space
+            for key in active_keys :
+                if key not in self.numerical_params :
+                    self.numerical_params.append(key)
+
+        # Get indices for the active keys
+        active_indices = [self.numerical_params.index(name) for name in active_keys]
 
         # Calculate current generation and individual index
         current_generation = trial._trial_id // self.population_size
         individual_index = trial._trial_id % self.population_size
 
         # Store generation and individual info as trial attributes
-        study._storage.set_trial_system_attr(trial._trial_id, "de:generation", current_generation)
-        study._storage.set_trial_system_attr(trial._trial_id, "de:individual", individual_index)
+        study._storage.set_trial_system_attr(trial._trial_id , "de:generation" , current_generation)
+        study._storage.set_trial_system_attr(trial._trial_id , "de:individual" , individual_index)
 
         self._calculate_speed(trial._trial_id)
 
-        # Initialize search space dimensions and bounds if not done
-        if self.population is None:
+        # Initialize population and bounds for the entire search space if not done
+        if self.population is None :
             self._debug_print("\nInitializing population...")
+            all_keys = list(numerical_space.keys())
             self.lower_bound = np.asarray([dist.low for dist in numerical_space.values()])
             self.upper_bound = np.asarray([dist.high for dist in numerical_space.values()])
-            self.dim = len(numerical_space)
+            self.dim = len(all_keys)
+
             # Initialize population using seeded RNG
             self.population = (
-                    self._rng.rand(self.population_size, self.dim) *
+                    self._rng.rand(self.population_size , self.dim) *
                     (self.upper_bound - self.lower_bound) +
                     self.lower_bound
             )
-            # Initialize fitness based on direction
             self.fitness = np.full(self.population_size , -np.inf if sign == -1 else np.inf)
-            study._storage.set_trial_system_attr(trial._trial_id, "de:dim", self.dim)
-            # Store parameter names for later reference
-            self.numerical_params = list(numerical_space.keys())
+            self.numerical_params = all_keys  # Track all keys
 
         # Initial population evaluation
-        if current_generation == 0:
+        if current_generation == 0 :
             self._debug_print(f"Evaluating initial individual {individual_index + 1}/{self.population_size}")
             numerical_params = {
-                name: (float(value) if isinstance(numerical_space[name],
-                                                  optuna.distributions.FloatDistribution) else int(value))
-                for name, value in zip(self.numerical_params, self.population[individual_index])
-            }
-            return {**numerical_params, **categorical_params}
+                name : (float(value) if isinstance(numerical_space[name] ,
+                                                   optuna.distributions.FloatDistribution) else int(value))
+                for name , value in zip(active_keys , self.population[individual_index , active_indices])
+                }
+            return { **numerical_params , **categorical_params }
 
         # Process previous generation if needed
-        if current_generation > 0 and current_generation != self.last_processed_gen:
+        if current_generation > 0 and current_generation != self.last_processed_gen :
             prev_gen = current_generation - 1
-            prev_trials = self._get_generation_trials(study, prev_gen)
+            prev_trials = self._get_generation_trials(study , prev_gen)
 
-            if len(prev_trials) == self.population_size:
+            if len(prev_trials) == self.population_size :
                 self._debug_print(f"\nProcessing generation {prev_gen}")
 
                 # Get fitness and parameter values from previous generation
                 trial_fitness = np.array([sign * t.value for t in prev_trials])
-                trial_vectors = np.array([
-                    [t.params[name] for name in self.numerical_params]
-                    for t in prev_trials
-                ])
+
+                # Initialize trial_vectors with uniform size, using NaN or a default value for missing parameters
+                trial_vectors = np.full(
+                    (self.population_size , len(self.numerical_params)) ,
+                    np.nan ,  # Placeholder for missing parameters
+                    )
+
+                for i , t in enumerate(prev_trials) :
+                    for j , name in enumerate(self.numerical_params) :
+                        if name in t.params :  # Only include active parameters
+                            trial_vectors[i , j] = t.params[name]
 
                 # Selection: keep better solutions
-                for i in range(self.population_size):
-                    if trial_fitness[i] <= sign * self.fitness[i]:
-                        self.population[i] = trial_vectors[i]
+                for i in range(self.population_size) :
+                    if trial_fitness[i] <= sign * self.fitness[i] :
+                        self.population[i , active_indices] = trial_vectors[i , active_indices]
                         self.fitness[i] = sign * trial_fitness[i]
 
-                self._debug_print(f"Best fitness: {np.min(sign * self.fitness):.6f}")
+                self._debug_print(f"Best fitness: {np.nanmin(sign * self.fitness):.6f}")
 
                 # Generate new trial vectors for current generation
-                self.current_gen_vectors = self._generate_trial_vectors()
+                self.current_gen_vectors = self._generate_trial_vectors(active_indices)
                 self.last_processed_gen = current_generation
 
         # Ensure we have trial vectors for current generation
-        if self.current_gen_vectors is None:
-            self.current_gen_vectors = self._generate_trial_vectors()
+        if self.current_gen_vectors is None :
+            self.current_gen_vectors = self._generate_trial_vectors(active_indices)
 
         # Combine numerical and categorical parameters
         numerical_params = {
-            name: (float(value) if isinstance(numerical_space[name],
-                                              optuna.distributions.FloatDistribution) else int(value))
-            for name, value in zip(self.numerical_params, self.current_gen_vectors[individual_index])
-        }
-        return {**numerical_params, **categorical_params}
+            name : (float(value) if isinstance(numerical_space[name] ,
+                                               optuna.distributions.FloatDistribution) else int(value))
+            for name , value in zip(active_keys , self.current_gen_vectors[individual_index])
+            }
+        return { **numerical_params , **categorical_params }
+
