@@ -135,7 +135,19 @@ def objective_dynamic_1(trial: optuna.Trial) -> float:
 def objective_dynamic_2(trial: optuna.Trial) -> float:
     x = trial.suggest_float("x" , -5.12 , 5.12)
     y = trial.suggest_float("y" , -5.12 , 5.12)
-    if trial.number == 100 :
+    if trial.number == 100:
+        z = trial.suggest_float("z" , -5.12 , 5.12)
+    return x ** 2 + y ** 2
+
+
+def objective_dynamic_3(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x" , -5.12 , 5.12)
+    y = trial.suggest_float("y" , -5.12 , 5.12)
+    if trial.number == 0:
+        z = trial.suggest_float("z" , -5.12 , 5.12)
+    if trial.number >= 100 and trial.number < 200:
+        z = trial.suggest_float("z" , -5.12 , 5.12)
+    if trial.number == 300:
         z = trial.suggest_float("z" , -5.12 , 5.12)
     return x ** 2 + y ** 2
 
@@ -148,12 +160,13 @@ objective_map = {
     "ML": objective_ML,
     "dynamic_1": objective_dynamic_1,
     "dynamic_2": objective_dynamic_2,
+    "dynamic_3": objective_dynamic_3,
 }
 
 # ---------------Settings---------------
 
 # Paths
-package_name = "package/samplers/de"
+package_name = "package/samplers/differential_evolution"
 registry_root = "/home/j/experiments/optunahub-registry"
 
 # Settings for the DE Sampler
@@ -166,11 +179,11 @@ debug=True
 minimize = True
 
 # Define the number of experiments and trials
-num_experiments = 3
-number_of_trials = 250
+num_experiments = 10
+number_of_trials = 1000
 
 # Select the objective function
-objective_function_choice = "dynamic_2"  # Choose objective function: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2"
+objective_function_choice = "Ackley"  # Choose objective function: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2", "dynamic_3"
 
 
 # ---------------Experiments and plotting---------------
@@ -198,7 +211,7 @@ direction = "minimize" if minimize else "maximize"
 for i in range(num_experiments):
     # DE Sampler
     study = optuna.create_study(sampler=sampler, direction=direction)
-    study.optimize(objective_function, n_trials=number_of_trials)
+    study.optimize(objective_function, n_trials=number_of_trials,n_jobs=16)
 
     # Track best values for DE Sampler
     best_values_de = []
@@ -214,7 +227,7 @@ for i in range(num_experiments):
 
     # Random Sampler
     study_rs = optuna.create_study(sampler=sampler_rs, direction=direction)
-    study_rs.optimize(objective_function, n_trials=number_of_trials)
+    study_rs.optimize(objective_function, n_trials=number_of_trials,n_jobs=16)
 
     # Track best values for Random Sampler
     best_values_rs = []

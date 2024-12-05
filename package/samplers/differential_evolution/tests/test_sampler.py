@@ -55,7 +55,7 @@ import pytest
 
 # NOTE(nabenabe): This file content is mostly copied from the Optuna repository.
 The_Sampler = optunahub.load_local_module(
-    package="package/samplers/de", registry_root="/home/j/PycharmProjects/optunahub-registry"
+    package="package/samplers/differential_evolution", registry_root="/home/j/experiments/optunahub-registry"
 ).DESampler
 
 
