@@ -7,25 +7,6 @@ optuna_versions: [4.1.0]
 license: "MIT License"
 ---
 
-<!--
-This is an example of the frontmatters.
-All columns must be string.
-You can omit quotes when value types are not ambiguous.
-For tags, a package placed in
-- package/samplers/ must include the tag "sampler"
-- package/visualilzation/ must include the tag "visualization"
-- package/pruners/ must include the tag "pruner"
-respectively.
-
----
-author: Optuna team
-title: My Sampler
-description: A description for My Sampler.
-tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
-optuna_versions: [3.6.1]
-license: "MIT License"
----
--->
 
 Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub.
 You can find more detailed explanation of the following contents in the tutorial.
@@ -33,93 +14,147 @@ Looking at [other packages' implementations](https://github.com/optuna/optunahub
 
 ## Abstract
 
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
+### Differential Evolution (DE) Sampler
 
-**Example**
+This implementation introduces a novel Differential Evolution (DE) sampler, tailored to optimize both numerical and categorical hyperparameters effectively. The DE sampler integrates a hybrid approach:
 
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+1. **Differential Evolution for Numerical Parameters:** Exploiting DE’s strengths, the sampler efficiently explores numerical parameter spaces through mutation, crossover, and selection mechanisms.
+2. **Random Sampling for Categorical Parameters:** For categorical variables, the sampler employs random sampling, ensuring comprehensive coverage of discrete spaces.
+
+The sampler also supports **dynamic search spaces**, enabling seamless adaptation to varying parameter dimensions during optimization. To maintain diversity and scalability, the population size is adaptively determined based on the search space dimensionality.
+
+### Performance Verification
+
+The sampler's performance was validated using four standard optimization benchmarks:
+
+- **Ackley function (Minimization)**
+- **Rastrigin function (Minimization)**
+- **Sphere function (Minimization)**
+- **Schwefel function (Maximization)**
+
+Each benchmark was tested across 10 experiments. The results demonstrate superior performance in convergence speed and objective value minimization/maximization compared to a random sampling baseline. 
+
+The plots below illustrate the comparative performance, showcasing both mean performance and standard deviation for the DE and random samplers across trial numbers.
+
+
+<table style="width: 100%;">
+  <tr>
+    <td style="width: 50%;"><img src="images/Ackley_minimize.png" alt="Top Left" style="width: 100%;"/></td>
+    <td style="width: 50%;"><img src="images/Rastrigin_minimize.png" alt="Top Right" style="width: 100%;"/></td>
+  </tr>
+  <tr>
+    <td style="width: 50%;"><img src="images/Schwefel_maximize.png" alt="Bottom Left" style="width: 100%;"/></td>
+    <td style="width: 50%;"><img src="images/sphere_minimize.png" alt="Bottom Right" style="width: 100%;"/></td>
+  </tr>
+</table>
+
 
 ## APIs
 
-Please provide API documentation describing how to use your package's functionalities.
-The documentation format is arbitrary, but at least the important class/function names that you implemented should be listed here.
-More users will take advantage of your package by providing detailed and helpful documentation.
+### Differential Evolution (DE) Sampler API Documentation
 
-**Example**
+The `DESampler` is a hybrid sampler designed to optimize both numerical and categorical hyperparameters efficiently. It combines Differential Evolution (DE) for numerical parameter optimization and random sampling for categorical parameters, making it versatile and scalable for various optimization tasks.
 
-- `MoCmaSampler(*, search_space: dict[str, BaseDistribution] | None = None, popsize: int | None = None, seed: int | None = None)`
-  - `search_space`: A dictionary containing the search space that defines the parameter space. The keys are the parameter names and the values are [the parameter's distribution](https://optuna.readthedocs.io/en/stable/reference/distributions.html). If the search space is not provided, the sampler will infer the search space dynamically.
-    Example:
-    ```python
-    search_space = {
-        "x": optuna.distributions.FloatDistribution(-5, 5),
-        "y": optuna.distributions.FloatDistribution(-5, 5),
-    }
-    MoCmaSampler(search_space=search_space)
-    ```
-  - `popsize`: Population size of the CMA-ES algorithm. If not provided, the population size will be set based on the search space dimensionality. If you have a sufficient evaluation budget, it is recommended to increase the popsize.
-  - `seed`: Seed for random number generator.
+---
 
-Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.
+### Class: `DESampler`
+
+```python
+  DESampler(
+      search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
+      population_size: int | str = "auto",
+      F: float = 0.8,
+      CR: float = 0.7,
+      debug: bool = False,
+      seed: int | None = None
+  )
+```
+
+### Parameters
+
+#### `search_space`
+A dictionary containing the search space that defines the parameter space. The keys are parameter names, and the values are [Optuna distributions](https://optuna.readthedocs.io/en/stable/reference/distributions.html) specifying the parameter ranges.
+
+**Example**:
+```python
+search_space = {
+    "x": optuna.distributions.FloatDistribution(-5, 5),
+    "y": optuna.distributions.FloatDistribution(-5, 5),
+    "z": optuna.distributions.CategoricalDistribution([0, 1, 2]),
+}
+sampler = DESampler(search_space=search_space)
+```
+
+---
+
+#### `population_size`
+The number of individuals in the population. If set to `"auto"`, the population size is dynamically determined based on the dimensionality of the search space. You can specify a custom integer value for precise control over population size.
+
+- **Default**: `"auto"`
+- **Example**: `population_size=50`
+
+---
+
+#### `F`
+Mutation scaling factor. Controls the amplification of the difference between two individuals in DE.
+
+- **Default**: `0.8`
+- **Range**: `[0.0, 2.0]`
+
+---
+
+#### `CR`
+Crossover probability. Controls the fraction of parameter values copied from the mutant during crossover.
+
+- **Default**: `0.7`
+- **Range**: `[0.0, 1.0]`
+
+---
+
+#### `debug`
+A toggle to enable or disable debug messages for performance monitoring and troubleshooting.
+
+- **Default**: `False`
+- **Example**: `debug=True`
+
+---
+
+#### `seed`
+Seed for the random number generator, ensuring reproducibility of results.
+
+- **Default**: `None`
+- **Example**: `seed=42`
 
 ## Installation
 
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
 ```shell
-$ pip install scipy torch
-```
-
-If your package has `requirements.txt`, it will be automatically uploaded to the OptunaHub, and the package dependencies will be available to install as follows.
-
-```shell
- pip install -r https://hub.optuna.org/{category}/{your_package_name}/requirements.txt
+pip install -r https://hub.optuna.org/samplers/differential_evolution/requirements.txt
 ```
 
 ## Example
 
-Please fill in the code snippet to use the implemented feature here.
-
-**Example**
-
 ```python
 import optuna
-import optunahub
+import math
+from your_module import DESampler
 
+# Define the Rastrigin objective function
+def objective_rastrigin(trial):
+    n_dimensions = 10  # Dimensionality of the problem
+    variables = [trial.suggest_float(f"x{i}", -5.12, 5.12) for i in range(n_dimensions)]
+    A = 10
+    result = A * n_dimensions + sum(x**2 - A * math.cos(2 * math.pi * x) for x in variables)
+    return result
 
-def objective(trial):
-  x = trial.suggest_float("x", -5, 5)
-  return x**2
+# Initialize the DE Sampler
+sampler = DESampler(population_size="auto", F=0.8, CR=0.9, seed=42)
 
+# Create and optimize the study
+study = optuna.create_study(direction="minimize", sampler=sampler)
+study.optimize(objective_rastrigin, n_trials=1000)
 
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=100)
+# Print the results
+print("Best parameters:", study.best_params)
+print("Best value:", study.best_value)
 ```
-
-## Others
-
-Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, **this section can be removed**.
-
-<!--
-For example, you can add sections to introduce a corresponding paper.
-
-### Reference
-Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
-Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
-
-### Bibtex
-```
-@inproceedings{optuna_2019,
-    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
-    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
-    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
-    year={2019}
-}
-```
--->
+For a comprehensive example with benchmarking, see [example.py](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/differential_evolution/example.py).

@@ -131,8 +131,8 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             self.population_size = self._determine_pop_size(search_space)
 
     def _determine_pop_size(self, search_space: dict[str, optuna.distributions.BaseDistribution]) -> int:
-        """
-        Determine the population size based on the search space dimensionality.
+        """Determine the population size based on the search space dimensionality.
+
         Args:
             search_space:
                 Dictionary mapping parameter names to their distribution ranges.
@@ -142,32 +142,29 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 The population size.
         """
         if search_space is None:
-
             return 20
-
         else:
-
             dimension = len(search_space)
 
             # Start with a baseline multiplier
-            if dimension < 5 :
+            if dimension < 5:
                 # For very low dimension, maintain at least 20 individuals
                 # to ensure diversity.
                 base_multiplier = 10
                 min_pop = 20
-            elif dimension <= 30 :
+            elif dimension <= 30:
                 # For moderately sized problems, a standard 10x dimension
                 # is a good starting point.
                 base_multiplier = 10
                 min_pop = 30
-            else :
+            else:
                 # For high-dimensional problems, start lower (5x)
                 # to keep computations manageable.
                 base_multiplier = 5
                 min_pop = 50
 
             # Calculate a preliminary population size (can be fine-tuned further)
-            population_size = max(min_pop , base_multiplier * dimension)
+            population_size = max(min_pop, base_multiplier * dimension)
 
             return population_size
 
@@ -237,6 +234,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             trial_vectors[i] = trial
 
         return trial_vectors
+
     def _debug_print(self, message: str) -> None:
         """Print debug message if debug mode is enabled.
 

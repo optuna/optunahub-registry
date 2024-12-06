@@ -181,8 +181,9 @@ debug=True
 num_experiments = 10
 number_of_trials = 10000
 
-# Select the objective function (used if run_benchmark==False)
+# ---------------Experiments---------------
 
+# Run the benchmark
 if run_benchmark:
     # Make sure the results directory exists
     os.makedirs("results", exist_ok=True)
@@ -276,6 +277,7 @@ if run_benchmark:
         plt.savefig(filename, dpi=300)
         plt.show()
 
+# Run a single experiment
 else:
     # If run_benchmark == False
     # Run experiment for the single chosen objective_function_choice
