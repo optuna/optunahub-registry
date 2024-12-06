@@ -25,15 +25,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from collections.abc import Sequence
+from datetime import datetime
+import logging
 import multiprocessing
 from multiprocessing.managers import DictProxy
 import os
 from typing import Any
 from unittest.mock import patch
 import warnings
-import logging
-from datetime import datetime
-import traceback
 
 from _pytest.fixtures import SubRequest
 from _pytest.mark.structures import MarkDecorator
@@ -55,7 +54,8 @@ import pytest
 
 # NOTE(nabenabe): This file content is mostly copied from the Optuna repository.
 The_Sampler = optunahub.load_local_module(
-    package="package/samplers/differential_evolution", registry_root="/home/j/experiments/optunahub-registry"
+    package="package/samplers/differential_evolution",
+    registry_root="/home/j/experiments/optunahub-registry",
 ).DESampler
 
 
@@ -243,8 +243,12 @@ def test_sample_relative_numerical(
         assert np.all(points[:, i] >= distribution.low), "The sampled value must be >= low."
         assert np.all(points[:, i] <= distribution.high), "The sampled value must be <= high."
     for param_value, distribution in zip(sample(), search_space.values()):
-        assert not isinstance(param_value, np.floating), f"The sampled value must not be a numpy float, instead it is {param_value}"
-        assert not isinstance(param_value, np.integer), f"The sampled value must not be a numpy integer, instead it is {param_value}"
+        assert not isinstance(
+            param_value, np.floating
+        ), f"The sampled value must not be a numpy float, instead it is {param_value}"
+        assert not isinstance(
+            param_value, np.integer
+        ), f"The sampled value must not be a numpy integer, instead it is {param_value}"
         if isinstance(distribution, IntDistribution):
             assert isinstance(param_value, int), "The sampled value must be an integer."
         else:
@@ -612,23 +616,23 @@ def test_reseed_rng_change_sampling(sampler_class: Callable[[int], BaseSampler])
 # This function is used only in test_reproducible_in_other_process, but declared at top-level
 # because local function cannot be pickled, which occurs within multiprocessing.
 def run_optimize(
-        k: int,
-        sampler_name: str,
-        sequence_dict: DictProxy,
-        hash_dict: DictProxy,
-        log_file: str,   # change from Jinglue: added log_file parameter
+    k: int,
+    sampler_name: str,
+    sequence_dict: DictProxy,
+    hash_dict: DictProxy,
+    log_file: str,  # change from Jinglue: added log_file parameter
 ) -> None:
-    try: # change from Jinglue: added try-except block for error handling
+    try:  # change from Jinglue: added try-except block for error handling
         # change from Jinglue: added logging setup
         logging.basicConfig(
             filename=log_file,
             level=logging.DEBUG,
-            format=f'Process {k} - %(asctime)s - %(message)s'
+            format=f"Process {k} - %(asctime)s - %(message)s",
         )
 
-        logging.info(f"Starting process {k}") # change from Jinglue: added logging
+        logging.info(f"Starting process {k}")  # change from Jinglue: added logging
         hash_dict[k] = hash("nondeterministic hash")
-        logging.info("Hash stored") # change from Jinglue: added logging
+        logging.info("Hash stored")  # change from Jinglue: added logging
 
         def objective(trial: Trial) -> float:
             a = trial.suggest_float("a", 1, 9)
@@ -649,11 +653,13 @@ def run_optimize(
         sequence_dict[k] = list(study.trials[-1].params.values())
         logging.info("Optimization complete")  # change from Jinglue: added logging
 
-    except Exception as e: # change from Jinglue: added error handling
+    except Exception as e:  # change from Jinglue: added error handling
         import traceback
+
         logging.error(f"Error occurred: {str(e)}")
         logging.error(traceback.format_exc())
         raise
+
 
 @pytest.fixture
 def unset_seed_in_test(request: SubRequest) -> None:
@@ -689,8 +695,7 @@ def test_reproducible_in_other_process(sampler_name: str, unset_seed_in_test: No
     processes = []
     for i in range(3):
         p = multiprocessing.Process(
-            target=run_optimize,
-            args=(i, sampler_name, sequence_dict, hash_dict, log_file)
+            target=run_optimize, args=(i, sampler_name, sequence_dict, hash_dict, log_file)
         )
         processes.append(p)
         p.start()
@@ -707,7 +712,7 @@ def test_reproducible_in_other_process(sampler_name: str, unset_seed_in_test: No
         print("\nTest failed! Log contents:")
         print("-" * 50)
         try:
-            with open(log_file, 'r') as f:
+            with open(log_file, "r") as f:
                 print(f.read())
         except Exception as e:
             print(f"Error reading log file: {str(e)}")
@@ -718,8 +723,12 @@ def test_reproducible_in_other_process(sampler_name: str, unset_seed_in_test: No
     os.remove(log_file)  # change from Jinglue: added log file cleanup
 
     # Rest of the assertions...
-    assert not (hash_dict[0] == hash_dict[1] == hash_dict[2]), "Hashes are expected to be different"
-    assert sequence_dict[0] == sequence_dict[1] == sequence_dict[2], "Sequences are expected to be same"
+    assert not (
+        hash_dict[0] == hash_dict[1] == hash_dict[2]
+    ), "Hashes are expected to be different"
+    assert (
+        sequence_dict[0] == sequence_dict[1] == sequence_dict[2]
+    ), "Sequences are expected to be same"
 
 
 @pytest.mark.parametrize("n_jobs", [1, 2])
