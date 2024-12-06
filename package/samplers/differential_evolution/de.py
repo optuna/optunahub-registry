@@ -85,7 +85,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(
         self,
         search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
-        population_size: int = 50,
+        population_size: int | str = "auto",
         F: float = 0.8,
         CR: float = 0.7,
         debug: bool = False,
@@ -126,6 +126,50 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         # Generation management
         self.last_processed_gen = -1
         self.current_gen_vectors = None
+
+        if population_size == "auto":
+            self.population_size = self._determine_pop_size(search_space)
+
+    def _determine_pop_size(self, search_space: dict[str, optuna.distributions.BaseDistribution]) -> int:
+        """
+        Determine the population size based on the search space dimensionality.
+        Args:
+            search_space:
+                Dictionary mapping parameter names to their distribution ranges.
+
+        Returns:
+            int:
+                The population size.
+        """
+        if search_space is None:
+
+            return 20
+
+        else:
+
+            dimension = len(search_space)
+
+            # Start with a baseline multiplier
+            if dimension < 5 :
+                # For very low dimension, maintain at least 20 individuals
+                # to ensure diversity.
+                base_multiplier = 10
+                min_pop = 20
+            elif dimension <= 30 :
+                # For moderately sized problems, a standard 10x dimension
+                # is a good starting point.
+                base_multiplier = 10
+                min_pop = 30
+            else :
+                # For high-dimensional problems, start lower (5x)
+                # to keep computations manageable.
+                base_multiplier = 5
+                min_pop = 50
+
+            # Calculate a preliminary population size (can be fine-tuned further)
+            population_size = max(min_pop , base_multiplier * dimension)
+
+            return population_size
 
     def _split_search_space(self, search_space: dict[str, optuna.distributions.BaseDistribution]) -> tuple[dict, dict]:
         """Split search space into numerical and categorical parameters.

@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 import numpy as np
-
+import os
 import math
 
 # ---------------Objective functions---------------
@@ -69,7 +69,7 @@ def objective_Rastrigin(trial: optuna.Trial) -> float:
 
 def objective_Schwefel(trial: optuna.Trial) -> float:
     # Define the dimensionality of the problem
-    n_dimensions = 10  # Example: High-dimensional problem with 10 dimensions
+    n_dimensions = 10
 
     # Suggest a value for each dimension
     variables = [trial.suggest_float(f"x{i}", -500, 500) for i in range(n_dimensions)]
@@ -78,15 +78,13 @@ def objective_Schwefel(trial: optuna.Trial) -> float:
     sum_term = sum(x * math.sin(math.sqrt(abs(x))) for x in variables)
 
     # Schwefel function formula
-    result = 418.9829 * n_dimensions - sum_term
-
     # Return the negative for maximization purposes
     # Additionally added 10000 to make the result positive
+    result = 418.9829 * n_dimensions - sum_term
     return - result + 10000
 
 
-
-def objective_ML(trial: optuna.Trial) -> float :
+def objective_ML(trial: optuna.Trial) -> float:
     # Load dataset
     data = load_digits()
     X , y = data.data , data.target
@@ -126,10 +124,8 @@ def objective_ML(trial: optuna.Trial) -> float :
 def objective_dynamic_1(trial: optuna.Trial) -> float:
     x = trial.suggest_float("x" , -5.12 , 5.12)
     y = trial.suggest_float("y" , -5.12 , 5.12)
-
     if trial.number == 0:
         z = trial.suggest_float("z", -5.12, 5.12)
-
     return x ** 2 + y ** 2
 
 def objective_dynamic_2(trial: optuna.Trial) -> float:
@@ -139,18 +135,16 @@ def objective_dynamic_2(trial: optuna.Trial) -> float:
         z = trial.suggest_float("z" , -5.12 , 5.12)
     return x ** 2 + y ** 2
 
-
 def objective_dynamic_3(trial: optuna.Trial) -> float:
     x = trial.suggest_float("x" , -5.12 , 5.12)
     y = trial.suggest_float("y" , -5.12 , 5.12)
     if trial.number == 0:
         z = trial.suggest_float("z" , -5.12 , 5.12)
-    if trial.number >= 100 and trial.number < 200:
+    if 100 <= trial.number < 200:
         z = trial.suggest_float("z" , -5.12 , 5.12)
     if trial.number == 300:
         z = trial.suggest_float("z" , -5.12 , 5.12)
     return x ** 2 + y ** 2
-
 
 objective_map = {
     "Ackley": objective_Ackley,
@@ -163,102 +157,202 @@ objective_map = {
     "dynamic_3": objective_dynamic_3,
 }
 
+
 # ---------------Settings---------------
+
+# Set this to True to run the benchmark
+run_benchmark = True
+
+# Choose a specific objective function, only used if run_benchmark==False
+objective_function_choice = "Ackley"
+# Choose objective function: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2", "dynamic_3"
 
 # Paths
 package_name = "package/samplers/differential_evolution"
 registry_root = "/home/j/experiments/optunahub-registry"
 
 # Settings for the DE Sampler
-population_size=50
+population_size="auto"
 F=0.8
 CR=0.9
 debug=True
 
-# Local variable to set the direction: True for minimize, False for maximize
-minimize = True
-
 # Define the number of experiments and trials
 num_experiments = 10
-number_of_trials = 1000
+number_of_trials = 10000
 
-# Select the objective function
-objective_function_choice = "Ackley"  # Choose objective function: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2", "dynamic_3"
+# Select the objective function (used if run_benchmark==False)
 
+if run_benchmark:
+    # Make sure the results directory exists
+    os.makedirs("results", exist_ok=True)
 
-# ---------------Experiments and plotting---------------
+    # List of objective functions
+    objective_list = ["Ackley", "sphere", "Rastrigin", "Schwefel"]
 
-# Map the objective function
-objective_function = objective_map[objective_function_choice]
+    for objective_function_choice in objective_list:
+        # Determine direction based on objective function choice
+        # Maximize for Schwefel, minimize for others
+        if objective_function_choice == "Schwefel":
+            direction = "maximize"
+        else:
+            direction = "minimize"
 
-# Load the DE Sampler
-sampler = optunahub.load_local_module(
-    package=package_name ,
-    registry_root=registry_root ,  # Path to the root of the optunahub-registry.
-    ).DESampler(population_size=population_size , F=F , CR=CR, debug=debug)
+        minimize = (direction == "minimize")
 
-# Load the Random Sampler
-sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
+        # Map the objective function
+        objective_function = objective_map[objective_function_choice]
 
-# Store results for each experiment
-results_de = np.zeros((num_experiments, number_of_trials))
-results_rs = np.zeros((num_experiments, number_of_trials))
+        # Load the DE Sampler
+        sampler = optunahub.load_local_module(
+            package=package_name,
+            registry_root=registry_root,  # Path to the root of the optunahub-registry.
+        ).DESampler(population_size=population_size, F=F, CR=CR, debug=debug)
 
-# Determine the optimization direction
-direction = "minimize" if minimize else "maximize"
+        # Load the Random Sampler
+        sampler_rs = optuna.samplers.RandomSampler(seed=42)  # Optional seed for reproducibility
 
-# Run multiple experiments
-for i in range(num_experiments):
-    # DE Sampler
-    study = optuna.create_study(sampler=sampler, direction=direction)
-    study.optimize(objective_function, n_trials=number_of_trials,n_jobs=16)
+        # Store results for each experiment
+        results_de = np.zeros((num_experiments, number_of_trials))
+        results_rs = np.zeros((num_experiments, number_of_trials))
 
-    # Track best values for DE Sampler
-    best_values_de = []
-    current_best_de = float("inf") if minimize else float("-inf")
-    for trial in study.trials:
-        if trial.value is not None:
-            if minimize:
-                current_best_de = min(current_best_de, trial.value)
-            else:
-                current_best_de = max(current_best_de, trial.value)
-            best_values_de.append(current_best_de)
-    results_de[i, :] = best_values_de
+        # Run multiple experiments
+        for i in range(num_experiments):
+            # DE Sampler
+            study = optuna.create_study(sampler=sampler, direction=direction)
+            study.optimize(objective_function, n_trials=number_of_trials, n_jobs=16)
 
-    # Random Sampler
-    study_rs = optuna.create_study(sampler=sampler_rs, direction=direction)
-    study_rs.optimize(objective_function, n_trials=number_of_trials,n_jobs=16)
+            # Track best values for DE Sampler
+            best_values_de = []
+            current_best_de = float("inf") if minimize else float("-inf")
+            for trial in study.trials:
+                if trial.value is not None:
+                    if minimize:
+                        current_best_de = min(current_best_de, trial.value)
+                    else:
+                        current_best_de = max(current_best_de, trial.value)
+                    best_values_de.append(current_best_de)
+            results_de[i, :] = best_values_de
 
-    # Track best values for Random Sampler
-    best_values_rs = []
-    current_best_rs = float("inf") if minimize else float("-inf")
-    for trial in study_rs.trials:
-        if trial.value is not None:
-            if minimize:
-                current_best_rs = min(current_best_rs, trial.value)
-            else:
-                current_best_rs = max(current_best_rs, trial.value)
-            best_values_rs.append(current_best_rs)
-    results_rs[i, :] = best_values_rs
+            # Random Sampler
+            study_rs = optuna.create_study(sampler=sampler_rs, direction=direction)
+            study_rs.optimize(objective_function, n_trials=number_of_trials, n_jobs=16)
 
-# Compute mean and standard deviation
-mean_de = np.mean(results_de, axis=0)
-std_de = np.std(results_de, axis=0)
-mean_rs = np.mean(results_rs, axis=0)
-std_rs = np.std(results_rs, axis=0)
+            # Track best values for Random Sampler
+            best_values_rs = []
+            current_best_rs = float("inf") if minimize else float("-inf")
+            for trial in study_rs.trials:
+                if trial.value is not None:
+                    if minimize:
+                        current_best_rs = min(current_best_rs, trial.value)
+                    else:
+                        current_best_rs = max(current_best_rs, trial.value)
+                    best_values_rs.append(current_best_rs)
+            results_rs[i, :] = best_values_rs
 
-# Plot the results
-plt.figure(figsize=(10, 6))
-plt.plot(mean_de, linestyle='-', label='DESampler (Mean Performance)', color='blue')
-plt.fill_between(range(number_of_trials), mean_de - std_de, mean_de + std_de, color='blue', alpha=0.2,
-                 label='DESampler (Standard Deviation)')
-plt.plot(mean_rs, linestyle='--', label='RandomSampler (Mean Performance)', color='orange')
-plt.fill_between(range(number_of_trials), mean_rs - std_rs, mean_rs + std_rs, color='orange', alpha=0.2,
-                 label='RandomSampler (Standard Deviation)')
-plt.title(f'Comparison of DE Sampler and Random Sampler ({num_experiments} Experiments) - {objective_function_choice} - {direction.capitalize()}')
-plt.xlabel('Trial Number')
-plt.ylabel('Objective Value (Log Scale)')
-plt.yscale('log')  # Always use log scale for the y-axis
-plt.grid(which="both", linestyle="--", linewidth=0.5)
-plt.legend()
-plt.show()
+        # Compute mean and standard deviation
+        mean_de = np.mean(results_de, axis=0)
+        std_de = np.std(results_de, axis=0)
+        mean_rs = np.mean(results_rs, axis=0)
+        std_rs = np.std(results_rs, axis=0)
+
+        # Plot the results
+        plt.figure(figsize=(10, 6))
+        plt.plot(mean_de, linestyle='-', label='DESampler (Mean Performance)', color='blue')
+        plt.fill_between(range(number_of_trials), mean_de - std_de, mean_de + std_de, color='blue', alpha=0.2,
+                         label='DESampler (Standard Deviation)')
+        plt.plot(mean_rs, linestyle='--', label='RandomSampler (Mean Performance)', color='orange')
+        plt.fill_between(range(number_of_trials), mean_rs - std_rs, mean_rs + std_rs, color='orange', alpha=0.2,
+                         label='RandomSampler (Standard Deviation)')
+        plt.title(f'Comparison of DE Sampler and Random Sampler ({num_experiments} Experiments) - {objective_function_choice} - {direction.capitalize()}')
+        plt.xlabel('Trial Number')
+        plt.ylabel('Objective Value (Log Scale)')
+        plt.yscale('log')  # Always use log scale for the y-axis
+        plt.grid(which="both", linestyle="--", linewidth=0.5)
+        plt.legend()
+
+        # Save the figure
+        filename = f"results/{objective_function_choice}_{direction}.png"
+        plt.savefig(filename, dpi=300)
+        plt.show()
+
+else:
+    # If run_benchmark == False
+    # Run experiment for the single chosen objective_function_choice
+    if objective_function_choice == "Schwefel":
+        direction = "maximize"
+    else:
+        direction = "minimize"
+
+    minimize = (direction == "minimize")
+
+    # Map the objective function
+    objective_function = objective_map[objective_function_choice]
+
+    # Load the DE Sampler
+    sampler = optunahub.load_local_module(
+        package=package_name,
+        registry_root=registry_root,
+    ).DESampler(population_size=population_size, F=F, CR=CR, debug=debug)
+
+    # Load the Random Sampler
+    sampler_rs = optuna.samplers.RandomSampler(seed=42)
+
+    # Store results for each experiment
+    results_de = np.zeros((num_experiments, number_of_trials))
+    results_rs = np.zeros((num_experiments, number_of_trials))
+
+    for i in range(num_experiments):
+        # DE Sampler
+        study = optuna.create_study(sampler=sampler, direction=direction)
+        study.optimize(objective_function, n_trials=number_of_trials, n_jobs=16)
+
+        # Track best values for DE Sampler
+        best_values_de = []
+        current_best_de = float("inf") if minimize else float("-inf")
+        for trial in study.trials:
+            if trial.value is not None:
+                if minimize:
+                    current_best_de = min(current_best_de, trial.value)
+                else:
+                    current_best_de = max(current_best_de, trial.value)
+                best_values_de.append(current_best_de)
+        results_de[i, :] = best_values_de
+
+        # Random Sampler
+        study_rs = optuna.create_study(sampler=sampler_rs, direction=direction)
+        study_rs.optimize(objective_function, n_trials=number_of_trials, n_jobs=16)
+
+        # Track best values for Random Sampler
+        best_values_rs = []
+        current_best_rs = float("inf") if minimize else float("-inf")
+        for trial in study_rs.trials:
+            if trial.value is not None:
+                if minimize:
+                    current_best_rs = min(current_best_rs, trial.value)
+                else:
+                    current_best_rs = max(current_best_rs, trial.value)
+                best_values_rs.append(current_best_rs)
+        results_rs[i, :] = best_values_rs
+
+    # Compute mean and standard deviation
+    mean_de = np.mean(results_de, axis=0)
+    std_de = np.std(results_de, axis=0)
+    mean_rs = np.mean(results_rs, axis=0)
+    std_rs = np.std(results_rs, axis=0)
+
+    # Plot the results (no local saving)
+    plt.figure(figsize=(10, 6))
+    plt.plot(mean_de, linestyle='-', label='DESampler (Mean Performance)', color='blue')
+    plt.fill_between(range(number_of_trials), mean_de - std_de, mean_de + std_de, color='blue', alpha=0.2,
+                     label='DESampler (Standard Deviation)')
+    plt.plot(mean_rs, linestyle='--', label='RandomSampler (Mean Performance)', color='orange')
+    plt.fill_between(range(number_of_trials), mean_rs - std_rs, mean_rs + std_rs, color='orange', alpha=0.2,
+                     label='RandomSampler (Standard Deviation)')
+    plt.title(f'Comparison of DE Sampler and Random Sampler ({num_experiments} Experiments) - {objective_function_choice} - {direction.capitalize()}')
+    plt.xlabel('Trial Number')
+    plt.ylabel('Objective Value (Log Scale)')
+    plt.yscale('log')
+    plt.grid(which="both", linestyle="--", linewidth=0.5)
+    plt.legend()
+    plt.show()
