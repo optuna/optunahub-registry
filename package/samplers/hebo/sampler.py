@@ -78,7 +78,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         independent_sampler: BaseSampler | None = None,
     ) -> None:
         super().__init__(search_space, seed)
-        if search_space is not None and constant_liar is False:
+        if search_space is not None and not constant_liar:
             self._hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
         else:
             self._hebo = None
