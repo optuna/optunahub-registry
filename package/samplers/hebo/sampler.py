@@ -26,7 +26,7 @@ from hebo.optimizers.hebo import HEBO
 class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     """A sampler using `HEBO <https://github.com/huawei-noah/HEBO/tree/master/HEBO>__` as the backend.
 
-    For further information about HEBO algorithm, please refer to the following papers:
+    For further information about HEBO algorithm, please refer to the following paper:
     - `Cowen-Rivers, Alexander I., et al. An Empirical Study of Assumptions in Bayesian Optimisation. arXiv preprint arXiv:2012.03826 (2021).<https://arxiv.org/abs/2012.03826>__`
 
     Args:
