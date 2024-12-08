@@ -23,7 +23,7 @@ pip install -e .
 ## APIs
 
 - `HEBOSampler(search_space: dict[str, BaseDistribution] | None = None, *, seed: int | None = None, constant_liar: bool = False, independent_sampler: BaseSampler | None = None)`
-  - `search_space`: A search space required for Define-and-Run manner.
+  - `search_space`: By specifying search_space, the sampling speed at each iteration becomes slightly quicker, but this argument is not necessary to run this sampler.
 
     Example:
 
