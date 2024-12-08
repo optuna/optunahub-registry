@@ -20,16 +20,54 @@ cd HEBO/HEBO
 pip install -e .
 ```
 
+## APIs
+
+- `HEBOSampler(search_space: dict[str, BaseDistribution] | None = None, *, seed: int | None = None, constant_liar: bool = False, independent_sampler: BaseSampler | None = None)`
+  - `search_space`: By specifying search_space, the sampling speed at each iteration becomes slightly quicker, but this argument is not necessary to run this sampler.
+
+    Example:
+
+    ```python
+    search_space = {
+        "x": optuna.distributions.FloatDistribution(-5, 5),
+        "y": optuna.distributions.FloatDistribution(-5, 5),
+    }
+    HEBOSampler(search_space=search_space)
+    ```
+
+  - `seed`: Seed for random number generator.
+
+  - `constant_liar`: If `True`, penalize running trials to avoid suggesting parameter configurations nearby. Default is `False`.
+
+    - Note: Abnormally terminated trials often leave behind a record with a state of `RUNNING` in the storage. Such "zombie" trial parameters will be avoided by the constant liar algorithm during subsequent sampling. When using an `optuna.storages.RDBStorage`, it is possible to enable the `heartbeat_interval` to change the records for abnormally terminated trials to `FAIL`. (This note is quoted from [TPESampler](https://github.com/optuna/optuna/blob/v4.1.0/optuna/samplers/_tpe/sampler.py#L215-L222).)
+    - Note: It is recommended to set this value to `True` during distributed optimization to avoid having multiple workers evaluating similar parameter configurations. In particular, if each objective function evaluation is costly and the durations of the running states are significant, and/or the number of workers is high. (This note is quoted from [TPESampler](https://github.com/optuna/optuna/blob/v4.1.0/optuna/samplers/_tpe/sampler.py#L224-L229).)
+    - Note: HEBO algorithm involves multi-objective optimization of multiple acquisition functions. While `constant_liar` is a simple way to get diverse params for parallel optimization, it may not be the best approach for HEBO.
+
+  - `independent_sampler`: A `optuna.samplers.BaseSampler` instance that is used for independent sampling. The parameters not contained in the relative search space are sampled by this sampler. If `None` is specified, `optuna.samplers.RandomSampler` is used as the default.
+
 ## Example
 
 ```python
-search_space = {
-    "x": FloatDistribution(-10, 10),
-    "y": IntDistribution(0, 10),
+import optuna
+import optunahub
 
-}
-sampler = HEBOSampler(search_space)
+
+def objective(trial: optuna.trial.Trial) -> float:
+    x = trial.suggest_float("x", -10, 10)
+    y = trial.suggest_int("y", -10, 10)
+    return x**2 + y**2
+
+
+module = optunahub.load_module("samplers/hebo")
+sampler = module.HEBOSampler(search_space={
+    "x": optuna.distributions.FloatDistribution(-10, 10),
+    "y": optuna.distributions.IntDistribution(-10, 10),
+})
+# sampler = module.HEBOSampler()  # Note: `search_space` is not required, and thus it works too.
 study = optuna.create_study(sampler=sampler)
+study.optimize(objective, n_trials=100)
+
+print(study.best_trial.params, study.best_trial.value)
 ```
 
 See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/hebo/example.py) for a full example.
