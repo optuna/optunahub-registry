@@ -73,6 +73,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(
         self,
         search_space: dict[str, BaseDistribution] | None = None,
+        *,
         seed: int | None = None,
         constant_liar: bool = False,
         independent_sampler: BaseSampler | None = None,
