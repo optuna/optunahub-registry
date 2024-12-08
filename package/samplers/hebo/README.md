@@ -22,7 +22,7 @@ pip install -e .
 
 ## APIs
 
-- `HEBOSampler(*, search_space: dict[str, BaseDistribution] | None = None, seed: int | None = None, constant_liar: bool = False, independent_sampler: BaseSampler | None = None)`
+- `HEBOSampler(search_space: dict[str, BaseDistribution] | None = None, *, seed: int | None = None, constant_liar: bool = False, independent_sampler: BaseSampler | None = None)`
   - `search_space`: A search space required for Define-and-Run manner.
 
     Example:
