@@ -63,6 +63,7 @@ sampler = module.HEBOSampler(search_space={
     "x": optuna.distributions.FloatDistribution(-10, 10),
     "y": optuna.distributions.IntDistribution(-10, 10),
 })
+# sampler = module.HEBOSampler()  # Note: `search_space` is not required, and thus it works too.
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
 
