@@ -107,7 +107,8 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         else:
             target_states = [TrialState.COMPLETE]
 
-        trials = study.get_trials(deepcopy=False, states=target_states)
+        use_cache = not self._constant_liar
+        trials = study._get_trials(deepcopy=False, states=states, use_cache=use_cache)
         if len([t for t in trials if t.state == TrialState.COMPLETE]) < 1:
             # note: The backend HEBO implementation uses Sobol sampling here.
             # This sampler does not call `hebo.suggest()` here because
