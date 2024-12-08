@@ -247,7 +247,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     ) -> Any:
         if not self._is_independent_sampler_specified:
             warnings.warn(
-                "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space. Is this intended?"
+                "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space."
             )
 
         return self._independent_sampler.sample_independent(
