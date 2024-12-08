@@ -87,6 +87,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._is_independent_sampler_specified = independent_sampler is not None
         self._constant_liar = constant_liar
+        self._rng = np.random.default_rng(seed)
 
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
