@@ -149,7 +149,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, float]:
         if study._is_multi_objective():
-            raise ValueError("This function does not support multi-objective optimization study.")
+            raise ValueError(f"{self.__class__.__name__} has not supported multi-objective optimization.")
         if self._hebo is None or self._constant_liar is True:
             return self._sample_relative_stateless(study, trial, search_space)
         else:
