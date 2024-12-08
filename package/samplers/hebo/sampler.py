@@ -121,7 +121,8 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             worst_value = min(t.value for t in trials if t.state == TrialState.COMPLETE)
         sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
 
-        hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=self._seed)
+        seed = self._rng.randint((1 << 31) - 1)
+        hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
         for t in trials:
             if t.state == TrialState.COMPLETE:
                 hebo_params = {name: t.params[name] for name in search_space.keys()}
