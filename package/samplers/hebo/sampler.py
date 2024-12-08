@@ -31,7 +31,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
     Args:
         search_space:
-            A search space required for Define-and-Run manner. Default is :obj:`None`.
+            By specifying search_space, the sampling speed at each iteration becomes slightly quicker, but this argument is not necessary to run this sampler. Default is :obj:`None`.
 
         seed:
             A seed for ``HEBOSampler``. Default is :obj:`None`.
