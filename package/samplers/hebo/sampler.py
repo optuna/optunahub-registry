@@ -85,7 +85,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             self._hebo = None
         self._intersection_search_space = IntersectionSearchSpace()
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
-        self._is_fallback_inevitable = False
+        self._is_independent_sample_necessary = False
         self._constant_liar = constant_liar
         self._rng = np.random.default_rng(seed)
 
@@ -117,17 +117,18 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             return {}
         else:
             self._is_independent_sample_necessary = False
+        trials = [t for t in trials if set(search_space.keys()) <= set(t.params.keys())]
 
         # Assume that the back-end HEBO implementation aims to minimize.
         values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
-        worst_value = np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
+        worst_value = (
+            np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
+        )
         sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
 
-        seed = self._rng.randint((1 << 31) - 1)
+        seed = int(self._rng.integers(low=1, high=(1 << 31)))
         hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
-        params = pd.DataFrame([
-            t.params for t in trials if all(name in trial.params for name in search_space)
-        ])
+        params = pd.DataFrame([t.params for t in trials])
         values[np.isnan(values)] = worst_value
         values *= sign
         hebo.observe(params, values)
@@ -239,7 +240,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
-        if not self._is_fallback_inevitable:
+        if not self._is_independent_sample_necessary:
             warnings.warn(
                 "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space."
             )
