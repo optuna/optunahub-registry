@@ -85,13 +85,14 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             self._hebo = None
         self._intersection_search_space = IntersectionSearchSpace()
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
+        self._is_independent_sample_necessary = False
         self._constant_liar = constant_liar
         self._rng = np.random.default_rng(seed)
 
     @staticmethod
     def _suggest_and_transform_to_dict(
         hebo: HEBO, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, Any]:
+    ) -> dict[str, float]:
         params = {}
         for name, row in hebo.suggest().items():
             if name not in search_space:
@@ -113,12 +114,12 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, Any]:
+    ) -> dict[str, float]:
         return self._suggest_and_transform_to_dict(self._hebo, search_space)
 
     def _sample_relative_stateless(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, Any]:
+    ) -> dict[str, float]:
         if self._constant_liar:
             target_states = [TrialState.COMPLETE, TrialState.RUNNING]
         else:
@@ -132,7 +133,10 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             # This sampler does not call `hebo.suggest()` here because
             # Optuna needs to know search space by running the first trial in Define-by-Run.
             return {}
-
+            self._is_independent_sample_necessary = True
+            return {}
+        else:
+            self._is_independent_sample_necessary = False
         trials = [t for t in trials if set(search_space.keys()) <= set(t.params.keys())]
 
         # Assume that the back-end HEBO implementation aims to minimize.
@@ -224,9 +228,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
-        states = (TrialState.COMPLETE, TrialState.RUNNING)
-        trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
-        if any(param_name in trial.params for trial in trials):
+        if not self._is_independent_sample_necessary:
             warnings.warn(
                 "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space."
             )
