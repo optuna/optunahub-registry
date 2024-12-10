@@ -132,7 +132,6 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             # note: The backend HEBO implementation uses Sobol sampling here.
             # This sampler does not call `hebo.suggest()` here because
             # Optuna needs to know search space by running the first trial in Define-by-Run.
-            return {}
             self._is_independent_sample_necessary = True
             return {}
         else:
