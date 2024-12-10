@@ -126,10 +126,9 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         seed = self._rng.randint((1 << 31) - 1)
         hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
-        valid_trials = [
+        params = pd.DataFrame([
             t.params for t in trials if all(name in trial.params for name in search_space)
-        ]
-        params = pd.DataFrame([t.params for t in valid_trials])
+        ])
         values = np.array(
             [
                 sign * t.value if t.state == TrialState.COMPLETE else worst_value
