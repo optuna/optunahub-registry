@@ -151,7 +151,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         params = pd.DataFrame([t.params for t in trials])
         values[np.isnan(values)] = worst_value
         values *= sign
-        hebo.observe(params, values[:, np.newaxis])
+        hebo.observe(params, values)
         return self._suggest_and_transform_to_dict(hebo, search_space)
 
     def sample_relative(
