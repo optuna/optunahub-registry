@@ -151,7 +151,7 @@ class cTPESampler(TPESampler):
         )
         quantiles.append(len(below_trials) / len(trials))
 
-        _samples_below: dict[str, list[_ParzenEstimator]] = {
+        _samples_below: dict[str, list[np.ndarray]] = {
             param_name: [] for param_name in search_space
         }
         for mpe in mpes_below:
