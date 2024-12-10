@@ -85,22 +85,40 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             self._hebo = None
         self._intersection_search_space = IntersectionSearchSpace()
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
-        self._is_independent_sample_necessary = False
         self._constant_liar = constant_liar
         self._rng = np.random.default_rng(seed)
 
+    @staticmethod
+    def _suggest_and_transform_to_dict(
+        hebo: HEBO, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, Any]:
+        params = {}
+        for name, row in hebo.suggest().items():
+            if name not in search_space:
+                continue
+
+            dist = search_space[name]
+            if isinstance(dist, (IntDistribution, FloatDistribution)):
+                if not dist.log and dist.step is not None:
+                    step_index = row.iloc[0]
+                    params[name] = dist.low + step_index * dist.step
+                else:
+                    params[name] = row.iloc[0]
+            elif isinstance(dist, CategoricalDistribution):
+                params[name] = row.iloc[0]
+            else:
+                assert False, f"Should not reach. Got an unknown distribution: {dist}."
+
+        return params
+
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, float]:
-        return {
-            name: row.iloc[0]
-            for name, row in self._hebo.suggest().items()
-            if name in search_space.keys()
-        }
+    ) -> dict[str, Any]:
+        return self._suggest_and_transform_to_dict(self._hebo, search_space)
 
     def _sample_relative_stateless(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         if self._constant_liar:
             target_states = [TrialState.COMPLETE, TrialState.RUNNING]
         else:
@@ -113,10 +131,8 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             # note: The backend HEBO implementation uses Sobol sampling here.
             # This sampler does not call `hebo.suggest()` here because
             # Optuna needs to know search space by running the first trial in Define-by-Run.
-            self._is_independent_sample_necessary = True
             return {}
-        else:
-            self._is_independent_sample_necessary = False
+
         trials = [t for t in trials if set(search_space.keys()) <= set(t.params.keys())]
 
         # Assume that the back-end HEBO implementation aims to minimize.
@@ -131,16 +147,12 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         params = pd.DataFrame([t.params for t in trials])
         values[np.isnan(values)] = worst_value
         values *= sign
-        hebo.observe(params, values)
-        return {
-            name: row.iloc[0]
-            for name, row in hebo.suggest().items()
-            if name in search_space.keys()
-        }
+        hebo.observe(params, values[:, np.newaxis])
+        return self._suggest_and_transform_to_dict(hebo, search_space)
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         if study._is_multi_objective():
             raise ValueError(
                 f"{self.__class__.__name__} has not supported multi-objective optimization."
@@ -168,62 +180,34 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     ) -> DesignSpace:
         design_space = []
         for name, distribution in search_space.items():
-            if isinstance(distribution, FloatDistribution) and not distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "num",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, FloatDistribution) and distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "pow",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution) and distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "pow_int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution) and distribution.step:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "step_int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                        "step": distribution.step,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution):
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
+            config: dict[str, Any] = {"name": name}
+            if isinstance(distribution, (FloatDistribution, IntDistribution)):
+                if not distribution.log and distribution.step is not None:
+                    config["type"] = "int"
+                    # NOTE(nabenabe): high is adjusted in Optuna so that below is divisable.
+                    n_steps = (
+                        int(np.round((distribution.high - distribution.low) / distribution.step))
+                        + 1
+                    )
+                    config["lb"] = 0
+                    config["ub"] = n_steps - 1
+                else:
+                    config["type"] = "_".join(
+                        [
+                            "pow" if distribution.log else "",
+                            "int" if isinstance(distribution, IntDistribution) else "num",
+                        ]
+                    )
+                    config["lb"] = distribution.low
+                    config["ub"] = distribution.high
             elif isinstance(distribution, CategoricalDistribution):
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "cat",
-                        "categories": distribution.choices,
-                    }
-                )
+                config["type"] = "cat"
+                config["categories"] = distribution.choices
             else:
                 raise NotImplementedError(f"Unsupported distribution: {distribution}")
+
+            design_space.append(config)
+
         return DesignSpace().parse(design_space)
 
     def infer_relative_search_space(
@@ -240,7 +224,9 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
-        if not self._is_independent_sample_necessary:
+        states = (TrialState.COMPLETE, TrialState.RUNNING)
+        trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+        if any(param_name in trial.params for trial in trials):
             warnings.warn(
                 "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space."
             )
