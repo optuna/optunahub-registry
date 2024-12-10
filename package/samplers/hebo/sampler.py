@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
-import warnings
 
 import numpy as np
 import optuna
@@ -10,6 +9,7 @@ from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
+from optuna.logging import get_logger
 from optuna.samplers import BaseSampler
 from optuna.search_space import IntersectionSearchSpace
 from optuna.study import Study
@@ -21,6 +21,9 @@ import pandas as pd
 
 from hebo.design_space.design_space import DesignSpace
 from hebo.optimizers.hebo import HEBO
+
+
+_logger = get_logger(f"optuna.{__name__}")
 
 
 class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
@@ -240,9 +243,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         states = (TrialState.COMPLETE, TrialState.RUNNING)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
         if any(param_name in trial.params for trial in trials):
-            warnings.warn(
-                "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space."
-            )
+            _logger.warn(f"Use `RandomSampler` for {param_name} due to dynamic search space.")
 
         return self._independent_sampler.sample_independent(
             study, trial, param_name, param_distribution
