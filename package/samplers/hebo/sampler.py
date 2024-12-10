@@ -195,11 +195,13 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                 else:
                     config["lb"] = distribution.low
                     config["ub"] = distribution.high
-                    is_int = isinstance(distribution, IntDistribution)
                     if distribution.log:
-                        config["type"] = "pow_int" if is_int else "pow"
+                        config["type"] = (
+                            "pow_int" if isinstance(distribution, IntDistribution) else "pow"
+                        )
                     else:
-                        config["type"] = "int" if is_int else "num"
+                        assert not isinstance(distribution, IntDistribution)
+                        config["type"] = "num"
             elif isinstance(distribution, CategoricalDistribution):
                 config["type"] = "cat"
                 config["categories"] = distribution.choices
