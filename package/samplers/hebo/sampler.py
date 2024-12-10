@@ -187,9 +187,8 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                 if not distribution.log and distribution.step is not None:
                     config["type"] = "int"
                     # NOTE(nabenabe): high is adjusted in Optuna so that below is divisable.
-                    n_steps = (
-                        int(np.round((distribution.high - distribution.low) / distribution.step))
-                        + 1
+                    n_steps = int(
+                        np.round((distribution.high - distribution.low) / distribution.step + 1)
                     )
                     config["lb"] = 0
                     config["ub"] = n_steps - 1
