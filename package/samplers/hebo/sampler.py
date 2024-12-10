@@ -108,20 +108,19 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         use_cache = not self._constant_liar
         trials = study._get_trials(deepcopy=False, states=target_states, use_cache=use_cache)
-        if len([t for t in trials if t.state == TrialState.COMPLETE]) < 1:
+        is_complete = np.array([t.state == TrialState.COMPLETE for t in trials])
+        if not np.any(is_complete):
             # note: The backend HEBO implementation uses Sobol sampling here.
             # This sampler does not call `hebo.suggest()` here because
             # Optuna needs to know search space by running the first trial in Define-by-Run.
-            self._is_fallback_inevitable = True
+            self._is_independent_sample_necessary = True
             return {}
         else:
-            self._is_fallback_inevitable = False
+            self._is_independent_sample_necessary = False
 
         # Assume that the back-end HEBO implementation aims to minimize.
-        if study.direction == StudyDirection.MINIMIZE:
-            worst_value = max(t.value for t in trials if t.state == TrialState.COMPLETE)
-        else:
-            worst_value = min(t.value for t in trials if t.state == TrialState.COMPLETE)
+        values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
+        worst_value = np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
         sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
 
         seed = self._rng.randint((1 << 31) - 1)
