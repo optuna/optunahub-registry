@@ -99,16 +99,15 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                 continue
 
             dist = search_space[name]
-            if isinstance(dist, (IntDistribution, FloatDistribution)):
-                if not dist.log and dist.step is not None:
-                    step_index = row.iloc[0]
-                    params[name] = dist.low + step_index * dist.step
-                else:
-                    params[name] = row.iloc[0]
-            elif isinstance(dist, CategoricalDistribution):
-                params[name] = row.iloc[0]
+            if (
+                isinstance(dist, (IntDistribution, FloatDistribution))
+                and not dist.log
+                and dist.step is not None
+            ):
+                step_index = row.iloc[0]
+                params[name] = dist.low + step_index * dist.step
             else:
-                assert False, f"Should not reach. Got an unknown distribution: {dist}."
+                params[name] = row.iloc[0]
 
         return params
 
