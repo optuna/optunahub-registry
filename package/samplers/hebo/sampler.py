@@ -128,12 +128,8 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         params = pd.DataFrame([
             t.params for t in trials if all(name in trial.params for name in search_space)
         ])
-        values = np.array(
-            [
-                sign * t.value if t.state == TrialState.COMPLETE else worst_value
-                for t in valid_trials
-            ]
-        )
+        values[np.isnan(values)] = worst_value
+        values *= sign
         hebo.observe(params, values)
         return {
             name: row.iloc[0]
