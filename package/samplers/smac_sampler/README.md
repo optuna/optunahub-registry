@@ -25,7 +25,7 @@ Please check the API reference for more details:
 - `init_design_type`: What initialization sampler to use. Either `"sobol"` (Sobol sequence), `"lhd"` (Latin hypercube), or `"random"`. Default to `"sobol"`.
 - `surrogate_model_rf_num_trees`: The number of trees used for random forest. Equivalent to `n_estimators` in `RandomForestRegressor` in sklearn.
 - `surrogate_model_rf_ratio_features`: The ratio of features to use for each tree training in random forest. Equivalent to `max_features` in `RandomForestRegressor` in sklearn.
-  `surrogate_model_rf_min_samples_split`: The minimum number of samples required to split an internal node: Equivalent to `min_samples_split` in `RandomForestRegressor` in sklearn.
+- `surrogate_model_rf_min_samples_split`: The minimum number of samples required to split an internal node: Equivalent to `min_samples_split` in `RandomForestRegressor` in sklearn.
   `surrogate_model_rf_min_samples_leaf`: The minimum number of samples required to be at a leaf node. A split point at any depth will only be considered if it leaves at least `min_samples_leaf` training samples in each of the left and right branches. This may have the effect of smoothing the model, especially in regression. Equivalent to `min_samples_leaf` in `RandomForestRegressor` in sklearn.
   `init_design_n_configs`: Number of initial configurations.
   `init_design_n_configs_per_hyperparameter`: Number of initial configurations per hyperparameter. For example, if my configuration space covers five hyperparameters and `n_configs_per_hyperparameter` is set to 10, then 50 initial configurations will be sampled.
