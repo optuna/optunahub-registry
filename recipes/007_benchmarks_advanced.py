@@ -62,5 +62,5 @@ study = optuna.create_study(directions=dynamic_problem.directions)
 study.optimize(dynamic_problem, n_trials=20)
 
 ###################################################################################################
-# After implementing your own pruner, you can register it with OptunaHub.
+# After implementing your own benchmark problem, you can register it with OptunaHub.
 # See :doc:`002_registration` for how to register your benchmark problem with OptunaHub.
