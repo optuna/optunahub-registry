@@ -26,7 +26,7 @@ from optunahub.benchmarks import BaseProblem
 ###################################################################################################
 # Next, define your own problem class by inheriting ``BaseProblem`` class.
 # To implement a problem with a dynamic search space, you should override the ``__call__(optuna.Trial)`` method that allows you to define the search space in a define-by-run manner.
-# You also need to implement the ``direcitons`` property.
+# Please note that ``direcitons`` property must also be implemented.
 class DynamicProblem(BaseProblem):
     def __call__(self, trial: optuna.Trial) -> float:
         x = trial.suggest_float("x", -5, 5)
