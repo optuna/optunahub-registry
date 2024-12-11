@@ -30,7 +30,7 @@ Please check the API reference for more details:
 - `init_design_n_configs`: Number of initial configurations.
 - `init_design_n_configs_per_hyperparameter`: Number of initial configurations per hyperparameter. For example, if my configuration space covers five hyperparameters and `n_configs_per_hyperparameter` is set to 10, then 50 initial configurations will be sampled.
 - `init_design_max_ratio`: Use at most `n_trials * init_design_max_ratio` number of configurations in the initial design. Additional configurations are not affected by this parameter.
-- `output_directy` : `Path`, defaults to `Path("smac3_output")`. The directory in which to save the output. The files are saved in `./output_directory/name/seed`.
+- `output_directy`: Output directory path, defaults to `"smac3_output"`. The directory in which to save the output. The files are saved in `./output_directory/name/seed`.
 
 ## Installation
 

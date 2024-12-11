@@ -98,7 +98,7 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
             Use at most ``n_trials * init_design_max_ratio`` number of configurations in the
             initial design. Additional configurations are not affected by this parameter.
         output_directory:
-            Path, defaults to Path("smac3_output").
+            Output directory path, defaults to "smac3_output".
             The directory in which to save the output.
             The files are saved in `./output_directory/name/seed`.
     """
@@ -119,7 +119,7 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         init_design_n_configs: int | None = None,
         init_design_n_configs_per_hyperparameter: int = 10,
         init_design_max_ratio: float = 0.25,
-        output_directory: Path = Path("smac3_output"),
+        output_directory: str = "smac3_output",
     ) -> None:
         super().__init__(search_space)
         self._cs, self._hp_scale_value = self._convert_to_config_space_design_space(search_space)
@@ -128,7 +128,7 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
             deterministic=True,
             n_trials=n_trials,
             seed=seed or -1,
-            output_directory=output_directory,
+            output_directory=Path(output_directory),
         )
         surrogate_model = self._get_surrogate_model(
             scenario,
