@@ -2,7 +2,7 @@
 author: Optuna team
 title: The blackbox optimization benchmarking (bbob) test suite
 description: The blackbox optimization benchmarking (bbob) test suite consists of 24 noiseless single-objective test functions including Sphere, Ellipsoidal, Rastrigin, Rosenbrock, etc. This package is a wrapper of the COCO (COmparing Continuous Optimizers) experiments library.
-tags: [benchmarks, continuous optimization, BBOB, COCO]
+tags: [benchmark, continuous optimization, BBOB, COCO]
 optuna_versions: [4.1.0]
 license: MIT License
 ---
