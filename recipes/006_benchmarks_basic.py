@@ -5,7 +5,7 @@ How to Implement Your Benchmark Problems with OptunaHub (Basic)
 ===============================================================
 
 OptunaHub provides the ``optunahub.benchmarks`` module for implementing benchmark problems.
-In this tutorial, we will explain how to implement your own original benchmark problems using ``optunahub.benchmarks``.
+In this tutorial, we will explain how to implement your own benchmark problems using ``optunahub.benchmarks``.
 """
 
 ###################################################################################################
