@@ -76,6 +76,6 @@ study.optimize(sphere3d, n_trials=20)
 
 ###################################################################################################
 # After implementing your own benchmark problem, you can register it with OptunaHub.
-# See :doc:`002_registration` for how to register your pruner with OptunaHub.
+# See :doc:`002_registration` for how to register your benchmark problem with OptunaHub.
 #
 # In :ref:`benchmarks_advanced`, how to implement complex benchmark problems such as a problem with dynamic search space are explained.
