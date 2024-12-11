@@ -4,7 +4,7 @@
 How to Register Your Package with OptunaHub
 ===========================================================
 
-After implementing your own algorithm/feature, you can register it as a package with OptunaHub.
+After implementing your own feature, you can register it as a package with OptunaHub.
 To add your package to the `optunahub-registry <https://github.com/optuna/optunahub-registry>`__ repository, you need to create a pull request from your fork.
 Your pull request must be aligned with `the contribution guidelines <https://github.com/optuna/optunahub-registry/blob/main/CONTRIBUTING.md>`__.
 
