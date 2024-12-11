@@ -15,7 +15,7 @@ Please check the API reference for more details:
 
 - https://automl.github.io/SMAC3/main/5_api.html
 
-### `SMACSampler(search_space: dict[str, BaseDistribution], n_trials: int = 100, seed: int | None = None, *, surrogate_model_type: str = "rf", acq_func_type: str = "ei_log", init_design_type: str = "sobol", surrogate_model_rf_num_trees: int = 10, surrogate_model_rf_ratio_features: float = 1.0, surrogate_model_rf_min_samples_split: int = 2, surrogate_model_rf_min_samples_leaf: int = 1, init_design_n_configs: int | None = None, init_design_n_configs_per_hyperparameter: int = 10, init_design_max_ratio: float = 0.25, output_directory: Path = Path("smac3_output"))`
+### `SMACSampler(search_space: dict[str, BaseDistribution], n_trials: int = 100, seed: int | None = None, *, surrogate_model_type: str = "rf", acq_func_type: str = "ei_log", init_design_type: str = "sobol", surrogate_model_rf_num_trees: int = 10, surrogate_model_rf_ratio_features: float = 1.0, surrogate_model_rf_min_samples_split: int = 2, surrogate_model_rf_min_samples_leaf: int = 1, init_design_n_configs: int | None = None, init_design_n_configs_per_hyperparameter: int = 10, init_design_max_ratio: float = 0.25, output_directory: str = "smac3_output")`
 
 - `search_space`: A dictionary of Optuna distributions.
 - `n_trials`: Number of trials to be evaluated in a study. This argument is used to determine the number of initial configurations by SMAC3. Use at most `n_trials * init_design_max_ratio` number of configurations in the initial design. This argument does not have to be precise, but it is better to be exact for better performance.
