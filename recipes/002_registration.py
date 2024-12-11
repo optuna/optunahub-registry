@@ -25,7 +25,7 @@ See the `template directory <https://github.com/optuna/optunahub-registry/tree/m
 |             └──  (numerical_results.png)
 
 An implemented feature should be put in the corresponding directory, e.g., a sampler should be put in the ``samplers`` directory.
-In the ``samplers`` directory, you should create a directory with a unique identifier.
+A newly created directory must be named uniquely in the corresponding directory.
 This unique identifier is the name of your package, is used to load the package, and is unable to change once it is registered.
 The package name must be a valid Python module name (e.g., please use "_" instead of "-"), preferably one that is easily searchable.
 Abbreviations are not prohibited in package names, but their abuse should be avoided.
