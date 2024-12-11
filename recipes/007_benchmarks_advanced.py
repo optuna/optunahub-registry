@@ -53,7 +53,9 @@ class DynamicProblem(BaseProblem):
 
 ###################################################################################################
 # The implementations of the ``search_space`` and ``evaluate`` are non-trivial when the search space is dynamic.
-# However, the ``__call__(optuna.Trial)`` required to run Optuna optimizations no longer depends on the ``evaluate`` method or the ``search_space`` attribute, so you can implement it however you like, or even leave it unimplemented (then, calling them will result in a ``NotImplementedError``).
+# However, since ``__call__(self, trial: optuna.Trial)`` does not have to depend on both the ``evaluate`` method and the ``search_space`` attribute internally, their implementations are up to users.
+# If possible, you could provide their implementations, but this is not necessary to make your benchmark problem work.
+# Please note that calling them will result in ``NotImplementedError`` if you leave them unimplemented.
 
 ###################################################################################################
 # Then, you can optimize the problem with Optuna as usual.
