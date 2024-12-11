@@ -240,7 +240,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
-        states = (TrialState.COMPLETE, TrialState.RUNNING)
+        states = (TrialState.COMPLETE, )
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
         if any(param_name in trial.params for trial in trials):
             _logger.warn(f"Use `RandomSampler` for {param_name} due to dynamic search space.")
