@@ -24,7 +24,7 @@ from optunahub.benchmarks import BaseProblem
 #
 # - ``search_space``: This method returns the dictionary of search space of the problem. Each dictionary element consists of the parameter name and distribution (see `optuna.distributions <https://optuna.readthedocs.io/en/stable/reference/distributions.html>`__).
 # - ``directions``: This method returns the directions (minimize or maximize) of the problem. The return type is the list of `optuna.study.direction <https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.StudyDirection.html>`__.
-# - ``evaluate``: This method evaluates the objective function by taking the dictionary of input parameters.
+# - ``evaluate``: This method evaluates the objective function given a dictionary of input parameters.
 class Sphere2D(BaseProblem):
     @property
     def search_space(self) -> dict[str, optuna.distributions.BaseDistribution]:
