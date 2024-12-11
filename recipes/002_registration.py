@@ -4,7 +4,7 @@
 How to Register Your Package with OptunaHub
 ===========================================================
 
-After implementing your own algorithm/feature, you can register it as a package with OptunaHub.
+After implementing your own feature, you can register it as a package with OptunaHub.
 To add your package to the `optunahub-registry <https://github.com/optuna/optunahub-registry>`__ repository, you need to create a pull request from your fork.
 Your pull request must be aligned with `the contribution guidelines <https://github.com/optuna/optunahub-registry/blob/main/CONTRIBUTING.md>`__.
 
@@ -12,7 +12,7 @@ The following is an example of the directory structure of a package.
 See the `template directory <https://github.com/optuna/optunahub-registry/tree/main/template>`__ for an example of the directory structure.
 
 | `package <https://github.com/optuna/optunahub-registry/tree/main/package>`__
-| └── category (one of samplers, pruners, visualization, benchmarks)
+| └── category (samplers, pruners, visualization, or benchmarks)
 |     └── YOUR_PACKAGE_NAME (you need to create this directory and its contents)
 |         ├── YOUR_FEATURE_NAME.py
 |         ├── __init__.py
@@ -25,7 +25,7 @@ See the `template directory <https://github.com/optuna/optunahub-registry/tree/m
 |             └──  (numerical_results.png)
 
 An implemented feature should be put in the corresponding directory, e.g., a sampler should be put in the ``samplers`` directory.
-In the ``samplers`` directory, you should create a directory with a unique identifier.
+A newly created directory must be named uniquely in the corresponding directory.
 This unique identifier is the name of your package, is used to load the package, and is unable to change once it is registered.
 The package name must be a valid Python module name (e.g., please use "_" instead of "-"), preferably one that is easily searchable.
 Abbreviations are not prohibited in package names, but their abuse should be avoided.
