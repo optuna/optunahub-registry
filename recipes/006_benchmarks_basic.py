@@ -71,8 +71,8 @@ class SphereND(BaseProblem):
 
 
 sphere3d = SphereND(dim=3)
-study2 = optuna.create_study(directions=sphere3d.directions)
-study2.optimize(sphere3d, n_trials=20)
+study = optuna.create_study(directions=sphere3d.directions)
+study.optimize(sphere3d, n_trials=20)
 
 ###################################################################################################
 # After implementing your own pruner, you can register it with OptunaHub.
