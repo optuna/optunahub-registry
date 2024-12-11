@@ -42,7 +42,7 @@ class Sphere2D(BaseProblem):
 
 
 ###################################################################################################
-# Since ``BaseProblem`` provides the default implementation of ``__call__(optuna.Trial)`` that calls the ``evaluate`` method with the parameters defined in the search space, you can use the problem instance as an objective function for ``study.optimize``.
+# Since ``BaseProblem`` provides the default implementation of ``__call__(self, trial: optuna.Trial)`` that calls the ``evaluate`` method internally, the problem instance can be directly used as an objective function for ``study.optimize``.
 sphere2d = Sphere2D()
 study = optuna.create_study(directions=sphere2d.directions)
 study.optimize(sphere2d, n_trials=20)
