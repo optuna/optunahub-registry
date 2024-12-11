@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 import warnings
 
 from ConfigSpace import Categorical
@@ -97,6 +98,10 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         init_design_max_ratio:
             Use at most ``n_trials * init_design_max_ratio`` number of configurations in the
             initial design. Additional configurations are not affected by this parameter.
+        output_directory:
+            Output directory path, defaults to "smac3_output".
+            The directory in which to save the output.
+            The files are saved in `./output_directory/name/seed`.
     """
 
     def __init__(
@@ -115,11 +120,16 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         init_design_n_configs: int | None = None,
         init_design_n_configs_per_hyperparameter: int = 10,
         init_design_max_ratio: float = 0.25,
+        output_directory: str = "smac3_output",
     ) -> None:
         super().__init__(search_space)
         self._cs, self._hp_scale_value = self._convert_to_config_space_design_space(search_space)
         scenario = Scenario(
-            configspace=self._cs, deterministic=True, n_trials=n_trials, seed=seed or -1
+            configspace=self._cs,
+            deterministic=True,
+            n_trials=n_trials,
+            seed=seed or -1,
+            output_directory=Path(output_directory),
         )
         surrogate_model = self._get_surrogate_model(
             scenario,
