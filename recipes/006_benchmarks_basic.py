@@ -49,8 +49,8 @@ study.optimize(sphere2d, n_trials=20)
 
 
 ###################################################################################################
-# You can also customize the constructor of the problem class and introduce additional attributes.
-# The below example implements a variadic-dimensional sphere function.
+# The constructor of the problem class can be customized to introduce additional attributes.
+# To give an illustration, we show an example with a dynamic dimensional sphere function.
 class SphereND(BaseProblem):
     def __init__(self, dim: int) -> None:
         self.dim = dim
