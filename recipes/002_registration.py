@@ -74,7 +74,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
   - ``author`` (string): The author of the package. It can be your name or your organization name.
   - ``title`` (string): The package title. It should not be a class/function name but a human-readable name. For example, `Demo Sampler` is a good title, but `DemoSampler` is not.
   - ``description`` (string): A brief description of the package. It should be a one-sentence summary of the package.
-  - ``tags`` (list[string]): The package tags. It should be a list of strings. The tags must include ``sampler``, ``visualization``, ``pruner``, or ``benchmarks`` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
+  - ``tags`` (list[string]): The package tags. It should be a list of strings. The tags must include ``sampler``, ``visualization``, ``pruner``, or ``benchmark`` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
   - ``optuna_versions`` (list[string]): A list of Optuna versions that the package supports. It should be a list of strings. You can find your Optuna version with ``python -c 'import optuna; print(optuna.__version__)'``.
   - ``license`` (string): The license of the package. It should be a string. For example, `MIT License`. The license must be `MIT License` in the current version of OptunaHub.
 
