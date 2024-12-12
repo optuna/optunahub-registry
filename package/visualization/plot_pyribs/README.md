@@ -9,8 +9,6 @@ license: MIT License
 
 ## Class or Function Names
 
-- `plot_grid_archive_heatmap()`
-
 - `plot_grid_archive_heatmap(study: optuna.Study, ax: plt.Axes, **kwargs)`
   - `study`: Optuna study with a sampler that uses pyribs. This function will plot the result archive from the sampler's scheduler.
   - `ax`: Axes on which to plot the heatmap. If None, we retrieve the current axes.
