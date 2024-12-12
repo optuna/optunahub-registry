@@ -9,7 +9,13 @@ license: MIT License
 
 ## Class or Function Names
 
-- plot_grid_archive_heatmap
+- `plot_grid_archive_heatmap()`
+
+- `HEBOSampler(study: optuna.Study, ax: plt.Axes, **kwargs)`
+  - `study`: Optuna study with a sampler that uses pyribs. This function will plot the result archive from the sampler's scheduler.
+  - ax: Axes on which to plot the heatmap. If None, we retrieve the current axes.
+  - kwargs: All remaining kwargs will be passed to [`grid_archive_heatmap`](https://docs.pyribs.org/en/stable/api/ribs.visualize.grid_archive_heatmap.html).
+
 
 ## Installation
 
