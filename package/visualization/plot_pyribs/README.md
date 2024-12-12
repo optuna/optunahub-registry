@@ -1,7 +1,7 @@
 ---
 author: Bryon Tjanaka
 title: Pyribs Visualization Wrappers
-description: This visualizaton module provides wrappers around the visualization functions from pyribs, which is useful for plotting results from CmaMaeSampler.
+description: This visualizaton module provides wrappers around the visualization functions from pyribs, which is useful for plotting results from [CmaMaeSampler](https://hub.optuna.org/samplers/cmamae/).
 tags: [visualization, quality diversity, pyribs]
 optuna_versions: [4.0.0]
 license: MIT License
