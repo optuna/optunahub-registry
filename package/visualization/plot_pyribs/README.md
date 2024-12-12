@@ -15,7 +15,6 @@ license: MIT License
   - `ax`: Axes on which to plot the heatmap. If None, we retrieve the current axes.
   - `**kwargs`: All remaining kwargs will be passed to [`grid_archive_heatmap`](https://docs.pyribs.org/en/stable/api/ribs.visualize.grid_archive_heatmap.html).
 
-
 ## Installation
 
 ```shell
