@@ -89,14 +89,32 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         self._constant_liar = constant_liar
         self._rng = np.random.default_rng(seed)
 
+    @staticmethod
+    def _suggest_and_transform_to_dict(
+        hebo: HEBO, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, float]:
+        params = {}
+        for name, row in hebo.suggest().items():
+            if name not in search_space:
+                continue
+
+            dist = search_space[name]
+            if (
+                isinstance(dist, (IntDistribution, FloatDistribution))
+                and not dist.log
+                and dist.step is not None
+            ):
+                step_index = row.iloc[0]
+                params[name] = dist.low + step_index * dist.step
+            else:
+                params[name] = row.iloc[0]
+
+        return params
+
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, float]:
-        return {
-            name: row.iloc[0]
-            for name, row in self._hebo.suggest().items()
-            if name in search_space.keys()
-        }
+        return self._suggest_and_transform_to_dict(self._hebo, search_space)
 
     def _sample_relative_stateless(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -132,11 +150,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         values[np.isnan(values)] = worst_value
         values *= sign
         hebo.observe(params, values)
-        return {
-            name: row.iloc[0]
-            for name, row in hebo.suggest().items()
-            if name in search_space.keys()
-        }
+        return self._suggest_and_transform_to_dict(hebo, search_space)
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -168,62 +182,34 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     ) -> DesignSpace:
         design_space = []
         for name, distribution in search_space.items():
-            if isinstance(distribution, FloatDistribution) and not distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "num",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, FloatDistribution) and distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "pow",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution) and distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "pow_int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution) and distribution.step:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "step_int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                        "step": distribution.step,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution):
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
+            config: dict[str, Any] = {"name": name}
+            if isinstance(distribution, (FloatDistribution, IntDistribution)):
+                if not distribution.log and distribution.step is not None:
+                    config["type"] = "int"
+                    # NOTE(nabenabe): high is adjusted in Optuna so that below is divisable.
+                    n_steps = int(
+                        np.round((distribution.high - distribution.low) / distribution.step + 1)
+                    )
+                    config["lb"] = 0
+                    config["ub"] = n_steps - 1
+                else:
+                    config["lb"] = distribution.low
+                    config["ub"] = distribution.high
+                    if distribution.log:
+                        config["type"] = (
+                            "pow_int" if isinstance(distribution, IntDistribution) else "pow"
+                        )
+                    else:
+                        assert not isinstance(distribution, IntDistribution)
+                        config["type"] = "num"
             elif isinstance(distribution, CategoricalDistribution):
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "cat",
-                        "categories": distribution.choices,
-                    }
-                )
+                config["type"] = "cat"
+                config["categories"] = distribution.choices
             else:
                 raise NotImplementedError(f"Unsupported distribution: {distribution}")
+
+            design_space.append(config)
+
         return DesignSpace().parse(design_space)
 
     def infer_relative_search_space(
