@@ -96,3 +96,15 @@ When you use this sampler, please cite the following:
     year={2022}
 }
 ```
+
+### Test
+
+To execute the tests for `cTPESampler`, please run the following commands. The test file is provided in the package.
+
+```sh
+pip install pytest
+```
+
+```python
+pytest package/samplers/ctpe/tests/
+```
