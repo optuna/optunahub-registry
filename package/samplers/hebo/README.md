@@ -14,10 +14,12 @@ license: MIT License
 ## Installation
 
 ```bash
-pip install -r https://hub.optuna.org/samplers/hebo/requirements.txt
-git clone git@github.com:huawei-noah/HEBO.git
-cd HEBO/HEBO
-pip install -e .
+# Install the dependencies.
+pip install optunahub hebo
+
+# NOTE: Below is optional, but pymoo must be installed after NumPy for faster HEBOSampler,
+# we run the following command to make sure that the compiled version is installed.
+pip install --upgrade pymoo
 ```
 
 ## APIs
@@ -59,11 +61,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 
 module = optunahub.load_module("samplers/hebo")
-sampler = module.HEBOSampler(search_space={
-    "x": optuna.distributions.FloatDistribution(-10, 10),
-    "y": optuna.distributions.IntDistribution(-10, 10),
-})
-# sampler = module.HEBOSampler()  # Note: `search_space` is not required, and thus it works too.
+sampler = module.HEBOSampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
 
@@ -72,6 +70,19 @@ print(study.best_trial.params, study.best_trial.value)
 
 See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/hebo/example.py) for a full example.
 ![History Plot](images/hebo_optimization_history.png "History Plot")
+
+Note that it may slightly speed up the sampling routine by giving the search space directly to `HEBOSampler` since Optuna can skip the search space inference.
+For example, the instantiation of `HEBOSampler` above can be modified as follows:
+
+```python
+search_space={
+    "x": optuna.distributions.FloatDistribution(-10, 10),
+    "y": optuna.distributions.IntDistribution(-10, 10),
+}
+sampler = module.HEBOSampler(search_space=search_space)
+```
+
+However, users need to make sure that the provided search space and the search space defined in the objective function must be consistent.
 
 ## Others
 
