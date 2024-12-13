@@ -72,32 +72,32 @@ Please refer to [the paper](https://numbbo.github.io/gforge/downloads/download16
 1. Multi-modal functions with adequate global structure
 1. Multi-modal functions with weak global structure
 
-| Category  | Function ID | Function Name                                                                                         |
-|-----------|-------------|-------------------------------------------------------------------------------------------------------|
+| Category  | Function ID | Function Name                                                                                                            |
+|-----------|-------------|--------------------------------------------------------------------------------------------------------------------------|
 | 1         | 1           | [Sphere Function](https://coco-platform.org/testsuites/bbob/functions/f01.html)                                          |
-| 1         | 2           | [Separable Ellipsoidal Function](https://numbbo.it/bbob/functions/f02.html)                           |
-| 1         | 3           | [Rastrigin Function](https://numbbo.it/bbob/functions/f03.html)                                       |
-| 1         | 4           | [Büche-Rastrigin Function](https://numbbo.it/bbob/functions/f04.html)                                 |
-| 1         | 5           | [Linear Slope](https://numbbo.it/bbob/functions/f05.html)                                             |
-| 2         | 6           | [Attractive Sector Function](https://numbbo.it/bbob/functions/f06.html)                               |
-| 2         | 7           | [Step Ellipsoidal Function](https://numbbo.it/bbob/functions/f07.html)                                |
-| 2         | 8           | [Rosenbrock Function, original](https://numbbo.it/bbob/functions/f08.html)                            |
-| 2         | 9           | [Rosenbrock Function, rotated](https://numbbo.it/bbob/functions/f09.html)                             |
-| 3         | 10          | [Ellipsoidal Function](https://numbbo.it/bbob/functions/f10.html)                                     |
-| 3         | 11          | [Discus Function](https://numbbo.it/bbob/functions/f11.html)                                          |
-| 3         | 12          | [Bent Cigar Function](https://numbbo.it/bbob/functions/f12.html)                                      |
-| 3         | 13          | [Sharp Ridge Function](https://numbbo.it/bbob/functions/f13.html)                                     |
-| 3         | 14          | [Different Powers Function](https://numbbo.it/bbob/functions/f14.html)                                |
-| 4         | 15          | [Rastrigin Function](https://numbbo.it/bbob/functions/f15.html)                                       |
-| 4         | 16          | [Weierstrass Function](https://numbbo.it/bbob/functions/f16.html)                                     |
-| 4         | 17          | [Schaffer's F7 Function](https://numbbo.it/bbob/functions/f17.html)                                   |
-| 4         | 18          | [Schaffer's F7 Function, moderately ill-conditioned](https://numbbo.it/bbob/functions/f18.html)       |
-| 4         | 19          | [Composite Griewank-Rosenbrock Function F8F2](https://numbbo.it/bbob/functions/f19.html)              |
-| 5         | 20          | [Schwefel Function](https://numbbo.it/bbob/functions/f20.html)                                        |
-| 5         | 21          | [Gallagher's Gaussian 101-me Peaks Function](https://numbbo.it/bbob/functions/f21.html)               |
-| 5         | 22          | [Gallagher's Gaussian 21-hi Peaks Function](https://numbbo.it/bbob/functions/f22.html)                |
-| 5         | 23          | [Katsuura Function](https://numbbo.it/bbob/functions/f23.html)                                        |
-| 5         | 24          | [Lunacek bi-Rastrigin Function](https://numbbo.it/bbob/functions/f24.html)                            |
+| 1         | 2           | [Separable Ellipsoidal Function](https://coco-platform.org/testsuites/bbob/functions/f02.html)                           |
+| 1         | 3           | [Rastrigin Function](https://coco-platform.org/testsuites/bbob/functions/f03.html)                                       |
+| 1         | 4           | [Büche-Rastrigin Function](https://coco-platform.org/testsuites/bbob/functions/f04.html)                                 |
+| 1         | 5           | [Linear Slope](https://coco-platform.org/testsuites/bbob/functions/f05.html)                                             |
+| 2         | 6           | [Attractive Sector Function](https://coco-platform.org/testsuites/bbob/functions/f06.html)                               |
+| 2         | 7           | [Step Ellipsoidal Function](https://coco-platform.org/testsuites/bbob/functions/f07.html)                                |
+| 2         | 8           | [Rosenbrock Function, original](https://coco-platform.org/testsuites/bbob/functions/f08.html)                            |
+| 2         | 9           | [Rosenbrock Function, rotated](https://coco-platform.org/testsuites/bbob/functions/f09.html)                             |
+| 3         | 10          | [Ellipsoidal Function](https://coco-platform.org/testsuites/bbob/functions/f10.html)                                     |
+| 3         | 11          | [Discus Function](https://coco-platform.org/testsuites/bbob/functions/f11.html)                                          |
+| 3         | 12          | [Bent Cigar Function](https://coco-platform.org/testsuites/bbob/functions/f12.html)                                      |
+| 3         | 13          | [Sharp Ridge Function](https://coco-platform.org/testsuites/bbob/functions/f13.html)                                     |
+| 3         | 14          | [Different Powers Function](https://coco-platform.org/testsuites/bbob/functions/f14.html)                                |
+| 4         | 15          | [Rastrigin Function](https://coco-platform.org/testsuites/bbob/functions/f15.html)                                       |
+| 4         | 16          | [Weierstrass Function](https://coco-platform.org/testsuites/bbob/functions/f16.html)                                     |
+| 4         | 17          | [Schaffer's F7 Function](https://coco-platform.org/testsuites/bbob/functions/f17.html)                                   |
+| 4         | 18          | [Schaffer's F7 Function, moderately ill-conditioned](https://coco-platform.org/testsuites/bbob/functions/f18.html)       |
+| 4         | 19          | [Composite Griewank-Rosenbrock Function F8F2](https://coco-platform.org/testsuites/bbob/functions/f19.html)              |
+| 5         | 20          | [Schwefel Function](https://coco-platform.org/testsuites/bbob/functions/f20.html)                                        |
+| 5         | 21          | [Gallagher's Gaussian 101-me Peaks Function](https://coco-platform.org/testsuites/bbob/functions/f21.html)               |
+| 5         | 22          | [Gallagher's Gaussian 21-hi Peaks Function](https://coco-platform.org/testsuites/bbob/functions/f22.html)                |
+| 5         | 23          | [Katsuura Function](https://coco-platform.org/testsuites/bbob/functions/f23.html)                                        |
+| 5         | 24          | [Lunacek bi-Rastrigin Function](https://coco-platform.org/testsuites/bbob/functions/f24.html)                            |
 
 ![BBOB Plots](images/bbob.png)
 
