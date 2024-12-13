@@ -27,9 +27,11 @@ license: "MIT License"
 ---
 -->
 
-Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub.
-You can find more detailed explanation of the following contents in the tutorial.
-Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
+Instruction (you can remove this instruction when you write the `README.md` for your package)
+
+- Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub. You can find more detailed explanation of the following contents in the tutorial.
+- Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
+- **Please do not use HTML tags in the `README.md` file. Only markdown is allowed. For security reasons, the HTML tags will be removed when the package is registered on the web page.**
 
 ## Abstract
 
