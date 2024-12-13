@@ -2,14 +2,10 @@
 author: Jinglue Xu
 title: Differential Evolution Sampler
 description: This sampler combines Differential Evolution for numerical parameters and Random Sampling for categorical parameters, dynamically adapting to changes in the search space by initializing new dimensions and ignoring removed ones seamlessly across trials.
-tags: [sampler]
+tags: [sampler, differential evolution, dynamic search space, mixed-variable optimization]
 optuna_versions: [4.1.0]
 license: MIT License
 ---
-
-Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub.
-You can find more detailed explanation of the following contents in the tutorial.
-Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) will also help you.
 
 ## Abstract
 
