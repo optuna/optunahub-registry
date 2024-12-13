@@ -34,7 +34,7 @@ The blackbox optimization benchmarking (bbob) test suite comprises 24 noiseless 
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `float`
 
-It is also available that properties defiend in [cocoex.Problem](https://numbbo.github.io/coco-doc/apidocs/cocoex/cocoex.Problem.html) such as `number_of_objectives`.
+The properties defined by [cocoex.Problem](https://numbbo.github.io/coco-doc/apidocs/cocoex/cocoex.Problem.html) are also available such as `number_of_objectives`.
 
 ## Installation
 
