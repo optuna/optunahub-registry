@@ -45,4 +45,4 @@ class WeightFunc:
             weights[:-25] = 1e-12
             return weights
         else:
-            raise AssertionError("Should not reach.")
+            assert False, "Should not reach."
