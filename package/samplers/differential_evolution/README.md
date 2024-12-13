@@ -31,16 +31,7 @@ Each benchmark was tested across 10 experiments. The results demonstrate superio
 
 The plots below illustrate the comparative performance, showcasing both mean performance and standard deviation for the DE and random samplers across trial numbers.
 
-<table style="width: 100%;">
-  <tr>
-    <td style="width: 50%;"><img src="images/Ackley_minimize.png" alt="Top Left" style="width: 100%;"/></td>
-    <td style="width: 50%;"><img src="images/Rastrigin_minimize.png" alt="Top Right" style="width: 100%;"/></td>
-  </tr>
-  <tr>
-    <td style="width: 50%;"><img src="images/Schwefel_maximize.png" alt="Bottom Left" style="width: 100%;"/></td>
-    <td style="width: 50%;"><img src="images/sphere_minimize.png" alt="Bottom Right" style="width: 100%;"/></td>
-  </tr>
-</table>
+![plots](images/thumbnail.png)
 
 ## APIs
 
