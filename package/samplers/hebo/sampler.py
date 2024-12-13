@@ -113,6 +113,31 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         return params
 
+    @staticmethod
+    def _transform_to_dict_and_observe(
+        hebo: HEBO,
+        search_space: dict[str, BaseDistribution],
+        study: Study,
+        trials: list[FrozenTrial],
+    ) -> None:
+        sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
+        values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
+        worst_value = (
+            np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
+        )
+        # Assume that the back-end HEBO implementation aims to minimize.
+        nan_padded_values = sign * np.where(np.isnan(values), worst_value, values)[:, np.newaxis]
+        params = pd.DataFrame([t.params for t in trials])
+        for name, dist in search_space.items():
+            if (
+                isinstance(dist, (IntDistribution, FloatDistribution))
+                and not dist.log
+                and dist.step is not None
+            ):
+                params[name] = np.round((params[name] - dist.low) / dist.step).astype(int)
+
+        hebo.observe(params, nan_padded_values)
+
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
@@ -137,19 +162,9 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         trials = [t for t in trials if set(search_space.keys()) <= set(t.params.keys())]
 
-        # Assume that the back-end HEBO implementation aims to minimize.
-        values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
-        worst_value = (
-            np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
-        )
-        sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
-
         seed = int(self._rng.integers(low=1, high=(1 << 31)))
         hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
-        params = pd.DataFrame([t.params for t in trials])
-        values[np.isnan(values)] = worst_value
-        values *= sign
-        hebo.observe(params, values[:, np.newaxis])
+        self._transform_to_dict_and_observe(hebo, search_space, study, trials)
         return self._suggest_and_transform_to_dict(hebo, search_space)
 
     def sample_relative(
@@ -172,10 +187,9 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         values: Sequence[float] | None,
     ) -> None:
         if self._hebo is not None and values is not None:
-            # Assume that the back-end HEBO implementation aims to minimize.
-            if study.direction == StudyDirection.MAXIMIZE:
-                values = [-x for x in values]
-            self._hebo.observe(pd.DataFrame([trial.params]), np.asarray([values]))
+            self._transform_to_dict_and_observe(
+                hebo=self._hebo, search_space=trial.distributions, study=study, trials=[trial]
+            )
 
     def _convert_to_hebo_design_space(
         self, search_space: dict[str, BaseDistribution]
