@@ -74,7 +74,7 @@ Please refer to [the paper](https://numbbo.github.io/gforge/downloads/download16
 
 | Category  | Function ID | Function Name                                                                                         |
 |-----------|-------------|-------------------------------------------------------------------------------------------------------|
-| 1         | 1           | [Sphere Function](https://numbbo.it/bbob/functions/f01.html)                                          |
+| 1         | 1           | [Sphere Function](https://coco-platform.org/testsuites/bbob/functions/f01.html)                                          |
 | 1         | 2           | [Separable Ellipsoidal Function](https://numbbo.it/bbob/functions/f02.html)                           |
 | 1         | 3           | [Rastrigin Function](https://numbbo.it/bbob/functions/f03.html)                                       |
 | 1         | 4           | [Büche-Rastrigin Function](https://numbbo.it/bbob/functions/f04.html)                                 |
