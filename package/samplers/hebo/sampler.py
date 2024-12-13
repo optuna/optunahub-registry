@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
-import warnings
 
 import numpy as np
 import optuna
@@ -10,6 +9,7 @@ from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
+from optuna.logging import get_logger
 from optuna.samplers import BaseSampler
 from optuna.search_space import IntersectionSearchSpace
 from optuna.study import Study
@@ -21,6 +21,9 @@ import pandas as pd
 
 from hebo.design_space.design_space import DesignSpace
 from hebo.optimizers.hebo import HEBO
+
+
+_logger = get_logger(f"optuna.{__name__}")
 
 
 class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
@@ -85,7 +88,6 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             self._hebo = None
         self._intersection_search_space = IntersectionSearchSpace()
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
-        self._is_independent_sample_necessary = False
         self._constant_liar = constant_liar
         self._rng = np.random.default_rng(seed)
 
@@ -113,12 +115,12 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         return self._suggest_and_transform_to_dict(self._hebo, search_space)
 
     def _sample_relative_stateless(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         if self._constant_liar:
             target_states = [TrialState.COMPLETE, TrialState.RUNNING]
         else:
@@ -131,10 +133,8 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             # note: The backend HEBO implementation uses Sobol sampling here.
             # This sampler does not call `hebo.suggest()` here because
             # Optuna needs to know search space by running the first trial in Define-by-Run.
-            self._is_independent_sample_necessary = True
             return {}
-        else:
-            self._is_independent_sample_necessary = False
+
         trials = [t for t in trials if set(search_space.keys()) <= set(t.params.keys())]
 
         # Assume that the back-end HEBO implementation aims to minimize.
@@ -149,12 +149,12 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         params = pd.DataFrame([t.params for t in trials])
         values[np.isnan(values)] = worst_value
         values *= sign
-        hebo.observe(params, values)
+        hebo.observe(params, values[:, np.newaxis])
         return self._suggest_and_transform_to_dict(hebo, search_space)
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         if study._is_multi_objective():
             raise ValueError(
                 f"{self.__class__.__name__} has not supported multi-objective optimization."
@@ -226,10 +226,10 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
-        if not self._is_independent_sample_necessary:
-            warnings.warn(
-                "`HEBOSampler` falls back to `RandomSampler` due to dynamic search space."
-            )
+        states = (TrialState.COMPLETE,)
+        trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+        if any(param_name in trial.params for trial in trials):
+            _logger.warn(f"Use `RandomSampler` for {param_name} due to dynamic search space.")
 
         return self._independent_sampler.sample_independent(
             study, trial, param_name, param_distribution

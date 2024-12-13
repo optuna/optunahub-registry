@@ -1,10 +1,10 @@
 """
 .. _registration:
 
-How to Register Your Algorithm with OptunaHub
+How to Register Your Package with OptunaHub
 ===========================================================
 
-After implementing your own algorithm, you can register the algorithm as a package with OptunaHub.
+After implementing your own feature, you can register it as a package with OptunaHub.
 To add your package to the `optunahub-registry <https://github.com/optuna/optunahub-registry>`__ repository, you need to create a pull request from your fork.
 Your pull request must be aligned with `the contribution guidelines <https://github.com/optuna/optunahub-registry/blob/main/CONTRIBUTING.md>`__.
 
@@ -12,9 +12,9 @@ The following is an example of the directory structure of a package.
 See the `template directory <https://github.com/optuna/optunahub-registry/tree/main/template>`__ for an example of the directory structure.
 
 | `package <https://github.com/optuna/optunahub-registry/tree/main/package>`__
-| └── category (e.g. samplers, pruners, and visualization)
+| └── category (samplers, pruners, visualization, or benchmarks)
 |     └── YOUR_PACKAGE_NAME (you need to create this directory and its contents)
-|         ├── YOUR_ALGORITHM_NAME.py
+|         ├── YOUR_FEATURE_NAME.py
 |         ├── __init__.py
 |         ├── README.md
 |         ├── LICENSE
@@ -24,20 +24,20 @@ See the `template directory <https://github.com/optuna/optunahub-registry/tree/m
 |             ├──  (figure1.png)
 |             └──  (numerical_results.png)
 
-An implemented algorithm should be put in the corresponding directory, e.g., a sampler should be put in the ``samplers`` directory.
-In the ``samplers`` directory, you should create a directory with a unique identifier.
-This unique identifier is the name of your algorithm package, is used to load the package, and is unable to change once it is registered.
-The package name must be a valid Python module name, preferably one that is easily searchable.
+An implemented feature should be put in the corresponding directory, e.g., a sampler should be put in the ``samplers`` directory.
+A newly created directory must be named uniquely in the corresponding directory.
+This unique identifier is the name of your package, is used to load the package, and is unable to change once it is registered.
+The package name must be a valid Python module name (e.g., please use "_" instead of "-"), preferably one that is easily searchable.
 Abbreviations are not prohibited in package names, but their abuse should be avoided.
 
 The created directory should include the following files:
 
-- ``YOUR_ALGORITHM_NAME.py``: The implementation of your algorithm.
-- ``__init__.py``: An initialization file. This file must implement your algorithm or import its implementation from another file, e.g., ``YOUR_ALGORITHM_NAME.py``.
-- ``README.md``: A description of your algorithm. This file is used to create an `web page of OptunaHub <https://hub.optuna.org/>`_. Let me explain the format of the ``README.md`` file later.
-- ``LICENSE``: A license file. This file must contain the license of your algorithm. It should be the MIT license in the alpha version of OptunaHub.
-- ``example.py``, ``example.ipynb``: This is optional. This file should contain a simple example of how to use your algorithm (Example: `example.py for Simulated Annealing Sampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simulated_annealing/example.py>`_). You can provide examples in both formats.
-- ``requirements.txt``: This is optional. A file that contains the additional dependencies of your algorithm. If there are no additional dependencies other than Optuna and OptunaHub, you do not need to create this file.
+- ``YOUR_FEATURE_NAME.py``: The implementation of your feature.
+- ``__init__.py``: An initialization file. This file must implement your feature or import its implementation from another file, e.g., ``YOUR_FEATURE_NAME.py``.
+- ``README.md``: A description of your package. This file is used to create an `web page of OptunaHub <https://hub.optuna.org/>`_. Let me explain the format of the ``README.md`` file later.
+- ``LICENSE``: A license file. This file must contain the license of your package. It should be the MIT license in the alpha version of OptunaHub.
+- ``example.py``, ``example.ipynb``: This is optional. This file should contain a simple example of how to use your package (Example: `example.py for Simulated Annealing Sampler <https://github.com/optuna/optunahub-registry/blob/main/package/samplers/simulated_annealing/example.py>`_). You can provide examples in both formats.
+- ``requirements.txt``: This is optional. A file that contains the additional dependencies of your package. If there are no additional dependencies other than Optuna and OptunaHub, you do not need to create this file.
 - ``images``: This is optional. A directory that contains images. Only relative references to images in this directory are allowed in README.md, e.g., ``![Numrical Results](images/numerical_results.png)``, and absolute paths to images are not allowed. The first image that appears in README.md will be used as the thumbnail.
 
 All files must pass linter and formetter checks to be merged to the optunahub-registry repository.
@@ -74,7 +74,7 @@ Although we recommend you write proper type hints, if you find it difficult to c
   - ``author`` (string): The author of the package. It can be your name or your organization name.
   - ``title`` (string): The package title. It should not be a class/function name but a human-readable name. For example, `Demo Sampler` is a good title, but `DemoSampler` is not.
   - ``description`` (string): A brief description of the package. It should be a one-sentence summary of the package.
-  - ``tags`` (list[string]): The package tags. It should be a list of strings. The tags must include ``sampler``, ``visualization``, or ``pruner`` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
+  - ``tags`` (list[string]): The package tags. It should be a list of strings. The tags must include ``sampler``, ``visualization``, ``pruner``, or ``benchmark`` depending on the type of the package. You can add other tags as needed. For example, "['sampler', 'LLM']".
   - ``optuna_versions`` (list[string]): A list of Optuna versions that the package supports. It should be a list of strings. You can find your Optuna version with ``python -c 'import optuna; print(optuna.__version__)'``.
   - ``license`` (string): The license of the package. It should be a string. For example, `MIT License`. The license must be `MIT License` in the current version of OptunaHub.
 
