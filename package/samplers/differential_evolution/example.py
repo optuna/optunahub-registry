@@ -166,6 +166,7 @@ def objective_ML(trial: optuna.Trial) -> float:
     return scores.mean()
 
 
+# ruff: noqa
 def objective_dynamic_1(trial: optuna.Trial) -> float:
     """Dynamic search space function with a single additional parameter for the first trial.
 
@@ -220,6 +221,8 @@ def objective_dynamic_3(trial: optuna.Trial) -> float:
         z = trial.suggest_float("z", -5.12, 5.12)
     return x**2 + y**2
 
+
+# ruff: enable
 
 # Mapping of objective functions
 objective_map = {
