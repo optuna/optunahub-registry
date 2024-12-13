@@ -29,7 +29,7 @@ The blackbox optimization benchmarking (bbob) test suite comprises 24 noiseless 
   - Args:
     - `trial`: Optuna trial object.
   - Returns: `float`
-- `evaluate(params: dict[str, float])`: Evaluate the objective function.
+- `evaluate(params: dict[str, float])`: Evaluate the objective function given a dictionary of parameters.
   - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `float`
