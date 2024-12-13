@@ -72,7 +72,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
     @property
     def search_space(self) -> dict[str, optuna.distributions.BaseDistribution]:
         """Return the search space."""
-        return self._search_space
+        return self._search_space.copy()
 
     @property
     def directions(self) -> Sequence[optuna.study.StudyDirection]:
