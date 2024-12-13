@@ -18,7 +18,7 @@ class GammaFunc:
         elif self._strategy == "sqrt":
             n = int(np.ceil(self._beta * np.sqrt(x)))
         else:
-            raise AssertionError("Should not reach.")
+            assert False, "Should not reach."
 
         return min(n, 25)
 
