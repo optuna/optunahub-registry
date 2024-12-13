@@ -22,17 +22,17 @@ The blackbox optimization benchmarking (bbob) test suite comprises 24 noiseless 
 #### Methods and Properties
 
 - `search_space`: Return the search space.
-  - Return type: `dict[str, optuna.distributions.BaseDistribution]`
+  - Returns: `dict[str, optuna.distributions.BaseDistribution]`
 - `directions`: Return the optimization directions.
-  - Return type: `list[optuna.study.StudyDirection]`
+  - Returns: `list[optuna.study.StudyDirection]`
 - `__call__(trial: optuna.Trial)`: Evaluate the objective function and return the objective value.
-  - Parameters:
+  - Args:
     - `trial`: Optuna trial object.
-  - Return type: `float`
+  - Returns: `float`
 - `evaluate(params: dict[str, float])`: Evaluate the objective function.
-  - Parameters:
+  - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
-  - Return type: `float`
+  - Returns: `float`
 
 It is also available that properties defiend in [cocoex.Problem](https://numbbo.github.io/coco-doc/apidocs/cocoex/cocoex.Problem.html) such as `number_of_objectives`.
 
