@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import optuna
 from optunahub.benchmarks import BaseProblem
+from optunahub.benchmarks import ConstrainedMixIn
 
 
 ###################################################################################################
@@ -62,6 +63,36 @@ class DynamicProblem(BaseProblem):
 dynamic_problem = DynamicProblem()
 study = optuna.create_study(directions=dynamic_problem.directions)
 study.optimize(dynamic_problem, n_trials=20)
+
+
+###################################################################################################
+# Implementing a problem with constraints
+# -------------------------------------------------
+# Here, let's implement a problem with constraints.
+# To implement a problem with constraints, you need to inherit ``ConstrainedMixIn`` class in addition to ``BaseProblem`` and implement the ``evaluate_constraints`` method.
+# The ``evaluate_constraints`` method evaluates the constraint functions given a dictionary of input parameters and returns a list of constraint values.
+# Then, ``ConstrainedMixIn`` internally defines the ``constraints_func`` method properly for Optuna samplers to handle constraints.
+class ConstrainedProblem(ConstrainedMixIn, DynamicProblem):
+    def evaluate_constraints(self, params: dict[str, float]) -> list[float]:
+        x = params["x"]
+        c0 = x - 2
+        if "y" not in params:
+            return [c0]
+        else:
+            y = params["y"]
+            c1 = x + y - 3
+            return [c0, c1]
+
+
+###################################################################################################
+# Then, you can optimize the problem with Optuna as usual.
+# Don't forget to set the `constraints_func` argument of the sampler to the `constraints_func` of the problem.
+problem = ConstrainedProblem()
+sampler = optuna.samplers.TPESampler(
+    constraints_func=problem.constraints_func
+)  # Pass the constraints_func to the sampler.
+study = optuna.create_study(sampler=sampler, directions=problem.directions)
+study.optimize(problem, n_trials=20)
 
 ###################################################################################################
 # After implementing your own benchmark problem, you can register it with OptunaHub.
