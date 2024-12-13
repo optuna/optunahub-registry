@@ -26,27 +26,6 @@ from hebo.optimizers.hebo import HEBO
 _logger = get_logger(f"optuna.{__name__}")
 
 
-def _validate_distributions(
-    param_name: str,
-    target_distribution: FloatDistribution | IntDistribution,
-    trials: list[FrozenTrial],
-) -> None:
-    assert not target_distribution.log and target_distribution.step is not None
-    dists = [t.distributions[param_name] for t in trials]
-    lows = np.asarray([d.low for d in dists])
-    highs = np.asarray([d.high for d in dists])
-    steps = np.asarray([d.step if d.step is not None else np.nan for d in dists])
-    if (
-        not np.allclose(target_distribution.low, lows)
-        or not np.allclose(target_distribution.high, highs)
-        or not np.allclose(target_distribution.step, steps)
-    ):
-        raise ValueError(
-            "When using the `step` option or `suggest_int`, `low`, `high`, and `step` cannot be "
-            f"modified during study, but modifications were detected in `{param_name}`."
-        )
-
-
 class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     """A sampler using `HEBO <https://github.com/huawei-noah/HEBO/tree/master/HEBO>__` as the backend.
 
@@ -155,8 +134,10 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                 and not dist.log
                 and dist.step is not None
             ):
-                _validate_distributions(name, dist, trials)
-                params[name] = np.round((params[name] - dist.low) / dist.step).astype(int)
+                # NOTE(nabenabe): We do not round here because HEBO treats params as float even if
+                # the domain is defined on integer. By not rounding, HEBO can handle any changes in
+                # the domain of these parameters such as changes in low, high, and step.
+                params[name] = (params[name] - dist.low) / dist.step
 
         hebo.observe(params, nan_padded_values)
 
