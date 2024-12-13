@@ -89,7 +89,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
             The objective value.
 
         """
-        return self._problem(list(params.values()))
+        return self._problem([params[name] for name in self._search_space])
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._problem, name)
