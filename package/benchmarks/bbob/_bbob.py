@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import Sequence
 
 import cocoex as ex
 import optuna
@@ -75,7 +74,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         return self._search_space.copy()
 
     @property
-    def directions(self) -> Sequence[optuna.study.StudyDirection]:
+    def directions(self) -> list[optuna.study.StudyDirection]:
         """Return the optimization directions."""
         return [optuna.study.StudyDirection.MINIMIZE]
 
