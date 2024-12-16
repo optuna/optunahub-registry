@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import Sequence
 
 import cocoex as ex
 import optuna
@@ -49,10 +48,10 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
     @property
     def search_space(self) -> dict[str, optuna.distributions.BaseDistribution]:
         """Return the search space."""
-        return self._search_space
+        return self._search_space.copy()
 
     @property
-    def directions(self) -> Sequence[optuna.study.StudyDirection]:
+    def directions(self) -> list[optuna.study.StudyDirection]:
         """Return the optimization directions."""
         return [optuna.study.StudyDirection.MINIMIZE]
 
@@ -66,9 +65,9 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
             The objective value.
 
         """
-        return self._problem(list(params.values()))
+        return self._problem([params[name] for name in self._search_space])
 
-    def evaluate_constraints(self, params: dict[str, float]) -> Sequence[float]:
+    def evaluate_constraints(self, params: dict[str, float]) -> list[float]:
         """Evaluate the constraint functions.
         Args:
             params:
@@ -78,7 +77,7 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
             The constraint functions values.
 
         """
-        return self._problem.constraint(list(params.values())).tolist()
+        return self._problem.constraint([params[name] for name in self._search_space])
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._problem, name)
