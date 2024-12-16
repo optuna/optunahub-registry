@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import optuna
 from optunahub.benchmarks import BaseProblem
-from optunahub.benchmarks import ConstrainedMixIn
+from optunahub.benchmarks import ConstrainedMixin
 
 
 ###################################################################################################
@@ -69,10 +69,10 @@ study.optimize(dynamic_problem, n_trials=20)
 # Implementing a problem with constraints
 # -------------------------------------------------
 # Here, let's implement a problem with constraints.
-# To implement a problem with constraints, you need to inherit ``ConstrainedMixIn`` class in addition to ``BaseProblem`` and implement the ``evaluate_constraints`` method.
+# To implement a problem with constraints, you need to inherit ``ConstrainedMixin`` class in addition to ``BaseProblem`` and implement the ``evaluate_constraints`` method.
 # The ``evaluate_constraints`` method evaluates the constraint functions given a dictionary of input parameters and returns a list of constraint values.
-# Then, ``ConstrainedMixIn`` internally defines the ``constraints_func`` method properly for Optuna samplers to handle constraints.
-class ConstrainedProblem(ConstrainedMixIn, DynamicProblem):
+# Then, ``ConstrainedMixin`` internally defines the ``constraints_func`` method properly for Optuna samplers to handle constraints.
+class ConstrainedProblem(ConstrainedMixin, DynamicProblem):
     def evaluate_constraints(self, params: dict[str, float]) -> list[float]:
         x = params["x"]
         c0 = x - 2
