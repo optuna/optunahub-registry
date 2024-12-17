@@ -73,7 +73,7 @@ study.optimize(dynamic_problem, n_trials=20)
 # The ``evaluate_constraints`` method evaluates the constraint functions given a dictionary of input parameters and returns a list of constraint values.
 # Then, ``ConstrainedMixin`` internally defines the ``constraints_func`` method for Optuna samplers.
 class ConstrainedProblem(ConstrainedMixin, DynamicProblem):
-    def evaluate_constraints(self, params: dict[str, float]) -> list[float]:
+    def evaluate_constraints(self, params: dict[str, float]) -> tuple[float]:
         x = params["x"]
         c0 = x - 2
         if "y" not in params:
