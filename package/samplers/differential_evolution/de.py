@@ -313,7 +313,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
     def reseed_rng(self) -> None:
         """Reseed the random number generator for the sampler."""
         self._rng.rng.seed()
-        return self._random_sampler.reseed_rng()
+        self._random_sampler.reseed_rng()
 
     def sample_relative(
         self,
