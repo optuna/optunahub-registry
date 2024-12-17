@@ -82,7 +82,7 @@ class ConstrainedProblem(ConstrainedMixin, DynamicProblem):
         else:
             y = params["y"]
             c1 = x + y - 3
-            return [c0, c1]
+            return c0, c1
 
 
 ###################################################################################################
