@@ -77,7 +77,8 @@ class ConstrainedProblem(ConstrainedMixin, DynamicProblem):
         x = params["x"]
         c0 = x - 2
         if "y" not in params:
-            return [c0]
+            c1 = 0.0  # c1 <= 0, so c1 is satisfied in this case.
+            return c0, c1
         else:
             y = params["y"]
             c1 = x + y - 3
