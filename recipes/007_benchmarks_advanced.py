@@ -87,7 +87,7 @@ class ConstrainedProblem(ConstrainedMixin, DynamicProblem):
 
 ###################################################################################################
 # Then, you can optimize the problem with Optuna as usual.
-# Don't forget to set the `constraints_func` argument of the sampler to the `constraints_func` of the problem.
+# Don't forget to set the `constraints_func` argument to the sampler to use.
 problem = ConstrainedProblem()
 sampler = optuna.samplers.TPESampler(
     constraints_func=problem.constraints_func
