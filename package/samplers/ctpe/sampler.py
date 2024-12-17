@@ -80,8 +80,8 @@ class cTPESampler(TPESampler):
         )
 
     def _warning_multi_objective_for_ctpe(self, study: Study) -> None:
+        """TODO: Use this routine once c-TPE supports multi-objective optimization.
         if study._is_multi_objective():
-
             def _get_additional_msg() -> str:
                 beta = getattr(self._gamma, "_beta", None)
                 strategy = getattr(self._gamma, "_strategy", None)
@@ -98,6 +98,8 @@ class cTPESampler(TPESampler):
                 "but sampling will be performed by c-TPE based on Optuna MOTPE. "
                 f"{_get_additional_msg()}"
             )
+        """
+        self._raise_error_if_multi_objective(study)
 
     def _build_parzen_estimators_for_constraints_and_get_quantiles(
         self,
@@ -123,7 +125,7 @@ class cTPESampler(TPESampler):
                     study, search_space, unsatisfied_trials, handle_below=False
                 )
             )
-            quantiles.append(len(satisfied_trials) / len(trials))
+            quantiles.append(len(satisfied_trials) / max(1, len(trials)))
 
         return mpes_below, mpes_above, quantiles
 
@@ -149,7 +151,7 @@ class cTPESampler(TPESampler):
         mpes_above.append(
             self._build_parzen_estimator(study, search_space, above_trials, handle_below=False)
         )
-        quantiles.append(len(below_trials) / len(trials))
+        quantiles.append(len(below_trials) / max(1, len(trials)))
 
         _samples_below: dict[str, list[np.ndarray]] = {
             param_name: [] for param_name in search_space
