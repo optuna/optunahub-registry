@@ -71,7 +71,7 @@ study.optimize(dynamic_problem, n_trials=20)
 # Here, let's implement a problem with constraints.
 # To implement a problem with constraints, you need to inherit ``ConstrainedMixin`` class in addition to ``BaseProblem`` and implement the ``evaluate_constraints`` method.
 # The ``evaluate_constraints`` method evaluates the constraint functions given a dictionary of input parameters and returns a list of constraint values.
-# Then, ``ConstrainedMixin`` internally defines the ``constraints_func`` method properly for Optuna samplers to handle constraints.
+# Then, ``ConstrainedMixin`` internally defines the ``constraints_func`` method for Optuna samplers.
 class ConstrainedProblem(ConstrainedMixin, DynamicProblem):
     def evaluate_constraints(self, params: dict[str, float]) -> list[float]:
         x = params["x"]
