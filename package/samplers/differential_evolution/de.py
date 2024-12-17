@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 import optuna
 from optuna.samplers import RandomSampler
+from optuna.samplers._lazy_random_state import LazyRandomState
 import optunahub
 
 
@@ -97,7 +98,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
 
         # Store and set random seed
         self.seed = seed
-        self._rng = np.random.RandomState(seed)
+        self._rng = LazyRandomState(seed)
 
         # Initialize random sampler for categorical parameters
         self._random_sampler = RandomSampler(seed=seed)
@@ -218,7 +219,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         for i in range(self.population_size):
             # Select three random distinct individuals for mutation
             indices = [idx for idx in range(self.population_size) if idx != i]
-            r1, r2, r3 = self._rng.choice(indices, 3, replace=False)
+            r1, r2, r3 = self._rng.rng.choice(indices, 3, replace=False)
 
             if self.population is None or self.lower_bound is None or self.upper_bound is None:
                 raise ValueError(
@@ -240,11 +241,11 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
 
             # Crossover: combine target vector with mutant vector
             trial = np.copy(valid_population[i])
-            crossover_mask = self._rng.rand(len(active_indices)) < self.CR
+            crossover_mask = self._rng.rng.rand(len(active_indices)) < self.CR
 
             # Ensure at least one parameter is taken from mutant vector
             if not np.any(crossover_mask):
-                crossover_mask[self._rng.randint(len(active_indices))] = True
+                crossover_mask[self._rng.rng.randint(len(active_indices))] = True
             trial[crossover_mask] = mutant[crossover_mask]
 
             trial_vectors[i] = trial
@@ -308,6 +309,11 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 and t.system_attrs.get("differential_evolution:generation") == generation
             )
         ]
+
+    def reseed_rng(self) -> None:
+        """Reseed the random number generator for the sampler."""
+        self._rng.rng.seed()
+        self._random_sampler.reseed_rng()
 
     def sample_relative(
         self,
@@ -393,7 +399,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
 
             # Initialize population using seeded RNG
             self.population = (
-                self._rng.rand(self.population_size, self.dim)
+                self._rng.rng.rand(self.population_size, self.dim)
                 * (self.upper_bound - self.lower_bound)
                 + self.lower_bound
             )
