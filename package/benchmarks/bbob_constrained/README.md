@@ -2,7 +2,7 @@
 author: Optuna team
 title: The blackbox optimization benchmarking-constrained (bbob-constrained) test suite
 description: The bbob-constrained test suite is a suite of 54 non-linearly constrained test functions with varying number of (active and inactive) constraints. This package is a wrapper of the COCO (COmparing Continuous Optimizers) experiments library.
-tags: [benchmarks, continuous optimization, constrained optimization, BBOB, COCO]
+tags: [benchmark, continuous optimization, constrained optimization, BBOB, COCO]
 optuna_versions: [4.1.0]
 license: MIT License
 ---
