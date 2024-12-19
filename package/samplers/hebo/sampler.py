@@ -91,14 +91,60 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         self._constant_liar = constant_liar
         self._rng = np.random.default_rng(seed)
 
+    @staticmethod
+    def _suggest_and_transform_to_dict(
+        hebo: HEBO, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, float]:
+        params = {}
+        for name, row in hebo.suggest().items():
+            if name not in search_space:
+                continue
+
+            dist = search_space[name]
+            if (
+                isinstance(dist, (IntDistribution, FloatDistribution))
+                and not dist.log
+                and dist.step is not None
+            ):
+                step_index = row.iloc[0]
+                params[name] = dist.low + step_index * dist.step
+            else:
+                params[name] = row.iloc[0]
+
+        return params
+
+    @staticmethod
+    def _transform_to_dict_and_observe(
+        hebo: HEBO,
+        search_space: dict[str, BaseDistribution],
+        study: Study,
+        trials: list[FrozenTrial],
+    ) -> None:
+        sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
+        values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
+        worst_value = (
+            np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
+        )
+        # Assume that the back-end HEBO implementation aims to minimize.
+        nan_padded_values = sign * np.where(np.isnan(values), worst_value, values)[:, np.newaxis]
+        params = pd.DataFrame([t.params for t in trials])
+        for name, dist in search_space.items():
+            if (
+                isinstance(dist, (IntDistribution, FloatDistribution))
+                and not dist.log
+                and dist.step is not None
+            ):
+                # NOTE(nabenabe): We do not round here because HEBO treats params as float even if
+                # the domain is defined on integer. By not rounding, HEBO can handle any changes in
+                # the domain of these parameters such as changes in low, high, and step.
+                params[name] = (params[name] - dist.low) / dist.step
+
+        hebo.observe(params, nan_padded_values)
+
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
-        return {
-            name: row.iloc[0]
-            for name, row in self._hebo.suggest().items()
-            if name in search_space.keys()
-        }
+        return self._suggest_and_transform_to_dict(self._hebo, search_space)
 
     def _sample_relative_stateless(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -118,25 +164,10 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             return {}
 
         trials = [t for t in trials if set(search_space.keys()) <= set(t.params.keys())]
-
-        # Assume that the back-end HEBO implementation aims to minimize.
-        values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
-        worst_value = (
-            np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
-        )
-        sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
-
         seed = int(self._rng.integers(low=1, high=(1 << 31)))
         hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
-        params = pd.DataFrame([t.params for t in trials])
-        values[np.isnan(values)] = worst_value
-        values *= sign
-        hebo.observe(params, values[:, np.newaxis])
-        return {
-            name: row.iloc[0]
-            for name, row in hebo.suggest().items()
-            if name in search_space.keys()
-        }
+        self._transform_to_dict_and_observe(hebo, search_space, study, trials)
+        return self._suggest_and_transform_to_dict(hebo, search_space)
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -158,72 +189,43 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         values: Sequence[float] | None,
     ) -> None:
         if self._hebo is not None and values is not None:
-            # Assume that the back-end HEBO implementation aims to minimize.
-            if study.direction == StudyDirection.MAXIMIZE:
-                values = [-x for x in values]
-            self._hebo.observe(pd.DataFrame([trial.params]), np.asarray([values]))
+            self._transform_to_dict_and_observe(
+                hebo=self._hebo, search_space=trial.distributions, study=study, trials=[trial]
+            )
 
     def _convert_to_hebo_design_space(
         self, search_space: dict[str, BaseDistribution]
     ) -> DesignSpace:
         design_space = []
         for name, distribution in search_space.items():
-            if isinstance(distribution, FloatDistribution) and not distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "num",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, FloatDistribution) and distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "pow",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution) and distribution.log:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "pow_int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution) and distribution.step:
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "step_int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                        "step": distribution.step,
-                    }
-                )
-            elif isinstance(distribution, IntDistribution):
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "int",
-                        "lb": distribution.low,
-                        "ub": distribution.high,
-                    }
-                )
+            config: dict[str, Any] = {"name": name}
+            if isinstance(distribution, (FloatDistribution, IntDistribution)):
+                if not distribution.log and distribution.step is not None:
+                    config["type"] = "int"
+                    # NOTE(nabenabe): high is adjusted in Optuna so that below is divisable.
+                    n_steps = int(
+                        np.round((distribution.high - distribution.low) / distribution.step + 1)
+                    )
+                    config["lb"] = 0
+                    config["ub"] = n_steps - 1
+                else:
+                    config["lb"] = distribution.low
+                    config["ub"] = distribution.high
+                    if distribution.log:
+                        config["type"] = (
+                            "pow_int" if isinstance(distribution, IntDistribution) else "pow"
+                        )
+                    else:
+                        assert not isinstance(distribution, IntDistribution)
+                        config["type"] = "num"
             elif isinstance(distribution, CategoricalDistribution):
-                design_space.append(
-                    {
-                        "name": name,
-                        "type": "cat",
-                        "categories": distribution.choices,
-                    }
-                )
+                config["type"] = "cat"
+                config["categories"] = distribution.choices
             else:
                 raise NotImplementedError(f"Unsupported distribution: {distribution}")
+
+            design_space.append(config)
+
         return DesignSpace().parse(design_space)
 
     def infer_relative_search_space(
