@@ -110,6 +110,8 @@ Although we recommend you write proper type hints, if you find it difficult to c
       - [Original Paper](Link/to/the/original/paper)
       - [Source Code](Link/to/the/source/code)
 
+Please do not use HTML tags in the README.md file. Only markdown is allowed. For security reasons, the HTML tags will be removed when the package is registered on the web page.
+
 It is highly recommended that you confirm your package works properly (cf. :doc:`005_debugging`) before making a pull request.
 
 Before making a pull request, please ensure the code examples in ``README.md`` and example.py do not contain your local directory and/or your fork of the registry.

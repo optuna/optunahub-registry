@@ -18,7 +18,7 @@ class GammaFunc:
         elif self._strategy == "sqrt":
             n = int(np.ceil(self._beta * np.sqrt(x)))
         else:
-            assert "Should not reach."
+            assert False, "Should not reach."
 
         return min(n, 25)
 
@@ -45,4 +45,4 @@ class WeightFunc:
             weights[:-25] = 1e-12
             return weights
         else:
-            assert "Should not reach."
+            assert False, "Should not reach."
