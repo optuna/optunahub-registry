@@ -37,7 +37,7 @@ pip install --upgrade pymoo
     HEBOSampler(search_space=search_space)
     ```
 
-  - `seed`: Seed for random number generator.
+  - `seed`: A seed for the initialization of `HEBOSampler`. Please note that the Bayesian optimization part is not deterministic even if seed is fixed due to the backend implementation.
 
   - `constant_liar`: If `True`, penalize running trials to avoid suggesting parameter configurations nearby. Default is `False`.
 

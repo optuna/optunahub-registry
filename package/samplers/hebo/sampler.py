@@ -37,7 +37,9 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             By specifying search_space, the sampling speed at each iteration becomes slightly quicker, but this argument is not necessary to run this sampler. Default is :obj:`None`.
 
         seed:
-            A seed for ``HEBOSampler``. Default is :obj:`None`.
+            A seed for the initialization of ``HEBOSampler``. Default is :obj:`None`.
+            Please note that the Bayesian optimization part is not deterministic even if seed is
+            fixed due to the backend implementation.
 
         constant_liar:
             If :obj:`True`, penalize running trials to avoid suggesting parameter configurations
