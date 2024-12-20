@@ -244,7 +244,7 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         params = {}
         for name, hp_value in cfg.items():
             # SMAC uses np.int64 for integer parameters
-            if isinstance(hp_value, np.int64):
+            if isinstance(hp_value, np.integer):
                 hp_value = hp_value.item()  # Convert to Python int.
             if name in self._hp_scale_value:
                 hp_value = self._integer_to_step_hp(
