@@ -26,6 +26,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from collections.abc import Sequence
 from typing import Any
+import warnings
 
 from _pytest.mark.structures import MarkDecorator
 import numpy as np
@@ -39,14 +40,20 @@ from optuna.samplers import BaseSampler
 from optuna.study import Study
 from optuna.trial import FrozenTrial
 from optuna.trial import Trial
+from optuna.trial import TrialState
 import optunahub
 import pytest
 
 
 # NOTE: This file content is mostly copied from the Optuna repository.
-SMACSampler = optunahub.load_local_module(
+SMACSampler_ = optunahub.load_local_module(
     package="samplers/smac_sampler", registry_root="../../"
 ).SMACSampler
+
+
+def SMACSampler(search_space: dict, seed: int | None = None):  # type: ignore
+    return SMACSampler_(search_space=search_space, seed=seed, output_directory="/tmp/smac_output")
+
 
 parametrize_sampler = pytest.mark.parametrize("sampler_class", [SMACSampler])
 parametrize_relative_sampler = pytest.mark.parametrize("relative_sampler_class", [SMACSampler])
@@ -232,6 +239,31 @@ def test_sample_relative_numerical(
 
 
 @parametrize_relative_sampler
+def test_sample_relative_categorical(
+    relative_sampler_class: Callable[[dict], BaseSampler],
+) -> None:
+    search_space: dict[str, BaseDistribution] = dict(
+        x=CategoricalDistribution([1, 10, 100]), y=CategoricalDistribution([-1, -10, -100])
+    )
+    study = optuna.study.create_study(sampler=relative_sampler_class(search_space))
+    trial = study.ask(search_space)
+    study.tell(trial, sum(trial.params.values()))
+
+    def sample() -> list[float]:
+        params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
+        return [params[name] for name in search_space]
+
+    points = np.array([sample() for _ in range(7)])
+    for i, distribution in enumerate(search_space.values()):
+        assert isinstance(distribution, CategoricalDistribution)
+        assert np.all([v in distribution.choices for v in points[:, i]])
+    for param_value in sample():
+        assert not isinstance(param_value, np.floating)
+        assert not isinstance(param_value, np.integer)
+        assert isinstance(param_value, int)
+
+
+@parametrize_relative_sampler
 @pytest.mark.parametrize(
     "x_distribution",
     [
@@ -328,6 +360,51 @@ def test_conditional_sample_independent(sampler_class: Callable[[dict], BaseSamp
 def _create_new_trial(study: Study) -> FrozenTrial:
     trial_id = study._storage.create_new_trial(study._study_id)
     return study._storage.get_trial(trial_id)
+
+
+@parametrize_sampler
+@parametrize_suggest_method("x")
+def test_single_parameter_objective(
+    sampler_class: Callable[[dict], BaseSampler], suggest_method_x: Callable[[Trial], float]
+) -> None:
+    def objective(trial: Trial) -> float:
+        return suggest_method_x(trial)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", optuna.exceptions.ExperimentalWarning)
+        t = optuna.create_study().ask()
+        objective(t)
+        sampler = sampler_class(t.distributions)
+
+    study = optuna.study.create_study(sampler=sampler)
+    study.optimize(objective, n_trials=3)
+
+    assert len(study.trials) == 3
+    assert all(t.state == TrialState.COMPLETE for t in study.trials)
+
+
+@parametrize_sampler
+@parametrize_suggest_method("x")
+@parametrize_suggest_method("y")
+def test_combination_of_different_distributions_objective(
+    sampler_class: Callable[[dict], BaseSampler],
+    suggest_method_x: Callable[[Trial], float],
+    suggest_method_y: Callable[[Trial], float],
+) -> None:
+    def objective(trial: Trial) -> float:
+        return suggest_method_x(trial) + suggest_method_y(trial)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", optuna.exceptions.ExperimentalWarning)
+        t = optuna.create_study().ask()
+        objective(t)
+        sampler = sampler_class(t.distributions)
+
+    study = optuna.study.create_study(sampler=sampler)
+    study.optimize(objective, n_trials=3)
+
+    assert len(study.trials) == 3
+    assert all(t.state == TrialState.COMPLETE for t in study.trials)
 
 
 @parametrize_multi_objective_sampler
