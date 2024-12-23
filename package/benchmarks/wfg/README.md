@@ -40,7 +40,7 @@ The properties defined by [optproblems](https://www.simonwessing.de/optproblems/
 
 ## Installation
 
-Please install the [optproblems](https://github.com/numbbo/coco-experiment/tree/main/build/python) package.
+Please install the [optproblems](https://pypi.org/project/optproblems/) package.
 
 ```shell
 pip install -U optproblems
