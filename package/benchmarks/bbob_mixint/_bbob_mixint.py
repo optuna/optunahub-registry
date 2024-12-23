@@ -8,8 +8,8 @@ import optunahub
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
-    """Wrapper class for COCO bbob test suite.
-    https://coco-platform.org/testsuites/bbob/overview.html
+    """Wrapper class for COCO bbob-mixint test suite.
+    https://numbbo.github.io/coco/testsuites/bbob-mixint
     """
 
     def __init__(self, function_id: int, dimension: int, instance_id: int = 1):
