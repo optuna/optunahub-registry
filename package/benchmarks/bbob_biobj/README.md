@@ -32,7 +32,7 @@ The bbob-biobj test suite comprises 55 noiseless single-objective test functions
 - `evaluate(params: dict[str, float])`: Evaluate the objective function given a dictionary of parameters.
   - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
-  - Returns: `float`
+  - Returns: `tuple[float, float]`
 
 The properties defined by [cocoex.Problem](https://numbbo.github.io/coco-doc/apidocs/cocoex/cocoex.Problem.html) are also available such as `number_of_objectives`.
 
