@@ -54,7 +54,7 @@ import optunahub
 bbob = optunahub.load_module("benchmarks/bbob_biobj")
 f92 = bbob.Problem(function_id=92, dimension=40, instance_id=15)
 
-study = optuna.create_study(directions=f1.directions)
+study = optuna.create_study(directions=f92.directions)
 study.optimize(f92, n_trials=20)
 
 print(study.best_trials)
