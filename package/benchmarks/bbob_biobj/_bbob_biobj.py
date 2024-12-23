@@ -20,7 +20,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
             instance_id: Instance index in [1, 15].
 
         Please refer to the COCO documentation for the details of the available properties.
-        https://numbbo.github.io/coco-doc/apidocs/cocoex/cocoex.Problem.html
+        https://coco-platform.org/testsuites/bbob-biobj/overview.html
         """
 
         assert 1 <= function_id <= 92, "function_id must be in [1, 92]"
