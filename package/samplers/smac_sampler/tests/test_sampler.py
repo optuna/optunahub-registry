@@ -19,6 +19,14 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 This file is taken from Optuna (https://github.com/optuna/optuna/blob/master/tests/samplers_tests/test_samplers.py)
 and modified to test SMACSampler.
+
+Note that the following tests were omitted for now:
+- test_reproducible_in_other_process
+- test_reproducible
+- test_nan_objective_value
+- test_dynamic_range_objective
+- test_conditional_parameter_objective
+
 """
 
 from __future__ import annotations
