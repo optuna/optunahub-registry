@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
+import warnings
 
 from ConfigSpace import Categorical
 from ConfigSpace import Configuration
@@ -226,6 +227,11 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
             raise NotImplementedError(f"Unknown Initial Design Type: {init_design_type}")
         return init_design
 
+    def reseed_rng(self) -> None:
+        warnings.warn(
+            "SMACSampler does not support reseeding the random number generator. Please instantiate a new SMACSampler with a different random seed instead."
+        )
+
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, float]:
@@ -237,6 +243,9 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         study._storage.set_trial_system_attr(trial._trial_id, _SMAC_SEED_KEY, trial_info.seed)
         params = {}
         for name, hp_value in cfg.items():
+            # SMAC uses np.int64 for integer parameters
+            if isinstance(hp_value, np.integer):
+                hp_value = hp_value.item()  # Convert to Python int.
             if name in self._hp_scale_value:
                 hp_value = self._integer_to_step_hp(
                     integer_value=hp_value, scale_info=self._hp_scale_value[name]
@@ -344,5 +353,5 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
             else:
                 raise NotImplementedError(f"Unknown Hyperparameter Type: {type(distribution)}")
             if hp is not None:
-                config_space.add_hyperparameter(hp)
+                config_space.add(hp)
         return config_space, scale_values
