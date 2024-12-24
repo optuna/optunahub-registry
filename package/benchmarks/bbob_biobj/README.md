@@ -29,7 +29,7 @@ Please refer to [the paper](https://direct.mit.edu/evco/article/30/2/165/107813/
   - Returns: `dict[str, optuna.distributions.BaseDistribution]`
 - `directions`: Return the optimization directions.
   - Returns: `list[optuna.study.StudyDirection]`
-- `__call__(trial: optuna.Trial)`: Evaluate the objective function and return the objective value.
+- `__call__(trial: optuna.Trial)`: Evaluate the objective functions and return the objective values.
   - Args:
     - `trial`: Optuna trial object.
   - Returns: `tuple[float, float]`
