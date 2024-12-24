@@ -9,7 +9,11 @@ license: MIT License
 
 ## Abstract
 
-The bbob-biobj test suite comprises 55 noiseless single-objective test functions and the bbob-biobj-ext is its extended version with 92 (= original 55 + additional 37) bi-objective functions. Each benchmark function is provided in dimensions \[2, 3, 5, 10, 20, 40\] with 15 instances. In this package, all the 92 functions are available. Please refer to [the paper](https://direct.mit.edu/evco/article/30/2/165/107813/Using-Well-Understood-Single-Objective-Functions) for details about each benchmark function.
+The bbob-biobj test suite was created by combining existing 55 noiseless single-objective test functions.
+bbob-biobj (and its extension, bbob-biobj-ext) has in total of 92 (= original 55 + additional 37) bi-objective functions.
+Each benchmark function is provided in dimensions \[2, 3, 5, 10, 20, 40\] with 15 instances.
+In this package, all the 92 functions are available.
+Please refer to [the paper](https://direct.mit.edu/evco/article/30/2/165/107813/Using-Well-Understood-Single-Objective-Functions) for details about each benchmark function.
 
 ## APIs
 
