@@ -9,7 +9,7 @@ import optunahub
 
 class Problem(optunahub.benchmarks.BaseProblem):
     """Wrapper class for COCO bbob-biobj/bbob-biobj-ext test suite.
-    https://coco-platform.org/testsuites/bbob/overview.html
+    https://coco-platform.org/testsuites/bbob-biobj/def.html
     """
 
     def __init__(self, function_id: int, dimension: int, instance_id: int = 1):
