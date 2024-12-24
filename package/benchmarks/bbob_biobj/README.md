@@ -33,7 +33,7 @@ Please refer to [the paper](https://direct.mit.edu/evco/article/30/2/165/107813/
   - Args:
     - `trial`: Optuna trial object.
   - Returns: `tuple[float, float]`
-- `evaluate(params: dict[str, float])`: Evaluate the objective function given a dictionary of parameters.
+- `evaluate(params: dict[str, float])`: Evaluate the objective functions given a dictionary of parameters.
   - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `tuple[float, float]`
