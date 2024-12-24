@@ -9,7 +9,12 @@ license: MIT License
 
 ## APIs
 
-A sampler that uses SMAC3 v2.2.0.
+A sampler that uses SMAC3 v2.2.0 verified by unittests that can be run by the following:
+
+```shell
+$ pip install pytest optunahub smac
+$ python -m pytest package/samplers/smac_sampler/tests/
+```
 
 Please check the API reference for more details:
 
