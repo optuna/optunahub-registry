@@ -55,7 +55,7 @@ import pytest
 
 # NOTE: This file content is mostly copied from the Optuna repository.
 SMACSampler_ = optunahub.load_local_module(
-    package="samplers/smac_sampler", registry_root="../../"
+    package="samplers/smac_sampler", registry_root="package/"
 ).SMACSampler
 
 
