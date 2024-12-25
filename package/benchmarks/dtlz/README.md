@@ -13,11 +13,11 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
 
 ## APIs
 
-### class `Problem(function_id: int, num_objectives: int, num_variables: int, k: int, **kwargs: Any)`
+### class `Problem(function_id: int, n_objectives: int, dimension: int, k: int, **kwargs: Any)`
 
 - `function_id`: Function ID of the WFG problem in \[1, 9\].
-- `num_objectives`: Number of objectives.
-- `num_variables`: Number of variables.
+- `n_objectives`: Number of objectives.
+- `dimension`: Number of variables.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/dtlz.html) for more details.
 
 #### Methods and Properties
@@ -30,9 +30,9 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
   - Args:
     - `trial`: Optuna trial object.
   - Returns: `float`
-- `evaluate(params: dict[str, float])`: Evaluate the objective function and return the objective value.
+- `evaluate(params: dict[str, float])`: Evaluate the objective functions and return the objective values.
   - Args:
-    - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `num_variables`.
+    - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `float`
 
 The properties defined by [optproblems](https://www.simonwessing.de/optproblems/doc/dtlz.html) are also available such as `get_optimal_solutions`.
@@ -52,8 +52,8 @@ import optuna
 import optunahub
 
 
-dtlz = optunahub.load_local_module("benchmarks/dtlz", registry_root="../../")
-dtlz2 = dtlz.Problem(function_id=2, num_objectives=2, num_variables=3)
+dtlz = optunahub.load_module("benchmarks/dtlz")
+dtlz2 = dtlz.Problem(function_id=2, n_objectives=2, dimension=3)
 
 study_tpe = optuna.create_study(
     study_name="TPESampler",
