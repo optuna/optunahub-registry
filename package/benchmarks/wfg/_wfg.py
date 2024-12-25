@@ -25,17 +25,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         https://www.simonwessing.de/optproblems/doc/wfg.html
         """
         assert 1 <= function_id <= 9, "function_id must be in [1, 9]"
-        self._problem = {
-            1: optproblems.wfg.WFG1,
-            2: optproblems.wfg.WFG2,
-            3: optproblems.wfg.WFG3,
-            4: optproblems.wfg.WFG4,
-            5: optproblems.wfg.WFG5,
-            6: optproblems.wfg.WFG6,
-            7: optproblems.wfg.WFG7,
-            8: optproblems.wfg.WFG8,
-            9: optproblems.wfg.WFG9,
-        }[function_id](num_objectives, num_variables, k, **kwargs)
+        self._problem = wfg.WFG(num_objectives, num_variables, k, **kwargs)[function_id - 1]
 
         self._search_space = {
             f"x{i}": optuna.distributions.FloatDistribution(0.0, 2.0 * (i + 1))
