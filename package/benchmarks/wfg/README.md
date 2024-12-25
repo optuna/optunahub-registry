@@ -13,12 +13,12 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
 
 ## APIs
 
-### class `Problem(function_id: int, num_objectives: int, num_variables: int, k: int, **kwargs: Any)`
+### class `Problem(function_id: int, num_objectives: int, num_variables: int, k: int | None = None, **kwargs: Any)`
 
 - `function_id`: Function ID of the WFG problem in \[1, 9\].
 - `num_objectives`: Number of objectives.
 - `num_variables`: Number of variables.
-- `k`: Number of position parameters. It must hold k \< num_variables and k must be a multiple of num_objectives - 1. Huband et al. recommend k = 4 for two objectives and k = 2 * (m - 1) for m objectives.
+- `k`: Number of position parameters. It must hold k \< num_variables and k must be a multiple of num_objectives - 1. Huband et al. recommend k = 4 for two objectives and k = 2 * (m - 1) for m objectives. If `None` is set, this recommendation is used.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/wfg.html) for more details.
 
 #### Methods and Properties

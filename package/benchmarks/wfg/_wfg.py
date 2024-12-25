@@ -11,7 +11,12 @@ class Problem(optunahub.benchmarks.BaseProblem):
     """Wrapper class for the WFG test suite of optproblems."""
 
     def __init__(
-        self, function_id: int, num_objectives: int, num_variables: int, k: int, **kwargs: Any
+        self,
+        function_id: int,
+        num_objectives: int,
+        num_variables: int,
+        k: int | None = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize the problem.
         Args:
@@ -25,12 +30,19 @@ class Problem(optunahub.benchmarks.BaseProblem):
         https://www.simonwessing.de/optproblems/doc/wfg.html
         """
         assert 1 <= function_id <= 9, "function_id must be in [1, 9]"
-        self._problem = wfg.WFG(num_objectives, num_variables, k, **kwargs)[function_id - 1]
+
+        if k is None:
+            k = 2 * (num_objectives - 1) if num_objectives > 2 else 4
+
+        self._problem = optproblems.wfg.WFG(num_objectives, num_variables, k, **kwargs)[
+            function_id - 1
+        ]
 
         self._search_space = {
             f"x{i}": optuna.distributions.FloatDistribution(
                 self._problem.min_bounds[i], self._problem.max_bounds[i]
-            ) for i in range(num_variables)
+            )
+            for i in range(num_variables)
         }
 
     @property
