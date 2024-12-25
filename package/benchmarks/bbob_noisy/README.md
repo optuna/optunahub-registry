@@ -2,7 +2,7 @@
 author: Optuna team
 title: The blackbox optimization benchmarking noisy (bbob-noisy) test suite
 description: The blackbox optimization benchmarking noisy (bbob-noisy) test suite consists of 30 noisy single-objective test functions. This package is a wrapper of the COCO (COmparing Continuous Optimizers) experiments library.
-tags: [benchmark, continuous optimization, BBOB, COCO]
+tags: [benchmark, continuous optimization, noisy, stochastic, BBOB, COCO]
 optuna_versions: [4.1.0]
 license: MIT License
 ---
