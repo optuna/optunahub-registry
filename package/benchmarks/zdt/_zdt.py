@@ -22,13 +22,11 @@ class Problem(optunahub.benchmarks.BaseProblem):
         assert 1 <= function_id <= 6, "function_id must be in [1, 6]"
         self._problem = optproblems.zdt.ZDT(**kwargs)[function_id - 1]
 
-        if function_id in [1, 2, 3]:
+        if function_id != 5:
             self._search_space = {
-                f"x{i}": optuna.distributions.FloatDistribution(0.0, 1.0) for i in range(30)
-            }
-        elif function_id in [4, 6]:
-            self._search_space = {
-                f"x{i}": optuna.distributions.FloatDistribution(0.0, 1.0) for i in range(10)
+                f"x{i}": optuna.distributions.FloatDistribution(
+                    self._problem.min_bounds[i], self._problem.max_bounds[i]
+                ) for i in range(num_variables)
             }
         else:
             # x0 \in {0, 1}^{30}
