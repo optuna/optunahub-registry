@@ -29,11 +29,14 @@ class Problem(optunahub.benchmarks.BaseProblem):
                 ) for i in range(num_variables)
             }
         else:
-            # x0 \in {0, 1}^{30}
-            self._search_space = {"x0": optuna.distributions.IntDistribution(0, 1 << 29)}
-            # x1, ..., x11 \in {0, 1}^{5}
-            for i in range(1, 11):
-                self._search_space[f"x{i}"] = optuna.distributions.IntDistribution(0, 1 << 4)
+            self._search_space = {}
+            for i, binary_length in enumerate([30] + [5]*10):
+                self._search_space.update(
+                    {
+                        f"x{i}_{b}": optuna.distributions.CategoricalDistribution([True, False])
+                        for b in range(binary_length)
+                    }
+                )
 
         self._function_id = function_id
 
