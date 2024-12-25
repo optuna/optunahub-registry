@@ -34,7 +34,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
             function=function_id, dimension=dimension, instance=instance_id
         )
 
-        # In bbob-biobj, first k variables are integer, and the rest are float.
+        # In bbob-biobj-mixint, first k variables are integer, and the rest are float.
         self._search_space = {}
         for i in range(dimension):
             dist_cls = (
