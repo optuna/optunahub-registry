@@ -47,7 +47,11 @@ class Problem(optunahub.benchmarks.BaseProblem):
     @property
     def directions(self) -> list[optuna.study.StudyDirection]:
         """Return the optimization directions."""
-        return [optuna.study.StudyDirection.MINIMIZE, optuna.study.StudyDirection.MINIMIZE]
+        direction = (
+            optuna.study.StudyDirection.MAXIMIZE if self._problem.do_maximize
+            else optuna.study.StudyDirection.MINIMIZE
+        )
+        return [direction] * self._problem.num_objectives
 
     def evaluate(self, params: dict[str, float]) -> float:
         """Evaluate the objective function.
