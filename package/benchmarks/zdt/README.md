@@ -28,10 +28,11 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
   - Args:
     - `trial`: Optuna trial object.
   - Returns: `float`
-- `evaluate(params: dict[str, float])`: Evaluate the objective functions and return the objective values.
+- `evaluate(params: dict[str, float | bool])`: Evaluate the objective functions and return the objective values.
   - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `num_variables`.
   - Returns: `float`
+  - Note: For ZDT5, `params` has the form of `{x0_0: x0_0_value, ..., x0_29: x0_29_value, x1_0: x1_0_value, ..., x1_4: x1_4_value, ..., x10_0: x10_0_value, x10_4: x10_4_value}`. Here, `x{i}_{j}` has the type of boolean and represents the `{j}`th bit from the left of variable `x{i}`.
 
 The properties defined by [optproblems](https://www.simonwessing.de/optproblems/doc/zdt.html) are also available.
 

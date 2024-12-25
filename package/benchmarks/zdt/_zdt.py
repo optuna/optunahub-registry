@@ -23,14 +23,16 @@ class Problem(optunahub.benchmarks.BaseProblem):
         self._problem = optproblems.zdt.ZDT(**kwargs)[function_id - 1]
 
         if function_id != 5:
+            num_variables = 30 if 1 <= function_id <= 3 else 10
             self._search_space = {
                 f"x{i}": optuna.distributions.FloatDistribution(
                     self._problem.min_bounds[i], self._problem.max_bounds[i]
-                ) for i in range(num_variables)
+                )
+                for i in range(num_variables)
             }
         else:
             self._search_space = {}
-            for i, binary_length in enumerate([30] + [5]*10):
+            for i, binary_length in enumerate([30] + [5] * 10):
                 self._search_space.update(
                     {
                         f"x{i}_{b}": optuna.distributions.CategoricalDistribution([True, False])
@@ -55,7 +57,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         )
         return [direction] * self._problem.num_objectives
 
-    def evaluate(self, params: dict[str, float]) -> float:
+    def evaluate(self, params: dict[str, float | bool]) -> float:
         """Evaluate the objective function.
         Args:
             params:
@@ -69,10 +71,10 @@ class Problem(optunahub.benchmarks.BaseProblem):
             return self._problem.objective_function([params[name] for name in self._search_space])
 
         # ZDT5 is a special case
-        binary_lengths = [30] + [5]*10
+        binary_lengths = [30] + [5] * 10
         phenome = [
             [int(params[f"x{i}_{b}"]) for b in range(binary_length)]
-            for i, binary_length in enumerate(binary_lengths)        
+            for i, binary_length in enumerate(binary_lengths)
         ]
         return self._problem.objective_function(phenome)
 
