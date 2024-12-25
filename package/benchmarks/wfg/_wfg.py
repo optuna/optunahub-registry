@@ -13,17 +13,17 @@ class Problem(optunahub.benchmarks.BaseProblem):
     def __init__(
         self,
         function_id: int,
-        num_objectives: int,
-        num_variables: int,
+        n_objectives: int,
+        dimension: int,
         k: int | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the problem.
         Args:
             function_id: Function ID of the WFG problem in [1, 9].
-            num_objectives: Number of objectives.
-            num_variables: Number of variables.
-            k: Number of position parameters. It must hold k < num_variables and k must be a multiple of num_objectives - 1. Huband et al. recommend k = 4 for two objectives and k = 2 * (m - 1) for m objectives.
+            n_objectives: Number of objectives.
+            dimension: Number of variables.
+            k: Number of position parameters. It must hold k < dimension and k must be a multiple of n_objectives - 1. Huband et al. recommend k = 4 for two objectives and k = 2 * (m - 1) for m objectives.
             kwargs: Arbitrary keyword arguments, please refer to the optproblems documentation for more details.
 
         Please refer to the optproblems documentation for the details of the available properties.
@@ -32,17 +32,15 @@ class Problem(optunahub.benchmarks.BaseProblem):
         assert 1 <= function_id <= 9, "function_id must be in [1, 9]"
 
         if k is None:
-            k = 2 * (num_objectives - 1) if num_objectives > 2 else 4
+            k = 2 * (n_objectives - 1) if n_objectives > 2 else 4
 
-        self._problem = optproblems.wfg.WFG(num_objectives, num_variables, k, **kwargs)[
-            function_id - 1
-        ]
+        self._problem = optproblems.wfg.WFG(n_objectives, dimension, k, **kwargs)[function_id - 1]
 
         self._search_space = {
             f"x{i}": optuna.distributions.FloatDistribution(
                 self._problem.min_bounds[i], self._problem.max_bounds[i]
             )
-            for i in range(num_variables)
+            for i in range(dimension)
         }
 
     @property

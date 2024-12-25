@@ -13,12 +13,12 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
 
 ## APIs
 
-### class `Problem(function_id: int, num_objectives: int, num_variables: int, k: int | None = None, **kwargs: Any)`
+### class `Problem(function_id: int, n_objectives: int, dimension: int, k: int | None = None, **kwargs: Any)`
 
 - `function_id`: Function ID of the WFG problem in \[1, 9\].
-- `num_objectives`: Number of objectives.
-- `num_variables`: Number of variables.
-- `k`: Number of position parameters. It must hold k \< num_variables and k must be a multiple of num_objectives - 1. Huband et al. recommend k = 4 for two objectives and k = 2 * (m - 1) for m objectives. If `None` is set, this recommendation is used.
+- `n_objectives`: Number of objectives.
+- `dimension`: Number of variables.
+- `k`: Number of position parameters. It must hold k \< dimension and k must be a multiple of n_objectives - 1. Huband et al. recommend k = 4 for two objectives and k = 2 * (m - 1) for m objectives. If `None` is set, this recommendation is used.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/wfg.html) for more details.
 
 #### Methods and Properties
@@ -33,7 +33,7 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
   - Returns: `float`
 - `evaluate(params: dict[str, float])`: Evaluate the objective function and return the objective value.
   - Args:
-    - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `num_variables`.
+    - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `float`
 
 The properties defined by [optproblems](https://www.simonwessing.de/optproblems/doc/wfg.html) are also available such as `get_optimal_solutions`.
@@ -54,7 +54,7 @@ import optunahub
 
 
 wfg = optunahub.load_module("benchmarks/wfg")
-wfg4 = wfg.Problem(function_id=4, num_objectives=2, num_variables=3, k=1)
+wfg4 = wfg.Problem(function_id=4, n_objectives=2, dimension=3, k=1)
 
 study_pareto = optuna.create_study(
     study_name="ParetoFront", directions=wfg4.directions
