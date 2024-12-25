@@ -8,19 +8,19 @@ import optunahub
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
-    """Wrapper class for the WFG test suite of optproblems."""
+    """Wrapper class for the ZDT test suite of optproblems."""
 
     def __init__(self, function_id: int, **kwargs: Any) -> None:
         """Initialize the problem.
         Args:
-            function_id: Function ID of the WFG problem in [1, 6].
+            function_id: Function ID of the ZDT problem in [1, 6].
             kwargs: Arbitrary keyword arguments, please refer to the optproblems documentation for more details.
 
         Please refer to the optproblems documentation for the details of the available properties.
         https://www.simonwessing.de/optproblems/doc/zdt.html
         """
         assert 1 <= function_id <= 6, "function_id must be in [1, 6]"
-        self._problem = zdt.ZDT(**kwargs)[function_id - 1]
+        self._problem = optproblems.zdt.ZDT(**kwargs)[function_id - 1]
 
         if function_id in [1, 2, 3]:
             self._search_space = {
