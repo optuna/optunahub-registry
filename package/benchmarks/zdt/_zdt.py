@@ -20,14 +20,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         https://www.simonwessing.de/optproblems/doc/zdt.html
         """
         assert 1 <= function_id <= 6, "function_id must be in [1, 6]"
-        self._problem = {
-            1: optproblems.zdt.ZDT1,
-            2: optproblems.zdt.ZDT2,
-            3: optproblems.zdt.ZDT3,
-            4: optproblems.zdt.ZDT4,
-            5: optproblems.zdt.ZDT5,
-            6: optproblems.zdt.ZDT6,
-        }[function_id](**kwargs)
+        self._problem = zdt.ZDT(**kwargs)[function_id - 1]
 
         if function_id in [1, 2, 3]:
             self._search_space = {
