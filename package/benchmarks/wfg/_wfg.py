@@ -28,8 +28,9 @@ class Problem(optunahub.benchmarks.BaseProblem):
         self._problem = wfg.WFG(num_objectives, num_variables, k, **kwargs)[function_id - 1]
 
         self._search_space = {
-            f"x{i}": optuna.distributions.FloatDistribution(0.0, 2.0 * (i + 1))
-            for i in range(num_variables)
+            f"x{i}": optuna.distributions.FloatDistribution(
+                self._problem.min_bounds[i], self._problem.max_bounds[i]
+            ) for i in range(num_variables)
         }
 
     @property
