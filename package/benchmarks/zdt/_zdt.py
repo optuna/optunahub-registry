@@ -69,16 +69,11 @@ class Problem(optunahub.benchmarks.BaseProblem):
             return self._problem.objective_function([params[name] for name in self._search_space])
 
         # ZDT5 is a special case
-        phenome = []
-        for name in self.search_space:
-            x = params[name]
-            assert isinstance(x, int), f"{name} must be an integer"
-            if name == "x0":
-                # e.g., 0b101011 -> [0, ..., 0, 1, 0, 1, 0, 1, 1]
-                bitvector = [x >> i & 1 for i in range(30)][::-1]
-            else:
-                bitvector = [x >> i & 1 for i in range(5)][::-1]
-            phenome.append(bitvector)
+        binary_lengths = [30] + [5]*10
+        phenome = [
+            [int(params[f"x{i}_{b}"]) for b in range(binary_length)]
+            for i, binary_length in enumerate(binary_lengths)        
+        ]
         return self._problem.objective_function(phenome)
 
     def __getattr__(self, name: str) -> Any:
