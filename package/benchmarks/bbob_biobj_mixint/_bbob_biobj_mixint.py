@@ -35,21 +35,17 @@ class Problem(optunahub.benchmarks.BaseProblem):
         )
 
         # In bbob-biobj, first k variables are integer, and the rest are float.
-        k = self._problem.number_of_integer_variables
         self._search_space = {}
-        i = 0
-        for _ in range(k):
-            self._search_space[f"x{i}"] = optuna.distributions.IntDistribution(
+        for i in range(dimension):
+            dist_cls = (
+                optuna.distributions.IntDistribution
+                if i < self._problem.number_of_integer_variables
+                else optuna.distributions.FloatDistribution
+            )
+            self._search_space[f"x{i}"] = dist_cls(
                 low=self._problem.lower_bounds[i],
                 high=self._problem.upper_bounds[i],
             )
-            i += 1
-        for _ in range(dimension - k):
-            self._search_space[f"x{i}"] = optuna.distributions.FloatDistribution(
-                low=self._problem.lower_bounds[i],
-                high=self._problem.upper_bounds[i],
-            )
-            i += 1
 
     @property
     def search_space(self) -> dict[str, optuna.distributions.BaseDistribution]:
