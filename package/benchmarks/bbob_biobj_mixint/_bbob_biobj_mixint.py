@@ -24,14 +24,8 @@ class Problem(optunahub.benchmarks.BaseProblem):
         """
 
         assert 1 <= function_id <= 92, "function_id must be in [1, 92]"
-        assert dimension in [
-            5,
-            10,
-            20,
-            40,
-            80,
-            160,
-        ], "dimension must be in [5, 10, 20, 40, 80, 160]"
+        possible_dimensions = [5, 10, 20, 40, 80, 160]
+        assert dimension in possible_dimensions, f"dimension must be in {possible_dimensions}."
         assert 1 <= instance_id <= 15, "instance_id must be in [1, 15]"
 
         self._problem = ex.Suite(
