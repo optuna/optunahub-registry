@@ -31,7 +31,7 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
   - Args:
     - `trial`: Optuna trial object.
   - Returns: `float`
-- `evaluate(params: dict[str, float])`: Evaluate the objective function and return the objective value.
+- `evaluate(params: dict[str, float])`: Evaluate the objective functions and return the objective values.
   - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `float`
