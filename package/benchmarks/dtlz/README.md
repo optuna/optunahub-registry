@@ -26,7 +26,7 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
   - Returns: `dict[str, optuna.distributions.BaseDistribution]`
 - `directions`: Return the optimization directions.
   - Returns: `list[optuna.study.StudyDirection]`
-- `__call__(trial: optuna.Trial)`: Evaluate the objective function and return the objective value.
+- `__call__(trial: optuna.Trial)`: Evaluate the objective functions and return the objective values.
   - Args:
     - `trial`: Optuna trial object.
   - Returns: `float`
