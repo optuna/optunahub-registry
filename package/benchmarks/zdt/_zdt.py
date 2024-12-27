@@ -23,12 +23,11 @@ class Problem(optunahub.benchmarks.BaseProblem):
         self._problem = optproblems.zdt.ZDT(**kwargs)[function_id - 1]
 
         if function_id != 5:
-            num_variables = 30 if 1 <= function_id <= 3 else 10
             self._search_space = {
                 f"x{i}": optuna.distributions.FloatDistribution(
                     self._problem.min_bounds[i], self._problem.max_bounds[i]
                 )
-                for i in range(num_variables)
+                for i in range(self.problem.num_variables)
             }
         else:
             self._search_space = {}
