@@ -24,7 +24,7 @@ if test_local:
     # This is an example of how to load a sampler from your local optunahub-registry.
     sampler = optunahub.load_local_module(
         package=package_name,
-        registry_root="./",  # Path to the root of the optunahub-registry.
+        registry_root="./package",  # Path to the root of the optunahub-registry.
     ).YourSampler()
 else:
     # This is an example of how to load a sampler from your fork of the optunahub-registry.
