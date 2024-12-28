@@ -28,9 +28,7 @@ def _extract_search_space(bench: HPOBench) -> dict[str, optuna.distributions.Bas
 
 class Problem(optunahub.benchmarks.BaseProblem):
     available_metric_names: list[str] = HPOBench.available_metric_names
-    available_dataset_names: dict[int, str] = {
-        i: dataset_name for i, dataset_name in enumerate(HPOBench.available_dataset_names)
-    }
+    available_dataset_names: list[int] = HPOBench.available_dataset_names
 
     def __init__(
         self, dataset_id: int, seed: int | None = None, metric_names: list[str] | None = None
