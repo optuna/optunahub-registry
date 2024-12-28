@@ -21,7 +21,7 @@ if test_local:
     )
 else:
     hpolib = optunahub.load_module(
-        package=package_name, repo_owner="nabenabe0928", ref="Your Git Branch Name"
+        package=package_name, repo_owner="nabenabe0928", ref="add-hpolib"
     )
 
 problem = hpolib.Problem(dataset_id=0)
