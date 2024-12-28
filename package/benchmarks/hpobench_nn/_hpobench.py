@@ -28,12 +28,23 @@ def _extract_search_space(bench: HPOBench) -> dict[str, optuna.distributions.Bas
 
 class Problem(optunahub.benchmarks.BaseProblem):
     available_metric_names: list[str] = HPOBench.available_metric_names
-    available_dataset_names: list[str] = HPOBench.available_dataset_names
+    available_dataset_names: dict[int, str] = {
+        i: dataset_name for i, dataset_name in enumerate(HPOBench.available_dataset_names)
+    }
 
     def __init__(
-        self, dataset_name: str, seed: int | None = None, metric_names: list[str] | None = None
+        self, dataset_id: int, seed: int | None = None, metric_names: list[str] | None = None
     ):
-        self._problem = HPOBench(dataset_name=dataset_name, seed=seed, metric_names=metric_names)
+        if dataset_id < 0 or dataset_id >= len(self.available_dataset_names):
+            n_datasets = len(self.available_dataset_names)
+            raise ValueError(
+                f"dataset_id must be between 0 and {n_datasets - 1}, but got {dataset_id}."
+            )
+
+        self.dataset_name = self.available_dataset_names[dataset_id]
+        self._problem = HPOBench(
+            dataset_name=self.dataset_name, seed=seed, metric_names=metric_names
+        )
         self._search_space = _extract_search_space(self._problem)
 
     @property

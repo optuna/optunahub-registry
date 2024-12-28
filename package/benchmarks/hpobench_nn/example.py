@@ -24,7 +24,7 @@ else:
         package=package_name, repo_owner="nabenabe0928", ref="add-hpobench"
     )
 
-problem = hpobench.Problem(hpobench.Problem.available_dataset_names[0])
+problem = hpobench.Problem(dataset_id=0)
 study = optuna.create_study()
 study.optimize(problem, n_trials=30)
 print(study.best_trials)
