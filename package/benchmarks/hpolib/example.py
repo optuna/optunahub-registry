@@ -24,7 +24,7 @@ else:
         package=package_name, repo_owner="nabenabe0928", ref="Your Git Branch Name"
     )
 
-problem = hpolib.Problem(hpolib.Problem.available_dataset_names[0])
+problem = hpolib.Problem(dataset_id=0)
 study = optuna.create_study()
 study.optimize(problem, n_trials=30)
 print(study.best_trials)
