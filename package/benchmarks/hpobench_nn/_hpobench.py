@@ -51,7 +51,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
 
     @property
     def directions(self) -> list[optuna.study.StudyDirection]:
-        return [_DIRECTIONS[self._problem.directions[name]] for name in self._problem.metric_names]
+        return [_DIRECTIONS[self._problem.directions[name]] for name in self.metric_names]
 
     def evaluate(self, params: dict[str, int | float | str]) -> list[float]:
         problem_search_space = self._problem.search_space
@@ -62,7 +62,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
             modified_params[param_name] = problem_search_space[param_name][choice_index]
 
         results = self._problem(modified_params)
-        return [results[name] for name in self._problem.metric_names]
+        return [results[name] for name in self.metric_names]
 
     def reseed(self, seed: int | None = None) -> None:
         self._problem.reseed(seed)
