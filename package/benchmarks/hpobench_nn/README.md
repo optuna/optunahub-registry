@@ -9,7 +9,7 @@ license: MIT License
 
 ## Abstract
 
-Hyperparameter optimization benchmark introduced in the paper "HPOBench: A Collection of Reproducible Multi-Fidelity Benchmark Problems for HPO".
+Hyperparameter optimization benchmark introduced in the paper [`HPOBench: A Collection of Reproducible Multi-Fidelity Benchmark Problems for HPO`](https://arxiv.org/abs/2109.06716).
 The original benchmark is available [here](https://github.com/automl/hpobench).
 Please note that this benchmark provides the results only at the last epoch of each configuration.
 
@@ -51,6 +51,23 @@ To use this benchmark, you need to install `simple-hpo-bench`.
 
 ```shell
 $ pip install simple-hpo-bench
+```
+
+## Example
+
+```python
+from __future__ import annotations
+
+import optuna
+import optunahub
+
+
+hpobench = optunahub.load_module("benchmarks/hpobench_nn")
+problem = hpobench.Problem(dataset_id=0)
+study = optuna.create_study()
+study.optimize(problem, n_trials=30)
+print(study.best_trial)
+
 ```
 
 ## Others
