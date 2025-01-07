@@ -2,7 +2,7 @@
 author: Optuna Team
 title: HPOLib; Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search
 description: The hyperparameter optimization benchmark datasets introduced in the paper "Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search"
-tags: [benchmark, HPO, AutoML, hyperparameter optimization, real world problem]
+tags: [benchmark, HPO, NAS, AutoML, hyperparameter optimization, real world problem]
 optuna_versions: [4.1.0]
 license: MIT License
 ---
@@ -10,58 +10,47 @@ license: MIT License
 ## Abstract
 
 Hyperparameter optimization benchmark introduced in the paper "Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search".
+The original benchmark is available [here](https://github.com/automl/nas_benchmarks/tree/master).
+Please note that this benchmark provides the results only at the last epoch of each configuration.
 
 ## APIs
 
-Please provide API documentation describing how to use your package's functionalities.
-The documentation format is arbitrary, but at least the important class/function names that you implemented should be listed here.
-More users will take advantage of your package by providing detailed and helpful documentation.
+### class `Problem(dataset_id: int, seed: int | None = None, metric_names: list[str] | None = None)`
 
-**Example**
+- `dataset_id`: ID of the dataset to use. It must be in the range of `[0, 3]`. Please use `Problem.available_dataset_names` to see the available dataset names.
+- `seed`: The seed for the random number generator of the dataset.
+- `metric_names`: The metrics to use in optimization. Defaults to `None`, leading to single-objective optimization of the main metric defined in [here](https://github.com/nabenabe0928/simple-hpo-bench/blob/v0.2.0/hpo_benchmarks/hpolib.py#L16). Please use `Problem.available_metric_names` to see the available metric names.
 
-- `MoCmaSampler(*, search_space: dict[str, BaseDistribution] | None = None, popsize: int | None = None, seed: int | None = None)`
-  - `search_space`: A dictionary containing the search space that defines the parameter space. The keys are the parameter names and the values are [the parameter's distribution](https://optuna.readthedocs.io/en/stable/reference/distributions.html). If the search space is not provided, the sampler will infer the search space dynamically.
-    Example:
-    ```python
-    search_space = {
-        "x": optuna.distributions.FloatDistribution(-5, 5),
-        "y": optuna.distributions.FloatDistribution(-5, 5),
-    }
-    MoCmaSampler(search_space=search_space)
-    ```
-  - `popsize`: Population size of the CMA-ES algorithm. If not provided, the population size will be set based on the search space dimensionality. If you have a sufficient evaluation budget, it is recommended to increase the popsize.
-  - `seed`: Seed for random number generator.
+#### Methods and Properties
 
-Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.
+- `search_space`: Return the search space.
+  - Returns: `dict[str, optuna.distributions.BaseDistribution]`
+- `directions`: Return the optimization directions.
+  - Returns: `list[optuna.study.StudyDirection]`
+- `metric_names`: The names of the metrics to be used in the optimization.
+  - Returns: `list[str]`
+- `available_metric_names`: `list[str]`
+  - Returns: The names of the available metrics.
+- `available_dataset_names`: `list[str]`
+  - Returns: The names of the available datasets.
+- `__call__(trial: optuna.Trial)`: Evaluate the objective functions and return the objective values.
+  - Args:
+    - `trial`: Optuna trial object.
+  - Returns: `list[float]`
+- `evaluate(params: dict[str, int | float | str])`: Evaluate the objective function given a dictionary of parameters.
+  - Args:
+    - `params`: The parameters defined in `search_space`.
+  - Returns: `list[float]`
+- `reseed(seed: int | None = None)`: Recreate the random number generator with the given seed.
+  - Args:
+    - `seed`: The seed to be used.
 
 ## Installation
 
+To use this benchmark, you need to install `simple-hpo-bench`.
+
 ```shell
 $ pip install simple-hpo-bench
-```
-
-## Example
-
-```python
-import optuna
-import optunahub
-
-
-hpolib = optunahub.load_module("benchmarks/hpolib")
-constrained_sphere2d = hpolib.Problem(function_id=1, dimension=2, instance_id=1)
-
-study = optuna.create_study(
-    sampler=optuna.samplers.TPESampler(
-        constraints_func=constrained_sphere2d.constraints_func
-    ),
-    directions=constrained_sphere2d.directions
-)
-study.optimize(constrained_sphere2d, n_trials=20)
-
-try:
-    print(study.best_trial.params, study.best_trial.value)
-except Exception as e:
-    print(e)
 ```
 
 ## Others
