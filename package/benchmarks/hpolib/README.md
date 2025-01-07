@@ -9,7 +9,7 @@ license: MIT License
 
 ## Abstract
 
-Hyperparameter optimization benchmark introduced in the paper "Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search".
+Hyperparameter optimization benchmark introduced in the paper [`Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search`](https://arxiv.org/abs/1905.04970).
 The original benchmark is available [here](https://github.com/automl/nas_benchmarks/tree/master).
 Please note that this benchmark provides the results only at the last epoch of each configuration.
 
@@ -51,6 +51,23 @@ To use this benchmark, you need to install `simple-hpo-bench`.
 
 ```shell
 $ pip install simple-hpo-bench
+```
+
+## Example
+
+```python
+from __future__ import annotations
+
+import optuna
+import optunahub
+
+
+hpobench = optunahub.load_module("benchmarks/hpolib")
+problem = hpobench.Problem(dataset_id=0)
+study = optuna.create_study()
+study.optimize(problem, n_trials=30)
+print(study.best_trial)
+
 ```
 
 ## Others
