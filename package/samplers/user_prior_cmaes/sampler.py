@@ -91,8 +91,6 @@ class UserPriorCmaEsSampler(CmaEsSampler):
             )
         if not np.allclose(cov0, cov0.T):
             raise ValueError("cov0 must be a symmetric matrix.")
-        if np.any(cov0 < 0.0):
-            raise ValueError("All elements in cov0 must be non-negative.")
         if np.any(np.linalg.eigvals(cov0) < 0.0):
             raise ValueError("cov0 must be a semi-positive definite matrix.")
 
