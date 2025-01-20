@@ -1,7 +1,7 @@
 ---
 author: Optuna Team
-title: NATS-Bench (NAS-Bench-201); Benchmarking NAS Algorithms for Architecture Topology and Size
-description: The neural architecture search (NAS) benchmark datasets introduced in the paper "NATS-Bench; Benchmarking NAS Algorithms for Architecture Topology and Size"
+title: 'NATS-Bench (NAS-Bench-201): Benchmarking NAS Algorithms for Architecture Topology and Size'
+description: 'The neural architecture search (NAS) benchmark datasets introduced in the paper `NATS-Bench: Benchmarking NAS Algorithms for Architecture Topology and Size`'
 tags: [benchmark, HPO, NAS, AutoML, hyperparameter optimization, real world problem]
 optuna_versions: [4.1.0]
 license: MIT License
