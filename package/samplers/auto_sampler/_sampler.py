@@ -6,7 +6,6 @@ import threading
 from typing import Any
 from typing import TYPE_CHECKING
 
-import cmaes as _  # NOQA
 from optuna.distributions import CategoricalDistribution
 from optuna.logging import get_logger
 from optuna.samplers import BaseSampler
@@ -19,14 +18,26 @@ from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.search_space import IntersectionSearchSpace
 from optuna.trial import TrialState
-import scipy as _  # NOQA
-import torch as _  # NOQA
 
 
 if TYPE_CHECKING:
     from optuna.distributions import BaseDistribution
     from optuna.study import Study
     from optuna.trial import FrozenTrial
+
+
+try:
+    import cmaes as _  # NOQA
+    import scipy as _  # NOQA
+    import torch as _  # NOQA
+except ModuleNotFoundError as e:
+    torch_cpu_only_url = " --index-url https://download.pytorch.org/whl/cpu"
+    raise ModuleNotFoundError(
+        "`cmaes`, `scipy`, and `torch` are necessary for AutoSampler, but some of them are "
+        "missing.\nPlease run:\n"
+        f"\t$ pip install cmaes scipy\n\t$ pip install torch {torch_cpu_only_url}\n"
+        f"Actual Error: {e}"
+    )
 
 
 _MAXINT32 = (1 << 31) - 1
