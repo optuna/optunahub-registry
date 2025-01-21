@@ -1,7 +1,7 @@
 ---
 author: Optuna Team
-title: HPOBench; A Collection of Reproducible Multi-Fidelity Benchmark Problems for HPO
-description: The hyperparameter optimization benchmark datasets introduced in the paper "HPOBench; A Collection of Reproducible Multi-Fidelity Benchmark Problems for HPO"
+title: 'HPOBench: A Collection of Reproducible Multi-Fidelity Benchmark Problems for HPO'
+description: 'The hyperparameter optimization benchmark datasets introduced in the paper `HPOBench: A Collection of Reproducible Multi-Fidelity Benchmark Problems for HPO`'
 tags: [benchmark, HPO, NAS, AutoML, hyperparameter optimization, real world problem]
 optuna_versions: [4.1.0]
 license: MIT License

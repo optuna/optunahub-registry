@@ -1,7 +1,7 @@
 ---
 author: Optuna Team
-title: HPOLib; Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search
-description: The hyperparameter optimization benchmark datasets introduced in the paper "Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search"
+title: 'HPOLib: Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search'
+description: The hyperparameter optimization benchmark datasets introduced in the paper `Tabular Benchmarks for Hyperparameter Optimization and Neural Architecture Search`
 tags: [benchmark, HPO, NAS, AutoML, hyperparameter optimization, real world problem]
 optuna_versions: [4.1.0]
 license: MIT License

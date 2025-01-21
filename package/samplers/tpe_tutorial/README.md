@@ -1,7 +1,7 @@
 ---
 author: Shuhei Watanabe
-title: Tree-Structured Parzen Estimator; Understanding Its Algorithm Components and Their Roles for Better Empirical Performance
-description: The optimizer that reproduces the algorithm described in the paper ``Tree-Structured Parzen Estimator; Understanding Its Algorithm Components and Their Roles for Better Empirical Performance''.
+title: 'Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance'
+description: 'The optimizer that reproduces the algorithm described in the paper `Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance`.'
 tags: [sampler, tpe, paper, research]
 optuna_versions: [v4.0.0]
 license: MIT License
