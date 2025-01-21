@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import optproblems.zdt
 import optuna
 import optunahub
+
+
+try:
+    import optproblems.zdt
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install optproblems diversipy` to use `zdt`.")
 
 
 class Problem(optunahub.benchmarks.BaseProblem):

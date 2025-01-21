@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import optproblems.dtlz
 import optuna
 import optunahub
+
+
+try:
+    import optproblems.dtlz
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install optproblems diversipy` to use `dtlz`.")
 
 
 class Problem(optunahub.benchmarks.BaseProblem):

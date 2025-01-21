@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from hpo_benchmarks import HPOBench
 import optuna
 import optunahub
+
+
+try:
+    from hpo_benchmarks import HPOBench
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install simple-hpo-bench` to use `hpobench_nn`.")
 
 
 _INDEX_SUFFIX = "_index"
