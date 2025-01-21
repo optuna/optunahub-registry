@@ -32,7 +32,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
                 f"x{i}": optuna.distributions.FloatDistribution(
                     self._problem.min_bounds[i], self._problem.max_bounds[i]
                 )
-                for i in range(self.problem.num_variables)
+                for i in range(self._problem.num_variables)
             }
         else:
             self._search_space = {}
