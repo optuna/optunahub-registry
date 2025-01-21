@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from hpo_benchmarks import NASBench201
 import optuna
 import optunahub
+
+
+try:
+    from hpo_benchmarks import NASBench201
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install simple-hpo-bench` to use `nasbench201`.")
 
 
 _INDEX_SUFFIX = "_index"

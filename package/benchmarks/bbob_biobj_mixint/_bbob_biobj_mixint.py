@@ -2,9 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-import cocoex as ex
 import optuna
 import optunahub
+
+
+try:
+    import cocoex as ex
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        "Please run `pip install coco-experiment` to use `bbob_biobj_mixint`."
+    )
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
