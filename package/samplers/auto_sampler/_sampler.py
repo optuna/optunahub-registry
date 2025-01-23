@@ -93,6 +93,15 @@ class AutoSampler(BaseSampler):
         self._thread_local_sampler = ThreadLocalSampler()
         self._constraints_func = constraints_func
 
+    def __getstate__(self) -> dict[Any, Any]:
+        state = self.__dict__.copy()
+        del state["_thread_local_sampler"]
+        return state
+
+    def __setstate__(self, state: dict[Any, Any]) -> None:
+        self.__dict__.update(state)
+        self._thread_local_sampler = ThreadLocalSampler()
+
     @property
     def _sampler(self) -> BaseSampler:
         if self._thread_local_sampler.sampler is None:

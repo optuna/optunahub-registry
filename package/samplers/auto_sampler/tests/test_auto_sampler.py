@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pickle
+
 import optuna
 import optunahub
 import pytest
@@ -166,3 +168,7 @@ def test_multi_thread() -> None:
     assert "RandomSampler" in sampler_names
     assert "GPSampler" in sampler_names
     assert "CmaEsSampler" in sampler_names
+
+
+def test_picklize() -> None:
+    pickle.loads(pickle.dumps(AutoSampler()))
