@@ -171,4 +171,4 @@ def test_multi_thread() -> None:
 
 
 def test_picklize() -> None:
-    pickle.dumps(AutoSampler())
+    pickle.loads(pickle.dumps(AutoSampler()))
