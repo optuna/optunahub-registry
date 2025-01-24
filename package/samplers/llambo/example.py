@@ -257,10 +257,18 @@ number_of_trials = 500  # Number of trials per experiment
 n_jobs = 1
 # for local loading
 registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
+
+# deepseek-chat
+# sampler = optunahub.load_local_module(
+#     package="samplers/llambo", registry_root=registry_root,
+# ).Sampler(api_key="",model="deepseek-chat",debug=debug)
+
+# gpt-4o-mini
 sampler = optunahub.load_local_module(
     package="samplers/llambo",
     registry_root=registry_root,
-).Sampler(api_key="", model="deepseek-chat", debug=debug)
+).Sampler(api_key="", model="gpt-4o-mini", debug=debug)
+
 
 # ---------------Loading samplers---------------
 
