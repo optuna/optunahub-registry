@@ -96,6 +96,9 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         """Initialize the DE sampler."""
         super().__init__(search_space)
 
+        print("DE Sampler initialized")
+        print("search_space", search_space)
+
         # Store and set random seed
         self.seed = seed
         self._rng = LazyRandomState(seed)
@@ -481,4 +484,5 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             )
             for name, value in zip(active_keys, self.current_gen_vectors[individual_index])
         }
+        print("DEBUG population_size", self.population_size)
         return {**numerical_params, **categorical_params}

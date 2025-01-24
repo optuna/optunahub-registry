@@ -14,6 +14,16 @@ import pandas as pd
 class Sampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(
         self,
+        custom_task_description: str = None,
+        n_initial_samples: int = 5,
+        sm_mode: str = "discriminative",
+        num_candidates: int = 10,
+        n_templates: int = 2,
+        n_gens: int = 10,
+        alpha: float = 0.1,
+        n_trials: int = 100,
+        api_key: str = "",
+        model: str = "gpt-4o-mini",
         search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
         debug: bool = False,
         seed: int | None = None,
@@ -27,56 +37,74 @@ class Sampler(optunahub.samplers.SimpleBaseSampler):
         self.last_time = time.time()
         self.last_trial_count = 0
 
-        self.n_initial_samples = 5
+        # LLAMBO-specific parameters
+        self.custom_task_description = custom_task_description
+        self.n_initial_samples = n_initial_samples
+        self.sm_mode = sm_mode
+        self.num_candidates = num_candidates
+        self.n_templates = n_templates
+        self.n_gens = n_gens
+        self.alpha = alpha
+        self.n_trials = n_trials
+        self.api_key = api_key
+        self.model = model
+
         self.init_observed_fvals = pd.DataFrame()
         self.init_observed_configs = pd.DataFrame()
 
+        self.LLAMBO_instance = None
+
+    def _initialize_llambo(
+        self, search_space: dict[str, optuna.distributions.BaseDistribution]
+    ) -> None:
+        self.hyperparameter_constraints = {}
+        for param_name, distribution in search_space.items():
+            if isinstance(distribution, optuna.distributions.FloatDistribution):
+                dtype = "float"
+                dist_type = "log" if distribution.log else "linear"
+                bounds = [distribution.low, distribution.high]
+            elif isinstance(distribution, optuna.distributions.IntDistribution):
+                dtype = "int"
+                dist_type = "log" if distribution.log else "linear"
+                bounds = [distribution.low, distribution.high]
+            elif isinstance(distribution, optuna.distributions.CategoricalDistribution):
+                dtype = "categorical"
+                dist_type = "categorical"
+                bounds = distribution.choices
+            else:
+                raise ValueError(
+                    f"Unsupported distribution type {type(distribution)} for parameter {param_name}"
+                )
+            self.hyperparameter_constraints[param_name] = [dtype, dist_type, bounds]
+        print(f"Hyperparameter constraints: {self.hyperparameter_constraints}")
+
+        # Prepare task_context with dynamic constraints
         task_context = {
-            "model": "RandomForest",
-            "task": "classification",
-            "tot_feats": 10,
-            "cat_feats": 0,
-            "num_feats": 10,
-            "n_classes": 2,
-            "metric": "accuracy",
-            "lower_is_better": True,
-            "num_samples": 1437,
-            "hyperparameter_constraints": {
-                "x0": ["float", "linear", [-5.12, 5.12]],  # Constraints for each dimension
-                "x1": ["float", "linear", [-5.12, 5.12]],
-                "x2": ["float", "linear", [-5.12, 5.12]],
-                "x3": ["float", "linear", [-5.12, 5.12]],
-                "x4": ["float", "linear", [-5.12, 5.12]],
-                "x5": ["float", "linear", [-5.12, 5.12]],
-                "x6": ["float", "linear", [-5.12, 5.12]],
-                "x7": ["float", "linear", [-5.12, 5.12]],
-                "x8": ["float", "linear", [-5.12, 5.12]],
-                "x9": ["float", "linear", [-5.12, 5.12]],
-            },
+            "custom_task_description": self.custom_task_description,
+            "lower_is_better": self.lower_is_better,
+            "hyperparameter_constraints": self.hyperparameter_constraints,
         }
 
-        sm_mode = "discriminative"
-        if sm_mode == "generative":
-            top_pct = 0.25
-        else:
-            top_pct = None
+        sm_mode = self.sm_mode
+        top_pct = 0.25 if sm_mode == "generative" else None
 
+        # Initialize LLAMBO with dynamic task context
         self.LLAMBO_instance = LLAMBO(
             task_context,
             sm_mode,
-            n_candidates=10,
-            n_templates=2,
-            n_gens=10,
-            alpha=0.1,
+            n_candidates=self.num_candidates,
+            n_templates=self.n_templates,
+            n_gens=self.n_gens,
+            alpha=self.alpha,
             n_initial_samples=self.n_initial_samples,
-            n_trials=25,
-            top_pct=top_pct,  # only used for generative SM, top percentage of points to consider for generative SM
-            key="",
+            n_trials=self.n_trials,
+            top_pct=top_pct,
+            key=self.api_key,
+            model=self.model,
         )
 
     def _sample_parameters(self) -> dict[str, Any]:
         """Implement your sampler here."""
-        print("DEBUG", "begin sampling parameters")
         sampled_configuration = self.LLAMBO_instance.sample_configurations()
         return sampled_configuration
 
@@ -119,19 +147,19 @@ class Sampler(optunahub.samplers.SimpleBaseSampler):
         """Unified sampling method for all parameter types."""
         if len(search_space) == 0:
             return {}
-
-        print("DEBUG trial number", trial.number)
+            # delegate first trial to random sampler
+        self.search_space = search_space
 
         if trial.number <= self.n_initial_samples:
             if trial.number == 1:
-                print("DEBUG", "trigger 1")
+                self.lower_is_better = (
+                    True if study.direction == optuna.study.StudyDirection.MINIMIZE else False
+                )
                 self.init_configs = self.generate_random_samples(
                     search_space, self.n_initial_samples
                 )
-            print("DEBUG", "sampled parameters", self.init_configs[trial.number - 1])
+                self._initialize_llambo(search_space)
             return self.init_configs[trial.number - 1]
-
-        print("DEBUG", "trigger init 2")
 
         if trial.number == self.n_initial_samples + 1:
             # Pass the observed data from initial trials to initialize LLAMBO
@@ -140,12 +168,9 @@ class Sampler(optunahub.samplers.SimpleBaseSampler):
                 self.LLAMBO_instance.observed_configs,
                 self.LLAMBO_instance.observed_fvals,
             )
-            print("DEBUG", "trigger init 3")
 
         parameters = self._sample_parameters()
 
-        # The study will evaluate the parameters, so we don't need to do it here.
-        # Just return the suggested parameters.
         return parameters
 
     def after_trial(
@@ -156,9 +181,9 @@ class Sampler(optunahub.samplers.SimpleBaseSampler):
         values: list[float] | None,
     ) -> None:
         """Update the LLAMBO history after a trial is completed."""
-        print("DEBUG", "used")
-        if state == optuna.trial.TrialState.COMPLETE and values is not None:
-            self.LLAMBO_instance.update_history(trial.params, values[0])
+        if self.LLAMBO_instance is not None:
+            if state == optuna.trial.TrialState.COMPLETE and values is not None:
+                self.LLAMBO_instance.update_history(trial.params, values[0])
 
     def generate_random_samples(
         self, search_space: dict[str, optuna.distributions.BaseDistribution], num_samples: int = 1

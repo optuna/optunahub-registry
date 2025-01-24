@@ -17,14 +17,12 @@ class LLAMBO:
         alpha: float,
         n_initial_samples: int,
         n_trials: int,
-        init_f=None,
-        bbox_eval_f=None,
         top_pct: float = None,
         use_input_warping: bool = False,
         prompt_setting: str = None,
         shuffle_features: bool = False,
         key: str = "",
-        model: str = "gpt-4o-mini",
+        model: str = "",
     ):
         self.task_context = task_context
         self.lower_is_better = task_context["lower_is_better"]
@@ -151,7 +149,6 @@ class LLAMBO:
         self.observed_fvals = pd.concat([self.observed_fvals, new_fval], ignore_index=True)
 
     def sample_configurations(self) -> dict:
-        print("DEBUG", "begin sampling configurations")
         if self.current_trial >= self.n_trials:
             return None
 

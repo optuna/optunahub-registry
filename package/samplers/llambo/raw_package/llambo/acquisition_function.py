@@ -63,7 +63,6 @@ class LLM_ACQ:
             prompt_setting (str): Controls the level of context provided in the prompts.
             shuffle_features (bool): Whether to shuffle the order of hyperparameters in the prompts.
         """
-        print("DEBUG, init acquisition function")
         self.task_context = task_context
         self.n_candidates = n_candidates
         self.n_templates = n_templates
@@ -184,9 +183,6 @@ class LLM_ACQ:
             shuffled_columns = np.random.permutation(observed_configs.columns)
             observed_configs = observed_configs[shuffled_columns]
 
-        print("DEBUG-task_context", self.task_context)
-        print("DEBUG-task_context type", type(self.task_context))
-
         # Serialize the observed configurations into few-shot examples
         if observed_configs is not None:
             hyperparameter_names = observed_configs.columns
@@ -288,19 +284,8 @@ class LLM_ACQ:
 
             # Extract task context information
             task_context = self.task_context
-            model = task_context["model"]
-            task = task_context["task"]
-            tot_feats = task_context["tot_feats"]
-            cat_feats = task_context["cat_feats"]
-            num_feats = task_context["num_feats"]
-            n_classes = task_context["n_classes"]
-            metric = (
-                "mean squared error"
-                if task_context["metric"] == "neg_mean_squared_error"
-                else task_context["metric"]
-            )
-            num_samples = task_context["num_samples"]
             hyperparameter_constraints = task_context["hyperparameter_constraints"]
+            custom_task_description = task_context.get("custom_task_description", None)
 
             # Define the example template for the prompt
             example_template = """
@@ -309,17 +294,12 @@ Hyperparameter configuration: {Q}"""
 
             example_prompt = PromptTemplate(input_variables=["Q", "A"], template=example_template)
 
-            # Build the prefix for the prompt
-            prefix = f"The following are examples of performance of a {model} measured in {metric} and the corresponding model hyperparameter configurations."
-            if use_context == "full_context":
-                if task == "classification":
-                    prefix += f" The model is evaluated on a tabular {task} task containing {n_classes} classes."
-                elif task == "regression":
-                    prefix += f" The model is evaluated on a tabular {task} task."
-                else:
-                    raise Exception("Unknown task type.")
-                prefix += f" The tabular dataset contains {num_samples} samples and {tot_feats} features ({cat_feats} categorical, {num_feats} numerical)."
-            prefix += " The allowable ranges for the hyperparameters are:\n"
+            prefix = "There is a black-box optimization task. "
+            if custom_task_description is not None:
+                prefix += "Below is a description of the task:\n"
+                prefix += custom_task_description
+                prefix += "\n"
+            prefix += "The allowable ranges for the hyperparameters are:\n"
 
             # Add hyperparameter constraints to the prefix
             for i, (hyperparameter, constraint) in enumerate(hyperparameter_constraints.items()):
@@ -615,12 +595,10 @@ Hyperparameter configuration:"""
             return [d for d in dict_list if is_dict_within_ranges(d, ranges_dict)]
 
         # Check that constraints are satisfied
-        print("DEBUG, before filtering", self.task_context)
         hyperparameter_constraints = self.task_context["hyperparameter_constraints"]
         filtered_candidates = filter_dicts_by_ranges(
             filtered_candidates, hyperparameter_constraints
         )
-        print("DEBUG, after filtering", self.task_context)
 
         filtered_candidates = pd.DataFrame(filtered_candidates)
         # Drop duplicates
@@ -650,7 +628,6 @@ Hyperparameter configuration:"""
         Returns:
             tuple[pd.DataFrame, float, float]: A tuple containing the filtered candidate points, total cost, and time taken.
         """
-        print("DEBUG: Initial task_context:", self.task_context)  # Debug message
 
         assert -1 <= alpha <= 1, "alpha must be between -1 and 1"
         if alpha == 0:
@@ -670,79 +647,52 @@ Hyperparameter configuration:"""
             range = 0.1 * np.abs(np.max(observed_fvals.values))
         alpha_range = [0.1, 1e-2, 1e-3, -1e-3, -1e-2, 1e-1]
 
-        print("DEBUG", "acq 1")
         if self.lower_is_better:
             self.observed_best = np.min(observed_fvals.values)
             self.observed_worst = np.max(observed_fvals.values)
             range = self.observed_worst - self.observed_best
             desired_fval = self.observed_best - alpha * range
 
-            print(
-                f"\n[DEBUG] Initial values - Best: {self.observed_best:.6f}, Worst: {self.observed_worst:.6f}, Range: {range:.6f}"
-            )
-            print(f"[DEBUG] Starting alpha: {alpha}, Initial desired_fval: {desired_fval:.6f}")
-
             iteration = 0
             max_iterations = 10  # Safety net
 
             while desired_fval <= 0.00001 and iteration < max_iterations:
-                print(
-                    f"\n[DEBUG] Iteration {iteration} - Current alpha: {alpha:.4f}, desired_fval: {desired_fval:.6f}"
-                )
                 alpha_updated = False
 
                 for i, alpha_ in enumerate(alpha_range):
-                    print(f"[DEBUG] Trying alpha_{i}: {alpha_:.4f}")
                     if alpha_ < alpha:
                         alpha = alpha_
                         desired_fval = self.observed_best - alpha * range
                         alpha_updated = True
-                        print(
-                            f"[DEBUG] Found new alpha: {alpha:.4f}, new desired_fval: {desired_fval:.6f}"
-                        )
                         break
 
                 if not alpha_updated:
-                    print("[WARNING] No smaller alpha found in alpha_range! Breaking loop")
                     break
 
                 iteration += 1
 
-            print(f"\n[DEBUG] Final alpha: {alpha:.4f}, Final desired_fval: {desired_fval:.6f}")
             print(
                 f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}"
             )
 
         else:
-            # Similar debug prints for the else case
             self.observed_best = np.max(observed_fvals.values)
             self.observed_worst = np.min(observed_fvals.values)
             range = self.observed_best - self.observed_worst
             desired_fval = self.observed_best + alpha * range
 
-            print(
-                f"\n[DEBUG] Initial values - Best: {self.observed_best:.6f}, Worst: {self.observed_worst:.6f}, Range: {range:.6f}"
-            )
-            print(f"[DEBUG] Starting alpha: {alpha}, Initial desired_fval: {desired_fval:.6f}")
-
             iteration = 0
             max_iterations = 10  # Safety net
 
             while desired_fval >= 0.9999 and iteration < max_iterations:
-                print(
-                    f"\n[DEBUG] Iteration {iteration} - Current alpha: {alpha:.4f}, desired_fval: {desired_fval:.6f}"
-                )
                 alpha_updated = False
 
                 for i, alpha_ in enumerate(alpha_range):
-                    print(f"[DEBUG] Trying alpha_{i}: {alpha_:.4f}")
                     if alpha_ < alpha:
                         alpha = alpha_
                         desired_fval = self.observed_best + alpha * range
                         alpha_updated = True
-                        print(
-                            f"[DEBUG] Found new alpha: {alpha:.4f}, new desired_fval: {desired_fval:.6f}"
-                        )
+
                         break
 
                 if not alpha_updated:
@@ -751,23 +701,14 @@ Hyperparameter configuration:"""
 
                 iteration += 1
 
-            print(f"\n[DEBUG] Final alpha: {alpha:.4f}, Final desired_fval: {desired_fval:.6f}")
             print(
                 f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}"
             )
 
         self.desired_fval = desired_fval
 
-        print(
-            "DEBUG: task_context after setting desired_fval:", self.task_context
-        )  # Debug message
-
         if self.warping_transformer is not None:
             observed_configs = self.warping_transformer.warp(observed_configs)
-
-        print(
-            "DEBUG: task_context after warping observed_configs:", self.task_context
-        )  # Debug message
 
         prompt_templates, query_templates = self._gen_prompt_tempates_acquisitions(
             observed_configs,
@@ -778,10 +719,6 @@ Hyperparameter configuration:"""
             use_feature_semantics=use_feature_semantics,
             shuffle_features=self.shuffle_features,
         )
-
-        print(
-            "DEBUG: task_context after generating prompt templates_mixed:", self.task_context
-        )  # Debug message
 
         print("=" * 100)
         print("EXAMPLE ACQUISITION PROMPT")
@@ -817,8 +754,6 @@ Hyperparameter configuration:"""
                 tot_cost += response[1]
                 tot_tokens += response[2]
 
-            print("DEBUG: task_context after LLM responses:", self.task_context)  # Debug message
-
             proposed_points = self._filter_candidate_points(
                 observed_configs.to_dict(orient="records"), candidate_points
             )
@@ -845,10 +780,6 @@ Hyperparameter configuration:"""
 
         if self.warping_transformer is not None:
             filtered_candidate_points = self.warping_transformer.unwarp(filtered_candidate_points)
-
-        print(
-            "DEBUG: task_context after unwarping candidate points:", self.task_context
-        )  # Debug message
 
         end_time = time.time()
         time_taken = end_time - start_time

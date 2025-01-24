@@ -255,6 +255,14 @@ debug = True
 num_experiments = 10  # Number of independent experiments
 number_of_trials = 10000  # Number of trials per experiment
 
+print("DEBUG", 0)
+registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
+sampler = optunahub.load_local_module(
+    package="samplers/differential_evolution", registry_root=registry_root
+).DESampler(debug=debug)
+
+print("DEBUG", 1)
+
 # ---------------Experiments---------------
 
 if run_benchmark:
@@ -273,11 +281,6 @@ if run_benchmark:
 
         # Get the mapped objective function
         objective_function = objective_map[objective_function_choice]
-
-        # Load the DE Sampler
-        sampler = optunahub.load_module("samplers/differential_evolution").DESampler(
-            population_size=population_size, F=F, CR=CR, debug=debug
-        )
 
         # Load the Random Sampler
         sampler_rs = optuna.samplers.RandomSampler(seed=42)
@@ -359,11 +362,6 @@ else:
 
     # Get the mapped objective function
     objective_function = objective_map[objective_function_choice]
-
-    # Load the DE Sampler
-    sampler = optunahub.load_module("samplers/differential_evolution").DESampler(
-        population_size=population_size, F=F, CR=CR, debug=debug
-    )
 
     # Load the Random Sampler
     sampler_rs = optuna.samplers.RandomSampler(seed=42)

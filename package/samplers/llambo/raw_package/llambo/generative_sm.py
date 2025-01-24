@@ -41,7 +41,6 @@ class LLM_GEN_SM:
 
         # Generate the prompt
         prompt = few_shot_template.format(Q=query_example["Q"])
-        print(f"Debug: Prompt sent to LLM: {prompt}")  # Debug print
 
         message = [
             {
@@ -54,10 +53,6 @@ class LLM_GEN_SM:
         # Send the request to the LLM
         resp, tot_cost = self.OpenAI_instance.ask(message)
         tot_tokens = 1000  # Placeholder, replace with actual token count if available
-
-        print(f"Debug: LLM response: {resp}")  # Debug print
-        print(f"Debug: Total cost: {tot_cost}")  # Debug print
-        print(f"Debug: Total tokens: {tot_tokens}")  # Debug print
 
         return query_idx, resp, tot_cost, tot_tokens
 
@@ -74,37 +69,28 @@ class LLM_GEN_SM:
 
         llm_response = await asyncio.gather(*tasks)
 
-        print(f"Debug: Raw LLM responses from gather: {llm_response}")  # Debug print
-
         for response in llm_response:
             if response is not None:
                 query_idx, resp, tot_cost, tot_tokens = response
                 results[query_idx].append([resp, tot_cost, tot_tokens])
             else:
-                print(f"Debug: None response received for query_idx: {query_idx}")  # Debug print
-
-        print(f"Debug: Processed results: {results}")  # Debug print
+                print(f"None response received for query_idx: {query_idx}")
 
         return results
 
     def process_response(self, all_raw_response):
         all_pred_probs = []  # p(s<\tau | h)
         for raw_response in all_raw_response:
-            print(f"Debug: raw_response type: {type(raw_response)}")  # Debug print
-            print(f"Debug: raw_response value: {raw_response}")  # Debug print
-
             # Extract numeric value from the string using regex
             if isinstance(raw_response, str):
                 gen_pred = re.findall(r"## (-?[\d.]+) ##", raw_response)
                 if len(gen_pred) == 1:
                     all_pred_probs.append(float(gen_pred[0]))  # Append the extracted value
                 else:
-                    print(
-                        "Debug: No valid numeric value found in raw_response, appending NaN"
-                    )  # Debug print
+                    print("No valid numeric value found in raw_response, appending NaN")
                     all_pred_probs.append(np.nan)  # Append NaN if no match or multiple matches
             else:
-                print("Debug: raw_response is not a string, appending NaN")  # Debug print
+                print("raw_response is not a string, appending NaN")
                 all_pred_probs.append(np.nan)  # Append NaN if raw_response is not a string
 
         return all_pred_probs
@@ -120,18 +106,15 @@ class LLM_GEN_SM:
         # Make predictions in chunks of 5, for each chunk make concurrent calls
         for i in range(0, len(query_examples), 5):
             query_chunk = query_examples[i : i + 5]
-            print(f"Debug: Processing query chunk: {query_chunk}")  # Debug print
 
             chunk_results = await self._generate_concurrently(all_prompt_templates, query_chunk)
 
-            print("Debug: chunk_results: ", chunk_results)  # Debug print
             bool_pred_returned.extend(
                 [1 if x is not None else 0 for x in chunk_results]
             )  # Track effective number of predictions returned
 
             for _, sample_response in enumerate(chunk_results):
                 if not sample_response:  # If sample prediction is an empty list
-                    print(f"Debug: Empty sample_response for chunk index {_}")  # Debug print
                     sample_preds = [np.nan] * self.n_gens
                 else:
                     all_raw_response = []
@@ -142,13 +125,12 @@ class LLM_GEN_SM:
                             if isinstance(llm_response, str):
                                 all_raw_response.append(llm_response)
                             else:
-                                print(f"Debug: LLM response is not a string: {llm_response}")
+                                print(f"LLM response is not a string: {llm_response}")
                                 all_raw_response.append(np.nan)
                         else:
-                            print(f"Debug: Invalid template_response: {template_response}")
+                            print(f"Invalid template_response: {template_response}")
                             all_raw_response.append(np.nan)
 
-                    print(f"Debug: all_raw_response: {all_raw_response}")  # Debug print
                     sample_preds = self.process_response(all_raw_response)
                     tot_cost += sum(
                         [x[1] for x in sample_response if isinstance(x, list) and len(x) > 1]
@@ -198,9 +180,6 @@ class LLM_GEN_SM:
         print("*" * 100)
         print(f"Number of all_prompt_templates: {len(all_prompt_templates)}")
         print(f"Number of query_examples: {len(query_examples)}")
-        print(
-            f"Debug: Example prompt template: {all_prompt_templates[0].format(Q=query_examples[0]['Q'])}"
-        )  # Debug print
 
         # Make predictions using the LLM
         response = await self._predict(all_prompt_templates, query_examples)
@@ -268,9 +247,6 @@ class LLM_GEN_SM:
         best_point = candidate_configs.iloc[
             [best_point_index], :
         ]  # Return selected point as dataframe not series
-
-        print("DEBUG: best_point", best_point)
-        print("DEBUG:", type(best_point))
 
         if return_raw_preds:
             return best_point, pred_probs, cost, time_taken

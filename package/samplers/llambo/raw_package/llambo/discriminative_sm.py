@@ -222,14 +222,10 @@ class LLM_DIS_SM:
         observed_configs,
         observed_fvals,
         candidate_configs,
-        use_context="full_context",
         use_feature_semantics=True,
         return_ei=False,
     ):
         """Evaluate candidate points using the LLM model."""
-
-        if self.prompt_setting is not None:
-            use_context = self.prompt_setting
 
         all_run_cost = 0
         all_run_time = 0
@@ -257,7 +253,6 @@ class LLM_DIS_SM:
             candidate_configs,
             n_prompts=self.n_templates,
             bootstrapping=self.bootstrapping,
-            use_context=use_context,
             use_feature_semantics=use_feature_semantics,
             shuffle_features=self.shuffle_features,
             apply_warping=self.apply_warping,
@@ -328,8 +323,5 @@ class LLM_DIS_SM:
         best_point = candidate_configs.iloc[
             [best_point_index], :
         ]  # return selected point as dataframe not series
-
-        print("DEBUG: best_point", best_point)
-        print("DEBUG:", type(best_point))
 
         return best_point, cost, time_taken

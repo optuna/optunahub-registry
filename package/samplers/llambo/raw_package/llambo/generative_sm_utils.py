@@ -88,14 +88,9 @@ def gen_prompt_tempates(
     n_prompts=1,
 ):
     # contextual information about the task
-    model = task_context["model"]
-    task = task_context["task"]
-    tot_feats = task_context["tot_feats"]
-    cat_feats = task_context["cat_feats"]
-    num_feats = task_context["num_feats"]
-    n_classes = task_context["n_classes"]
-    n_samples = task_context["num_samples"]
+
     metric = task_context["metric"]
+    custom_task_description = task_context.get("custom_task_description", None)
 
     if metric == "neg_mean_squared_error":
         metric = "mean squared error"
@@ -118,15 +113,12 @@ Classification: {A}"""
 
         example_prompt = PromptTemplate(input_variables=["Q", "A"], template=example_template)
 
-        prefix = f"The following are examples of hyperparameter configurations for a {model} and the corresponding performance classification."
-        if task == "classification":
-            prefix += f" The model is evaluated on a tabular {task} task and the label contains {n_classes} classes."
-        elif task == "regression":
-            prefix += f" The model is evaluated on a tabular {task} task."
-        else:
-            raise Exception
-        prefix += f" The tabular dataset contains {n_samples} samples and {tot_feats} features ({cat_feats} categorical, {num_feats} numerical). "
-        prefix += f" The performance classification is 1 if the configuarion is in the best-performing {top_pct*100}% of all configurations and 0 otherwise. "
+        prefix = "The following are examples of hyperparameter configurations for a black-box optimization task. "
+        if custom_task_description is not None:
+            prefix += "Below is a description of the task:\n"
+            prefix += custom_task_description
+            prefix += "\n"
+        prefix += f" The performance classification is 1 if the configuration is in the best-performing {top_pct*100}% of all configurations and 0 otherwise. "
         prefix += " Your response should only contain the predicted performance classification in the format ## performance classification ##."
 
         suffix = """

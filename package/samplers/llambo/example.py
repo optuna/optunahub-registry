@@ -258,8 +258,9 @@ n_jobs = 1
 # for local loading
 registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
 sampler = optunahub.load_local_module(
-    package="samplers/llambo", registry_root=registry_root
-).Sampler(debug=debug)
+    package="samplers/llambo",
+    registry_root=registry_root,
+).Sampler(api_key="", model="deepseek-chat", debug=debug)
 
 # ---------------Loading samplers---------------
 
