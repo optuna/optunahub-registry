@@ -137,7 +137,7 @@ def bo_loop(
     return all_final_y, all_metrics_pd
 
 
-# Function to run all models for a given evaluation function and set of templates
+# Function to run all models for a given evaluation function and set of templates_mixed
 def run_all_models(
     fun_to_evaluate,
     all_dict_templates,

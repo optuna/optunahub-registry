@@ -1,4 +1,3 @@
-import argparse
 import json
 import logging
 import os
@@ -27,8 +26,6 @@ def setup_logging(log_name):
     logger.setLevel(logging.INFO)
 
 
-
-
 class BayesmarkExpRunner:
     def __init__(self, task_context, dataset, seed):
         self.seed = seed
@@ -47,9 +44,9 @@ class BayesmarkExpRunner:
         """
 
         # Read from fixed initialization points (all baselines see same init points)
-        init_configs = pd.read_json(f"raw_package/bayesmark/configs/{self.model}/{self.seed}.json").head(
-            n_samples
-        )
+        init_configs = pd.read_json(
+            f"raw_package/bayesmark/configs/{self.model}/{self.seed}.json"
+        ).head(n_samples)
         init_configs = init_configs.to_dict(orient="records")
 
         assert len(init_configs) == n_samples
@@ -107,27 +104,26 @@ class BayesmarkExpRunner:
 
 
 if __name__ == "__main__":
-
-    model="RandomForest"
-    dataset="digits"
-    sm_mode="generative"
+    model = "RandomForest"
+    dataset = "digits"
+    sm_mode = "generative"
 
     BAYESMARK_TASK_MAP = {
-        "breast" : ["classification" , "accuracy"] ,
-        "digits" : ["classification" , "accuracy"] ,
-        "wine" : ["classification" , "accuracy"] ,
-        "iris" : ["classification" , "accuracy"] ,
-        "diabetes" : ["regression" , "neg_mean_squared_error"] ,
-        }
+        "breast": ["classification", "accuracy"],
+        "digits": ["classification", "accuracy"],
+        "wine": ["classification", "accuracy"],
+        "iris": ["classification", "accuracy"],
+        "diabetes": ["regression", "neg_mean_squared_error"],
+    }
 
     PRIVATE_TASK_MAP = {
-        "cutract" : ["classification" , "accuracy"] ,
-        "maggic" : ["classification" , "accuracy"] ,
-        "seer" : ["classification" , "accuracy"] ,
-        "griewank" : ["regression" , "neg_mean_squared_error"] ,
-        "ktablet" : ["regression" , "neg_mean_squared_error"] ,
-        "rosenbrock" : ["regression" , "neg_mean_squared_error"] ,
-        }
+        "cutract": ["classification", "accuracy"],
+        "maggic": ["classification", "accuracy"],
+        "seer": ["classification", "accuracy"],
+        "griewank": ["regression", "neg_mean_squared_error"],
+        "ktablet": ["regression", "neg_mean_squared_error"],
+        "rosenbrock": ["regression", "neg_mean_squared_error"],
+    }
 
     if dataset in BAYESMARK_TASK_MAP:
         TASK_MAP = BAYESMARK_TASK_MAP
@@ -163,17 +159,17 @@ if __name__ == "__main__":
     with open("raw_package/hp_configurations/bayesmark.json", "r") as f:
         task_context["hyperparameter_constraints"] = json.load(f)[model]
 
-    seed=0
+    print("task_context: ", task_context)
+    seed = 0
 
-    benchmark = BayesmarkExpRunner(task_context , data , seed)
+    benchmark = BayesmarkExpRunner(task_context, data, seed)
 
-    initialization_results=benchmark.generate_initialization(5)
+    initialization_results = benchmark.generate_initialization(5)
 
     print(initialization_results)
 
     evaluate_point_results = benchmark.evaluate_point(initialization_results[0])
     print(evaluate_point_results)
-
 
     assert sm_mode in ["discriminative", "generative"]
     if sm_mode == "generative":
@@ -213,7 +209,7 @@ if __name__ == "__main__":
         n_trials=25,
         init_f=benchmark.generate_initialization,
         bbox_eval_f=benchmark.evaluate_point,
-        top_pct=top_pct, # only used for generative SM, top percentage of points to consider for generative SM
+        top_pct=top_pct,  # only used for generative SM, top percentage of points to consider for generative SM
     )
     llambo.seed = seed
     configs, fvals = llambo.optimize()
@@ -241,4 +237,3 @@ if __name__ == "__main__":
 
     logger.info("=" * 200)
     logger.info(f"[LLAMBO] {seed+1} evaluation runs complete! Total cost: ${tot_llm_cost:.4f}")
-

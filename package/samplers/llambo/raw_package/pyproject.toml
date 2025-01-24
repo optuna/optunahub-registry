@@ -20,7 +20,7 @@ dependencies = [
     "nashpobench2api==1.0.0",
     "openai==1.59.7",
     "openml==0.14.2",
-    "optuna==3.3.0",
+    "optuna==4.2.0",
     "pandas==1.3.5",
     "parzen_estimator==0.5.8",
     "pyarrow==12.0.1",

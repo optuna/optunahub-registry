@@ -22,7 +22,7 @@ def prepare_configurations(
     shuffle_features=False,
     apply_warping=False,
 ):
-    """Prepare and possible (shuffle) the configurations for prompt templates."""
+    """Prepare and possible (shuffle) the configurations for prompt templates_mixed."""
     examples = []
 
     hyperparameter_names = observed_configs.columns
@@ -114,7 +114,7 @@ def gen_prompt_tempates(
     shuffle_features=False,
     apply_warping=False,
 ):
-    """Generate prompt templates for the few-shot learning task."""
+    """Generate prompt templates_mixed for the few-shot learning task."""
 
     model = task_context["model"]
     task = task_context["task"]

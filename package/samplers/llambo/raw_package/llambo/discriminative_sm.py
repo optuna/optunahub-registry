@@ -99,7 +99,7 @@ class LLM_DIS_SM:
         #                 temperature=0.7,
         #                 max_tokens=8,
         #                 top_p=0.95,
-        #                 n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
+        #                 n=max(n_preds, 3),            # e.g. for 5 templates_mixed, get 2 generations per template
         #                 request_timeout=300
         #             )
         #

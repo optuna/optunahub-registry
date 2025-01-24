@@ -15,7 +15,7 @@ class LLAMBO:
         task_context: dict,  # dictionary describing task (see above)
         sm_mode,  # either 'generative' or 'discriminative'
         n_candidates,  # number of candidate points to sample at each iteration
-        n_templates,  # number of templates for LLM queries
+        n_templates,  # number of templates_mixed for LLM queries
         n_gens,  # number of generations for LLM, set at 5
         alpha,  # alpha for LLM, recommended to be -0.2
         n_initial_samples,  # number of initial samples to evaluate
@@ -26,13 +26,13 @@ class LLAMBO:
         use_input_warping=False,  # whether to use input warping
         prompt_setting=None,  # ablation on prompt design, either 'full_context' or 'partial_context' or 'no_context'
         shuffle_features=False,  # whether to shuffle features in prompt generation
-        #TODO: add key here
+        # TODO: add key here
         key="",
-        model="gpt-4o-mini"
+        model="gpt-4o-mini",
     ):
         self.task_context = task_context
-        print("DEBUG: init llambo")
-        print("DEBUG: initial context:",self.task_context)
+        print("DEBUG: init llambo_copy")
+        print("DEBUG: initial context:", self.task_context)
         assert sm_mode in ["generative", "discriminative"]
         assert top_pct is None if sm_mode == "discriminative" else top_pct is not None
         self.model_name = task_context["model"]
@@ -46,8 +46,8 @@ class LLAMBO:
         self.n_trials = n_trials
         self.llm_query_cost = []  # list of cost for LLM calls in EACH TRIAL
         self.llm_query_time = []  # list of time taken for LLM calls in EACH TRIAL
-        self.model=model
-        self.key=key
+        self.model = model
+        self.key = key
         assert type(shuffle_features) == bool, "shuffle_features should be a boolean"
         assert type(use_input_warping) == bool, "use_input_warping should be a boolean"
 
@@ -190,44 +190,46 @@ class LLAMBO:
         )
         self.observed_fvals = pd.concat([self.observed_fvals, new_fval], axis=0, ignore_index=True)
 
-    def optimize(self , test_metric="generalization_score") :
+    def optimize(self, test_metric="generalization_score"):
         """Run the optimization loop."""
         # initialize
-        cost , query_time = self._initialize()
+        cost, query_time = self._initialize()
         self.llm_query_cost.append(cost)
         self.llm_query_time.append(query_time)
 
-        if self.lower_is_better :
+        if self.lower_is_better:
             self.best_fval = self.observed_fvals["score"].min()
             best_gen_fval = self.observed_fvals[test_metric].min()
-        else :
+        else:
             self.best_fval = self.observed_fvals["score"].max()
             best_gen_fval = self.observed_fvals[test_metric].max()
 
         print(
             f"[Initialization] COMPLETED: best fval: {self.best_fval:.4f}, best generalization fval: {best_gen_fval:.4f}"
-            )
+        )
         print("=" * 150)
 
         # Debug: Print initial task_context
-        print("DEBUG: Initial acq_func.task_context:" , self.acq_func.task_context)
+        print("DEBUG: Initial acq_func.task_context:", self.acq_func.task_context)
 
         # optimization loop
-        for trial_id in range(self.n_trials) :
+        for trial_id in range(self.n_trials):
             trial_cost = 0
             trial_query_time = 0
 
             start_time = time.time()
             # get candidate point
-            candidate_points , cost , time_taken = self.acq_func.get_candidate_points(
-                self.observed_configs , self.observed_fvals[["score"]] , alpha=self.alpha
-                )
+            candidate_points, cost, time_taken = self.acq_func.get_candidate_points(
+                self.observed_configs, self.observed_fvals[["score"]], alpha=self.alpha
+            )
             trial_cost += cost
             trial_query_time += time_taken
 
             # Debug: Print task_context after getting candidate points
-            print("DEBUG: acq_func.task_context after get_candidate_points:" ,
-                  self.acq_func.task_context)
+            print(
+                "DEBUG: acq_func.task_context after get_candidate_points:",
+                self.acq_func.task_context,
+            )
 
             print("=" * 150)
             print("EXAMPLE POINTS PROPOSED")
@@ -235,9 +237,9 @@ class LLAMBO:
             print("=" * 150)
 
             # select candidate point
-            sel_candidate_point , cost , time_taken = self.surrogate_model.select_query_point(
-                self.observed_configs , self.observed_fvals[["score"]] , candidate_points
-                )
+            sel_candidate_point, cost, time_taken = self.surrogate_model.select_query_point(
+                self.observed_configs, self.observed_fvals[["score"]], candidate_points
+            )
             trial_cost += cost
             trial_query_time += time_taken
 
@@ -245,11 +247,13 @@ class LLAMBO:
             self.llm_query_time.append(trial_query_time)
 
             # Debug: Print task_context after selecting candidate point
-            print("DEBUG: acq_func.task_context after select_query_point:" ,
-                  self.acq_func.task_context)
+            print(
+                "DEBUG: acq_func.task_context after select_query_point:",
+                self.acq_func.task_context,
+            )
 
-            print("Time taken so far:" , self.llm_query_time)
-            print("Cost so far:" , self.llm_query_cost)
+            print("Time taken so far:", self.llm_query_time)
+            print("Cost so far:", self.llm_query_cost)
 
             print("=" * 150)
             print("SELECTED CANDIDATE POINT")
@@ -257,18 +261,21 @@ class LLAMBO:
             print("=" * 150)
 
             # evaluate candidate point
-            sel_candidate_point , sel_candidate_fval = self._evaluate_config(sel_candidate_point)
+            sel_candidate_point, sel_candidate_fval = self._evaluate_config(sel_candidate_point)
 
             # Debug: Print task_context after evaluating candidate point
-            print("DEBUG: acq_func.task_context after _evaluate_config:" ,
-                  self.acq_func.task_context)
+            print(
+                "DEBUG: acq_func.task_context after _evaluate_config:", self.acq_func.task_context
+            )
 
             # update observations
-            self._update_observations(sel_candidate_point , sel_candidate_fval)
+            self._update_observations(sel_candidate_point, sel_candidate_fval)
 
             # Debug: Print task_context after updating observations
-            print("DEBUG: acq_func.task_context after _update_observations:" ,
-                  self.acq_func.task_context)
+            print(
+                "DEBUG: acq_func.task_context after _update_observations:",
+                self.acq_func.task_context,
+            )
 
             print("=" * 150)
             print("UPDATED OBSERVATIONS")
@@ -282,31 +289,31 @@ class LLAMBO:
             current_fval_cv = sel_candidate_fval["score"].values[0]
             current_fval_gen = sel_candidate_fval[test_metric].values[0]
 
-            if self.lower_is_better :
-                if current_fval_cv < self.best_fval :
+            if self.lower_is_better:
+                if current_fval_cv < self.best_fval:
                     self.best_fval = current_fval_cv
                     best_found = True
-                else :
+                else:
                     best_found = False
-            else :
-                if current_fval_cv > self.best_fval :
+            else:
+                if current_fval_cv > self.best_fval:
                     self.best_fval = current_fval_cv
                     best_found = True
-                else :
+                else:
                     best_found = False
 
-            if best_found :
+            if best_found:
                 print(
                     f"[Trial {trial_id} completed, time taken: {time_taken:.2f}s] best fval (cv): {self.best_fval:.4f}, current fval (cv): {current_fval_cv:.4f}. Generalization fval: {current_fval_gen:.4f} NEW BEST FVAL FOUND!!"
-                    )
-            else :
+                )
+            else:
                 print(
                     f"[Trial {trial_id} completed, time taken: {time_taken:.2f}s] best fval (cv): {self.best_fval:.4f}, current fval (cv): {current_fval_cv:.4f}. Generalization fval: {current_fval_gen:.4f}."
-                    )
+                )
             print("=" * 150)
 
         # Debug: Print final task_context
-        print("DEBUG: Final acq_func.task_context:" , self.acq_func.task_context)
+        print("DEBUG: Final acq_func.task_context:", self.acq_func.task_context)
 
         # returns history of observed configurations and function values
-        return self.observed_configs , self.observed_fvals
+        return self.observed_configs, self.observed_fvals

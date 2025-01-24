@@ -26,7 +26,7 @@ class LLM_ACQ:
     Attributes:
         task_context (dict): Contextual information about the optimization task.
         n_candidates (int): Number of candidate configurations to generate.
-        n_templates (int): Number of prompt templates to use for generating candidates.
+        n_templates (int): Number of prompt templates_mixed to use for generating candidates.
         lower_is_better (bool): Whether lower values of the objective function are better.
         apply_jitter (bool): Whether to add jitter to the desired performance target.
         rate_limiter (RateLimiter): Manages API rate limits for LLM requests.
@@ -55,7 +55,7 @@ class LLM_ACQ:
         Args:
             task_context (dict): Contextual information about the optimization task.
             n_candidates (int): Number of candidate configurations to generate.
-            n_templates (int): Number of prompt templates to use for generating candidates.
+            n_templates (int): Number of prompt templates_mixed to use for generating candidates.
             lower_is_better (bool): Whether lower values of the objective function are better.
             jitter (bool): Whether to add jitter to the desired performance target.
             rate_limiter (RateLimiter): Manages API rate limits for LLM requests.
@@ -91,7 +91,6 @@ class LLM_ACQ:
 
         # Validate shuffle_features input
         assert isinstance(self.shuffle_features, bool), "shuffle_features must be a boolean"
-
 
     def _jitter(self, desired_fval: float) -> float:
         """
@@ -145,7 +144,7 @@ class LLM_ACQ:
         shuffle_features: bool = False,
     ) -> List[Dict[str, str]]:
         """
-        Prepare and (possibly shuffle) few-shot examples for prompt templates.
+        Prepare and (possibly shuffle) few-shot examples for prompt templates_mixed.
 
         Args:
             observed_configs (pd.DataFrame): Observed hyperparameter configurations.
@@ -185,8 +184,8 @@ class LLM_ACQ:
             shuffled_columns = np.random.permutation(observed_configs.columns)
             observed_configs = observed_configs[shuffled_columns]
 
-        print("DEBUG-task_context" , self.task_context)
-        print("DEBUG-task_context type" , type(self.task_context))
+        print("DEBUG-task_context", self.task_context)
+        print("DEBUG-task_context type", type(self.task_context))
 
         # Serialize the observed configurations into few-shot examples
         if observed_configs is not None:
@@ -211,7 +210,6 @@ class LLM_ACQ:
                             hyperparameter_names[i]
                         ][2][0]
                     else:
-
                         lower_bound = self.task_context["hyperparameter_constraints"][
                             hyperparameter_names[i]
                         ][2][1]
@@ -262,19 +260,19 @@ class LLM_ACQ:
         shuffle_features: bool = False,
     ) -> Tuple[List[FewShotPromptTemplate], List[List[Dict[str, str]]]]:
         """
-        Generate prompt templates for the acquisition function.
+        Generate prompt templates_mixed for the acquisition function.
 
         Args:
             observed_configs (pd.DataFrame): Observed hyperparameter configurations.
             observed_fvals (pd.DataFrame): Observed performance values.
             desired_fval (float): The desired performance target.
-            n_prompts (int): Number of prompt templates to generate.
+            n_prompts (int): Number of prompt templates_mixed to generate.
             use_context (str): Level of context to include in the prompts.
             use_feature_semantics (bool): Whether to use feature names in the prompts.
             shuffle_features (bool): Whether to shuffle the order of hyperparameters.
 
         Returns:
-            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]: A tuple containing the prompt templates and query templates.
+            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]: A tuple containing the prompt templates_mixed and query templates_mixed.
         """
         all_prompt_templates = []
         all_query_templates = []
@@ -397,7 +395,7 @@ Hyperparameter configuration:"""
             )
             all_prompt_templates.append(few_shot_prompt)
 
-            # Prepare query templates for the prompts
+            # Prepare query templates_mixed for the prompts
             query_examples = self._prepare_configurations_acquisition(
                 observed_fvals=jittered_desired_fval, seed=None, shuffle_features=shuffle_features
             )
@@ -502,8 +500,8 @@ Hyperparameter configuration:"""
         Perform concurrent generation of responses from the LLM asynchronously.
 
         Args:
-            prompt_templates (list[FewShotPromptTemplate]): List of prompt templates.
-            query_templates (list[list[dict[str, str]]]): List of query templates.
+            prompt_templates (list[FewShotPromptTemplate]): List of prompt templates_mixed.
+            query_templates (list[list[dict[str, str]]]): List of query templates_mixed.
 
         Returns:
             list[Optional[tuple[Any, float, int]]]: A list of results from the LLM requests.
@@ -632,13 +630,13 @@ Hyperparameter configuration:"""
         return filtered_candidates
 
     def get_candidate_points(
-            self ,
-            observed_configs: pd.DataFrame ,
-            observed_fvals: pd.DataFrame ,
-            use_feature_semantics: bool = True ,
-            use_context: str = "full_context" ,
-            alpha: float = -0.2 ,
-            ) -> Tuple[pd.DataFrame , float , float] :
+        self,
+        observed_configs: pd.DataFrame,
+        observed_fvals: pd.DataFrame,
+        use_feature_semantics: bool = True,
+        use_context: str = "full_context",
+        alpha: float = -0.2,
+    ) -> Tuple[pd.DataFrame, float, float]:
         """
         Generate candidate points for the acquisition function.
 
@@ -652,86 +650,89 @@ Hyperparameter configuration:"""
         Returns:
             tuple[pd.DataFrame, float, float]: A tuple containing the filtered candidate points, total cost, and time taken.
         """
-        print("DEBUG: Initial task_context:" , self.task_context)  # Debug message
+        print("DEBUG: Initial task_context:", self.task_context)  # Debug message
 
-        assert -1 <= alpha <= 1 , "alpha must be between -1 and 1"
-        if alpha == 0 :
+        assert -1 <= alpha <= 1, "alpha must be between -1 and 1"
+        if alpha == 0:
             alpha = -1e-3  # A little bit of randomness never hurt anyone
         self.alpha = alpha
 
-        if self.prompt_setting is not None :
+        if self.prompt_setting is not None:
             use_context = self.prompt_setting
 
-        # Generate prompt templates
+        # Generate prompt templates_mixed
         start_time = time.time()
 
         # Get desired f_val for candidate points
         range = np.abs(np.max(observed_fvals.values) - np.min(observed_fvals.values))
 
-        if range == 0 :
+        if range == 0:
             # Sometimes there is no variability in y :')
             range = 0.1 * np.abs(np.max(observed_fvals.values))
-        alpha_range = [0.1 , 1e-2 , 1e-3 , -1e-3 , -1e-2 , 1e-1]
+        alpha_range = [0.1, 1e-2, 1e-3, -1e-3, -1e-2, 1e-1]
 
-        if self.lower_is_better :
+        if self.lower_is_better:
             self.observed_best = np.min(observed_fvals.values)
             self.observed_worst = np.max(observed_fvals.values)
             desired_fval = self.observed_best - alpha * range
 
-            while desired_fval <= 0.00001 :  # Score can't be negative
+            while desired_fval <= 0.00001:  # Score can't be negative
                 # Try first alpha in alpha_range that is lower than current alpha
-                for alpha_ in alpha_range :
-                    if alpha_ < alpha :
+                for alpha_ in alpha_range:
+                    if alpha_ < alpha:
                         alpha = alpha_  # New alpha
                         desired_fval = self.observed_best - alpha * range
                         break
             print(
                 f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}"
-                )
-        else :
+            )
+        else:
             self.observed_best = np.max(observed_fvals.values)
             self.observed_worst = np.min(observed_fvals.values)
             desired_fval = self.observed_best + alpha * range
 
-            while desired_fval >= 0.9999 :  # Accuracy can't be greater than 1
-                for alpha_ in alpha_range :
-                    if alpha_ < alpha :
+            while desired_fval >= 0.9999:  # Accuracy can't be greater than 1
+                for alpha_ in alpha_range:
+                    if alpha_ < alpha:
                         alpha = alpha_  # New alpha
                         desired_fval = self.observed_best + alpha * range
                         break
 
             print(
                 f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}"
-                )
+            )
 
         self.desired_fval = desired_fval
 
-        print("DEBUG: task_context after setting desired_fval:" ,
-              self.task_context)  # Debug message
+        print(
+            "DEBUG: task_context after setting desired_fval:", self.task_context
+        )  # Debug message
 
-        if self.warping_transformer is not None :
+        if self.warping_transformer is not None:
             observed_configs = self.warping_transformer.warp(observed_configs)
 
-        print("DEBUG: task_context after warping observed_configs:" ,
-              self.task_context)  # Debug message
+        print(
+            "DEBUG: task_context after warping observed_configs:", self.task_context
+        )  # Debug message
 
-        prompt_templates , query_templates = self._gen_prompt_tempates_acquisitions(
-            observed_configs ,
-            observed_fvals ,
-            desired_fval ,
-            n_prompts=self.n_templates ,
-            use_context=use_context ,
-            use_feature_semantics=use_feature_semantics ,
-            shuffle_features=self.shuffle_features ,
-            )
+        prompt_templates, query_templates = self._gen_prompt_tempates_acquisitions(
+            observed_configs,
+            observed_fvals,
+            desired_fval,
+            n_prompts=self.n_templates,
+            use_context=use_context,
+            use_feature_semantics=use_feature_semantics,
+            shuffle_features=self.shuffle_features,
+        )
 
-        print("DEBUG: task_context after generating prompt templates:" ,
-              self.task_context)  # Debug message
+        print(
+            "DEBUG: task_context after generating prompt templates_mixed:", self.task_context
+        )  # Debug message
 
         print("=" * 100)
         print("EXAMPLE ACQUISITION PROMPT")
-        print(f"Length of prompt templates: {len(prompt_templates)}")
-        print(f"Length of query templates: {len(query_templates)}")
+        print(f"Length of prompt templates_mixed: {len(prompt_templates)}")
+        print(f"Length of query templates_mixed: {len(query_templates)}")
         print(prompt_templates[0].format(A=query_templates[0][0]["A"]))
         print("=" * 100)
 
@@ -739,62 +740,63 @@ Hyperparameter configuration:"""
         filtered_candidate_points = pd.DataFrame()
 
         retry = 0
-        while number_candidate_points < 5 :
+        while number_candidate_points < 5:
             llm_responses = asyncio.run(
-                self._async_generate_concurrently(prompt_templates , query_templates)
-                )
+                self._async_generate_concurrently(prompt_templates, query_templates)
+            )
 
             candidate_points = []
             tot_cost = 0
             tot_tokens = 0
             # Loop through n_coroutine async calls
-            for response in llm_responses :
-                if response is None :
+            for response in llm_responses:
+                if response is None:
                     continue
                 # Loop through n_gen responses
-                for response_content in response :
-                    try :
+                for response_content in response:
+                    try:
                         response_content = response_content.split("##")[1].strip()
                         candidate_points.append(self._convert_to_json(response_content))
-                    except :
+                    except:
                         print(response_content)
                         continue
                 tot_cost += response[1]
                 tot_tokens += response[2]
 
-            print("DEBUG: task_context after LLM responses:" , self.task_context)  # Debug message
+            print("DEBUG: task_context after LLM responses:", self.task_context)  # Debug message
 
             proposed_points = self._filter_candidate_points(
-                observed_configs.to_dict(orient="records") , candidate_points
-                )
+                observed_configs.to_dict(orient="records"), candidate_points
+            )
             filtered_candidate_points = pd.concat(
-                [filtered_candidate_points , proposed_points] , ignore_index=True
-                )
+                [filtered_candidate_points, proposed_points], ignore_index=True
+            )
             number_candidate_points = filtered_candidate_points.shape[0]
 
             print(
-                f"Attempt: {retry}, number of proposed candidate points: {len(candidate_points)}, " ,
-                f"number of accepted candidate points: {filtered_candidate_points.shape[0]}" ,
-                )
+                f"Attempt: {retry}, number of proposed candidate points: {len(candidate_points)}, ",
+                f"number of accepted candidate points: {filtered_candidate_points.shape[0]}",
+            )
 
             retry += 1
-            if retry > 3 :
+            if retry > 3:
                 print(f"Desired fval: {desired_fval:.6f}")
                 print(f"Number of proposed candidate points: {len(candidate_points)}")
                 print(f"Number of accepted candidate points: {filtered_candidate_points.shape[0]}")
-                if len(candidate_points) > 5 :
+                if len(candidate_points) > 5:
                     filtered_candidate_points = pd.DataFrame(candidate_points)
                     break
-                else :
+                else:
                     raise Exception("LLM failed to generate candidate points")
 
-        if self.warping_transformer is not None :
+        if self.warping_transformer is not None:
             filtered_candidate_points = self.warping_transformer.unwarp(filtered_candidate_points)
 
-        print("DEBUG: task_context after unwarping candidate points:" ,
-              self.task_context)  # Debug message
+        print(
+            "DEBUG: task_context after unwarping candidate points:", self.task_context
+        )  # Debug message
 
         end_time = time.time()
         time_taken = end_time - start_time
 
-        return filtered_candidate_points , tot_cost , time_taken
+        return filtered_candidate_points, tot_cost, time_taken

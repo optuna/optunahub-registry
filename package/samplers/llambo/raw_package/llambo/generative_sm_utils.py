@@ -23,7 +23,7 @@ def prepare_configurations(
     observed_fvals=None,
     seed=None,
 ):
-    """Prepare and possibly (shuffle) the configurations for prompt templates."""
+    """Prepare and possibly (shuffle) the configurations for prompt templates_mixed."""
     examples = []
 
     hyperparameter_names = observed_configs.columns
@@ -58,7 +58,9 @@ def prepare_configurations(
         row_string = ""
         for i in range(len(row)):
             lower_bound = hyperparameter_constraints[hyperparameter_names[i]][2]
-            n_dp = _count_decimal_places(lower_bound[0]) + 2  # Extract the first element of the list
+            n_dp = (
+                _count_decimal_places(lower_bound[0]) + 2
+            )  # Extract the first element of the list
             row_string += (
                 f"{hyperparameter_names[i]}: " + f"{row[i]:.{n_dp}f}"
                 if isinstance(row[i], float) and not row[i] % 1 == 0
@@ -98,7 +100,7 @@ def gen_prompt_tempates(
     if metric == "neg_mean_squared_error":
         metric = "mean squared error"
 
-    """Generate prompt templates for the few-shot learning task."""
+    """Generate prompt templates_mixed for the few-shot learning task."""
     all_prompt_templates = []
     for i in range(n_prompts):
         few_shot_examples = prepare_configurations(

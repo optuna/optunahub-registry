@@ -169,48 +169,48 @@ class LLM_GEN_SM:
         return mean_probs, success_rate, tot_cost, tot_tokens, time_taken
 
     async def _evaluate_candidate_points(
-            self , observed_configs , observed_fvals , candidate_configs
-            ) :
+        self, observed_configs, observed_fvals, candidate_configs
+    ):
         """Evaluate candidate points using the LLM model."""
         all_run_cost = 0
         all_run_time = 0
 
         # Ensure observed_configs and candidate_configs are DataFrames
-        if not isinstance(observed_configs , pd.DataFrame) :
+        if not isinstance(observed_configs, pd.DataFrame):
             observed_configs = pd.DataFrame(observed_configs)
-        if not isinstance(candidate_configs , pd.DataFrame) :
+        if not isinstance(candidate_configs, pd.DataFrame):
             candidate_configs = pd.DataFrame(candidate_configs)
 
         # Use the original hyperparameter_constraints without modification
         hyperparameter_constraints = self.task_context["hyperparameter_constraints"]
 
-        # Generate prompt templates and query examples
-        all_prompt_templates , query_examples = gen_prompt_tempates(
-            self.task_context ,
-            observed_configs ,
-            observed_fvals ,
-            candidate_configs ,
-            self.lower_is_better ,
-            self.top_pct ,
-            n_prompts=self.n_templates ,
-            )
+        # Generate prompt templates_mixed and query examples
+        all_prompt_templates, query_examples = gen_prompt_tempates(
+            self.task_context,
+            observed_configs,
+            observed_fvals,
+            candidate_configs,
+            self.lower_is_better,
+            self.top_pct,
+            n_prompts=self.n_templates,
+        )
 
         print("*" * 100)
         print(f"Number of all_prompt_templates: {len(all_prompt_templates)}")
         print(f"Number of query_examples: {len(query_examples)}")
         print(
             f"Debug: Example prompt template: {all_prompt_templates[0].format(Q=query_examples[0]['Q'])}"
-            )  # Debug print
+        )  # Debug print
 
         # Make predictions using the LLM
-        response = await self._predict(all_prompt_templates , query_examples)
+        response = await self._predict(all_prompt_templates, query_examples)
 
-        pred_probs , success_rate , tot_cost , tot_tokens , time_taken = response
+        pred_probs, success_rate, tot_cost, tot_tokens, time_taken = response
 
         all_run_cost += tot_cost
         all_run_time += time_taken
 
-        return pred_probs , all_run_cost , all_run_time
+        return pred_probs, all_run_cost, all_run_time
 
     def _warp_candidate_points(self, configurations):
         """Warp candidate points to log scale if necessary."""
