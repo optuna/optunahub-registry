@@ -136,6 +136,7 @@ def test_choose_tpe_in_single_with_constraints() -> None:
 
 def test_choose_tpe_with_categorical_params() -> None:
     n_trials = 30
+
     auto_sampler = AutoSampler()
     study = optuna.create_study(sampler=auto_sampler)
     study.optimize(objective_with_categorical, n_trials=n_trials)
