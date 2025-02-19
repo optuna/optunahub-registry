@@ -267,7 +267,7 @@ registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
 sampler = optunahub.load_local_module(
     package="samplers/llambo",
     registry_root=registry_root,
-).Sampler(api_key="", model="gpt-4o-mini", debug=debug)
+).LLAMBOSampler(api_key="", model="deepseek-chat", debug=debug)
 
 
 # ---------------Loading samplers---------------
@@ -383,8 +383,10 @@ else:
 
     for i in range(num_experiments):
         # Run DE Sampler
+        print("shit1")
         study = optuna.create_study(sampler=sampler, direction=direction)
         study.optimize(objective_function, n_trials=number_of_trials, n_jobs=n_jobs)
+        print("shit1")
 
         best_values_de = []
         current_best_de = float("inf") if minimize else float("-inf")

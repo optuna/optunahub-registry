@@ -4,10 +4,7 @@ import asyncio
 import math
 import time
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 
 from langchain import FewShotPromptTemplate
 from langchain import PromptTemplate
@@ -18,26 +15,61 @@ import pandas as pd
 
 
 class LLM_ACQ:
-    """
-    A class to implement the acquisition function for Bayesian Optimization using Large Language Models (LLMs).
+    """A class to implement the acquisition function for Bayesian Optimization using LLMs.
 
-    This class generates candidate hyperparameter configurations for optimization tasks by leveraging LLMs.
+    This class generates candidate hyperparameter configurations for optimization tasks by
+    leveraging Large Language Models (LLMs).
+
+    Args:
+        task_context (dict[str, Any]): Contextual information about the optimization task.
+        n_candidates (int): Number of candidate configurations to generate.
+        n_templates (int): Number of prompt templates to use for generating candidates.
+        lower_is_better (bool): Whether lower values of the objective function are better.
+        jitter (bool, optional): Whether to add jitter to the desired performance target.
+            Defaults to False.
+        rate_limiter (Optional[RateLimiter], optional): Manages API rate limits for LLM requests.
+            Defaults to None.
+        warping_transformer (Optional[Any], optional): Applies transformations (e.g., log scaling)
+            to hyperparameters. Defaults to None.
+        prompt_setting (Optional[str], optional): Controls the level of context provided in the prompts.
+            Defaults to None.
+        shuffle_features (bool, optional): Whether to shuffle the order of hyperparameters in the prompts.
+            Defaults to False.
+        key (str, optional): API key for LLM service. Defaults to "".
+        model (str, optional): Name of the LLM model to use. Defaults to "gpt-4o-mini".
 
     Attributes:
-        task_context (dict): Contextual information about the optimization task.
+        task_context (dict[str, Any]): Contextual information about the optimization task.
         n_candidates (int): Number of candidate configurations to generate.
-        n_templates (int): Number of prompt templates_mixed to use for generating candidates.
-        lower_is_better (bool): Whether lower values of the objective function are better.
-        apply_jitter (bool): Whether to add jitter to the desired performance target.
-        rate_limiter (RateLimiter): Manages API rate limits for LLM requests.
-        warping_transformer: Applies transformations (e.g., log scaling) to hyperparameters.
-        prompt_setting (str): Controls the level of context provided in the prompts.
-        shuffle_features (bool): Whether to shuffle the order of hyperparameters in the prompts.
+        n_templates (int): Number of prompt templates to use.
+        n_gens (int): Number of generations per template.
+        lower_is_better (bool): Whether lower values are better.
+        apply_jitter (bool): Whether jitter is applied.
+        OpenAI_instance (OpenAI_interface): Interface for OpenAI API calls.
+        rate_limiter (RateLimiter): Rate limiter for API calls.
+        warping_transformer (Optional[Any]): Transformer for hyperparameter scaling.
+        apply_warping (bool): Whether warping is applied.
+        prompt_setting (Optional[str]): Prompt context setting.
+        shuffle_features (bool): Whether features are shuffled.
+
+    Example:
+        >>> task_context = {
+        ...     "hyperparameter_constraints": {
+        ...         "learning_rate": ["float", "log", [1e-4, 1e-1]],
+        ...         "batch_size": ["int", None, [16, 128]]
+        ...     }
+        ... }
+        >>> acq = LLM_ACQ(
+        ...     task_context=task_context,
+        ...     n_candidates=10,
+        ...     n_templates=2,
+        ...     lower_is_better=True
+        ... )
     """
 
     def __init__(
         self,
-        task_context: Dict[str, Any],
+        task_context: dict[str, Any],
         n_candidates: int,
         n_templates: int,
         lower_is_better: bool,
@@ -49,20 +81,6 @@ class LLM_ACQ:
         key: str = "",
         model: str = "gpt-4o-mini",
     ) -> None:
-        """
-        Initialize the LLM Acquisition function.
-
-        Args:
-            task_context (dict): Contextual information about the optimization task.
-            n_candidates (int): Number of candidate configurations to generate.
-            n_templates (int): Number of prompt templates_mixed to use for generating candidates.
-            lower_is_better (bool): Whether lower values of the objective function are better.
-            jitter (bool): Whether to add jitter to the desired performance target.
-            rate_limiter (RateLimiter): Manages API rate limits for LLM requests.
-            warping_transformer: Applies transformations (e.g., log scaling) to hyperparameters.
-            prompt_setting (str): Controls the level of context provided in the prompts.
-            shuffle_features (bool): Whether to shuffle the order of hyperparameters in the prompts.
-        """
         self.task_context = task_context
         self.n_candidates = n_candidates
         self.n_templates = n_templates
@@ -71,13 +89,11 @@ class LLM_ACQ:
         self.apply_jitter = jitter
         self.OpenAI_instance = OpenAI_interface(api_key=key, model=model, debug=True)
 
-        # Initialize rate limiter if not provided
         if rate_limiter is None:
             self.rate_limiter = RateLimiter(max_tokens=40000, time_frame=60)
         else:
             self.rate_limiter = rate_limiter
 
-        # Initialize warping transformer if provided
         if warping_transformer is None:
             self.warping_transformer = None
             self.apply_warping = False
@@ -88,28 +104,34 @@ class LLM_ACQ:
         self.prompt_setting = prompt_setting
         self.shuffle_features = shuffle_features
 
-        # Validate shuffle_features input
         assert isinstance(self.shuffle_features, bool), "shuffle_features must be a boolean"
 
     def _jitter(self, desired_fval: float) -> float:
-        """
-        Add jitter to observed fvals to prevent duplicates.
+        """Add jitter to observed fvals to prevent duplicates.
 
         Args:
             desired_fval (float): The desired performance target.
 
         Returns:
             float: The jittered performance target.
+
+        Example:
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> acq.observed_best = 0.8
+            >>> acq.observed_worst = 0.9
+            >>> acq.alpha = 0.1
+            >>> acq.apply_jitter = True
+            >>> jittered_val = acq._jitter(0.85)
+            >>> 0.8 <= jittered_val <= 0.85
+            True
         """
         if not self.apply_jitter:
             return desired_fval
 
-        # Validate required attributes
         assert hasattr(self, "observed_best"), "observed_best must be set before calling _jitter"
         assert hasattr(self, "observed_worst"), "observed_worst must be set before calling _jitter"
         assert hasattr(self, "alpha"), "alpha must be set before calling _jitter"
 
-        # Add uniform random noise to the desired performance target
         jittered = np.random.uniform(
             low=min(desired_fval, self.observed_best),
             high=max(desired_fval, self.observed_best),
@@ -119,14 +141,20 @@ class LLM_ACQ:
         return jittered
 
     def _count_decimal_places(self, n: float) -> int:
-        """
-        Count the number of decimal places in a number.
+        """Count the number of decimal places in a number.
 
         Args:
             n (float): The number to count decimal places for.
 
         Returns:
             int: The number of decimal places.
+
+        Example:
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> acq._count_decimal_places(123.456)
+            3
+            >>> acq._count_decimal_places(123.0)
+            0
         """
         s = format(n, ".10f")
         if "." not in s:
@@ -141,31 +169,48 @@ class LLM_ACQ:
         seed: Optional[int] = None,
         use_feature_semantics: bool = True,
         shuffle_features: bool = False,
-    ) -> List[Dict[str, str]]:
-        """
-        Prepare and (possibly shuffle) few-shot examples for prompt templates_mixed.
+    ) -> list[dict[str, str]]:
+        """Prepare and (possibly shuffle) few-shot examples for prompt templates.
 
         Args:
-            observed_configs (pd.DataFrame): Observed hyperparameter configurations.
-            observed_fvals (pd.DataFrame): Observed performance values.
-            seed (int): Random seed for shuffling.
-            use_feature_semantics (bool): Whether to use feature names in the prompts.
-            shuffle_features (bool): Whether to shuffle the order of hyperparameters.
+            observed_configs (Optional[pd.DataFrame], optional): Observed hyperparameter configurations.
+                Defaults to None.
+            observed_fvals (Optional[pd.DataFrame], optional): Observed performance values.
+                Defaults to None.
+            seed (Optional[int], optional): Random seed for shuffling. Defaults to None.
+            use_feature_semantics (bool, optional): Whether to use feature names in prompts.
+                Defaults to True.
+            shuffle_features (bool, optional): Whether to shuffle hyperparameter order.
+                Defaults to False.
 
         Returns:
             list[dict[str, str]]: A list of few-shot examples for the prompts.
+
+        Example:
+            >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
+            >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
+            >>> acq = LLM_ACQ(
+            ...     task_context={"hyperparameter_constraints": {
+            ...         "x1": ["float", None, [0, 10]],
+            ...         "x2": ["float", None, [0, 1]]
+            ...     }},
+            ...     n_candidates=10,
+            ...     n_templates=2,
+            ...     lower_is_better=True
+            ... )
+            >>> examples = acq._prepare_configurations_acquisition(configs, fvals)
+            >>> len(examples) == len(configs)
+            True
         """
         examples = []
 
         if seed is not None:
-            # Shuffle observed configurations if a seed is provided
             np.random.seed(seed)
             shuffled_indices = np.random.permutation(observed_configs.index)
             observed_configs = observed_configs.loc[shuffled_indices]
             if observed_fvals is not None:
                 observed_fvals = observed_fvals.loc[shuffled_indices]
         else:
-            # Sort observed configurations by performance values if no seed is provided
             if isinstance(observed_fvals, pd.DataFrame):
                 if self.lower_is_better:
                     observed_fvals = observed_fvals.sort_values(
@@ -178,12 +223,10 @@ class LLM_ACQ:
                 observed_configs = observed_configs.loc[observed_fvals.index]
 
         if shuffle_features:
-            # Shuffle the order of hyperparameters
             np.random.seed(0)
             shuffled_columns = np.random.permutation(observed_configs.columns)
             observed_configs = observed_configs[shuffled_columns]
 
-        # Serialize the observed configurations into few-shot examples
         if observed_configs is not None:
             hyperparameter_names = observed_configs.columns
             for index, row in observed_configs.iterrows():
@@ -241,7 +284,7 @@ class LLM_ACQ:
         elif observed_fvals is not None:
             examples = [{"A": f"{observed_fvals:.6f}"}]
         else:
-            raise Exception("No observed configurations or performance values provided.")
+            raise ValueError("No observed configurations or performance values provided.")
 
         return examples
 
@@ -254,21 +297,37 @@ class LLM_ACQ:
         use_context: str = "full_context",
         use_feature_semantics: bool = True,
         shuffle_features: bool = False,
-    ) -> Tuple[List[FewShotPromptTemplate], List[List[Dict[str, str]]]]:
-        """
-        Generate prompt templates_mixed for the acquisition function.
+    ) -> tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]:
+        """Generate prompt templates for the acquisition function.
 
         Args:
             observed_configs (pd.DataFrame): Observed hyperparameter configurations.
             observed_fvals (pd.DataFrame): Observed performance values.
             desired_fval (float): The desired performance target.
-            n_prompts (int): Number of prompt templates_mixed to generate.
-            use_context (str): Level of context to include in the prompts.
-            use_feature_semantics (bool): Whether to use feature names in the prompts.
-            shuffle_features (bool): Whether to shuffle the order of hyperparameters.
+            n_prompts (int, optional): Number of prompt templates to generate. Defaults to 1.
+            use_context (str, optional): Level of context to include. Defaults to "full_context".
+            use_feature_semantics (bool, optional): Whether to use feature names. Defaults to True.
+            shuffle_features (bool, optional): Whether to shuffle hyperparameters. Defaults to False.
 
         Returns:
-            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]: A tuple containing the prompt templates_mixed and query templates_mixed.
+            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]: A tuple containing the
+                prompt templates and query templates.
+
+        Example:
+            >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
+            >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
+            >>> acq = LLM_ACQ(
+            ...     task_context={"hyperparameter_constraints": {
+            ...         "x1": ["float", None, [0, 10]],
+            ...         "x2": ["float", None, [0, 1]]
+            ...     }},
+            ...     n_candidates=10,
+            ...     n_templates=2,
+            ...     lower_is_better=True
+            ... )
+            >>> templates = acq._gen_prompt_tempates_acquisitions(configs, fvals, 0.4)
+            >>> len(templates[0]) == 1  # n_prompts=1
+            True
         """
         all_prompt_templates = []
         all_query_templates = []
@@ -282,12 +341,10 @@ class LLM_ACQ:
             )
             jittered_desired_fval = self._jitter(desired_fval)
 
-            # Extract task context information
             task_context = self.task_context
-            hyperparameter_constraints = task_context["hyperparameter_constraints"]
+            hyperparameter_constraints = task_context
             custom_task_description = task_context.get("custom_task_description", None)
 
-            # Define the example template for the prompt
             example_template = """
 Performance: {A}
 Hyperparameter configuration: {Q}"""
@@ -301,7 +358,6 @@ Hyperparameter configuration: {Q}"""
                 prefix += "\n"
             prefix += "The allowable ranges for the hyperparameters are:\n"
 
-            # Add hyperparameter constraints to the prefix
             for i, (hyperparameter, constraint) in enumerate(hyperparameter_constraints.items()):
                 if constraint[0] == "float":
                     n_dp = self._count_decimal_places(constraint[2][0])
@@ -351,20 +407,26 @@ Hyperparameter configuration: {Q}"""
                         prefix += f"- X{i+1}: "
                     prefix += f" (ordinal, must take value in {constraint[2]})"
                 else:
-                    raise Exception("Unknown hyperparameter value type.")
+                    raise ValueError("Unknown hyperparameter value type.")
 
                 prefix += "\n"
+
             prefix += f"Recommend a configuration that can achieve the target performance of {jittered_desired_fval:.6f}. "
             if use_context in ["partial_context", "full_context"]:
-                prefix += "Do not recommend values at the minimum or maximum of allowable range, do not recommend rounded values. Recommend values with highest possible precision, as requested by the allowed ranges. "
-            prefix += "Your response must only contain the predicted configuration, in the format ## configuration ##.\n"
+                prefix += (
+                    "Do not recommend values at the minimum or maximum of allowable range, "
+                    "do not recommend rounded values. Recommend values with highest possible "
+                    "precision, as requested by the allowed ranges. "
+                )
+            prefix += (
+                "Your response must only contain the predicted configuration, "
+                "in the format ## configuration ##.\n"
+            )
 
-            # Define the suffix for the prompt
             suffix = """
 Performance: {A}
 Hyperparameter configuration:"""
 
-            # Create the few-shot prompt template
             few_shot_prompt = FewShotPromptTemplate(
                 examples=few_shot_examples,
                 example_prompt=example_prompt,
@@ -375,116 +437,67 @@ Hyperparameter configuration:"""
             )
             all_prompt_templates.append(few_shot_prompt)
 
-            # Prepare query templates_mixed for the prompts
             query_examples = self._prepare_configurations_acquisition(
-                observed_fvals=jittered_desired_fval, seed=None, shuffle_features=shuffle_features
+                observed_fvals=jittered_desired_fval,
+                seed=None,
+                shuffle_features=shuffle_features,
             )
             all_query_templates.append(query_examples)
 
         return all_prompt_templates, all_query_templates
 
-    async def _async_generate(self, user_message: str) -> Optional[Tuple[Any, float, int]]:
-        """
-        Generate a response from the LLM asynchronously.
+    async def _async_generate(self, user_message: str) -> Optional[tuple[Any, float, int]]:
+        """Generate a response from the LLM asynchronously.
 
         Args:
             user_message (str): The prompt message to send to the LLM.
 
         Returns:
-            Optional[tuple[Any, float, int]]: A tuple containing the LLM response, total cost, and total tokens used.
+            Optional[tuple[Any, float, int]]: A tuple containing the LLM response,
+                total cost, and total tokens used.
+
+        Example:
+            >>> # This is an async method that returns Optional[tuple[Any, float, int]]
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> # response = asyncio.run(acq._async_generate("Test message"))
+            >>> # response will be either None or (response_content, cost, tokens)
         """
         print("Sending inquiries to the LLM - acquisition function")
 
-        message = []
-        message.append(
+        message = [
             {
                 "role": "system",
                 "content": "You are an AI assistant that helps people find information.",
-            }
-        )
-        message.append({"role": "user", "content": user_message})
+            },
+            {"role": "user", "content": user_message},
+        ]
 
         resp, tot_cost = self.OpenAI_instance.ask(message)
         tot_tokens = 1000
-
-        # # Prepare the message for the LLM
-        # message = []
-        # message.append({"role": "system", "content": "You are an AI assistant that helps people find information."})
-        # message.append({"role": "user", "content": user_message})
-        #
-        # MAX_RETRIES = 3
-        #
-        # async with ClientSession(trust_env=True) as session:
-        #     openai.aiosession.set(session)
-        #
-        #     resp = None
-        #     for retry in range(MAX_RETRIES):
-        #         try:
-        #             print("Sending inquiry to the LLM")
-        #             print("-----prompt message beginning marker-----")
-        #             for idx, msg in enumerate(message):
-        #                 role = msg["role"].capitalize()
-        #                 content = msg["content"]
-        #                 print(f"{idx + 1}. {role}:")
-        #                 print(f"   {content}\n")
-        #             print("-----prompt message ending marker-----")
-        #             print(f"Requesting {self.n_gens} responses")
-        #
-        #             start_time = time.time()
-        #             self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
-        #             resp = await openai.ChatCompletion.acreate(
-        #                 engine=self.chat_engine,
-        #                 messages=message,
-        #                 temperature=0.8,
-        #                 max_tokens=500,
-        #                 top_p=0.95,
-        #                 n=self.n_gens,
-        #                 request_timeout=300,
-        #             )
-        #
-        #             print("The response from the LLM is below:")
-        #
-        #             print("-----response beginning marker-----")
-        #             for choice in resp.get("choices", []):
-        #                 index = choice.get("index", "N/A")
-        #                 content = choice.get("message", {}).get("content", "No content available")
-        #                 print(f"---Response {index + 1}:\n{content}\n---")
-        #             print("-----response ending marker-----")
-        #
-        #             self.rate_limiter.add_request(request_token_count=resp["usage"]["total_tokens"], current_time=start_time)
-        #             break
-        #         except Exception as e:
-        #             print(f"[AF] RETRYING LLM REQUEST {retry + 1}/{MAX_RETRIES}...")
-        #             error_details = traceback.format_exc()
-        #             print("Detailed Traceback:")
-        #             print(error_details)
-        #             print("The response is:", resp)
-        #
-        # await openai.aiosession.get().close()
-        #
-        # if resp is None:
-        #     return None
-        #
-        # # Calculate the total cost and tokens used
-        # tot_tokens = resp["usage"]["total_tokens"]
-        # tot_cost = 0.0015 * (resp["usage"]["prompt_tokens"] / 1000) + 0.002 * (resp["usage"]["completion_tokens"] / 1000)
 
         return resp, tot_cost, tot_tokens
 
     async def _async_generate_concurrently(
         self,
-        prompt_templates: List[FewShotPromptTemplate],
-        query_templates: List[List[Dict[str, str]]],
-    ) -> List[Optional[Tuple[Any, float, int]]]:
-        """
-        Perform concurrent generation of responses from the LLM asynchronously.
+        prompt_templates: list[FewShotPromptTemplate],
+        query_templates: list[list[dict[str, str]]],
+    ) -> list[Optional[tuple[Any, float, int]]]:
+        """Perform concurrent generation of responses from the LLM asynchronously.
 
         Args:
-            prompt_templates (list[FewShotPromptTemplate]): List of prompt templates_mixed.
-            query_templates (list[list[dict[str, str]]]): List of query templates_mixed.
+            prompt_templates (list[FewShotPromptTemplate]): List of prompt templates.
+            query_templates (list[list[dict[str, str]]]): List of query templates.
 
         Returns:
             list[Optional[tuple[Any, float, int]]]: A list of results from the LLM requests.
+
+        Example:
+            >>> # This is an async method that returns list[Optional[tuple[Any, float, int]]]
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> templates = [PromptTemplate(input_variables=["x"], template="test {x}")]
+            >>> query_temps = [[{"A": "0.5"}]]
+            >>> # responses = asyncio.run(acq._async_generate_concurrently(templates, query_temps))
+            >>> # responses will be a list of (response_content, cost, tokens) tuples or None
         """
         coroutines = []
         for prompt_template, query_template in zip(prompt_templates, query_templates):
@@ -494,11 +507,9 @@ Hyperparameter configuration:"""
 
         tasks = [asyncio.create_task(c) for c in coroutines]
 
-        # Validate the number of tasks
         assert len(tasks) == int(self.n_templates)
 
         results = [None] * len(coroutines)
-
         llm_response = await asyncio.gather(*tasks)
 
         for idx, response in enumerate(llm_response):
@@ -506,17 +517,21 @@ Hyperparameter configuration:"""
                 resp, tot_cost, tot_tokens = response
                 results[idx] = (resp, tot_cost, tot_tokens)
 
-        return results  # format [(resp, tot_cost, tot_tokens), None, (resp, tot_cost, tot_tokens)]
+        return results
 
-    def _convert_to_json(self, response_str: str) -> Dict[str, float]:
-        """
-        Parse LLM response string into JSON.
+    def _convert_to_json(self, response_str: str) -> dict[str, float]:
+        """Parse LLM response string into JSON.
 
         Args:
             response_str (str): The LLM response string.
 
         Returns:
             dict[str, float]: A dictionary containing the parsed hyperparameter configuration.
+
+        Example:
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> acq._convert_to_json("x1: 1.0, x2: 2.0")
+            {'x1': 1.0, 'x2': 2.0}
         """
         pairs = response_str.split(",")
         response_json = {}
@@ -528,22 +543,38 @@ Hyperparameter configuration:"""
 
     def _filter_candidate_points(
         self,
-        observed_points: List[Dict[str, float]],
-        candidate_points: List[Dict[str, float]],
+        observed_points: list[dict[str, float]],
+        candidate_points: list[dict[str, float]],
         precision: int = 8,
     ) -> pd.DataFrame:
-        """
-        Filter candidate points that already exist in observed points. Also remove duplicates.
+        """Filter candidate points that already exist in observed points.
+
+        Also removes duplicates and validates against hyperparameter constraints.
 
         Args:
             observed_points (list[dict[str, float]]): List of observed hyperparameter configurations.
             candidate_points (list[dict[str, float]]): List of candidate hyperparameter configurations.
-            precision (int): Number of decimal places to round values for comparison.
+            precision (int, optional): Number of decimal places for comparison. Defaults to 8.
 
         Returns:
             pd.DataFrame: A DataFrame containing the filtered candidate configurations.
+
+        Example:
+            >>> acq = LLM_ACQ(
+            ...     task_context={"hyperparameter_constraints": {
+            ...         "x1": ["float", None, [0, 10]],
+            ...         "x2": ["float", None, [0, 1]]
+            ...     }},
+            ...     n_candidates=10,
+            ...     n_templates=2,
+            ...     lower_is_better=True
+            ... )
+            >>> observed = [{"x1": 1.0, "x2": 0.1}]
+            >>> candidates = [{"x1": 1.0, "x2": 0.1}, {"x1": 2.0, "x2": 0.2}]
+            >>> filtered = acq._filter_candidate_points(observed, candidates)
+            >>> len(filtered) == 1
+            True
         """
-        # Drop points that already exist in observed points
         rounded_observed = [
             {key: round(value, precision) for key, value in d.items()} for d in observed_points
         ]
@@ -556,31 +587,30 @@ Hyperparameter configuration:"""
             if rounded_candidate[i] not in rounded_observed
         ]
 
-        def is_within_range(value: float, allowed_range: Tuple[str, str, List[float]]) -> bool:
+        def is_within_range(value: float, allowed_range: tuple[str, str, list[float]]) -> bool:
             """Check if a value is within an allowed range."""
             value_type, transform, search_range = allowed_range
             if value_type == "int":
-                [min_val, max_val] = search_range
+                min_val, max_val = search_range
                 if transform == "log" and self.apply_warping:
                     min_val = np.log10(min_val)
                     max_val = np.log10(max_val)
                     return min_val <= value <= max_val
-                else:
-                    return min_val <= value <= max_val and int(value) == value
+                return min_val <= value <= max_val and int(value) == value
             elif value_type == "float":
-                [min_val, max_val] = search_range
+                min_val, max_val = search_range
                 if transform == "log" and self.apply_warping:
                     min_val = np.log10(min_val)
                     max_val = np.log10(max_val)
                 return min_val <= value <= max_val
             elif value_type == "ordinal":
-                # Check that value is in allowed range up to 2 decimal places
                 return any(math.isclose(value, x, abs_tol=1e-2) for x in allowed_range[2])
             else:
-                raise Exception("Unknown hyperparameter value type")
+                raise ValueError("Unknown hyperparameter value type")
 
         def is_dict_within_ranges(
-            d: Dict[str, float], ranges_dict: Dict[str, Tuple[str, str, List[float]]]
+            d: dict[str, float],
+            ranges_dict: dict[str, tuple[str, str, list[float]]],
         ) -> bool:
             """Check if all values in a dictionary are within their respective allowable ranges."""
             return all(
@@ -589,21 +619,19 @@ Hyperparameter configuration:"""
             )
 
         def filter_dicts_by_ranges(
-            dict_list: List[Dict[str, float]], ranges_dict: Dict[str, Tuple[str, str, List[float]]]
-        ) -> List[Dict[str, float]]:
-            """Return only those dictionaries where all values are within their respective allowable ranges."""
+            dict_list: list[dict[str, float]],
+            ranges_dict: dict[str, tuple[str, str, list[float]]],
+        ) -> list[dict[str, float]]:
+            """Return only those dictionaries where all values are within their respective ranges."""
             return [d for d in dict_list if is_dict_within_ranges(d, ranges_dict)]
 
-        # Check that constraints are satisfied
         hyperparameter_constraints = self.task_context["hyperparameter_constraints"]
         filtered_candidates = filter_dicts_by_ranges(
             filtered_candidates, hyperparameter_constraints
         )
 
         filtered_candidates = pd.DataFrame(filtered_candidates)
-        # Drop duplicates
         filtered_candidates = filtered_candidates.drop_duplicates()
-        # Reset index
         filtered_candidates = filtered_candidates.reset_index(drop=True)
         return filtered_candidates
 
@@ -614,55 +642,68 @@ Hyperparameter configuration:"""
         use_feature_semantics: bool = True,
         use_context: str = "full_context",
         alpha: float = -0.2,
-    ) -> Tuple[pd.DataFrame, float, float]:
-        """
-        Generate candidate points for the acquisition function.
+    ) -> tuple[pd.DataFrame, float, float]:
+        """Generate candidate points for the acquisition function.
 
         Args:
             observed_configs (pd.DataFrame): Observed hyperparameter configurations.
             observed_fvals (pd.DataFrame): Observed performance values.
-            use_feature_semantics (bool): Whether to use feature names in the prompts.
-            use_context (str): Level of context to include in the prompts.
-            alpha (float): Controls how much better (or worse) the target performance is compared to the best observed performance.
+            use_feature_semantics (bool, optional): Whether to use feature names. Defaults to True.
+            use_context (str, optional): Level of context to include. Defaults to "full_context".
+            alpha (float, optional): Controls target performance relative to best observed.
+                Defaults to -0.2.
 
         Returns:
-            tuple[pd.DataFrame, float, float]: A tuple containing the filtered candidate points, total cost, and time taken.
-        """
+            tuple[pd.DataFrame, float, float]: A tuple containing the filtered candidate points,
+                total cost, and time taken.
 
+        Example:
+            >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
+            >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
+            >>> acq = LLM_ACQ(
+            ...     task_context={"hyperparameter_constraints": {
+            ...         "x1": ["float", None, [0, 10]],
+            ...         "x2": ["float", None, [0, 1]]
+            ...     }},
+            ...     n_candidates=10,
+            ...     n_templates=2,
+            ...     lower_is_better=True
+            ... )
+            >>> candidates, cost, time = acq.get_candidate_points(configs, fvals)
+            >>> isinstance(candidates, pd.DataFrame)
+            True
+        """
         assert -1 <= alpha <= 1, "alpha must be between -1 and 1"
         if alpha == 0:
-            alpha = -1e-3  # A little bit of randomness never hurt anyone
+            alpha = -1e-3
         self.alpha = alpha
 
         if self.prompt_setting is not None:
             use_context = self.prompt_setting
 
-        # Generate prompt templates_mixed
         start_time = time.time()
 
-        # Get desired f_val for candidate points
-        range = np.abs(np.max(observed_fvals.values) - np.min(observed_fvals.values))
-        if range == 0:
-            # Sometimes there is no variability in y :')
-            range = 0.1 * np.abs(np.max(observed_fvals.values))
-        alpha_range = [0.1, 1e-2, 1e-3, -1e-3, -1e-2, 1e-1]
+        range_val = np.abs(np.max(observed_fvals.values) - np.min(observed_fvals.values))
+        if range_val == 0:
+            range_val = 0.1 * np.abs(np.max(observed_fvals.values))
+        alpha_range = [0.1, 1e-2, 1e-3, -1e-3, -1e-2, -0.1]
 
         if self.lower_is_better:
             self.observed_best = np.min(observed_fvals.values)
             self.observed_worst = np.max(observed_fvals.values)
-            range = self.observed_worst - self.observed_best
-            desired_fval = self.observed_best - alpha * range
+            range_val = self.observed_worst - self.observed_best
+            desired_fval = self.observed_best - alpha * range_val
 
             iteration = 0
-            max_iterations = 10  # Safety net
+            max_iterations = 10
 
             while desired_fval <= 0.00001 and iteration < max_iterations:
                 alpha_updated = False
 
-                for i, alpha_ in enumerate(alpha_range):
+                for alpha_ in alpha_range:
                     if alpha_ < alpha:
                         alpha = alpha_
-                        desired_fval = self.observed_best - alpha * range
+                        desired_fval = self.observed_best - alpha * range_val
                         alpha_updated = True
                         break
 
@@ -672,27 +713,27 @@ Hyperparameter configuration:"""
                 iteration += 1
 
             print(
-                f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}"
+                f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], "
+                f"desired fval: {desired_fval:.6f}"
             )
 
         else:
             self.observed_best = np.max(observed_fvals.values)
             self.observed_worst = np.min(observed_fvals.values)
-            range = self.observed_best - self.observed_worst
-            desired_fval = self.observed_best + alpha * range
+            range_val = self.observed_best - self.observed_worst
+            desired_fval = self.observed_best + alpha * range_val
 
             iteration = 0
-            max_iterations = 10  # Safety net
+            max_iterations = 10
 
             while desired_fval >= 0.9999 and iteration < max_iterations:
                 alpha_updated = False
 
-                for i, alpha_ in enumerate(alpha_range):
+                for alpha_ in alpha_range:
                     if alpha_ < alpha:
                         alpha = alpha_
-                        desired_fval = self.observed_best + alpha * range
+                        desired_fval = self.observed_best + alpha * range_val
                         alpha_updated = True
-
                         break
 
                 if not alpha_updated:
@@ -702,7 +743,8 @@ Hyperparameter configuration:"""
                 iteration += 1
 
             print(
-                f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}"
+                f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], "
+                f"desired fval: {desired_fval:.6f}"
             )
 
         self.desired_fval = desired_fval
@@ -722,8 +764,8 @@ Hyperparameter configuration:"""
 
         print("=" * 100)
         print("EXAMPLE ACQUISITION PROMPT")
-        print(f"Length of prompt templates_mixed: {len(prompt_templates)}")
-        print(f"Length of query templates_mixed: {len(query_templates)}")
+        print(f"Length of prompt templates: {len(prompt_templates)}")
+        print(f"Length of query templates: {len(query_templates)}")
         print(prompt_templates[0].format(A=query_templates[0][0]["A"]))
         print("=" * 100)
 
@@ -739,16 +781,15 @@ Hyperparameter configuration:"""
             candidate_points = []
             tot_cost = 0
             tot_tokens = 0
-            # Loop through n_coroutine async calls
+
             for response in llm_responses:
                 if response is None:
                     continue
-                # Loop through n_gen responses
                 for response_content in response:
                     try:
                         response_content = response_content.split("##")[1].strip()
                         candidate_points.append(self._convert_to_json(response_content))
-                    except:
+                    except Exception:
                         print(response_content)
                         continue
                 tot_cost += response[1]
@@ -776,7 +817,7 @@ Hyperparameter configuration:"""
                     filtered_candidate_points = pd.DataFrame(candidate_points)
                     break
                 else:
-                    raise Exception("LLM failed to generate candidate points after 10 retries")
+                    raise RuntimeError("LLM failed to generate candidate points after 10 retries")
 
         if self.warping_transformer is not None:
             filtered_candidate_points = self.warping_transformer.unwarp(filtered_candidate_points)

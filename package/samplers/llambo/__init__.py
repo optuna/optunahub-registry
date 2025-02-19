@@ -1,4 +1,4 @@
-from .sampler_base import Sampler
+from .sampler_base import LLAMBOSampler
 
 
-__all__ = ["Sampler"]
+__all__ = ["LLAMBOSampler"]
