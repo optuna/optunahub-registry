@@ -8,7 +8,6 @@ from typing import Optional
 from typing import Tuple
 
 from llambo.discriminative_sm_utils import gen_prompt_templates
-from llambo.rate_limiter import RateLimiter
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 from scipy.stats import norm
@@ -29,7 +28,6 @@ class LLMDiscriminativeSM:
         bootstrapping (bool): Whether to use bootstrapping for uncertainty estimation.
         n_templates (int): Number of prompt templates to use.
         use_recalibration (bool): Whether to use recalibration for uncertainty estimates.
-        rate_limiter (RateLimiter): Rate limiter for API calls.
         warping_transformer (Optional[Any]): Transformer for feature warping.
         verbose (bool): Whether to print verbose output.
         prompt_setting (Optional[Any]): Settings for prompt generation.
@@ -57,7 +55,6 @@ class LLMDiscriminativeSM:
         bootstrapping: bool = False,
         n_templates: int = 1,
         use_recalibration: bool = False,
-        rate_limiter: Optional[RateLimiter] = None,
         warping_transformer: Optional[Any] = None,
         verbose: bool = False,
         prompt_setting: Optional[Any] = None,
@@ -75,7 +72,6 @@ class LLMDiscriminativeSM:
             bootstrapping: Whether to use bootstrapping.
             n_templates: Number of prompt templates.
             use_recalibration: Whether to use recalibration.
-            rate_limiter: Rate limiter for API calls.
             warping_transformer: Transformer for feature warping.
             verbose: Whether to print verbose output.
             prompt_setting: Settings for prompt generation.
@@ -97,7 +93,6 @@ class LLMDiscriminativeSM:
         ), "Cannot do recalibration and bootstrapping at the same time"
 
         self.use_recalibration = use_recalibration
-        self.rate_limiter = rate_limiter or RateLimiter(max_tokens=100000, time_frame=60)
         self.warping_transformer = warping_transformer
         self.apply_warping = warping_transformer is not None
         self.recalibrator = None

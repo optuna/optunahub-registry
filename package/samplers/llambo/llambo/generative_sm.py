@@ -15,7 +15,6 @@ from typing import Optional
 from typing import Sequence
 
 from llambo.generative_sm_utils import gen_prompt_tempates
-from llambo.rate_limiter import RateLimiter
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 import pandas as pd
@@ -35,7 +34,6 @@ class LLMGenerativeSM:
         lower_is_better (bool): Whether lower objective values are better.
         top_pct (float): Top percentage of configurations to consider.
         n_templates (int): Number of prompt templates to use.
-        rate_limiter (RateLimiter): Rate limiter for API calls.
         recalibrator (Optional[Any]): Model recalibration component.
         OpenAI_instance (OpenAI_interface): Interface to OpenAI's API.
         verbose (bool): Whether to print detailed information.
@@ -58,7 +56,6 @@ class LLMGenerativeSM:
         lower_is_better: bool,
         top_pct: float,
         n_templates: int = 1,
-        rate_limiter: Optional[RateLimiter] = None,
         verbose: bool = False,
         key: str = "",
         model: str = "gpt-4o-mini",
@@ -72,7 +69,6 @@ class LLMGenerativeSM:
             lower_is_better: Whether lower objective values are better.
             top_pct: Top percentage of configurations to consider.
             n_templates: Number of prompt templates to use.
-            rate_limiter: Rate limiter for API calls.
             verbose: Whether to print detailed information.
             key: OpenAI API key.
             model: Name of the OpenAI model to use.
@@ -82,11 +78,6 @@ class LLMGenerativeSM:
         self.lower_is_better = lower_is_better
         self.top_pct = top_pct
         self.n_templates = n_templates
-        self.rate_limiter = rate_limiter or RateLimiter(
-            max_tokens=240000,
-            time_frame=60,
-            max_requests=2900,
-        )
         self.recalibrator = None
         self.OpenAI_instance = OpenAI_interface(key, model=model, debug=False)
         self.verbose = verbose

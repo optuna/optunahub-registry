@@ -8,7 +8,6 @@ from typing import Optional
 
 from langchain import FewShotPromptTemplate
 from langchain import PromptTemplate
-from llambo.rate_limiter import RateLimiter
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 import pandas as pd
@@ -27,8 +26,6 @@ class LLM_ACQ:
         lower_is_better (bool): Whether lower values of the objective function are better.
         jitter (bool, optional): Whether to add jitter to the desired performance target.
             Defaults to False.
-        rate_limiter (Optional[RateLimiter], optional): Manages API rate limits for LLM requests.
-            Defaults to None.
         warping_transformer (Optional[Any], optional): Applies transformations (e.g., log scaling)
             to hyperparameters. Defaults to None.
         prompt_setting (Optional[str], optional): Controls the level of context provided in the prompts.
@@ -46,7 +43,6 @@ class LLM_ACQ:
         lower_is_better (bool): Whether lower values are better.
         apply_jitter (bool): Whether jitter is applied.
         OpenAI_instance (OpenAI_interface): Interface for OpenAI API calls.
-        rate_limiter (RateLimiter): Rate limiter for API calls.
         warping_transformer (Optional[Any]): Transformer for hyperparameter scaling.
         apply_warping (bool): Whether warping is applied.
         prompt_setting (Optional[str]): Prompt context setting.
@@ -74,7 +70,6 @@ class LLM_ACQ:
         n_templates: int,
         lower_is_better: bool,
         jitter: bool = False,
-        rate_limiter: Optional[RateLimiter] = None,
         warping_transformer: Optional[Any] = None,
         prompt_setting: Optional[str] = None,
         shuffle_features: bool = False,
@@ -88,11 +83,6 @@ class LLM_ACQ:
         self.lower_is_better = lower_is_better
         self.apply_jitter = jitter
         self.OpenAI_instance = OpenAI_interface(api_key=key, model=model, debug=True)
-
-        if rate_limiter is None:
-            self.rate_limiter = RateLimiter(max_tokens=40000, time_frame=60)
-        else:
-            self.rate_limiter = rate_limiter
 
         if warping_transformer is None:
             self.warping_transformer = None
@@ -546,7 +536,7 @@ class LLM_ACQ:
             response_json[key] = float(value)
 
         return response_json
-
+    #TODO: remove the debug prints after debugging
     def _filter_candidate_points(
         self,
         observed_points: list[dict[str, float]],

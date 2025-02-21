@@ -126,7 +126,6 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 dtype = "float"
                 dist_type = "log" if distribution.log else "linear"
                 bounds = [distribution.low, distribution.high]
-                print("DEBUG: the bounds for float:", bounds)
             elif isinstance(distribution, optuna.distributions.IntDistribution):
                 dtype = "int"
                 dist_type = "log" if distribution.log else "linear"
@@ -352,6 +351,13 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         # Use LLAMBO to sample numerical parameters.
         try:
             numerical_params = self.LLAMBO_instance.sample_configurations()
+
+            # Ensure integer values are actually integers
+            for param_name, value in numerical_params.items():
+                if param_name in numerical_space and isinstance(numerical_space[param_name],
+                                                                optuna.distributions.IntDistribution):
+                    numerical_params[param_name] = int(value)
+
         except Exception as e:
             # If LLAMBO sampling fails, fall back to random sampling
             self._debug_print(f"LLAMBO sampling failed: {e}. Falling back to random sampling.")

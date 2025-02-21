@@ -6,7 +6,6 @@ from typing import Tuple
 from llambo.acquisition_function import LLM_ACQ
 from llambo.discriminative_sm import LLMDiscriminativeSM
 from llambo.generative_sm import LLMGenerativeSM
-from llambo.rate_limiter import RateLimiter
 from llambo.warping import NumericalTransformer
 import numpy as np
 import pandas as pd
@@ -89,9 +88,6 @@ class LLAMBO:
         if use_input_warping:
             warping_transformer = NumericalTransformer(task_context["hyperparameter_constraints"])
 
-        # Setup rate limiting
-        rate_limiter = RateLimiter(max_tokens=100000, time_frame=60, max_requests=1)
-
         # Initialize surrogate model based on mode
         if sm_mode == "generative":
             self.surrogate_model = LLMGenerativeSM(
@@ -100,7 +96,6 @@ class LLAMBO:
                 lower_is_better=self.lower_is_better,
                 top_pct=top_pct,
                 n_templates=n_templates,
-                rate_limiter=None,  # Generative mode doesn't use rate limiting
                 key=self.key,
                 model=self.model,
             )
@@ -110,7 +105,6 @@ class LLAMBO:
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
                 n_templates=n_templates,
-                rate_limiter=rate_limiter,
                 warping_transformer=warping_transformer,
                 prompt_setting=prompt_setting,
                 shuffle_features=shuffle_features,
@@ -124,7 +118,6 @@ class LLAMBO:
             n_candidates=n_candidates,
             n_templates=n_templates,
             lower_is_better=self.lower_is_better,
-            rate_limiter=rate_limiter,
             warping_transformer=warping_transformer,
             prompt_setting=prompt_setting,
             shuffle_features=shuffle_features,
