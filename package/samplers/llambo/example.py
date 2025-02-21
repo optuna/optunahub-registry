@@ -272,13 +272,15 @@ objective_function_choice = "objective_mixed"
 # Options: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2", "dynamic_3"
 
 # Sampler settings
-sm_mode = "generative"
+sm_mode = "discriminative"
 debug = True
 model = "gpt-4o-mini"
+max_requests_per_minute = 60
+#TODO: remove this information: with unlimited call rate and 4o-mini, the speed is about 60/min
 
 # Experiment configuration
 num_experiments = 2  # Number of independent experiments
-number_of_trials = 500  # Number of trials per experiment
+number_of_trials = 15  # Number of trials per experiment
 n_jobs = 1
 
 # For local loading
@@ -286,7 +288,7 @@ registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
 sampler = optunahub.load_local_module(
     package="samplers/llambo",
     registry_root=registry_root,
-).LLAMBOSampler(api_key=api_key, model=model, debug=debug, sm_mode=sm_mode)
+).LLAMBOSampler(api_key=api_key, model=model, debug=debug, sm_mode=sm_mode, max_requests_per_minute=max_requests_per_minute)
 
 
 # ---------------Loading samplers---------------

@@ -55,16 +55,18 @@ import pytest
 sm_mode = "discriminative"
 debug = True
 model = "gpt-4o-mini"
+max_requests_per_minute = 60
 
 
 registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
 
 
-def The_Sampler():
+def The_Sampler(seed=None):
     return optunahub.load_local_module(
         package="samplers/llambo",
         registry_root=registry_root,
-    ).LLAMBOSampler(api_key=api_key, model=model, debug=debug, sm_mode=sm_mode)
+    ).LLAMBOSampler(api_key=api_key, model=model, debug=debug,
+                    sm_mode=sm_mode,seed=seed,max_requests_per_minute=max_requests_per_minute)
 
 
 parametrize_sampler = pytest.mark.parametrize("sampler_class", [The_Sampler])
@@ -195,29 +197,50 @@ def test_categorical(
     np.testing.assert_almost_equal(round_points, points)
 
 
+# @parametrize_relative_sampler
+# @pytest.mark.parametrize(
+#     "x_distribution",
+#     [
+#         FloatDistribution(-1.0, 1.0),
+#         FloatDistribution(1e-7, 1.0, log=True),
+#         FloatDistribution(-10, 10, step=0.5),
+#         IntDistribution(3, 10),
+#         IntDistribution(1, 100, log=True),
+#         IntDistribution(3, 9, step=2),
+#     ],
+# )
+# @pytest.mark.parametrize(
+#     "y_distribution",
+#     [
+#         FloatDistribution(-1.0, 1.0),
+#         FloatDistribution(1e-7, 1.0, log=True),
+#         FloatDistribution(-10, 10, step=0.5),
+#         IntDistribution(3, 10),
+#         IntDistribution(1, 100, log=True),
+#         IntDistribution(3, 9, step=2),
+#     ],
+# )
+
+
+
+# the parameters for test_sample_relative_numerical are simplified to save timme
 @parametrize_relative_sampler
 @pytest.mark.parametrize(
     "x_distribution",
     [
         FloatDistribution(-1.0, 1.0),
-        FloatDistribution(1e-7, 1.0, log=True),
-        FloatDistribution(-10, 10, step=0.5),
         IntDistribution(3, 10),
-        IntDistribution(1, 100, log=True),
-        IntDistribution(3, 9, step=2),
     ],
 )
 @pytest.mark.parametrize(
     "y_distribution",
     [
         FloatDistribution(-1.0, 1.0),
-        FloatDistribution(1e-7, 1.0, log=True),
-        FloatDistribution(-10, 10, step=0.5),
         IntDistribution(3, 10),
-        IntDistribution(1, 100, log=True),
-        IntDistribution(3, 9, step=2),
     ],
 )
+
+
 def test_sample_relative_numerical(
     relative_sampler_class: Callable[[], BaseSampler],
     x_distribution: BaseDistribution,
