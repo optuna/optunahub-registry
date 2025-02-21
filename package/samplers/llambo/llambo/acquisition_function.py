@@ -294,48 +294,73 @@ class LLM_ACQ:
         observed_fvals: pd.DataFrame,
         desired_fval: float,
         n_prompts: int = 1,
-        use_context: str = "full_context",
         use_feature_semantics: bool = True,
         shuffle_features: bool = False,
     ) -> tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]:
-        """Generate prompt templates for the acquisition function.
-
-        Args:
-            observed_configs (pd.DataFrame): Observed hyperparameter configurations.
-            observed_fvals (pd.DataFrame): Observed performance values.
-            desired_fval (float): The target performance value to achieve.
-            n_prompts (int, optional): Number of prompt templates to generate. Defaults to 1.
-            use_context (str, optional): Level of context to include in prompts.
-                Defaults to "full_context".
-            use_feature_semantics (bool, optional): Whether to use feature names in prompts.
-                Defaults to True.
-            shuffle_features (bool, optional): Whether to shuffle the order of hyperparameters.
-                Defaults to False.
-
-        Returns:
-            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]: A tuple containing
-                the generated prompt templates and query templates.
-
-        Example:
-            >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
-            >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
-            >>> acq = LLM_ACQ(
-            ...     task_context={"hyperparameter_constraints": {
-            ...         "x1": ["float", None, [0, 10]],
-            ...         "x2": ["float", None, [0, 1]]
-            ...     }},
-            ...     n_candidates=10,
-            ...     n_templates=2,
-            ...     lower_is_better=True
-            ... )
-            >>> templates, queries = acq._gen_prompt_templates_acquisitions(
-            ...     configs, fvals, 0.4
-            ... )
-            >>> len(templates) == 1 and len(queries) == 1
-            True
         """
+        Generate prompt templates for the acquisition function.
+
+        This function generates prompt templates to guide the acquisition process. Compared to the original
+        implementation, it includes an additional prompt to explicitly specify that previously observed
+        values **must not be recommended again**, helping to avoid repetition:
+
+            The following values have already been observed and **must not be recommended again**:\n
+            f"{observed_values_str}"
+
+        Additionally, this implementation enforces an integer constraint by explicitly stating:
+
+            "Do not recommend float values, you can only recommend integer values."
+
+        when integer-type hyperparameters are specified, increasing the likelihood that only integer values are
+        suggested for integer dimensions.
+
+        ### Args:
+            observed_configs (pd.DataFrame):
+                A DataFrame containing observed hyperparameter configurations.
+            observed_fvals (pd.DataFrame):
+                A DataFrame containing observed performance values for the configurations.
+            desired_fval (float):
+                The target performance value that the acquisition function aims to achieve.
+            n_prompts (int, optional):
+                The number of prompt templates to generate. Defaults to 1.
+            use_feature_semantics (bool, optional):
+                Whether to include feature names in the prompts for better interpretability. Defaults to `True`.
+            shuffle_features (bool, optional):
+                Whether to shuffle the order of hyperparameters in the generated prompts. Defaults to `False`.
+
+        ### Returns:
+            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]:
+                A tuple containing:
+                - A list of generated prompt templates (`FewShotPromptTemplate`).
+                - A list of query templates (`list[dict[str, str]]`), where each dictionary represents a structured query.
+
+        ### Example:
+        ```python
+        >>> import pandas as pd
+        >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
+        >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
+        >>> acq = LLM_ACQ(
+        ...     task_context={"hyperparameter_constraints": {
+        ...         "x1": ["float", None, [0, 10]],
+        ...         "x2": ["float", None, [0, 1]]
+        ...     }},
+        ...     n_candidates=10,
+        ...     n_templates=2,
+        ...     lower_is_better=True
+        ... )
+        >>> templates, queries = acq._gen_prompt_templates_acquisitions(configs, fvals, 0.4)
+        >>> len(templates) == 1 and len(queries) == 1
+        True
+        """
+
         all_prompt_templates = []
         all_query_templates = []
+
+        # Extract observed values for inclusion in the prompt
+        observed_values_str = ""
+        for col in observed_configs.columns:
+            unique_vals = sorted(observed_configs[col].unique())
+            observed_values_str += f"- {col}: {', '.join(f'{val:.6f}' for val in unique_vals)}\n"
 
         for i in range(n_prompts):
             few_shot_examples = self._prepare_configurations_acquisition(
@@ -351,8 +376,8 @@ class LLM_ACQ:
             custom_task_description = task_context.get("custom_task_description", None)
 
             example_template = """
-    Performance: {A}
-    Hyperparameter configuration: {Q}"""
+        Performance: {A}
+        Hyperparameter configuration: {Q}"""
 
             example_prompt = PromptTemplate(input_variables=["Q", "A"], template=example_template)
 
@@ -363,101 +388,51 @@ class LLM_ACQ:
                 prefix += "\n"
             prefix += "The allowable ranges for the hyperparameters are:\n"
 
-            for i, (hyperparameter, constraint) in enumerate(hyperparameter_constraints.items()):
-                # Safely handle potentially None constraints
-                if constraint is None:
-                    print(f"Warning: Constraint for {hyperparameter} is None, skipping")
-                    continue
+            integer_constraint = None
 
-                if len(constraint) < 3:
-                    print(f"Warning: Constraint for {hyperparameter} is incomplete, skipping")
-                    continue
+            for i, (hyperparameter, constraint) in enumerate(hyperparameter_constraints.items()):
+                if constraint is None or len(constraint) < 3:
+                    continue  # Skip invalid constraints
 
                 try:
                     if constraint[0] == "float":
                         n_dp = self._count_decimal_places(constraint[2][0])
-                        if constraint[1] == "log" and self.apply_warping:
-                            lower_bound = np.log10(constraint[2][0])
-                            upper_bound = np.log10(constraint[2][1])
-                        else:
-                            lower_bound = constraint[2][0]
-                            upper_bound = constraint[2][1]
+                        lower_bound, upper_bound = constraint[2]
+                        prefix += f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}] (float, precise to {n_dp} decimals)\n"
 
-                        if use_feature_semantics:
-                            prefix += (
-                                f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, "
-                                f"{upper_bound:.{n_dp}f}]"
-                            )
-                        else:
-                            prefix += (
-                                f"- X{i + 1}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
-                            )
-
-                        if constraint[1] == "log" and self.apply_warping:
-                            prefix += f" (log scale, precise to {n_dp} decimals)"
-                        else:
-                            prefix += f" (float, precise to {n_dp} decimals)"
                     elif constraint[0] == "int":
-                        if constraint[1] == "log" and self.apply_warping:
-                            lower_bound = np.log10(constraint[2][0])
-                            upper_bound = np.log10(constraint[2][1])
-                            n_dp = self._count_decimal_places(lower_bound)
-                        else:
-                            lower_bound = constraint[2][0]
-                            upper_bound = constraint[2][1]
-                            n_dp = 0
+                        integer_constraint = (
+                            "Do not recommend float values, you can only recommend integer values."
+                        )
+                        lower_bound, upper_bound = constraint[2]
+                        prefix += f"- {hyperparameter}: [{lower_bound}, {upper_bound}] (int)\n"
 
-                        if use_feature_semantics:
-                            prefix += (
-                                f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, "
-                                f"{upper_bound:.{n_dp}f}]"
-                            )
-                        else:
-                            prefix += (
-                                f"- X{i + 1}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
-                            )
-
-                        if constraint[1] == "log" and self.apply_warping:
-                            prefix += f" (log scale, precise to {n_dp} decimals)"
-                        else:
-                            prefix += " (int)"
                     elif constraint[0] == "ordinal":
-                        if use_feature_semantics:
-                            prefix += f"- {hyperparameter}: "
-                        else:
-                            prefix += f"- X{i + 1}: "
-                        prefix += f" (ordinal, must take value in {constraint[2]})"
-                    elif constraint[0] == "categorical":
-                        if use_feature_semantics:
-                            prefix += f"- {hyperparameter}: "
-                        else:
-                            prefix += f"- X{i + 1}: "
-                        prefix += f" (categorical, must take value in {constraint[2]})"
-                    else:
-                        print(f"Warning: Unknown hyperparameter value type: {constraint[0]}")
+                        prefix += (
+                            f"- {hyperparameter}: (ordinal, must take value in {constraint[2]})\n"
+                        )
+
                 except Exception as e:
                     print(f"Error processing constraint for {hyperparameter}: {e}")
-                    print(f"Constraint value: {constraint}")
                     continue
 
-                prefix += "\n"
-
-            prefix += "Recommend a configuration that can achieve the target performance of "
-            prefix += f"{jittered_desired_fval:.6f}. "
-            if use_context in ["partial_context", "full_context"]:
-                prefix += (
-                    "Do not recommend values at the minimum or maximum of allowable range, "
-                    "do not recommend rounded values. Recommend values with highest possible "
-                    "precision, as requested by the allowed ranges. "
-                )
+            # **Add instruction to avoid recommending existing values with explicit listing**
             prefix += (
+                "Recommend a configuration that can achieve the target performance of "
+                f"{jittered_desired_fval:.6f}. Do not recommend values at the minimum or maximum "
+                "of allowable range, do not recommend rounded values. Recommend values with the highest "
+                "possible precision, as requested by the allowed ranges. **Do not recommend values that "
+                "have already been observed.**\n"
+                "The following values have already been observed and **must not be recommended again**:\n"
+                f"{observed_values_str}\n"
+                f"{integer_constraint}\n"
                 "Your response must only contain the predicted configuration, "
                 "in the format ## configuration ##.\n"
             )
 
             suffix = """
-    Performance: {A}
-    Hyperparameter configuration:"""
+        Performance: {A}
+        Hyperparameter configuration:"""
 
             few_shot_prompt = FewShotPromptTemplate(
                 examples=few_shot_examples,
@@ -606,37 +581,64 @@ class LLM_ACQ:
             >>> len(filtered) == 1
             True
         """
+        print("\n--- Debug: _filter_candidate_points ---")
+        print(f"Number of observed points: {len(observed_points)}")
+        print(f"Number of candidate points: {len(candidate_points)}")
+        print("Observed points:", observed_points)
+        print("Candidate points:", candidate_points)
+
         rounded_observed = [
             {key: round(value, precision) for key, value in d.items()} for d in observed_points
         ]
         rounded_candidate = [
             {key: round(value, precision) for key, value in d.items()} for d in candidate_points
         ]
+
+        print("Rounded observed points:", rounded_observed)
+        print("Rounded candidate points:", rounded_candidate)
+
         filtered_candidates = [
             x
             for i, x in enumerate(candidate_points)
             if rounded_candidate[i] not in rounded_observed
         ]
 
+        print(f"Candidates after checking existing points: {filtered_candidates}")
+
         def is_within_range(value: float, allowed_range: tuple[str, str, list[float]]) -> bool:
             """Check if a value is within an allowed range."""
             value_type, transform, search_range = allowed_range
+            print(f"Checking value {value} of type {value_type} with transform {transform}")
+            print(f"Allowed range: {search_range}")
+
             if value_type == "int":
                 min_val, max_val = search_range
                 if transform == "log" and self.apply_warping:
                     min_val = np.log10(min_val)
                     max_val = np.log10(max_val)
-                    return min_val <= value <= max_val
-                return min_val <= value <= max_val and int(value) == value
+                    result = min_val <= value <= max_val
+                    print(f"Log warped int check: {result}")
+                    return result
+                result = min_val <= value <= max_val and int(value) == value
+                print(f"Int check: {result}")
+                return result
             elif value_type == "float":
                 min_val, max_val = search_range
                 if transform == "log" and self.apply_warping:
                     min_val = np.log10(min_val)
                     max_val = np.log10(max_val)
-                return min_val <= value <= max_val
+                    result = min_val <= value <= max_val
+                    print(f"Log warped float check: {result}")
+                    return result
+                result = min_val <= value <= max_val
+                print(f"Float check: {result}")
+                return result
             elif value_type == "ordinal":
-                return any(math.isclose(value, x, abs_tol=1e-2) for x in allowed_range[2])
+                result = any(math.isclose(value, x, abs_tol=1e-2) for x in allowed_range[2])
+                print(f"Ordinal check: {result}")
+                return result
             else:
+                print(f"Unknown parameter type: {value_type}")
                 raise ValueError("Unknown hyperparameter value type")
 
         def is_dict_within_ranges(
@@ -644,10 +646,13 @@ class LLM_ACQ:
             ranges_dict: dict[str, tuple[str, str, list[float]]],
         ) -> bool:
             """Check if all values in a dictionary are within their respective allowable ranges."""
-            return all(
+            print("\nChecking dict ranges:", d)
+            ranges_check = all(
                 key in ranges_dict and is_within_range(value, ranges_dict[key])
                 for key, value in d.items()
             )
+            print(f"Ranges check result: {ranges_check}")
+            return ranges_check
 
         def filter_dicts_by_ranges(
             dict_list: list[dict[str, float]],
@@ -657,13 +662,25 @@ class LLM_ACQ:
             return [d for d in dict_list if is_dict_within_ranges(d, ranges_dict)]
 
         hyperparameter_constraints = self.task_context["hyperparameter_constraints"]
+        print("\nHyperparameter constraints:", hyperparameter_constraints)
+
         filtered_candidates = filter_dicts_by_ranges(
             filtered_candidates, hyperparameter_constraints
         )
 
+        print("Filtered candidates after range check:", filtered_candidates)
+
         filtered_candidates = pd.DataFrame(filtered_candidates)
+        print("DataFrame before drop_duplicates:", filtered_candidates)
+
         filtered_candidates = filtered_candidates.drop_duplicates()
+        print("DataFrame after drop_duplicates:", filtered_candidates)
+
         filtered_candidates = filtered_candidates.reset_index(drop=True)
+        print("Final filtered candidates:", filtered_candidates)
+
+        print("--- End of Debug: _filter_candidate_points ---\n")
+
         return filtered_candidates
 
     def get_candidate_points(
