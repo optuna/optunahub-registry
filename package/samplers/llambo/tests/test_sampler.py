@@ -52,11 +52,10 @@ import optunahub
 import pytest
 
 
-# NOTE(nabenabe): This file content is mostly copied from the Optuna repository.
-The_Sampler = optunahub.load_local_module(
-    package="package/samplers/llambo",
-    registry_root="/home/j/PycharmProjects/optunahub-registry",
-).LLAMBOSampler
+sm_mode = "discriminative"
+debug = True
+model = "gpt-4o-mini"
+api_key = ""
 
 
 registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
@@ -66,7 +65,7 @@ def The_Sampler():
     return optunahub.load_local_module(
         package="samplers/llambo",
         registry_root=registry_root,
-    ).LLAMBOSampler(api_key="", model="", debug=True)
+    ).LLAMBOSampler(api_key=api_key, model=model, debug=debug, sm_mode=sm_mode)
 
 
 parametrize_sampler = pytest.mark.parametrize("sampler_class", [The_Sampler])

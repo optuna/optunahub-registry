@@ -115,8 +115,10 @@ class LLMGenerativeSM:
         Example:
             >>> template = "Given {Q}, predict the performance"
             >>> example = {"Q": "learning_rate=0.01"}
-            >>> result = await model._async_generate(template, example, 0)
-            >>> isinstance(result, tuple) and len(result) == 4
+            >>> async def example_usage():
+            ...     result = await model._async_generate(template, example, 0)
+            ...     return isinstance(result, tuple) and len(result) == 4
+            >>> asyncio.run(example_usage())
             True
         """
         print("Sending inquiries to the LLM - generative surrogate model")
@@ -131,9 +133,8 @@ class LLMGenerativeSM:
         ]
 
         resp, tot_cost = self.OpenAI_instance.ask(message)
-        tot_tokens = 1000  # Placeholder, replace with actual token count
 
-        return query_idx, resp, tot_cost, tot_tokens
+        return query_idx, resp, tot_cost
 
     async def _generate_concurrently(
         self,
@@ -153,8 +154,10 @@ class LLMGenerativeSM:
         Example:
             >>> templates = ["Template {Q}"]
             >>> examples = [{"Q": "config1"}, {"Q": "config2"}]
-            >>> results = await model._generate_concurrently(templates, examples)
-            >>> isinstance(results, list) and len(results) == len(examples)
+            >>> async def example_usage():
+            ...     results = await model._generate_concurrently(templates, examples)
+            ...     return isinstance(results, list) and len(results) == len(examples)
+            >>> asyncio.run(example_usage())
             True
         """
         coroutines = []
@@ -162,16 +165,15 @@ class LLMGenerativeSM:
             for query_idx, query_example in enumerate(query_examples):
                 coroutines.append(self._async_generate(template, query_example, query_idx))
 
-        tasks = [asyncio.create_task(c) for c in coroutines]
         results = [[] for _ in range(len(query_examples))]
 
-        llm_response = await asyncio.gather(*tasks)
-        for response in llm_response:
+        for task in asyncio.as_completed(coroutines):
+            response = await task
             if response is not None:
-                query_idx, resp, tot_cost, tot_tokens = response
-                results[query_idx].append([resp, tot_cost, tot_tokens])
+                query_idx, resp, tot_cost = response
+                results[query_idx].append([resp, tot_cost])
             else:
-                print(f"None response received for query_idx: {query_idx}")
+                print("None response received")
 
         return results
 
@@ -229,13 +231,14 @@ class LLMGenerativeSM:
         Example:
             >>> templates = ["Template {Q}"]
             >>> examples = [{"Q": "config1"}, {"Q": "config2"}]
-            >>> result = await model._predict(templates, examples)
-            >>> isinstance(result, tuple) and len(result) == 5
+            >>> async def example_usage():
+            ...     result = await model._predict(templates, examples)
+            ...     return isinstance(result, tuple) and len(result) == 5
+            >>> asyncio.run(example_usage())
             True
         """
         start = time.time()
         all_preds = []
-        tot_tokens = 0
         tot_cost = 0
         bool_pred_returned = []
 
@@ -246,21 +249,17 @@ class LLMGenerativeSM:
                 query_chunk,
             )
 
-            bool_pred_returned.extend([1 if x is not None else 0 for x in chunk_results])
+            bool_pred_returned.extend([1 if len(x) > 0 else 0 for x in chunk_results])
 
-            for _, sample_response in enumerate(chunk_results):
+            for sample_response in chunk_results:
                 if not sample_response:
-                    sample_preds = [np.nan] * self.n_gens
+                    sample_preds = [np.nan] * len(all_prompt_templates)
                 else:
                     all_raw_response = []
                     for template_response in sample_response:
-                        if isinstance(template_response, list) and template_response:
+                        if isinstance(template_response, list) and len(template_response) > 0:
                             llm_response = template_response[0]
-                            if isinstance(llm_response, str):
-                                all_raw_response.append(llm_response)
-                            else:
-                                print(f"LLM response is not a string: {llm_response}")
-                                all_raw_response.append(np.nan)
+                            all_raw_response.append(llm_response)
                         else:
                             print(f"Invalid template_response: {template_response}")
                             all_raw_response.append(np.nan)
@@ -269,17 +268,16 @@ class LLMGenerativeSM:
                     tot_cost += sum(
                         x[1] for x in sample_response if isinstance(x, list) and len(x) > 1
                     )
-                    tot_tokens += sum(
-                        x[2] for x in sample_response if isinstance(x, list) and len(x) > 2
-                    )
                 all_preds.append(sample_preds)
 
         time_taken = time.time() - start
-        success_rate = sum(bool_pred_returned) / len(bool_pred_returned)
+        success_rate = (
+            sum(bool_pred_returned) / len(bool_pred_returned) if bool_pred_returned else 0
+        )
         pred_probs = np.array(all_preds).astype(float)
         mean_probs = np.nanmean(pred_probs, axis=1)
 
-        return mean_probs, success_rate, tot_cost, tot_tokens, time_taken
+        return mean_probs, success_rate, tot_cost, time_taken
 
     async def _evaluate_candidate_points(
         self,
@@ -305,10 +303,12 @@ class LLMGenerativeSM:
             >>> obs_configs = pd.DataFrame({"param": [0.1, 0.2]})
             >>> obs_fvals = np.array([0.5, 0.6])
             >>> cand_configs = pd.DataFrame({"param": [0.3, 0.4]})
-            >>> result = await model._evaluate_candidate_points(
-            ...     obs_configs, obs_fvals, cand_configs
-            ... )
-            >>> isinstance(result, tuple) and len(result) == 3
+            >>> async def example_usage():
+            ...     result = await model._evaluate_candidate_points(
+            ...         obs_configs, obs_fvals, cand_configs
+            ...     )
+            ...     return isinstance(result, tuple) and len(result) == 3
+            >>> asyncio.run(example_usage())
             True
         """
         all_run_cost = 0
@@ -334,7 +334,7 @@ class LLMGenerativeSM:
         print(f"Number of query_examples: {len(query_examples)}")
 
         response = await self._predict(all_prompt_templates, query_examples)
-        pred_probs, success_rate, tot_cost, tot_tokens, time_taken = response
+        pred_probs, success_rate, tot_cost, time_taken = response
 
         all_run_cost += tot_cost
         all_run_time += time_taken
@@ -409,7 +409,7 @@ class LLMGenerativeSM:
 
         return pd.DataFrame(unwarped_configs)
 
-    def select_query_point(
+    async def select_query_point(
         self,
         observed_configs: pd.DataFrame,
         observed_fvals: np.ndarray,
@@ -445,10 +445,12 @@ class LLMGenerativeSM:
             >>> obs_configs = pd.DataFrame({"param": [0.1, 0.2]})
             >>> obs_fvals = np.array([0.5, 0.6])
             >>> cand_configs = pd.DataFrame({"param": [0.3, 0.4]})
-            >>> result = model.select_query_point(
-            ...     obs_configs, obs_fvals, cand_configs
-            ... )
-            >>> isinstance(result[0], pd.DataFrame)
+            >>> async def example_usage():
+            ...     result = await model.select_query_point(
+            ...         obs_configs, obs_fvals, cand_configs
+            ...     )
+            ...     return isinstance(result[0], pd.DataFrame)
+            >>> asyncio.run(example_usage())
             True
         """
         if not isinstance(observed_configs, pd.DataFrame):
@@ -459,12 +461,10 @@ class LLMGenerativeSM:
         observed_configs = self._warp_candidate_points(observed_configs)
         candidate_configs = self._warp_candidate_points(candidate_configs)
 
-        pred_probs, cost, time_taken = asyncio.run(
-            self._evaluate_candidate_points(
-                observed_configs,
-                observed_fvals,
-                candidate_configs,
-            )
+        pred_probs, cost, time_taken = await self._evaluate_candidate_points(
+            observed_configs,
+            observed_fvals,
+            candidate_configs,
         )
 
         best_point_index = np.argmax(pred_probs)

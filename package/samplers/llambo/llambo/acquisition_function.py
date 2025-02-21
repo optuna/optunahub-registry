@@ -288,7 +288,7 @@ class LLM_ACQ:
 
         return examples
 
-    def _gen_prompt_tempates_acquisitions(
+    def _gen_prompt_templates_acquisitions(
         self,
         observed_configs: pd.DataFrame,
         observed_fvals: pd.DataFrame,
@@ -303,15 +303,18 @@ class LLM_ACQ:
         Args:
             observed_configs (pd.DataFrame): Observed hyperparameter configurations.
             observed_fvals (pd.DataFrame): Observed performance values.
-            desired_fval (float): The desired performance target.
+            desired_fval (float): The target performance value to achieve.
             n_prompts (int, optional): Number of prompt templates to generate. Defaults to 1.
-            use_context (str, optional): Level of context to include. Defaults to "full_context".
-            use_feature_semantics (bool, optional): Whether to use feature names. Defaults to True.
-            shuffle_features (bool, optional): Whether to shuffle hyperparameters. Defaults to False.
+            use_context (str, optional): Level of context to include in prompts.
+                Defaults to "full_context".
+            use_feature_semantics (bool, optional): Whether to use feature names in prompts.
+                Defaults to True.
+            shuffle_features (bool, optional): Whether to shuffle the order of hyperparameters.
+                Defaults to False.
 
         Returns:
-            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]: A tuple containing the
-                prompt templates and query templates.
+            tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]: A tuple containing
+                the generated prompt templates and query templates.
 
         Example:
             >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
@@ -325,8 +328,10 @@ class LLM_ACQ:
             ...     n_templates=2,
             ...     lower_is_better=True
             ... )
-            >>> templates = acq._gen_prompt_tempates_acquisitions(configs, fvals, 0.4)
-            >>> len(templates[0]) == 1  # n_prompts=1
+            >>> templates, queries = acq._gen_prompt_templates_acquisitions(
+            ...     configs, fvals, 0.4
+            ... )
+            >>> len(templates) == 1 and len(queries) == 1
             True
         """
         all_prompt_templates = []
@@ -342,12 +347,12 @@ class LLM_ACQ:
             jittered_desired_fval = self._jitter(desired_fval)
 
             task_context = self.task_context
-            hyperparameter_constraints = task_context
+            hyperparameter_constraints = task_context.get("hyperparameter_constraints", {})
             custom_task_description = task_context.get("custom_task_description", None)
 
             example_template = """
-Performance: {A}
-Hyperparameter configuration: {Q}"""
+    Performance: {A}
+    Hyperparameter configuration: {Q}"""
 
             example_prompt = PromptTemplate(input_variables=["Q", "A"], template=example_template)
 
@@ -359,59 +364,86 @@ Hyperparameter configuration: {Q}"""
             prefix += "The allowable ranges for the hyperparameters are:\n"
 
             for i, (hyperparameter, constraint) in enumerate(hyperparameter_constraints.items()):
-                if constraint[0] == "float":
-                    n_dp = self._count_decimal_places(constraint[2][0])
-                    if constraint[1] == "log" and self.apply_warping:
-                        lower_bound = np.log10(constraint[2][0])
-                        upper_bound = np.log10(constraint[2][1])
-                    else:
-                        lower_bound = constraint[2][0]
-                        upper_bound = constraint[2][1]
+                # Safely handle potentially None constraints
+                if constraint is None:
+                    print(f"Warning: Constraint for {hyperparameter} is None, skipping")
+                    continue
 
-                    if use_feature_semantics:
-                        prefix += (
-                            f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
-                        )
-                    else:
-                        prefix += f"- X{i+1}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
+                if len(constraint) < 3:
+                    print(f"Warning: Constraint for {hyperparameter} is incomplete, skipping")
+                    continue
 
-                    if constraint[1] == "log" and self.apply_warping:
-                        prefix += f" (log scale, precise to {n_dp} decimals)"
-                    else:
-                        prefix += f" (float, precise to {n_dp} decimals)"
-                elif constraint[0] == "int":
-                    if constraint[1] == "log" and self.apply_warping:
-                        lower_bound = np.log10(constraint[2][0])
-                        upper_bound = np.log10(constraint[2][1])
-                        n_dp = self._count_decimal_places(lower_bound)
-                    else:
-                        lower_bound = constraint[2][0]
-                        upper_bound = constraint[2][1]
-                        n_dp = 0
+                try:
+                    if constraint[0] == "float":
+                        n_dp = self._count_decimal_places(constraint[2][0])
+                        if constraint[1] == "log" and self.apply_warping:
+                            lower_bound = np.log10(constraint[2][0])
+                            upper_bound = np.log10(constraint[2][1])
+                        else:
+                            lower_bound = constraint[2][0]
+                            upper_bound = constraint[2][1]
 
-                    if use_feature_semantics:
-                        prefix += (
-                            f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
-                        )
-                    else:
-                        prefix += f"- X{i+1}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
+                        if use_feature_semantics:
+                            prefix += (
+                                f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, "
+                                f"{upper_bound:.{n_dp}f}]"
+                            )
+                        else:
+                            prefix += (
+                                f"- X{i + 1}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
+                            )
 
-                    if constraint[1] == "log" and self.apply_warping:
-                        prefix += f" (log scale, precise to {n_dp} decimals)"
+                        if constraint[1] == "log" and self.apply_warping:
+                            prefix += f" (log scale, precise to {n_dp} decimals)"
+                        else:
+                            prefix += f" (float, precise to {n_dp} decimals)"
+                    elif constraint[0] == "int":
+                        if constraint[1] == "log" and self.apply_warping:
+                            lower_bound = np.log10(constraint[2][0])
+                            upper_bound = np.log10(constraint[2][1])
+                            n_dp = self._count_decimal_places(lower_bound)
+                        else:
+                            lower_bound = constraint[2][0]
+                            upper_bound = constraint[2][1]
+                            n_dp = 0
+
+                        if use_feature_semantics:
+                            prefix += (
+                                f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, "
+                                f"{upper_bound:.{n_dp}f}]"
+                            )
+                        else:
+                            prefix += (
+                                f"- X{i + 1}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
+                            )
+
+                        if constraint[1] == "log" and self.apply_warping:
+                            prefix += f" (log scale, precise to {n_dp} decimals)"
+                        else:
+                            prefix += " (int)"
+                    elif constraint[0] == "ordinal":
+                        if use_feature_semantics:
+                            prefix += f"- {hyperparameter}: "
+                        else:
+                            prefix += f"- X{i + 1}: "
+                        prefix += f" (ordinal, must take value in {constraint[2]})"
+                    elif constraint[0] == "categorical":
+                        if use_feature_semantics:
+                            prefix += f"- {hyperparameter}: "
+                        else:
+                            prefix += f"- X{i + 1}: "
+                        prefix += f" (categorical, must take value in {constraint[2]})"
                     else:
-                        prefix += " (int)"
-                elif constraint[0] == "ordinal":
-                    if use_feature_semantics:
-                        prefix += f"- {hyperparameter}: "
-                    else:
-                        prefix += f"- X{i+1}: "
-                    prefix += f" (ordinal, must take value in {constraint[2]})"
-                else:
-                    raise ValueError("Unknown hyperparameter value type.")
+                        print(f"Warning: Unknown hyperparameter value type: {constraint[0]}")
+                except Exception as e:
+                    print(f"Error processing constraint for {hyperparameter}: {e}")
+                    print(f"Constraint value: {constraint}")
+                    continue
 
                 prefix += "\n"
 
-            prefix += f"Recommend a configuration that can achieve the target performance of {jittered_desired_fval:.6f}. "
+            prefix += "Recommend a configuration that can achieve the target performance of "
+            prefix += f"{jittered_desired_fval:.6f}. "
             if use_context in ["partial_context", "full_context"]:
                 prefix += (
                     "Do not recommend values at the minimum or maximum of allowable range, "
@@ -424,8 +456,8 @@ Hyperparameter configuration: {Q}"""
             )
 
             suffix = """
-Performance: {A}
-Hyperparameter configuration:"""
+    Performance: {A}
+    Hyperparameter configuration:"""
 
             few_shot_prompt = FewShotPromptTemplate(
                 examples=few_shot_examples,
@@ -473,9 +505,8 @@ Hyperparameter configuration:"""
         ]
 
         resp, tot_cost = self.OpenAI_instance.ask(message)
-        tot_tokens = 1000
 
-        return resp, tot_cost, tot_tokens
+        return resp, tot_cost
 
     async def _async_generate_concurrently(
         self,
@@ -514,8 +545,8 @@ Hyperparameter configuration:"""
 
         for idx, response in enumerate(llm_response):
             if response is not None:
-                resp, tot_cost, tot_tokens = response
-                results[idx] = (resp, tot_cost, tot_tokens)
+                resp, tot_cost = response
+                results[idx] = (resp, tot_cost)
 
         return results
 
@@ -752,7 +783,7 @@ Hyperparameter configuration:"""
         if self.warping_transformer is not None:
             observed_configs = self.warping_transformer.warp(observed_configs)
 
-        prompt_templates, query_templates = self._gen_prompt_tempates_acquisitions(
+        prompt_templates, query_templates = self._gen_prompt_templates_acquisitions(
             observed_configs,
             observed_fvals,
             desired_fval,
@@ -780,7 +811,6 @@ Hyperparameter configuration:"""
 
             candidate_points = []
             tot_cost = 0
-            tot_tokens = 0
 
             for response in llm_responses:
                 if response is None:
@@ -793,7 +823,6 @@ Hyperparameter configuration:"""
                         print(response_content)
                         continue
                 tot_cost += response[1]
-                tot_tokens += response[2]
 
             proposed_points = self._filter_candidate_points(
                 observed_configs.to_dict(orient="records"), candidate_points

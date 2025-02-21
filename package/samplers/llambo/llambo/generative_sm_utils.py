@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from langchain import FewShotPromptTemplate
 from langchain import PromptTemplate
 import numpy as np
+import pandas as pd
 
 
 def _count_decimal_places(n: float) -> int:
@@ -135,8 +138,7 @@ def gen_prompt_tempates(
 
     Example:
         >>> context = {
-        ...     "metric": "accuracy",
-        ...     "hyperparameter_constraints": {"lr": [0.001, 0.1, [0.001]]}
+        ...     "hyperparameter_constraints": {"lr": ["float", "linear", [0.001, 0.1]]}
         ... }
         >>> observed = pd.DataFrame({"lr": [0.01, 0.05]})
         >>> fvals = pd.DataFrame({"value": [0.8, 0.9]})
@@ -145,14 +147,12 @@ def gen_prompt_tempates(
         ...     context, observed, fvals, candidates, False, 0.5
         ... )
     """
-    metric = task_context["metric"]
-    if metric == "neg_mean_squared_error":
-        metric = "mean squared error"
-
+    # Get custom task description if available
     custom_task_description = task_context.get("custom_task_description")
     all_prompt_templates: list[FewShotPromptTemplate] = []
 
     for i in range(n_prompts):
+        # Prepare few-shot examples using observed configurations and values
         few_shot_examples = prepare_configurations(
             task_context["hyperparameter_constraints"],
             lower_is_better,
@@ -162,6 +162,7 @@ def gen_prompt_tempates(
             seed=i,
         )
 
+        # Define the example template format for each configuration-performance pair
         example_template = """
 Hyperparameter configuration: {Q}
 Classification: {A}"""
@@ -171,6 +172,7 @@ Classification: {A}"""
             template=example_template,
         )
 
+        # Build the prefix for the prompt template
         prefix = (
             "The following are examples of hyperparameter configurations "
             "for a black-box optimization task. "
@@ -180,6 +182,7 @@ Classification: {A}"""
             prefix += custom_task_description
             prefix += "\n"
 
+        # Add information about the classification scheme
         prefix += (
             f"The performance classification is 1 if the configuration is in the "
             f"best-performing {top_pct * 100}% of all configurations and 0 otherwise. "
@@ -189,10 +192,12 @@ Classification: {A}"""
             "classification in the format ## performance classification ##."
         )
 
+        # Define the suffix for querying new configurations
         suffix = """
 Hyperparameter configuration: {Q}
 Classification: """
 
+        # Create the few-shot prompt template
         few_shot_prompt = FewShotPromptTemplate(
             examples=few_shot_examples,
             example_prompt=example_prompt,
@@ -203,6 +208,7 @@ Classification: """
         )
         all_prompt_templates.append(few_shot_prompt)
 
+    # Prepare query examples using candidate configurations
     query_examples = prepare_configurations(
         task_context["hyperparameter_constraints"],
         lower_is_better,

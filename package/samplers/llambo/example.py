@@ -245,29 +245,23 @@ run_benchmark = False
 objective_function_choice = "Rastrigin"
 # Options: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2", "dynamic_3"
 
-# DE Sampler settings
-population_size = "auto"
-F = 0.8
-CR = 0.9
+# Sampler settings
+sm_mode = "generative"
 debug = True
+model = "gpt-4o-mini"
+api_key = ""
 
 # Experiment configuration
 num_experiments = 2  # Number of independent experiments
 number_of_trials = 500  # Number of trials per experiment
 n_jobs = 1
-# for local loading
+
+# For local loading
 registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
-
-# deepseek-chat
-# sampler = optunahub.load_local_module(
-#     package="samplers/llambo", registry_root=registry_root,
-# ).Sampler(api_key="",model="deepseek-chat",debug=debug)
-
-# gpt-4o-mini
 sampler = optunahub.load_local_module(
     package="samplers/llambo",
     registry_root=registry_root,
-).LLAMBOSampler(api_key="", model="deepseek-chat", debug=debug)
+).LLAMBOSampler(api_key=api_key, model=model, debug=debug, sm_mode=sm_mode)
 
 
 # ---------------Loading samplers---------------
@@ -383,10 +377,8 @@ else:
 
     for i in range(num_experiments):
         # Run DE Sampler
-        print("shit1")
         study = optuna.create_study(sampler=sampler, direction=direction)
         study.optimize(objective_function, n_trials=number_of_trials, n_jobs=n_jobs)
-        print("shit1")
 
         best_values_de = []
         current_best_de = float("inf") if minimize else float("-inf")

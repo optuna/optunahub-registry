@@ -4,8 +4,8 @@ from typing import Optional
 from typing import Tuple
 
 from llambo.acquisition_function import LLM_ACQ
-from llambo.discriminative_sm import LLM_DIS_SM
-from llambo.generative_sm import LLM_GEN_SM
+from llambo.discriminative_sm import LLMDiscriminativeSM
+from llambo.generative_sm import LLMGenerativeSM
 from llambo.rate_limiter import RateLimiter
 from llambo.warping import NumericalTransformer
 import numpy as np
@@ -94,7 +94,7 @@ class LLAMBO:
 
         # Initialize surrogate model based on mode
         if sm_mode == "generative":
-            self.surrogate_model = LLM_GEN_SM(
+            self.surrogate_model = LLMGenerativeSM(
                 task_context=task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
@@ -105,7 +105,7 @@ class LLAMBO:
                 model=self.model,
             )
         else:  # discriminative mode
-            self.surrogate_model = LLM_DIS_SM(
+            self.surrogate_model = LLMDiscriminativeSM(
                 task_context=task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
@@ -272,10 +272,21 @@ class LLAMBO:
             self.observed_configs, self.observed_fvals[["score"]], alpha=self.alpha
         )
 
-        # Select best candidate using surrogate model
-        sel_candidate_point, _, _ = self.surrogate_model.select_query_point(
-            self.observed_configs, self.observed_fvals[["score"]], candidate_points
-        )
+        # Check the surrogate model type by class name
+        if self.surrogate_model.__class__.__name__ == "LLMGenerativeSM":
+            # For generative SM, we need to use asyncio to run the coroutine
+            import asyncio
+
+            sel_candidate_point, _, _ = asyncio.run(
+                self.surrogate_model.select_query_point(
+                    self.observed_configs, self.observed_fvals[["score"]], candidate_points
+                )
+            )
+        else:
+            # For discriminative SM or any other model, call the method directly
+            sel_candidate_point, _, _ = self.surrogate_model.select_query_point(
+                self.observed_configs, self.observed_fvals[["score"]], candidate_points
+            )
 
         return sel_candidate_point.to_dict(orient="records")[0]
 

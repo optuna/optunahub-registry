@@ -7,7 +7,7 @@ from typing import Any
 from typing import Optional
 from typing import Tuple
 
-from llambo.discriminative_sm_utils import gen_prompt_tempates
+from llambo.discriminative_sm_utils import gen_prompt_templates
 from llambo.rate_limiter import RateLimiter
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
@@ -124,9 +124,10 @@ class LLMDiscriminativeSM:
                 and total tokens if successful, None otherwise.
 
         Example:
+            >>> # In an async function
             >>> template = "Example template {Q}"
             >>> query = {"Q": "sample query"}
-            >>> result = await model._async_generate(template, query, 0)
+            >>> result = model._async_generate(template, query, 0)
         """
         print("Sending inquiries to the LLM - discriminative surrogate model")
 
@@ -142,9 +143,8 @@ class LLMDiscriminativeSM:
         ]
 
         resp, tot_cost = self.OpenAI_instance.ask(message)
-        tot_tokens = 1000
 
-        return query_idx, resp, tot_cost, tot_tokens
+        return query_idx, resp, tot_cost
 
     async def _generate_concurrently(
         self, few_shot_templates: list[str], query_examples: list[dict[str, Any]]
@@ -160,9 +160,10 @@ class LLMDiscriminativeSM:
             list[list[Any]]: Results for each query example.
 
         Example:
+            >>> # In an async function
             >>> templates = ["Template 1 {Q}", "Template 2 {Q}"]
             >>> queries = [{"Q": "query 1"}, {"Q": "query 2"}]
-            >>> results = await model._generate_concurrently(templates, queries)
+            >>> results = model._generate_concurrently(templates, queries)
         """
         coroutines = [
             self._async_generate(template, query_example, query_idx)
@@ -176,8 +177,8 @@ class LLMDiscriminativeSM:
 
         for response in llm_response:
             if response is not None:
-                query_idx, resp, tot_cost, tot_tokens = response
-                results[query_idx].append([resp, tot_cost, tot_tokens])
+                query_idx, resp, tot_cost = response
+                results[query_idx].append([resp, tot_cost])
 
         return results
 
@@ -201,15 +202,13 @@ class LLMDiscriminativeSM:
                 - Time taken
 
         Example:
+            >>> # In an async function
             >>> templates = ["Template {Q}"]
             >>> queries = [{"Q": "example query"}]
-            >>> mean, std, rate, cost, tokens, time = await model._predict(
-            ...     templates, queries
-            ... )
+            >>> mean, std, rate, cost, tokens, time = model._predict(templates, queries)
         """
         start = time.time()
         all_preds = []
-        tot_tokens = 0
         tot_cost = 0
         bool_pred_returned = []
 
@@ -237,7 +236,6 @@ class LLMDiscriminativeSM:
                         sample_preds.append(np.nan)
 
                     tot_cost += sum(x[1] for x in sample_response)
-                    tot_tokens += sum(x[2] for x in sample_response)
                 all_preds.append(sample_preds)
 
         time_taken = time.time() - start
@@ -251,7 +249,7 @@ class LLMDiscriminativeSM:
         y_std[np.isnan(y_std)] = np.nanmean(y_std)
         y_std[y_std < 1e-5] = 1e-5
 
-        return y_mean, y_std, success_rate, tot_cost, tot_tokens, time_taken
+        return y_mean, y_std, success_rate, tot_cost, time_taken
 
     async def _evaluate_candidate_points(
         self,
@@ -280,12 +278,11 @@ class LLMDiscriminativeSM:
                 - Time taken
 
         Example:
+            >>> # In an async function
             >>> configs = pd.DataFrame({"x": [1, 2, 3]})
             >>> fvals = pd.Series([0.1, 0.2, 0.3])
             >>> candidates = pd.DataFrame({"x": [4, 5]})
-            >>> results = await model._evaluate_candidate_points(
-            ...     configs, fvals, candidates
-            ... )
+            >>> results = model._evaluate_candidate_points(configs, fvals, candidates)
         """
         all_run_cost = 0
         all_run_time = 0
@@ -299,7 +296,7 @@ class LLMDiscriminativeSM:
             all_run_cost += tot_cost
             all_run_time += time_taken
 
-        all_prompt_templates, query_examples = gen_prompt_tempates(
+        all_prompt_templates, query_examples = gen_prompt_templates(
             self.task_context,
             observed_configs,
             observed_fvals,
@@ -316,7 +313,7 @@ class LLMDiscriminativeSM:
         print(f"Number of query_examples: {len(query_examples)}")
         print(all_prompt_templates[0].format(Q=query_examples[0]["Q"]))
 
-        y_mean, y_std, success_rate, tot_cost, tot_tokens, time_taken = await self._predict(
+        y_mean, y_std, success_rate, tot_cost, time_taken = await self._predict(
             all_prompt_templates, query_examples
         )
 

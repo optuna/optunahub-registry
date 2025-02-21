@@ -1,60 +1,48 @@
-"""
-LLAMBO-based sampler for optimization combining Bayesian optimization and LLMs.
-
-This module provides a sampler implementation that leverages Language Models
-for Bayesian Optimization (LLAMBO) to guide the optimization process.
-"""
-
 from __future__ import annotations
 
 import time
 from typing import Any
 from typing import Optional
-from typing import Sequence
 
 from llambo.llambo import LLAMBO
 import optuna
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.study import Study
-from optuna.trial import FrozenTrial
-from optuna.trial import TrialState
 import optunahub
 import pandas as pd
 
 
 class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
     """
-    A sampler that combines Bayesian optimization with Large Language Models.
+    A sampler implementation using LLAMBO (LLM-Augmented Model-Based Optimization).
 
-    This sampler uses LLAMBO (Language Models for Bayesian Optimization) to guide
-    the optimization process, incorporating both traditional random sampling and
-    LLM-based suggestions.
+    This sampler leverages large language models for hyperparameter optimization.
+    It starts with random sampling for a few initial trials, then uses LLAMBO to
+    intelligently sample parameters based on previous observations.
 
-    Args:
-        custom_task_description (Optional[str]): Custom description of the optimization task.
+    Attributes:
+        custom_task_description (str): Custom description for the optimization task.
         n_initial_samples (int): Number of initial random samples before using LLAMBO.
         sm_mode (str): Surrogate model mode, either "discriminative" or "generative".
         num_candidates (int): Number of candidate configurations to generate.
-        n_templates (int): Number of templates to use for LLM prompts.
-        n_gens (int): Number of generations for optimization.
-        alpha (float): Exploration-exploitation trade-off parameter.
-        n_trials (int): Total number of trials for optimization.
-        api_key (str): API key for accessing the LLM service.
-        model (str): Name of the LLM model to use.
-        search_space (Optional[dict[str, optuna.distributions.BaseDistribution]]): Search space
-        definition.
-        debug (bool): Whether to enable debug output.
+        n_templates (int): Number of prompt templates to use.
+        n_gens (int): Number of generations for each template.
+        alpha (float): Exploration parameter.
+        n_trials (int): Total number of trials to run.
+        api_key (str): API key for the LLM service.
+        model (str): The LLM model to use.
+        debug (bool): Whether to enable debug printing.
         seed (Optional[int]): Random seed for reproducibility.
 
     Example:
-        >>> search_space = {
-        ...     "x": optuna.distributions.FloatDistribution(0, 1),
-        ...     "y": optuna.distributions.CategoricalDistribution(["a", "b"]),
-        ... }
-        >>> sampler = LlamboSampler(
-        ...     n_initial_samples=5, search_space=search_space, debug=True
+        >>> import optuna
+        >>> sampler = LLAMBOSampler(
+        ...     n_initial_samples=5,
+        ...     api_key="your_api_key",
+        ...     model="gpt-4o-mini"
         ... )
+        >>> study = optuna.create_study(sampler=sampler)
+        >>> study.optimize(objective, n_trials=100)
     """
 
     def __init__(
@@ -73,11 +61,28 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         debug: bool = False,
         seed: Optional[int] = None,
     ) -> None:
-        """Initialize the sampler with unified parameter handling."""
+        """
+        Initialize the sampler with unified parameter handling.
+
+        Args:
+            custom_task_description: Custom description for the optimization task.
+            n_initial_samples: Number of initial random samples before using LLAMBO.
+            sm_mode: Surrogate model mode, either "discriminative" or "generative".
+            num_candidates: Number of candidate configurations to generate.
+            n_templates: Number of prompt templates to use.
+            n_gens: Number of generations for each template.
+            alpha: Exploration parameter.
+            n_trials: Total number of trials to run.
+            api_key: API key for the LLM service.
+            model: The LLM model to use.
+            search_space: Dictionary mapping parameter names to their distributions.
+            debug: Whether to enable debug printing.
+            seed: Random seed for reproducibility.
+        """
         super().__init__(search_space)
         self.seed = seed
         self._rng = LazyRandomState(seed)
-        self._random_sampler = RandomSampler(seed=seed)
+        self._random_sampler = RandomSampler(seed=seed)  # Retained but not used in sampling
         self.debug = debug
         self.last_time = time.time()
         self.last_trial_count = 0
@@ -96,18 +101,14 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         self.init_observed_fvals = pd.DataFrame()
         self.init_observed_configs = pd.DataFrame()
-        self.LLAMBO_instance: Optional[LLAMBO] = None
-        self.lower_is_better: bool = True
-        self.init_configs: list[dict[str, Any]] = []
-        self.search_space: dict[str, optuna.distributions.BaseDistribution] = {}
-        self.hyperparameter_constraints: dict[str, list[Any]] = {}
+
+        self.LLAMBO_instance = None
 
     def _initialize_llambo(
-        self,
-        search_space: dict[str, optuna.distributions.BaseDistribution],
+        self, search_space: dict[str, optuna.distributions.BaseDistribution]
     ) -> None:
         """
-        Initialize the LLAMBO instance with the given search space.
+        Initialize the LLAMBO instance with proper hyperparameter constraints.
 
         Args:
             search_space: Dictionary mapping parameter names to their distributions.
@@ -116,33 +117,38 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             ValueError: If an unsupported distribution type is encountered.
 
         Example:
-            >>> space = {"x": optuna.distributions.FloatDistribution(0, 1)}
-            >>> sampler = LlamboSampler(search_space=space)
-            >>> sampler._initialize_llambo(space)
+            >>> sampler = LLAMBOSampler()
+            >>> search_space = {
+            ...     "x": optuna.distributions.FloatDistribution(0, 1),
+            ...     "y": optuna.distributions.CategoricalDistribution(["a", "b"])
+            ... }
+            >>> sampler._initialize_llambo(search_space)
         """
+        # Create hyperparameter constraints dictionary from search space
         self.hyperparameter_constraints = {}
         for param_name, distribution in search_space.items():
             if isinstance(distribution, optuna.distributions.FloatDistribution):
                 dtype = "float"
                 dist_type = "log" if distribution.log else "linear"
-                bounds = [float(distribution.low), float(distribution.high)]
+                bounds = [distribution.low, distribution.high]
             elif isinstance(distribution, optuna.distributions.IntDistribution):
                 dtype = "int"
                 dist_type = "log" if distribution.log else "linear"
-                bounds = [int(distribution.low), int(distribution.high)]
+                bounds = [distribution.low, distribution.high]
             elif isinstance(distribution, optuna.distributions.CategoricalDistribution):
                 dtype = "categorical"
                 dist_type = "categorical"
-                bounds = list(distribution.choices)  # type: ignore[arg-type]
+                bounds = distribution.choices
             else:
                 raise ValueError(
-                    f"Unsupported distribution type {type(distribution)} for parameter "
-                    f"{param_name}"
+                    f"Unsupported distribution type {type(distribution)} for parameter {param_name}"
                 )
             self.hyperparameter_constraints[param_name] = [dtype, dist_type, bounds]
 
-        self._debug_print(f"Hyperparameter constraints: {self.hyperparameter_constraints}")
+        if self.debug:
+            print(f"Hyperparameter constraints: {self.hyperparameter_constraints}")
 
+        # Prepare task_context with the constraints
         task_context = {
             "custom_task_description": self.custom_task_description,
             "lower_is_better": self.lower_is_better,
@@ -152,6 +158,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         sm_mode = self.sm_mode
         top_pct = 0.25 if sm_mode == "generative" else None
 
+        # Initialize LLAMBO with proper task context
         self.LLAMBO_instance = LLAMBO(
             task_context,
             sm_mode,
@@ -171,43 +178,45 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         Sample parameters using the LLAMBO instance.
 
         Returns:
-            dict[str, Any]: Dictionary of sampled parameter values.
-
-        Raises:
-            RuntimeError: If LLAMBO instance is not initialized.
+            A dictionary mapping parameter names to their sampled values.
 
         Example:
-            >>> sampler = LlamboSampler()
+            >>> sampler = LLAMBOSampler()
+            >>> # Assuming LLAMBO_instance is initialized
             >>> params = sampler._sample_parameters()
+            >>> isinstance(params, dict)
+            True
         """
-        if self.LLAMBO_instance is None:
-            raise RuntimeError("LLAMBO instance not initialized")
-        return self.LLAMBO_instance.sample_configurations()
+        sampled_configuration = self.LLAMBO_instance.sample_configurations()
+        return sampled_configuration
 
     def _debug_print(self, message: str) -> None:
         """
         Print debug message if debug mode is enabled.
 
         Args:
-            message: Message to print in debug mode.
+            message: The message to print.
 
         Example:
-            >>> sampler = LlamboSampler(debug=True)
-            >>> sampler._debug_print("Debug information")
+            >>> sampler = LLAMBOSampler(debug=True)
+            >>> sampler._debug_print("Test message")
+            Test message
         """
         if self.debug:
             print(message)
 
     def _calculate_speed(self, n_completed: int) -> None:
         """
-        Calculate and print optimization speed metrics every 100 trials.
+        Calculate and print optimization speed every 100 trials.
 
         Args:
             n_completed: Number of completed trials.
 
         Example:
-            >>> sampler = LlamboSampler(debug=True)
-            >>> sampler._calculate_speed(100)
+            >>> sampler = LLAMBOSampler(debug=True)
+            >>> sampler.last_time = time.time() - 10  # 10 seconds ago
+            >>> sampler.last_trial_count = 100
+            >>> sampler._calculate_speed(200)
         """
         if not self.debug:
             return
@@ -232,7 +241,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         Reseed the random number generator while preserving RandomSampler.
 
         Example:
-            >>> sampler = LlamboSampler(seed=42)
+            >>> sampler = LLAMBOSampler(seed=42)
             >>> sampler.reseed_rng()
         """
         self._rng.rng.seed()
@@ -240,139 +249,133 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
     def sample_relative(
         self,
-        study: Study,
-        trial: FrozenTrial,
+        study: optuna.study.Study,
+        trial: optuna.trial.FrozenTrial,
         search_space: dict[str, optuna.distributions.BaseDistribution],
     ) -> dict[str, Any]:
         """
-        Sample parameters relative to the current state of optimization.
+        Unified sampling method for all parameter types.
+
+        This method handles both the initial random sampling phase and the
+        LLAMBO-based sampling phase.
 
         Args:
-            study: The Optuna study object.
-            trial: The current trial being executed.
-            search_space: The search space for parameters.
+            study: The study object.
+            trial: The trial object.
+            search_space: Dictionary mapping parameter names to their distributions.
 
         Returns:
-            dict[str, Any]: Dictionary of sampled parameter values.
+            A dictionary mapping parameter names to their sampled values.
 
         Example:
+            >>> import optuna
             >>> study = optuna.create_study()
-            >>> trial = optuna.trial.FrozenTrial(...)
-            >>> space = {"x": optuna.distributions.FloatDistribution(0, 1)}
-            >>> sampler = LlamboSampler()
-            >>> params = sampler.sample_relative(study, trial, space)
+            >>> trial = optuna.trial.create_trial(
+            ...     params={},
+            ...     distributions={},
+            ...     value=0.0
+            ... )
+            >>> sampler = LLAMBOSampler()
+            >>> search_space = {"x": optuna.distributions.FloatDistribution(0, 1)}
+            >>> params = sampler.sample_relative(study, trial, search_space)
         """
         if len(search_space) == 0:
             return {}
-
+        # delegate first trial to random sampler
         self.search_space = search_space
 
-        # Initialize on first trial
         if trial.number <= self.n_initial_samples:
             if trial.number == 1:
-                self.lower_is_better = study.direction == optuna.study.StudyDirection.MINIMIZE
+                self.lower_is_better = (
+                    True if study.direction == optuna.study.StudyDirection.MINIMIZE else False
+                )
                 self.init_configs = self.generate_random_samples(
-                    search_space,
-                    self.n_initial_samples,
+                    search_space, self.n_initial_samples
                 )
                 self._initialize_llambo(search_space)
+            return self.init_configs[trial.number - 1]
 
-            params = self.init_configs[trial.number - 1]
-            # Update LLAMBO instance with the sampled configuration
-            if self.LLAMBO_instance is not None:
-                completed_trials = [t for t in study.trials if t.state == TrialState.COMPLETE]
-                if completed_trials:
-                    # Use the actual value from the last completed trial
-                    last_value = completed_trials[-1].value
-                    if last_value is not None:
-                        self.LLAMBO_instance.update_history(params, last_value)
+        if trial.number == self.n_initial_samples + 1:
+            # Pass the observed data from initial trials to initialize LLAMBO
+            self.LLAMBO_instance._initialize(
+                self.init_configs,
+                self.LLAMBO_instance.observed_configs,
+                self.LLAMBO_instance.observed_fvals,
+            )
 
-            return params
+        parameters = self._sample_parameters()
 
-        # Initialize LLAMBO with collected data at transition point
-        if trial.number == self.n_initial_samples + 1 and self.LLAMBO_instance is not None:
-            completed_trials = [t for t in study.trials if t.state == TrialState.COMPLETE]
-            if len(completed_trials) >= self.n_initial_samples:
-                # Get configurations and values from completed initial trials
-                configs = [t.params for t in completed_trials[: self.n_initial_samples]]
-                values = [
-                    t.value
-                    for t in completed_trials[: self.n_initial_samples]
-                    if t.value is not None
-                ]
-
-                # Convert to pandas DataFrames as expected by LLAMBO
-                config_df = pd.DataFrame(configs)
-                value_df = pd.DataFrame({"score": values, "generalization_score": values})
-
-                self.LLAMBO_instance._initialize(configs, config_df, value_df)
-
-        return self._sample_parameters()
+        return parameters
 
     def after_trial(
         self,
-        study: Study,
-        trial: FrozenTrial,
-        state: TrialState,
-        values: Optional[Sequence[float]] = None,
+        study: optuna.study.Study,
+        trial: optuna.trial.FrozenTrial,
+        state: optuna.trial.TrialState,
+        values: Optional[list[float]] = None,
     ) -> None:
         """
-        Update LLAMBO history after a trial is completed.
+        Update the LLAMBO history after a trial is completed.
 
         Args:
-            study: The Optuna study object.
-            trial: The completed trial.
-            state: The state of the completed trial.
-            values: Sequence of objective values from the trial.
+            study: The study object.
+            trial: The trial object.
+            state: The state of the trial.
+            values: The values observed in the trial.
 
         Example:
+            >>> import optuna
             >>> study = optuna.create_study()
-            >>> trial = optuna.trial.FrozenTrial(...)
-            >>> sampler = LlamboSampler()
+            >>> trial = optuna.trial.create_trial(
+            ...     params={},
+            ...     distributions={},
+            ...     value=0.0
+            ... )
+            >>> sampler = LLAMBOSampler()
+            >>> sampler.LLAMBO_instance = LLAMBO({}, "discriminative")
             >>> sampler.after_trial(
-            ...     study, trial, optuna.trial.TrialState.COMPLETE, [0.5]
+            ...     study,
+            ...     trial,
+            ...     optuna.trial.TrialState.COMPLETE,
+            ...     [0.5]
             ... )
         """
         if self.LLAMBO_instance is not None:
-            if state == TrialState.COMPLETE and values is not None:
+            if state == optuna.trial.TrialState.COMPLETE and values is not None:
                 self.LLAMBO_instance.update_history(trial.params, values[0])
 
     def generate_random_samples(
-        self,
-        search_space: dict[str, optuna.distributions.BaseDistribution],
-        num_samples: int = 1,
+        self, search_space: dict[str, optuna.distributions.BaseDistribution], num_samples: int = 1
     ) -> list[dict[str, Any]]:
         """
-        Generate random samples using the RandomSampler's core logic.
+        Generate random samples using the RandomSampler's core logic directly.
 
         Args:
-            search_space: The search space for parameters.
+            search_space: Dictionary mapping parameter names to their distributions.
             num_samples: Number of random samples to generate.
 
         Returns:
-            list[dict[str, Any]]: List of randomly sampled parameter dictionaries.
+            A list of dictionaries mapping parameter names to their sampled values.
 
         Example:
-            >>> space = {"x": optuna.distributions.FloatDistribution(0, 1)}
-            >>> sampler = LlamboSampler()
-            >>> samples = sampler.generate_random_samples(space, 5)
+            >>> sampler = LLAMBOSampler()
+            >>> search_space = {"x": optuna.distributions.FloatDistribution(0, 1)}
+            >>> samples = sampler.generate_random_samples(search_space, 3)
+            >>> len(samples)
+            3
         """
-        # Create dummy study and trial for type compatibility
-        dummy_study = optuna.create_study()
-        dummy_trial = optuna.trial.create_trial(
-            state=TrialState.RUNNING,
-            value=None,
-        )
-
         samples = []
+
         for _ in range(num_samples):
             params = {}
             for param_name, distribution in search_space.items():
+                # Use the RandomSampler's actual sampling logic
                 params[param_name] = self._random_sampler.sample_independent(
-                    study=dummy_study,
-                    trial=dummy_trial,
+                    study=None,
+                    trial=None,  # Not actually used by RandomSampler's implementation
                     param_name=param_name,
                     param_distribution=distribution,
                 )
             samples.append(params)
+
         return samples
