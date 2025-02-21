@@ -263,14 +263,14 @@ class LLM_ACQ:
                         elif hyp_type == "ordinal":
                             row_string += f"{value:.{n_dp}f}"
                         else:
-                            row_string += value
+                            row_string += str(value)
                     else:
                         if hyp_type == "int":
                             row_string += str(int(value))
                         elif hyp_type in ["float", "ordinal"]:
                             row_string += f"{value:.{n_dp}f}"
                         else:
-                            row_string += value
+                            row_string += str(value)
 
                     if i != len(row) - 1:
                         row_string += ", "

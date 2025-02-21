@@ -55,7 +55,6 @@ import pytest
 sm_mode = "discriminative"
 debug = True
 model = "gpt-4o-mini"
-api_key = ""
 
 
 registry_root = "/home/j/PycharmProjects/optunahub-registry/package"

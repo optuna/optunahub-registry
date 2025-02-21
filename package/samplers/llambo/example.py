@@ -99,6 +99,31 @@ def objective_Rastrigin(trial: optuna.Trial) -> float:
     return A * n_dimensions + sum_term
 
 
+def objective_mixed(trial: optuna.Trial) -> float:
+    """Optimization function with both categorical and continuous variables.
+
+    Args:
+        trial: The trial object to suggest parameters.
+
+    Returns:
+        The computed objective value.
+    """
+    # Continuous variables
+    x1 = trial.suggest_float("x1", -10.0, 10.0)
+    x2 = trial.suggest_float("x2", -5.0, 5.0)
+
+    # Categorical variable
+    category = trial.suggest_categorical("category", ["A", "B", "C"])
+
+    # Define a function to introduce different effects based on the categorical variable
+    category_multiplier = {"A": 1.0, "B": 1.5, "C": 2.0}
+
+    # Compute the objective value
+    obj_value = (x1**2 + x2**2) - category_multiplier[category] * math.cos(2 * math.pi * x1)
+
+    return obj_value
+
+
 def objective_Schwefel(trial: optuna.Trial) -> float:
     """Schwefel function optimization.
 
@@ -234,6 +259,7 @@ objective_map = {
     "dynamic_1": objective_dynamic_1,
     "dynamic_2": objective_dynamic_2,
     "dynamic_3": objective_dynamic_3,
+    "objective_mixed": objective_mixed,
 }
 
 # ---------------Settings---------------
@@ -242,14 +268,13 @@ objective_map = {
 run_benchmark = False
 
 # Choose a specific objective function for single experiment runs
-objective_function_choice = "Rastrigin"
+objective_function_choice = "objective_mixed"
 # Options: "Ackley", "sphere", "Rastrigin", "Schwefel", "ML", "dynamic_1", "dynamic_2", "dynamic_3"
 
 # Sampler settings
 sm_mode = "generative"
 debug = True
 model = "gpt-4o-mini"
-api_key = ""
 
 # Experiment configuration
 num_experiments = 2  # Number of independent experiments
