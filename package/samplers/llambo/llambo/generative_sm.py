@@ -18,6 +18,7 @@ from llambo.generative_sm_utils import gen_prompt_tempates
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 import pandas as pd
+from llambo.rate_limiter import apply_rate_limit
 
 
 class LLMGenerativeSM:
@@ -59,6 +60,7 @@ class LLMGenerativeSM:
         verbose: bool = False,
         key: str = "",
         model: str = "gpt-4o-mini",
+        max_requests_per_minute: int = 100,
     ) -> None:
         """
         Initialize the LLM generative surrogate model.
@@ -72,6 +74,7 @@ class LLMGenerativeSM:
             verbose: Whether to print detailed information.
             key: OpenAI API key.
             model: Name of the OpenAI model to use.
+            max_requests_per_minute: Maximum number of requests per minute.
         """
         self.task_context = task_context
         self.n_gens = n_gens
@@ -80,6 +83,8 @@ class LLMGenerativeSM:
         self.n_templates = n_templates
         self.recalibrator = None
         self.OpenAI_instance = OpenAI_interface(key, model=model, debug=False)
+        apply_rate_limit(self.OpenAI_instance, max_requests_per_minute=max_requests_per_minute)
+
         self.verbose = verbose
 
     async def _async_generate(

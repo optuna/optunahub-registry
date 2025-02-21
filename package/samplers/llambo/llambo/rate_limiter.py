@@ -1,128 +1,126 @@
 from __future__ import annotations
 
+import functools
+import threading
 import time
-from typing import Optional
-
-import tiktoken
-
+from typing import Any, Callable
 
 class RateLimiter:
     """
-    A rate limiter that manages token and request limits over a specified time frame.
+    A rate limiter that enforces a maximum number of requests per minute.
 
-    This class implements a token bucket and request counter based rate limiting
-    mechanism. It tracks both the number of tokens used and the number of requests
-    made within a specified time frame, enforcing limits on both.
+    This module is a complete different module from that of the original implementation.
+
+    This implementation uses a simple time-based approach that enforces
+    a consistent interval between requests.
 
     Attributes:
-        max_tokens (int): Maximum number of tokens allowed within the time frame.
-        max_requests (int): Maximum number of requests allowed within the time frame.
-        time_frame (float): Time window in seconds for which the limits apply.
-        timestamps (list[float]): List of timestamps when requests were made.
-        tokens_used (list[int]): List of token counts for each request.
-        request_count (int): Current count of requests within the time frame.
-
-    Example:
-        >>> limiter = RateLimiter(max_tokens=4000, time_frame=60.0)
-        >>> limiter.add_request(request_text="Hello, world!")
-        >>> limiter.add_request(request_token_count=50)
-
-    Notes:
-        There is a known limitation where the rate limiter cannot anticipate if a
-        request will exceed the limit before making it. This may lead to situations
-        where limits are briefly exceeded before the limiter can respond.
+        min_interval (float): Minimum time interval between requests in seconds.
+        last_request_time (float): Timestamp of the last request.
+        lock (threading.RLock): Lock for thread safety.
     """
 
-    def __init__(
-        self,
-        max_tokens: int,
-        time_frame: float,
-        max_requests: int = 700,
-    ) -> None:
+    def __init__(self, max_requests_per_minute: int = 60):
         """
-        Initialize a new RateLimiter instance.
+        Initialize the rate limiter.
 
         Args:
-            max_tokens (int): Maximum number of tokens allowed within time_frame.
-            time_frame (float): Time window in seconds for which limits apply.
-            max_requests (int, optional): Maximum number of requests allowed within
-                time_frame. Defaults to 700.
+            max_requests_per_minute (int): Maximum number of requests allowed per minute.
         """
-        self.max_tokens = max_tokens
-        self.max_requests = max_requests
-        self.time_frame = time_frame
-        self.timestamps: list[float] = []
-        self.tokens_used: list[int] = []
-        self.request_count = 0
+        self.min_interval = 60.0 / max_requests_per_minute
+        # Initialize with a time far in the past to allow the first request immediately
+        self.last_request_time = time.time() - self.min_interval
+        self.lock = threading.RLock()
+        print(f"Rate limiter initialized: {max_requests_per_minute} requests/minute "
+              f"({self.min_interval:.2f}s between requests)")
 
-    def add_request(
-        self,
-        request_text: Optional[str] = None,
-        request_token_count: Optional[int] = None,
-        current_time: Optional[float] = None,
-    ) -> None:
+    def wait_if_needed(self):
         """
-        Add a new request to the rate limiter and handle any necessary rate limiting.
-
-        This method tracks the request and its token usage, removing old requests that
-        fall outside the time frame. If either the token or request limit is exceeded,
-        it will sleep for the appropriate duration.
-
-        Args:
-            request_text (Optional[str], optional): The text content of the request.
-                Used to calculate token count. Defaults to None.
-            request_token_count (Optional[int], optional): Pre-calculated token count
-                for the request. Defaults to None.
-            current_time (Optional[float], optional): Current timestamp for the request.
-                Defaults to None, in which case the current time is used.
-
-        Example:
-            >>> limiter = RateLimiter(max_tokens=100, time_frame=60.0)
-            >>> limiter.add_request(request_text="Test message")
-            >>> limiter.add_request(request_token_count=10)
-
-        Raises:
-            ValueError: If neither request_text nor request_token_count is provided.
+        Wait if necessary to maintain the rate limit.
         """
-        if current_time is None:
+        with self.lock:
             current_time = time.time()
+            elapsed = current_time - self.last_request_time
 
-        # Remove old requests outside the time frame
-        while self.timestamps and self.timestamps[0] < current_time - self.time_frame:
-            self.timestamps.pop(0)
-            self.tokens_used.pop(0)
-            self.request_count -= 1
+            # Calculate how long to wait to maintain the rate limit
+            wait_time = max(0, self.min_interval - elapsed)
 
-        # Add the new request timestamp
-        self.timestamps.append(current_time)
+            if wait_time > 0:
+                print(f"Rate limit: Waiting {wait_time:.2f}s before next request")
+                time.sleep(wait_time)
 
-        # Calculate token count from text or use provided count
-        if request_text is not None:
-            encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-            num_tokens = len(encoding.encode(request_text))
-        elif request_token_count is not None:
-            num_tokens = request_token_count
-        else:
-            raise ValueError("Either request_text or request_token_count must be specified.")
+            # Update the last request time after any required wait
+            self.last_request_time = time.time()
 
-        self.tokens_used.append(num_tokens)
-        self.request_count += 1
 
-        # Handle request rate limiting
-        if self.request_count >= self.max_requests:
-            sleep_time = (self.timestamps[0] + self.time_frame) - current_time
-            print(
-                f"[Rate Limiter] Sleeping for {sleep_time:.2f}s to avoid hitting the request limit..."
-            )
-            time.sleep(sleep_time)
-            self.request_count = 0
+def rate_limited(max_requests_per_minute: int = 60):
+    """
+    Decorator factory to rate limit a function.
 
-        # Handle token rate limiting
-        if sum(self.tokens_used) > self.max_tokens:
-            sleep_time = (self.timestamps[0] + self.time_frame) - current_time
-            print(
-                f"[Rate Limiter] Sleeping for {sleep_time:.2f}s to avoid hitting the token limit..."
-            )
-            time.sleep(sleep_time)
-            self.timestamps.clear()
-            self.tokens_used.clear()
+    Args:
+        max_requests_per_minute (int): Maximum number of requests allowed per minute.
+
+    Returns:
+        Callable: A decorator that rate limits the decorated function.
+    """
+    limiter = RateLimiter(max_requests_per_minute)
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            limiter.wait_if_needed()
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+class OpenAIRateLimiter:
+    """
+    Rate limiter for OpenAI API calls.
+
+    This class modifies an existing OpenAI interface to enforce
+    rate limits on API calls.
+    """
+
+    def __init__(self, openai_interface: Any, max_requests_per_minute: int = 60):
+        """
+        Apply rate limiting to an OpenAI interface.
+
+        Args:
+            openai_interface: OpenAI interface to rate limit.
+            max_requests_per_minute (int): Maximum requests allowed per minute.
+        """
+        self.limiter = RateLimiter(max_requests_per_minute)
+        self.openai_interface = openai_interface
+
+        # Store the original ask method
+        self.original_ask = openai_interface.ask
+
+        # Define a rate-limited version of the ask method
+        @functools.wraps(self.original_ask)
+        def rate_limited_ask(*args, **kwargs):
+            self.limiter.wait_if_needed()
+            return self.original_ask(*args, **kwargs)
+
+        # Replace the original ask method with our rate-limited version
+        openai_interface.ask = rate_limited_ask
+
+    def restore_original(self):
+        """Restore the original ask method."""
+        self.openai_interface.ask = self.original_ask
+
+
+def apply_rate_limit(openai_instance: Any, max_requests_per_minute: int = 60) -> None:
+    """
+    Apply rate limiting to an OpenAI instance.
+
+    This function modifies the provided OpenAI instance by wrapping its `ask` method
+    with rate limiting functionality.
+
+    Args:
+        openai_instance: The OpenAI instance to rate limit.
+        max_requests_per_minute (int): Maximum requests allowed per minute.
+    """
+    OpenAIRateLimiter(openai_instance, max_requests_per_minute)

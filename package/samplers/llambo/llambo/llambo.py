@@ -2,6 +2,7 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Tuple
+import time
 
 from llambo.acquisition_function import LLM_ACQ
 from llambo.discriminative_sm import LLMDiscriminativeSM
@@ -20,21 +21,22 @@ class LLAMBO:
     """
 
     def __init__(
-        self,
-        task_context: Dict[str, Any],
-        sm_mode: str,
-        n_candidates: int = 10,
-        n_templates: int = 2,
-        n_gens: int = 10,
-        alpha: float = 0.1,
-        n_initial_samples: int = 5,
-        n_trials: int = 100,
-        top_pct: Optional[float] = None,
-        use_input_warping: bool = False,
-        prompt_setting: Optional[str] = None,
-        shuffle_features: bool = False,
-        key: str = "",
-        model: str = "",
+            self,
+            task_context: Dict[str, Any],
+            sm_mode: str,
+            n_candidates: int = 10,
+            n_templates: int = 2,
+            n_gens: int = 10,
+            alpha: float = 0.1,
+            n_initial_samples: int = 5,
+            n_trials: int = 100,
+            top_pct: Optional[float] = None,
+            use_input_warping: bool = False,
+            prompt_setting: Optional[str] = None,
+            shuffle_features: bool = False,
+            key: str = "",
+            model: str = "",
+            max_requests_per_minute: int = 100,
     ) -> None:
         """
         Initialize LLAMBO optimizer.
@@ -54,6 +56,7 @@ class LLAMBO:
             shuffle_features: Whether to shuffle features
             key: API key for language model
             model: Language model identifier
+            max_requests_per_minute: Maximum number of requests per minute
         """
         # Store initialization parameters
         self.task_context = task_context
@@ -66,6 +69,11 @@ class LLAMBO:
         self.n_trials = n_trials
         self.key = key
         self.model = model
+        self.max_requests_per_minute = max_requests_per_minute
+
+        # Calculate delay between API calls based on rate limit
+        self.delay_seconds = 60.0 / max_requests_per_minute if max_requests_per_minute > 0 else 0
+        print(f"Setting inter-component delay of {self.delay_seconds:.2f} seconds based on rate limit")
 
         # Initialize state variables
         self.current_trial = 0
@@ -98,6 +106,7 @@ class LLAMBO:
                 n_templates=n_templates,
                 key=self.key,
                 model=self.model,
+                max_requests_per_minute=self.max_requests_per_minute,
             )
         else:  # discriminative mode
             self.surrogate_model = LLMDiscriminativeSM(
@@ -110,6 +119,7 @@ class LLAMBO:
                 shuffle_features=shuffle_features,
                 key=self.key,
                 model=self.model,
+                max_requests_per_minute=self.max_requests_per_minute,
             )
 
         # Initialize acquisition function
@@ -123,14 +133,15 @@ class LLAMBO:
             shuffle_features=shuffle_features,
             key=self.key,
             model=self.model,
+            max_requests_per_minute=self.max_requests_per_minute,
         )
 
     def _initialize(
-        self,
-        init_configs: Optional[pd.DataFrame] = None,
-        observed_configs: Optional[pd.DataFrame] = None,
-        observed_fvals: Optional[pd.DataFrame] = None,
-        test_metric: str = "generalization_score",
+            self,
+            init_configs: Optional[pd.DataFrame] = None,
+            observed_configs: Optional[pd.DataFrame] = None,
+            observed_fvals: Optional[pd.DataFrame] = None,
+            test_metric: str = "generalization_score",
     ) -> Tuple[int, float]:
         """
         Initialize the optimizer with either provided or generated configurations.
@@ -264,6 +275,10 @@ class LLAMBO:
         candidate_points, _, _ = self.acq_func.get_candidate_points(
             self.observed_configs, self.observed_fvals[["score"]], alpha=self.alpha
         )
+
+        # Add delay between acquisition function and surrogate model
+        print(f"Inserting delay of {self.delay_seconds:.2f} seconds between ACQ and SM components")
+        time.sleep(self.delay_seconds)
 
         # Check the surrogate model type by class name
         if self.surrogate_model.__class__.__name__ == "LLMGenerativeSM":

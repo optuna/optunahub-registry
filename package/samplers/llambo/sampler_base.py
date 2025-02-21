@@ -31,6 +31,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         n_trials: Total number of optimization trials.
         api_key: API key for the language model service.
         model: Language model identifier to use.
+        max_requests_per_minute: Maximum number of requests per minute.
         search_space: Optional search space to sample from.
         debug: Whether to print debug information.
         seed: Random seed for reproducibility.
@@ -48,6 +49,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         n_trials: int = 100,
         api_key: str = "",
         model: str = "gpt-4o-mini",
+        max_requests_per_minute: int = 100,
         search_space: Optional[dict[str, optuna.distributions.BaseDistribution]] = None,
         debug: bool = False,
         seed: Optional[int] = None,
@@ -70,6 +72,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self.n_trials = n_trials
         self.api_key = api_key
         self.model = model
+        self.max_requests_per_minute = max_requests_per_minute
 
         # Initialize empty DataFrames instead of lists for thread-safety
         self.init_observed_configs = pd.DataFrame()
@@ -159,6 +162,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             top_pct=top_pct,
             key=self.api_key,
             model=self.model,
+            max_requests_per_minute=self.max_requests_per_minute,
         )
 
     def _sample_parameters(self) -> dict[str, Any]:

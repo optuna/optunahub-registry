@@ -11,7 +11,7 @@ from langchain import PromptTemplate
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 import pandas as pd
-
+from llambo.rate_limiter import apply_rate_limit
 
 class LLM_ACQ:
     """A class to implement the acquisition function for Bayesian Optimization using LLMs.
@@ -34,6 +34,7 @@ class LLM_ACQ:
             Defaults to False.
         key (str, optional): API key for LLM service. Defaults to "".
         model (str, optional): Name of the LLM model to use. Defaults to "gpt-4o-mini".
+        max_requests_per_minute (int, optional): Maximum number of requests per minute
 
     Attributes:
         task_context (dict[str, Any]): Contextual information about the optimization task.
@@ -75,6 +76,7 @@ class LLM_ACQ:
         shuffle_features: bool = False,
         key: str = "",
         model: str = "gpt-4o-mini",
+        max_requests_per_minute: int = 100,
     ) -> None:
         self.task_context = task_context
         self.n_candidates = n_candidates
@@ -83,6 +85,7 @@ class LLM_ACQ:
         self.lower_is_better = lower_is_better
         self.apply_jitter = jitter
         self.OpenAI_instance = OpenAI_interface(api_key=key, model=model, debug=True)
+        apply_rate_limit(self.OpenAI_instance, max_requests_per_minute=max_requests_per_minute)
 
         if warping_transformer is None:
             self.warping_transformer = None

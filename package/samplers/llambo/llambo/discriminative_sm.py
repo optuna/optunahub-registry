@@ -11,6 +11,7 @@ from llambo.discriminative_sm_utils import gen_prompt_templates
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 from scipy.stats import norm
+from llambo.rate_limiter import apply_rate_limit
 
 
 class LLMDiscriminativeSM:
@@ -61,6 +62,8 @@ class LLMDiscriminativeSM:
         shuffle_features: bool = False,
         key: str = "",
         model: str = "gpt-4-mini",
+        max_requests_per_minute: int = 100,
+
     ) -> None:
         """
         Initialize the LLM discriminative surrogate model.
@@ -78,6 +81,7 @@ class LLMDiscriminativeSM:
             shuffle_features: Whether to shuffle features.
             key: API key for OpenAI.
             model: Model identifier string.
+            max_requests_per_minute: Maximum number of requests per minute
 
         Raises:
             AssertionError: If both bootstrapping and recalibration are enabled.
@@ -100,6 +104,8 @@ class LLMDiscriminativeSM:
         self.prompt_setting = prompt_setting
         self.shuffle_features = shuffle_features
         self.OpenAI_instance = OpenAI_interface(key, model=model, debug=False)
+        apply_rate_limit(self.OpenAI_instance, max_requests_per_minute=max_requests_per_minute)
+
 
         assert isinstance(self.shuffle_features, bool), "shuffle_features must be a boolean"
 
