@@ -13,6 +13,29 @@ import pandas as pd
 
 
 class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
+    """
+    LLAMBO (Language Models for Bayesian Optimization) sampler implementation for Optuna.
+
+    This sampler uses large language models to guide the optimization process. It works in a hybrid
+    fashion, splitting the search space into numerical and categorical parts, using LLAMBO for the
+    numerical parameters and a RandomSampler for categorical parameters.
+
+    Args:
+        custom_task_description: Optional description of the optimization task for the LLM.
+        n_initial_samples: Number of initial random samples before using LLAMBO.
+        sm_mode: Surrogate model mode, either "discriminative" or "generative".
+        num_candidates: Number of candidate points to generate.
+        n_templates: Number of prompt templates to use.
+        n_gens: Number of generations per template.
+        alpha: Exploration-exploitation trade-off parameter.
+        n_trials: Total number of optimization trials.
+        api_key: API key for the language model service.
+        model: Language model identifier to use.
+        search_space: Optional search space to sample from.
+        debug: Whether to print debug information.
+        seed: Random seed for reproducibility.
+    """
+
     def __init__(
         self,
         custom_task_description: Optional[str] = None,
@@ -48,8 +71,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self.api_key = api_key
         self.model = model
 
-        self.init_observed_fvals = pd.DataFrame()
+        # Initialize empty DataFrames instead of lists for thread-safety
         self.init_observed_configs = pd.DataFrame()
+        # Initialize with the column structure required by LLAMBO
+        self.init_observed_fvals = pd.DataFrame(columns=["score"])
 
         self.LLAMBO_instance = None
 
@@ -61,7 +86,15 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
     ]:
         """
         Split search space into numerical and categorical parts.
-        Numerical parameters are FloatDistribution or IntDistribution.
+
+        Numerical parameters are those with FloatDistribution or IntDistribution,
+        while categorical parameters are all others.
+
+        Args:
+            search_space: Complete search space with all parameter distributions.
+
+        Returns:
+            Tuple containing (numerical_space, categorical_space).
         """
         numerical_space = {}
         categorical_space = {}
@@ -80,6 +113,12 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
     ) -> None:
         """
         Initialize the LLAMBO instance using only the numerical portion of the search space.
+
+        This method converts Optuna distributions to the format required by LLAMBO and
+        creates the LLAMBO instance.
+
+        Args:
+            numerical_space: Dictionary of numerical parameter distributions.
         """
         self.hyperparameter_constraints = {}
         for param_name, distribution in numerical_space.items():
@@ -87,6 +126,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 dtype = "float"
                 dist_type = "log" if distribution.log else "linear"
                 bounds = [distribution.low, distribution.high]
+                print("DEBUG: the bounds for float:", bounds)
             elif isinstance(distribution, optuna.distributions.IntDistribution):
                 dtype = "int"
                 dist_type = "log" if distribution.log else "linear"
@@ -125,16 +165,30 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
     def _sample_parameters(self) -> dict[str, Any]:
         """
         Sample parameters using the LLAMBO instance.
-        Returns a dictionary mapping parameter names to their sampled values.
+
+        Returns:
+            A dictionary mapping parameter names to their sampled values.
         """
         sampled_configuration = self.LLAMBO_instance.sample_configurations()
         return sampled_configuration
 
     def _debug_print(self, message: str) -> None:
+        """
+        Print a debug message if debug mode is enabled.
+
+        Args:
+            message: Message to print.
+        """
         if self.debug:
             print(message)
 
     def _calculate_speed(self, n_completed: int) -> None:
+        """
+        Calculate and print the optimization speed statistics.
+
+        Args:
+            n_completed: Number of completed trials.
+        """
         if not self.debug:
             return
 
@@ -154,6 +208,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             self.last_trial_count = n_completed
 
     def reseed_rng(self) -> None:
+        """Reset the random number generator seeds."""
         self._rng.rng.seed()
         self._random_sampler.reseed_rng()
 
@@ -164,12 +219,23 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         search_space: dict[str, optuna.distributions.BaseDistribution],
     ) -> dict[str, Any]:
         """
-        Hybrid sampling method:
+        Hybrid sampling method that combines LLAMBO for numerical parameters and
+        RandomSampler for categorical parameters.
+
+        This method:
           - Splits the search space into numerical and categorical parts.
           - Uses LLAMBO (initialized on the numerical space) to sample numerical parameters.
           - Uses RandomSampler to sample categorical parameters.
           - When passing observed configurations to LLAMBO, only numerical columns are retained.
           - Returns the merged configuration.
+
+        Args:
+            study: Optuna study object.
+            trial: Current trial being sampled for.
+            search_space: Search space to sample from.
+
+        Returns:
+            Dictionary mapping parameter names to sampled values.
         """
         if len(search_space) == 0:
             return {}
@@ -188,47 +254,108 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         if not numerical_space:
             return categorical_params
 
-        # For initial trials, generate random samples and initialize LLAMBO.
+        # Thread safety: ensure all required attributes are initialized
+        if not hasattr(self, "lower_is_better") or not hasattr(self, "init_configs"):
+            self.lower_is_better = (
+                True if study.direction == optuna.study.StudyDirection.MINIMIZE else False
+            )
+            self.init_configs = self.generate_random_samples(
+                numerical_space, self.n_initial_samples
+            )
+
+        # Make sure LLAMBO is initialized
+        if self.LLAMBO_instance is None:
+            self._initialize_llambo(numerical_space)
+
+        # If DataFrames aren't initialized yet, do it now
+        if not hasattr(self, "init_observed_configs") or self.init_observed_configs is None:
+            self.init_observed_configs = pd.DataFrame()
+
+        if not hasattr(self, "init_observed_fvals") or self.init_observed_fvals is None:
+            self.init_observed_fvals = pd.DataFrame(columns=["score"])
+
+        # For initial trials, use the pre-generated random samples
         if trial.number <= self.n_initial_samples:
-            if trial.number == 1:
-                self.lower_is_better = (
-                    True if study.direction == optuna.study.StudyDirection.MINIMIZE else False
-                )
-                self.init_configs = self.generate_random_samples(
-                    numerical_space, self.n_initial_samples
-                )
-                self._initialize_llambo(numerical_space)
-                self.init_observed_configs = []
-                self.init_observed_fvals = []
+            # Safely get a configuration - handle out-of-bounds index
+            config_idx = min(trial.number - 1, len(self.init_configs) - 1)
+            config = self.init_configs[config_idx]
 
-            config = self.init_configs[trial.number - 1]
-
+            # Update history with completed trials
             if trial.number > 1:
                 completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
                 if completed_trials:
-                    last_trial = completed_trials[-1]
-                    self.init_observed_configs.append(last_trial.params)
-                    self.init_observed_fvals.append(last_trial.value)
+                    # Find the most recent completed trial that we haven't recorded yet
+                    # This is more robust than just taking the last one
+                    for completed_trial in reversed(completed_trials):
+                        # Skip trials we've already processed (check by trial number)
+                        if self.init_observed_configs.shape[0] > 0:
+                            # Skip if we've already seen this trial number
+                            continue
+
+                        # Add new configuration as DataFrame for concatenation
+                        new_config = pd.DataFrame([completed_trial.params])
+                        self.init_observed_configs = pd.concat(
+                            [self.init_observed_configs, new_config], ignore_index=True
+                        )
+                        # Add value to DataFrame with consistent column structure
+                        new_fval = pd.DataFrame({"score": [completed_trial.value]})
+                        self.init_observed_fvals = pd.concat(
+                            [self.init_observed_fvals, new_fval], ignore_index=True
+                        )
+                        break  # Process one trial at a time
 
             return {**config, **categorical_params}
 
-        # For later trials, filter observed configurations to only numerical columns.
+        # For later trials, use the LLAMBO instance for sampling
         if trial.number == self.n_initial_samples + 1:
-            completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
-            if completed_trials:
-                last_trial = completed_trials[-1]
-                self.init_observed_configs.append(last_trial.params)
-                self.init_observed_fvals.append(last_trial.value)
+            # Check if we need to initialize LLAMBO with observed data
+            if len(self.init_observed_configs) == 0:
+                # Collect all completed trials data if we haven't done so yet
+                completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
+                for completed_trial in completed_trials:
+                    # Add new configuration as DataFrame for concatenation
+                    new_config = pd.DataFrame([completed_trial.params])
+                    self.init_observed_configs = pd.concat(
+                        [self.init_observed_configs, new_config], ignore_index=True
+                    )
+                    # Add value to DataFrame with consistent column structure
+                    new_fval = pd.DataFrame({"score": [completed_trial.value]})
+                    self.init_observed_fvals = pd.concat(
+                        [self.init_observed_fvals, new_fval], ignore_index=True
+                    )
 
-            observed_configs_df = pd.DataFrame(self.init_observed_configs)
-            # Retain only numerical keys
-            observed_configs_df = observed_configs_df[list(numerical_space.keys())]
-            observed_fvals_df = pd.DataFrame({"score": self.init_observed_fvals})
+            # Retain only numerical keys from observed configurations
+            observed_configs_df = self.init_observed_configs.copy()
+            if not observed_configs_df.empty:
+                # Ensure we only keep columns that exist in numerical_space
+                numerical_cols = [
+                    col for col in numerical_space.keys() if col in observed_configs_df.columns
+                ]
+                observed_configs_df = observed_configs_df[numerical_cols]
 
-            self.LLAMBO_instance._initialize(None, observed_configs_df, observed_fvals_df)
+            # Ensure observed_fvals_df has the expected structure
+            observed_fvals_df = self.init_observed_fvals.copy()
+
+            # Initialize LLAMBO with observed data
+            try:
+                self.LLAMBO_instance._initialize(None, observed_configs_df, observed_fvals_df)
+            except Exception as e:
+                # If initialization fails, fall back to random sampling
+                self._debug_print(
+                    f"LLAMBO initialization failed: {e}. Falling back to random sampling."
+                )
+                return {
+                    **self.generate_random_samples(numerical_space, 1)[0],
+                    **categorical_params,
+                }
 
         # Use LLAMBO to sample numerical parameters.
-        numerical_params = self.LLAMBO_instance.sample_configurations()
+        try:
+            numerical_params = self.LLAMBO_instance.sample_configurations()
+        except Exception as e:
+            # If LLAMBO sampling fails, fall back to random sampling
+            self._debug_print(f"LLAMBO sampling failed: {e}. Falling back to random sampling.")
+            numerical_params = self.generate_random_samples(numerical_space, 1)[0]
 
         # Merge the numerical and categorical parameters.
         combined_params = {**numerical_params, **categorical_params}
@@ -242,7 +369,15 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         values: Optional[list[float]] = None,
     ) -> None:
         """
-        Update LLAMBO's history using only the numerical portion of the parameters.
+        Update LLAMBO's history after trial completion.
+
+        Only updates with the numerical portion of the parameters.
+
+        Args:
+            study: Optuna study object.
+            trial: Completed trial.
+            state: Trial state.
+            values: Trial values.
         """
         if self.LLAMBO_instance is not None:
             if state == optuna.trial.TrialState.COMPLETE and values is not None:
@@ -256,14 +391,23 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self, search_space: dict[str, optuna.distributions.BaseDistribution], num_samples: int = 1
     ) -> list[dict[str, Any]]:
         """
-        Generate random samples for the numerical search space using the RandomSampler.
+        Generate random samples for the numerical search space.
+
+        Uses the RandomSampler to generate initial samples for the search space.
+
+        Args:
+            search_space: Search space to sample from.
+            num_samples: Number of samples to generate.
+
+        Returns:
+            List of dictionaries with parameter names and values.
         """
         samples = []
         for _ in range(num_samples):
             params = {}
             for param_name, distribution in search_space.items():
                 params[param_name] = self._random_sampler.sample_independent(
-                    study=None,
+                    study=None,  # Not needed for random sampling
                     trial=None,  # Not used in this context
                     param_name=param_name,
                     param_distribution=distribution,

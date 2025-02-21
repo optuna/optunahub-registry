@@ -805,7 +805,6 @@ class LLM_ACQ:
             observed_fvals,
             desired_fval,
             n_prompts=self.n_templates,
-            use_context=use_context,
             use_feature_semantics=use_feature_semantics,
             shuffle_features=self.shuffle_features,
         )
