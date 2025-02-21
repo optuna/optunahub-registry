@@ -320,27 +320,27 @@ if run_benchmark:
         objective_function = objective_map[objective_function_choice]
 
         # Initialize result storage
-        results_de = np.zeros((num_experiments, number_of_trials))
+        results_custom = np.zeros((num_experiments, number_of_trials))
         results_rs = np.zeros((num_experiments, number_of_trials))
 
-        # Run experiments for the Sampler and Random Sampler
+        # Run experiments for the Custom Sampler and Random Sampler
         for i in range(num_experiments):
-            # Run DE Sampler
+            # Run Custom Sampler
             study = optuna.create_study(sampler=sampler, direction=direction)
             study.optimize(objective_function, n_trials=number_of_trials, n_jobs=n_jobs)
 
-            # Track Sampler's best values
-            best_values_de = []
-            current_best_de = float("inf") if minimize else float("-inf")
+            # Track Custom Sampler's best values
+            best_values_custom = []
+            current_best_custom = float("inf") if minimize else float("-inf")
             for trial in study.trials:
                 if trial.value is not None:
-                    current_best_de = (
-                        min(current_best_de, trial.value)
+                    current_best_custom = (
+                        min(current_best_custom, trial.value)
                         if minimize
-                        else max(current_best_de, trial.value)
+                        else max(current_best_custom, trial.value)
                     )
-                    best_values_de.append(current_best_de)
-            results_de[i, :] = best_values_de
+                    best_values_custom.append(current_best_custom)
+            results_custom[i, :] = best_values_custom
 
             # Run Random Sampler
             study_rs = optuna.create_study(sampler=sampler_rs, direction=direction)
@@ -360,15 +360,15 @@ if run_benchmark:
             results_rs[i, :] = best_values_rs
 
         # Compute and plot performance metrics
-        mean_de = np.mean(results_de, axis=0)
-        std_de = np.std(results_de, axis=0)
+        mean_custom = np.mean(results_custom, axis=0)
+        std_custom = np.std(results_custom, axis=0)
         mean_rs = np.mean(results_rs, axis=0)
         std_rs = np.std(results_rs, axis=0)
 
         plt.figure(figsize=(10, 6))
-        plt.plot(mean_de, label="Sampler (Mean Performance)", linestyle="-", color="blue")
+        plt.plot(mean_custom, label="LLAMBO (Mean Performance)", linestyle="-", color="blue")
         plt.fill_between(
-            range(number_of_trials), mean_de - std_de, mean_de + std_de, color="blue", alpha=0.2
+            range(number_of_trials), mean_custom - std_custom, mean_custom + std_custom, color="blue", alpha=0.2
         )
         plt.plot(mean_rs, label="RandomSampler (Mean Performance)", linestyle="--", color="orange")
         plt.fill_between(
@@ -397,25 +397,25 @@ else:
     # Get the mapped objective function
     objective_function = objective_map[objective_function_choice]
 
-    results_de = np.zeros((num_experiments, number_of_trials))
+    results_custom = np.zeros((num_experiments, number_of_trials))
     results_rs = np.zeros((num_experiments, number_of_trials))
 
     for i in range(num_experiments):
-        # Run DE Sampler
+        # Run Custom Sampler
         study = optuna.create_study(sampler=sampler, direction=direction)
         study.optimize(objective_function, n_trials=number_of_trials, n_jobs=n_jobs)
 
-        best_values_de = []
-        current_best_de = float("inf") if minimize else float("-inf")
+        best_values_custom = []
+        current_best_custom = float("inf") if minimize else float("-inf")
         for trial in study.trials:
             if trial.value is not None:
-                current_best_de = (
-                    min(current_best_de, trial.value)
+                current_best_custom = (
+                    min(current_best_custom, trial.value)
                     if minimize
-                    else max(current_best_de, trial.value)
+                    else max(current_best_custom, trial.value)
                 )
-                best_values_de.append(current_best_de)
-        results_de[i, :] = best_values_de
+                best_values_custom.append(current_best_custom)
+        results_custom[i, :] = best_values_custom
 
         # Run Random Sampler
         study_rs = optuna.create_study(sampler=sampler_rs, direction=direction)
@@ -434,15 +434,15 @@ else:
         results_rs[i, :] = best_values_rs
 
     # Compute and display performance metrics
-    mean_de = np.mean(results_de, axis=0)
-    std_de = np.std(results_de, axis=0)
+    mean_custom = np.mean(results_custom, axis=0)
+    std_custom = np.std(results_custom, axis=0)
     mean_rs = np.mean(results_rs, axis=0)
     std_rs = np.std(results_rs, axis=0)
 
     plt.figure(figsize=(10, 6))
-    plt.plot(mean_de, label="Sampler (Mean Performance)", linestyle="-", color="blue")
+    plt.plot(mean_custom, label="LLAMBO (Mean Performance)", linestyle="-", color="blue")
     plt.fill_between(
-        range(number_of_trials), mean_de - std_de, mean_de + std_de, color="blue", alpha=0.2
+        range(number_of_trials), mean_custom - std_custom, mean_custom + std_custom, color="blue", alpha=0.2
     )
     plt.plot(mean_rs, label="RandomSampler (Mean Performance)", linestyle="--", color="orange")
     plt.fill_between(
