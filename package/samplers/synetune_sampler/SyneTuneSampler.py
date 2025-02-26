@@ -113,7 +113,8 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         mode: str = "min",
         metric: str = "mean_loss",
         searcher_method: str = "random_search",
-        searcher_kwargs: dict = {},
+        # TODO pre-commit does not accept dict = None
+        searcher_kwargs: dict | None = None,
     ) -> None:
         super().__init__(search_space)
         if searcher_kwargs is None:
@@ -132,6 +133,7 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
     ) -> dict[str, Any]:
         syne_tune_space = {}
         # TODO Ask whether this conversion works as intended
+        # TODO Optuna supports log and step arguments, these are not accountd for yet
         for name, dist in search_space.items():
             if isinstance(dist, FloatDistribution):
                 syne_tune_space[name] = uniform(dist.low, dist.high)
