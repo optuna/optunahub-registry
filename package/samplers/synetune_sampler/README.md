@@ -1,15 +1,23 @@
 ---
-author: Difan Deng
-title: SMAC3
-description: SMAC offers a robust and flexible framework for Bayesian Optimization to support users in determining well-performing hyperparameter configurations for their (Machine Learning) algorithms, datasets and applications at hand. The main core consists of Bayesian Optimization in combination with an aggressive racing mechanism to efficiently decide which of two configurations performs better.
-tags: [sampler, Bayesian optimization, Gaussian process, Random Forest]
+authors: Luca Thale-Bombien, Aaron Klein
+title: SyneTune
+description: >
+  Syne Tune provides state-of-the-art algorithms for hyperparameter optimization (HPO) with the following key features:
+
+  - **Lightweight and platform-agnostic:** Works across different execution backends with minimal dependencies.
+  - **Comprehensive HPO methods:** Supports over 20 optimization techniques, including multi-fidelity, constrained, multi-objective HPO, transfer learning, cost-aware HPO, and population-based training.
+  - **Simple and modular design:** Provides intuitive APIs and scheduler templates, making it easy to extend and understand different algorithms.
+  - **Industry-strength Bayesian optimization:** Offers robust Gaussian Process-based Bayesian optimization, tried and tested in production environments.
+  - **Scalability for distributed workloads:** Enables parallel experimentation with AWS SageMaker and supports multiple compute environments (local, AWS, or simulation).
+  - **Fast tabulated benchmarks:** Simulates results instantly while preserving real-world HPO dynamics.
+tags: [sampler, Bayesian optimization, CQR, Bore]
 optuna_versions: [3.6.1]
 license: MIT License
 ---
 
 ## APIs
 
-A sampler that uses SMAC3 v2.2.0 verified by unittests that can be run by the following:
+A sampler that uses SyneTune v0.0.13 that can be run by the following:
 
 ```shell
 $ pip install pytest optunahub syne-tune
