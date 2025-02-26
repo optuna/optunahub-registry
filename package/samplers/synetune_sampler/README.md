@@ -1,15 +1,7 @@
 ---
 authors: Luca Thale-Bombien, Aaron Klein
 title: SyneTune
-description: >
-  Syne Tune provides state-of-the-art algorithms for hyperparameter optimization (HPO) with the following key features:
-
-  - **Lightweight and platform-agnostic:** Works across different execution backends with minimal dependencies.
-  - **Comprehensive HPO methods:** Supports over 20 optimization techniques, including multi-fidelity, constrained, multi-objective HPO, transfer learning, cost-aware HPO, and population-based training.
-  - **Simple and modular design:** Provides intuitive APIs and scheduler templates, making it easy to extend and understand different algorithms.
-  - **Industry-strength Bayesian optimization:** Offers robust Gaussian Process-based Bayesian optimization, tried and tested in production environments.
-  - **Scalability for distributed workloads:** Enables parallel experimentation with AWS SageMaker and supports multiple compute environments (local, AWS, or simulation).
-  - **Fast tabulated benchmarks:** Simulates results instantly while preserving real-world HPO dynamics.
+description: Syne Tune provides state-of-the-art algorithms for hyperparameter optimization (HPO).
 tags: [sampler, Bayesian optimization, CQR, Bore]
 optuna_versions: [3.6.1]
 license: MIT License
@@ -17,7 +9,7 @@ license: MIT License
 
 ## APIs
 
-A sampler that uses SyneTune v0.0.13 that can be run by the following:
+A sampler that uses SyneTune v0.13.0 that can be run by the following:
 
 ```shell
 $ pip install pytest optunahub syne-tune
