@@ -71,7 +71,7 @@ See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/packag
 
 SyneTune is maintained by the SyneTune team. If you have trouble using SyneTune, a concrete question or found a bug, please create an issue under the [Synetune](https://github.com/syne-tune/syne-tune) repository.
 
-For all other inquiries, please write an email to .
+For all other inquiries, please file an issue on the SyneTune repository.
 
 ### Reference
 

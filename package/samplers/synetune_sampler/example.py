@@ -6,6 +6,7 @@ from syne_tune.blackbox_repository import load_blackbox
 module = optunahub.load_module("samplers/synetune_sampler")
 SyneTuneSampler = module.SyneTuneSampler
 
+
 if __name__ == "__main__":
     n_trials = 100
     # Load a black-box benchmark (e.g., nasbench201)
@@ -24,7 +25,6 @@ if __name__ == "__main__":
         result = blackbox.objective_function(config)
         return float(result[-1][0])
 
-    # TODO sanity check mit syne tune, sieht es gleich aus??
     # Select method of choice here, i.e. Conformalized Quantile Regression (cqr)
     method_param = "cqr"
     sampler = SyneTuneSampler(

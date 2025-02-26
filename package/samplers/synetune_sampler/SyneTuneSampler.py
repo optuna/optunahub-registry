@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import datetime
 from typing import Any
 from typing import Dict
+from typing import Optional
 
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
@@ -17,6 +18,9 @@ from syne_tune.backend.trial_status import Status
 from syne_tune.backend.trial_status import Trial
 from syne_tune.backend.trial_status import TrialResult
 from syne_tune.config_space import choice
+from syne_tune.config_space import finrange
+from syne_tune.config_space import lograndint
+from syne_tune.config_space import loguniform
 from syne_tune.config_space import randint
 from syne_tune.config_space import uniform
 from syne_tune.optimizer.baselines import BORE
@@ -113,14 +117,17 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         mode: str = "min",
         metric: str = "mean_loss",
         searcher_method: str = "random_search",
-        # TODO pre-commit does not accept dict = None
-        searcher_kwargs: dict | None = None,
+        trial_mapping: Optional[dict] = None,
+        searcher_kwargs: Optional[dict] = None,
     ) -> None:
         super().__init__(search_space)
         if searcher_kwargs is None:
             searcher_kwargs = {}
+        if trial_mapping is None:
+            trial_mapping = {}
         self.metric = metric
         self.mode = mode
+        self.trial_mapping = trial_mapping
         self._syne_tune_space = self._convert_optuna_to_syne_tune(search_space)
         self.scheduler = AskTellScheduler(
             base_scheduler=searcher_cls_dict[searcher_method](
@@ -132,17 +139,40 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         self, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
         syne_tune_space = {}
-        # TODO Ask whether this conversion works as intended
-        # TODO Optuna supports log and step arguments, these are not accountd for yet
-        for name, dist in search_space.items():
-            if isinstance(dist, FloatDistribution):
-                syne_tune_space[name] = uniform(dist.low, dist.high)
-            elif isinstance(dist, IntDistribution):
-                syne_tune_space[name] = randint(dist.low, dist.high)
-            elif isinstance(dist, CategoricalDistribution):
-                syne_tune_space[name] = choice(dist.choices)
+        for name, distribution in search_space.items():
+            if isinstance(distribution, CategoricalDistribution):
+                syne_tune_space[name] = choice(distribution.choices)
+            elif distribution.step is not None:
+                if isinstance(distribution, IntDistribution):
+                    syne_tune_space[name] = finrange(
+                        lower=distribution.lower,
+                        upper=distribution.upper,
+                        size=distribution.step,
+                        cast_int=True,
+                    )
+                elif isinstance(distribution, FloatDistribution):
+                    syne_tune_space[name] = finrange(
+                        lower=distribution.lower,
+                        upper=distribution.upper,
+                        size=distribution.step,
+                        cast_int=False,
+                    )
+            elif distribution.step is None and not distribution.log:
+                if isinstance(distribution, IntDistribution):
+                    syne_tune_space[name] = randint(
+                        lower=distribution.lower, upper=distribution.upper
+                    )
+                elif isinstance(distribution, FloatDistribution):
+                    syne_tune_space[name] = uniform(
+                        lower=distribution.lower, upper=distribution.upper
+                    )
+            elif distribution.log:
+                if isinstance(distribution, FloatDistribution):
+                    syne_tune_space[name] = loguniform(distribution.low, distribution.high)
+                else:
+                    syne_tune_space[name] = lograndint(distribution.low, distribution.high)
             else:
-                raise ValueError(f"Unsupported distribution type: {type(dist)}")
+                raise NotImplementedError(f"Unknown Hyperparameter Type: {type(distribution)}")
         return syne_tune_space
 
     def sample_relative(
@@ -152,18 +182,18 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
         trial_suggestion: Trial = self.scheduler.ask()
+        self.trial_mapping[trial_suggestion.trial_id] = trial_suggestion
         return trial_suggestion.config
 
     def after_trial(
         self, study: Study, trial: FrozenTrial, state: TrialState, values: Sequence[float]
     ) -> None:
-        # TODO Ask if there is a better way to get the trial object (this probably has a different creation time, right?)
         params = trial.params
 
         trial = Trial(
             trial_id=trial.number,
             config=params,
-            creation_time=datetime.datetime.now(),
+            creation_time=self.trial_mapping[trial.number].creation_time,
         )
         experiment_results = {self.metric: values[0]}
 
