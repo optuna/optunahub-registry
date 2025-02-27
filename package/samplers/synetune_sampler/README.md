@@ -3,7 +3,7 @@ authors: Luca Thale-Bombien, Aaron Klein
 title: SyneTune
 description: Syne Tune provides state-of-the-art algorithms for hyperparameter optimization (HPO).
 tags: [sampler, Bayesian optimization, CQR, Bore]
-optuna_versions: [3.6.1]
+optuna_versions: [4.2.1]
 license: MIT License
 ---
 
