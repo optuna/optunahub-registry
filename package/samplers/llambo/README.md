@@ -1,5 +1,5 @@
 ---
-author: [Your Name or Organization]
+author: [Jinglue Xu]
 title: LLAMBO (Large Language Models to Enhance Bayesian Optimization)
 description: This repository integrates Large Language Models (LLMs) with Bayesian Optimization, enabling enhanced surrogate modeling, zero-shot warmstarting, and more efficient candidate sampling in hyperparameter optimization and other black-box optimization tasks.
 tags: [sampler, LLM, Bayesian Optimization, generative, discriminative, dynamic search space]
@@ -11,15 +11,15 @@ license: MIT License
 
 ### Large Language Models to Enhance Bayesian Optimization (LLAMBO)
 
-**LLAMBO** is a novel approach that integrates Large Language Models (LLMs) into the Bayesian Optimization (BO) framework to improve the optimization of complex, expensive-to-evaluate black-box functions. By leveraging the contextual understanding and few-shot learning capabilities of LLMs, LLAMBO enhances multiple facets of the BO pipeline:
+**LLAMBO**, by [Liu et al.](https://arxiv.org/pdf/2402.03921), is a novel approach that integrates Large Language Models (LLMs) into the Bayesian Optimization (BO) framework to improve the optimization of complex, expensive-to-evaluate black-box functions. By leveraging the contextual understanding and few-shot learning capabilities of LLMs, LLAMBO enhances multiple facets of the BO pipeline:
 
-1. **Zero-Shot Warmstarting**  
+1. **Zero-Shot Warmstarting**\
    LLAMBO frames the optimization problem in natural language, allowing the LLM to propose promising initial solutions. This jump-starts the search by exploiting the LLM’s pre-trained knowledge base.
 
-2. **Enhanced Surrogate Modeling**  
+1. **Enhanced Surrogate Modeling**\
    Traditional BO uses surrogate models (e.g., Gaussian Processes) trained solely on observed data. LLAMBO augments this with the LLM’s few-shot learning capacity, particularly beneficial in sparse data regimes.
 
-3. **Efficient Candidate Sampling**  
+1. **Efficient Candidate Sampling**\
    LLAMBO orchestrates iterative sampling by conditioning the LLM on both historical evaluations and high-level problem context. This results in candidate points that effectively balance exploration and exploitation.
 
 ### Implementation
@@ -28,36 +28,40 @@ This implementation of LLAMBO differs from the [original implementation](https:/
 
 1. **Categorical Variable Handling**: It delegates categorical variables to [random search](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.RandomSampler.html), improving flexibility in optimization.
 
-2. **Adaptation beyond Tabular Machine Learning Tasks**:  
+1. **Adaptation beyond Tabular Machine Learning Tasks**:
+
    - The prompting style is adapted to work beyond tabular machine learning tasks to general black-box optimization problems.
    - Users can specify a custom task description using the `custom_task_description` parameter of `LLAMBOSampler`.
 
-3. **Improved Prompt Templates to Prevent Repetition**:  
-   - This implementation includes an explicit prompt that ensures previously observed values are **not recommended again**, reducing redundancy:  
-     ```  
+1. **Improved Prompt Templates to Prevent Repetition**:
+
+   - This implementation includes an explicit prompt that ensures previously observed values are **not recommended again**, reducing redundancy:
+     ```
      The following values have already been observed and **must not be recommended again**:  
      f"{observed_values_str}"  
      ```
-   - It also enforces integer constraints by explicitly stating:  
-     ```  
+   - It also enforces integer constraints by explicitly stating:
+     ```
      "Do not recommend float values; you can only recommend integer values."  
      ```
 
-4. **Alternative Rate Limiting Mechanism**:  
-   - A different rate limiter is implemented (see `llambo/rate_limiter.py`) to regulate LLM call rate limits for general users.  
+1. **Alternative Rate Limiting Mechanism**:
 
----
+   - A different rate limiter is implemented (see `llambo/rate_limiter.py`) to regulate LLM call rate limits for general users.
+
+______________________________________________________________________
 
 ## APIs
 
----
+______________________________________________________________________
 
 ### 1. `LLAMBOSampler`
 
-**File Location**  
+**File Location**
+
 - `sampler_base.py`
 
-**Description**  
+**Description**\
 A custom Optuna sampler that integrates LLAMBO-based surrogate modeling into the search process. The sampler splits parameters into *numerical* (handled by LLAMBO) and *categorical* (handled by a `RandomSampler`). For numerical parameters, it uses either a *discriminative* or *generative* LLM-based surrogate model, depending on `sm_mode`.
 
 ```python
@@ -84,67 +88,68 @@ class LLAMBOSampler(SimpleBaseSampler):
 
 #### **Parameters**
 
-- **`custom_task_description`** *(str, optional)*  
+- **`custom_task_description`** *(str, optional)*\
   A user-provided description for the optimization task (used in prompt generation).
 
-- **`n_initial_samples`** *(int, default=5)*  
+- **`n_initial_samples`** *(int, default=5)*\
   Number of initial random samples before LLAMBO-based sampling starts.
 
-- **`sm_mode`** *({"discriminative", "generative"}, default="discriminative")*  
+- **`sm_mode`** *({"discriminative", "generative"}, default="discriminative")*\
   Defines which LLM-based surrogate model to use for numerical parameters.
 
-- **`num_candidates`** *(int, default=10)*  
+- **`num_candidates`** *(int, default=10)*\
   Number of candidate points generated in each iteration for the surrogate model.
 
-- **`n_templates`** *(int, default=2)*  
+- **`n_templates`** *(int, default=2)*\
   Number of prompt templates to be used when querying the LLM-based surrogate.
 
-- **`n_gens`** *(int, default=10)*  
+- **`n_gens`** *(int, default=10)*\
   Number of generations/predictions made per prompt template.
 
-- **`alpha`** *(float, default=0.1)*  
+- **`alpha`** *(float, default=0.1)*\
   Exploration-exploitation parameter for the acquisition function.
 
-- **`n_trials`** *(int, default=100)*  
+- **`n_trials`** *(int, default=100)*\
   Total number of trials in the search process.
 
-- **`api_key`** *(str, optional)*  
+- **`api_key`** *(str, optional)*\
   API key for the language model service (e.g., OpenAI).
 
-- **`model`** *(str, default="gpt-4o-mini")*  
+- **`model`** *(str, default="gpt-4o-mini")*\
   Identifier for the chosen LLM model.
 
-- **`max_requests_per_minute`** *(int, default=100)*  
+- **`max_requests_per_minute`** *(int, default=100)*\
   Maximum rate of LLM queries per minute.
 
-- **`search_space`** *(dict, optional)*  
+- **`search_space`** *(dict, optional)*\
   If specified, defines the parameter distributions for the sampler.
 
-- **`debug`** *(bool, default=False)*  
+- **`debug`** *(bool, default=False)*\
   If `True`, prints debugging statements for tracing the sampling process.
 
-- **`seed`** *(int, optional)*  
+- **`seed`** *(int, optional)*\
   Seed for random number generation to ensure reproducible sampling.
 
 #### **Key Methods**
 
-1. **`sample_relative`**  
+1. **`sample_relative`**\
    Generates a parameter configuration for an incoming Optuna trial. Splits the search space, sampling numerical parameters using LLAMBO and categorical parameters with a random sampler.
 
-2. **`after_trial`**  
+1. **`after_trial`**\
    Updates the LLAMBO surrogate model after each completed trial, so that future sampling can leverage newly observed data.
 
-3. **`generate_random_samples`**  
+1. **`generate_random_samples`**\
    Helper method to provide random initial samples for numeric distributions before the LLM-based surrogate is employed.
 
----
+______________________________________________________________________
 
 ### 2. `LLAMBO`
 
-**File Location**  
+**File Location**
+
 - `llambo/llambo.py`
 
-**Description**  
+**Description**\
 Serves as the central orchestrator of LLAMBO. Manages the overall optimization loop, including the surrogate model (generative or discriminative) and the acquisition function.
 
 ```python
@@ -161,36 +166,36 @@ class LLAMBO:
 
 #### **Key Parameters**
 
-- **`task_context`** *(Dict[str, Any])*  
+- **`task_context`** *(Dict\[str, Any\])*\
   Includes metadata describing the optimization goal, such as whether *lower is better*, a dictionary of hyperparameter constraints, etc.
 
-- **`sm_mode`** *(str)*  
+- **`sm_mode`** *(str)*\
   `"discriminative"` or `"generative"`, selecting which type of LLM-based surrogate model to use.
 
-- **`n_candidates`** *(int, default=10)*  
+- **`n_candidates`** *(int, default=10)*\
   Number of candidate points sampled at each iteration.
 
-- **`n_templates`** *(int, default=2)*, **`n_gens`** *(int, default=10)*, **`alpha`** *(float, default=0.1)*  
+- **`n_templates`** *(int, default=2)*, **`n_gens`** *(int, default=10)*, **`alpha`** *(float, default=0.1)*\
   Various tuning parameters that affect how prompts are created and how exploration is balanced against exploitation.
 
-- **`use_input_warping`** *(bool, default=False)*  
+- **`use_input_warping`** *(bool, default=False)*\
   Whether to apply transformations (e.g., log-scaling) to numeric parameters before passing them to the LLM.
 
-- **`key`** *(str, optional)*, **`model`** *(str, optional)*, **`max_requests_per_minute`** *(int, default=100)*  
+- **`key`** *(str, optional)*, **`model`** *(str, optional)*, **`max_requests_per_minute`** *(int, default=100)*\
   Relevant LLM API credentials and rate limit settings.
 
 #### **Key Methods**
 
-1. **`_initialize`**  
+1. **`_initialize`**\
    Prepares the optimizer, optionally using user-provided initial observations or generating them randomly.
 
-2. **`sample_configurations`**  
+1. **`sample_configurations`**\
    Returns new candidate configurations to evaluate, using the underlying acquisition function to propose points.
 
-3. **`update_history`**  
+1. **`update_history`**\
    Adds newly observed configurations and their objective values to the model’s dataset, improving future sampling.
 
----
+______________________________________________________________________
 
 ### 3. Surrogate Models
 
@@ -198,10 +203,11 @@ LLAMBO provides two main types of LLM-based surrogate models, each providing a u
 
 #### **3.1 `LLMDiscriminativeSM`**
 
-**File Location**  
+**File Location**
+
 - `llambo/discriminative_sm.py`
 
-**Description**  
+**Description**\
 A discriminative approach that prompts the LLM to output direct performance predictions (numeric values) for candidate configurations. Useful for tasks where approximate numeric predictions are feasible.
 
 ```python
@@ -217,25 +223,28 @@ class LLMDiscriminativeSM:
 ```
 
 #### **Key Parameters**
-- **`lower_is_better`** *(bool)*  
-  Informs the LLM about the direction of optimization.  
-- **`n_gens`** *(int)*  
-  Number of generations per query.  
-- **`use_recalibration`** *(bool)*  
+
+- **`lower_is_better`** *(bool)*\
+  Informs the LLM about the direction of optimization.
+- **`n_gens`** *(int)*\
+  Number of generations per query.
+- **`use_recalibration`** *(bool)*\
   Whether to apply a recalibration step on predicted outputs.
 
-**Key Methods**  
-- **`select_query_point(...)`**: Main entry point for selecting the next candidate based on predicted mean and variance (via an Expected Improvement–style approach).  
+**Key Methods**
+
+- **`select_query_point(...)`**: Main entry point for selecting the next candidate based on predicted mean and variance (via an Expected Improvement–style approach).
 - **`_evaluate_candidate_points(...)`**: Evaluates a set of candidate points by prompting the LLM for numeric predictions (and optionally uncertainties).
 
----
+______________________________________________________________________
 
 #### **3.2 `LLMGenerativeSM`**
 
-**File Location**  
+**File Location**
+
 - `llambo/generative_sm.py`
 
-**Description**  
+**Description**\
 A generative approach that classifies configurations into *top-tier* vs. *not top-tier* using user-defined thresholds. Rather than producing a numeric performance estimate, it returns a probability or classification label.
 
 ```python
@@ -252,23 +261,26 @@ class LLMGenerativeSM:
 ```
 
 #### **Key Parameters**
-- **`top_pct`** *(float)*  
-  Percentage threshold to determine “top performing” vs. not.  
-- **`n_templates`**, **`n_gens`**  
+
+- **`top_pct`** *(float)*\
+  Percentage threshold to determine “top performing” vs. not.
+- **`n_templates`**, **`n_gens`**\
   Similar usage as in the discriminative model for generating queries and responses.
 
-**Key Methods**  
-- **`select_query_point(...)`**: Evaluates candidate configurations by prompting the LLM for a classification (e.g., “is this in the top 10%?”) and chooses the best candidate accordingly.  
+**Key Methods**
+
+- **`select_query_point(...)`**: Evaluates candidate configurations by prompting the LLM for a classification (e.g., “is this in the top 10%?”) and chooses the best candidate accordingly.
 - **`_evaluate_candidate_points(...)`**: Generates classification-based predictions for each candidate in parallel.
 
----
+______________________________________________________________________
 
 ### 4. `LLM_ACQ` (Acquisition Function)
 
-**File Location**  
+**File Location**
+
 - `llambo/acquisition_function.py`
 
-**Description**  
+**Description**\
 Implements the acquisition function that suggests candidate points. Uses textual prompts to the LLM, describing a *desired performance target* based on previously observed data. The LLM proposes new points that can (hopefully) meet or exceed that performance target.
 
 ```python
@@ -286,22 +298,22 @@ class LLM_ACQ:
 
 #### **Key Parameters**
 
-- **`n_candidates`** *(int)*  
-  Number of configurations to generate at once.  
-- **`n_templates`** *(int)*  
-  Number of different prompt templates to help diversify LLM outputs.  
-- **`lower_is_better`** *(bool)*  
+- **`n_candidates`** *(int)*\
+  Number of configurations to generate at once.
+- **`n_templates`** *(int)*\
+  Number of different prompt templates to help diversify LLM outputs.
+- **`lower_is_better`** *(bool)*\
   Direction of optimization (influences how performance thresholds are derived).
 
 #### **Key Methods**
 
-1. **`get_candidate_points(...)`**  
+1. **`get_candidate_points(...)`**\
    Creates textual prompts describing the “desired_fval” for the objective. Retrieves LLM suggestions, then filters out duplicates or out-of-bounds suggestions.
 
-2. **`_filter_candidate_points(...)`**  
+1. **`_filter_candidate_points(...)`**\
    Ensures that the proposed candidate points do not replicate existing solutions, remain within the specified bounds, and respect integer constraints.
 
----
+______________________________________________________________________
 
 ### 5. Utility Modules
 
@@ -309,9 +321,10 @@ Beyond the sampler, surrogate models, and acquisition function, LLAMBO includes 
 
 #### **5.1 `rate_limiter.py`**
 
-**Classes**  
-- **`RateLimiter`**  
-- **`OpenAIRateLimiter`**  
+**Classes**
+
+- **`RateLimiter`**
+- **`OpenAIRateLimiter`**
 
 These classes enforce request-per-minute constraints to avoid exceeding LLM API quotas. They can be applied as decorators or used directly to wrap LLM calls.
 
@@ -322,7 +335,8 @@ def some_llm_call(...):
     ...
 ```
 
-#### **5.2 `warping.py`**  
+#### **5.2 `warping.py`**
+
 Implements numeric warping/unwarping for parameters with log-scale or other transformations:
 
 ```python
@@ -333,19 +347,20 @@ class NumericalTransformer:
         ...
 ```
 
-#### **5.3 `discriminative_sm_utils.py` / `generative_sm_utils.py`**  
+#### **5.3 `discriminative_sm_utils.py` / `generative_sm_utils.py`**
+
 Helper functions for constructing prompts, enumerating data frames, and shuffling or formatting feature columns before sending them to the LLM.
 
----
+______________________________________________________________________
 
 ## Installation
 
-1.  `optuna` and `optunahub` are required.
-2. ```bash pip install -r ```
+1. `optuna` and `optunahub` are required.
+1. `bash pip install -r `
 
 (You also need credentials or an API key for your chosen LLM.)
 
----
+______________________________________________________________________
 
 ## Example
 
@@ -380,7 +395,7 @@ print("Best value:", study.best_value)
 print("Best params:", study.best_params)
 ```
 
-1. **Objective**: Illustrates a basic 2D paraboloid to be minimized.  
-2. **LLAMBOSampler**: Uses the discriminative LLM-based model to suggest numeric parameters.  
-3. **Study**: Runs 30 trials, of which the initial few use random sampling, with subsequent trials guided by LLAMBO’s surrogate.  
-4. **Results**: Print the minimal value found and the associated `x, y`.
+1. **Objective**: Illustrates a basic 2D paraboloid to be minimized.
+1. **LLAMBOSampler**: Uses the discriminative LLM-based model to suggest numeric parameters.
+1. **Study**: Runs 30 trials, of which the initial few use random sampling, with subsequent trials guided by LLAMBO’s surrogate.
+1. **Results**: Print the minimal value found and the associated `x, y`.

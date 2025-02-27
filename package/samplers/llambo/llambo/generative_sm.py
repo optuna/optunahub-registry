@@ -11,14 +11,13 @@ import asyncio
 import re
 import time
 from typing import Any
-from typing import Optional
 from typing import Sequence
 
 from llambo.generative_sm_utils import gen_prompt_tempates
+from llambo.rate_limiter import apply_rate_limit
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 import pandas as pd
-from llambo.rate_limiter import apply_rate_limit
 
 
 class LLMGenerativeSM:
@@ -129,8 +128,11 @@ class LLMGenerativeSM:
         ]
 
         resp, tot_cost = self.OpenAI_instance.ask(message)
+        # The fourth return value (tokens used) is missing in the implementation
+        # Adding a placeholder value of 0 for total tokens
+        total_tokens = 0  # This should be updated if token count is available
 
-        return query_idx, resp, tot_cost
+        return query_idx, resp, tot_cost, total_tokens
 
     async def _generate_concurrently(
         self,
@@ -161,12 +163,13 @@ class LLMGenerativeSM:
             for query_idx, query_example in enumerate(query_examples):
                 coroutines.append(self._async_generate(template, query_example, query_idx))
 
-        results = [[] for _ in range(len(query_examples))]
+        # Add type annotation for results
+        results: list[list[list[Any]]] = [[] for _ in range(len(query_examples))]
 
         for task in asyncio.as_completed(coroutines):
             response = await task
             if response is not None:
-                query_idx, resp, tot_cost = response
+                query_idx, resp, tot_cost, _ = response  # Unpack 4 values, ignoring the last one
                 results[query_idx].append([resp, tot_cost])
             else:
                 print("None response received")
@@ -208,7 +211,7 @@ class LLMGenerativeSM:
         self,
         all_prompt_templates: list[str],
         query_examples: list[dict[str, Any]],
-    ) -> tuple[np.ndarray, float, float, int, float]:
+    ) -> tuple[np.ndarray, float, float, float]:
         """
         Generate predictions for multiple query examples.
 
@@ -221,7 +224,6 @@ class LLMGenerativeSM:
                 - Array of mean probabilities
                 - Success rate
                 - Total cost
-                - Total tokens used
                 - Time taken
 
         Example:
@@ -229,7 +231,7 @@ class LLMGenerativeSM:
             >>> examples = [{"Q": "config1"}, {"Q": "config2"}]
             >>> async def example_usage():
             ...     result = await model._predict(templates, examples)
-            ...     return isinstance(result, tuple) and len(result) == 5
+            ...     return isinstance(result, tuple) and len(result) == 4
             >>> asyncio.run(example_usage())
             True
         """
@@ -273,6 +275,7 @@ class LLMGenerativeSM:
         pred_probs = np.array(all_preds).astype(float)
         mean_probs = np.nanmean(pred_probs, axis=1)
 
+        # Fixed return tuple to match the expected 4 values, removing the tokens count
         return mean_probs, success_rate, tot_cost, time_taken
 
     async def _evaluate_candidate_points(
@@ -307,8 +310,8 @@ class LLMGenerativeSM:
             >>> asyncio.run(example_usage())
             True
         """
-        all_run_cost = 0
-        all_run_time = 0
+        all_run_cost: float = 0.0
+        all_run_time: float = 0.0
 
         if not isinstance(observed_configs, pd.DataFrame):
             observed_configs = pd.DataFrame(observed_configs)
@@ -330,6 +333,7 @@ class LLMGenerativeSM:
         print(f"Number of query_examples: {len(query_examples)}")
 
         response = await self._predict(all_prompt_templates, query_examples)
+        # Unpacking 4 values as returned by the updated _predict method
         pred_probs, success_rate, tot_cost, time_taken = response
 
         all_run_cost += tot_cost

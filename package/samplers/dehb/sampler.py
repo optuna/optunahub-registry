@@ -6,9 +6,9 @@ import numpy as np
 from optuna._transform import _SearchSpaceTransform
 from optuna.distributions import BaseDistribution
 from optuna.samplers import BaseSampler
-from optuna.search_space import IntersectionSearchSpace
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
+from optuna.search_space import IntersectionSearchSpace
 from optuna.study import Study
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial

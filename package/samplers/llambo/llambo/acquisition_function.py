@@ -8,10 +8,11 @@ from typing import Optional
 
 from langchain import FewShotPromptTemplate
 from langchain import PromptTemplate
+from llambo.rate_limiter import apply_rate_limit
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 import pandas as pd
-from llambo.rate_limiter import apply_rate_limit
+
 
 class LLM_ACQ:
     """A class to implement the acquisition function for Bayesian Optimization using LLMs.
@@ -178,25 +179,18 @@ class LLM_ACQ:
 
         Returns:
             list[dict[str, str]]: A list of few-shot examples for the prompts.
-
-        Example:
-            >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
-            >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
-            >>> acq = LLM_ACQ(
-            ...     task_context={"hyperparameter_constraints": {
-            ...         "x1": ["float", None, [0, 10]],
-            ...         "x2": ["float", None, [0, 1]]
-            ...     }},
-            ...     n_candidates=10,
-            ...     n_templates=2,
-            ...     lower_is_better=True
-            ... )
-            >>> examples = acq._prepare_configurations_acquisition(configs, fvals)
-            >>> len(examples) == len(configs)
-            True
         """
         examples = []
 
+        # Handle the case where observed_configs is None
+        if observed_configs is None:
+            if observed_fvals is not None:
+                examples = [{"A": f"{observed_fvals:.6f}"}]
+            else:
+                raise ValueError("No observed configurations or performance values provided.")
+            return examples
+
+        # Now we know observed_configs is not None, we can safely use its methods
         if seed is not None:
             np.random.seed(seed)
             shuffled_indices = np.random.permutation(observed_configs.index)
@@ -220,64 +214,59 @@ class LLM_ACQ:
             shuffled_columns = np.random.permutation(observed_configs.columns)
             observed_configs = observed_configs[shuffled_columns]
 
-        if observed_configs is not None:
-            hyperparameter_names = observed_configs.columns
-            for index, row in observed_configs.iterrows():
-                row_string = "## "
-                for i in range(len(row)):
-                    hyp_type = self.task_context["hyperparameter_constraints"][
+        hyperparameter_names = observed_configs.columns
+        for index, row in observed_configs.iterrows():
+            row_string = "## "
+            for i in range(len(row)):
+                hyp_type = self.task_context["hyperparameter_constraints"][
+                    hyperparameter_names[i]
+                ][0]
+                hyp_transform = self.task_context["hyperparameter_constraints"][
+                    hyperparameter_names[i]
+                ][1]
+
+                if use_feature_semantics:
+                    row_string += f"{hyperparameter_names[i]}: "
+                else:
+                    row_string += f"X{i + 1}: "
+
+                if hyp_type in ["int", "float"]:
+                    lower_bound = self.task_context["hyperparameter_constraints"][
                         hyperparameter_names[i]
-                    ][0]
-                    hyp_transform = self.task_context["hyperparameter_constraints"][
+                    ][2][0]
+                else:
+                    lower_bound = self.task_context["hyperparameter_constraints"][
                         hyperparameter_names[i]
-                    ][1]
+                    ][2][1]
+                n_dp = self._count_decimal_places(lower_bound)
+                value = row[i]
 
-                    if use_feature_semantics:
-                        row_string += f"{hyperparameter_names[i]}: "
+                if self.apply_warping:
+                    if hyp_type == "int" and hyp_transform != "log":
+                        row_string += str(int(value))
+                    elif hyp_type == "float" or hyp_transform == "log":
+                        row_string += f"{value:.{n_dp}f}"
+                    elif hyp_type == "ordinal":
+                        row_string += f"{value:.{n_dp}f}"
                     else:
-                        row_string += f"X{i+1}: "
-
-                    if hyp_type in ["int", "float"]:
-                        lower_bound = self.task_context["hyperparameter_constraints"][
-                            hyperparameter_names[i]
-                        ][2][0]
+                        row_string += str(value)
+                else:
+                    if hyp_type == "int":
+                        row_string += str(int(value))
+                    elif hyp_type in ["float", "ordinal"]:
+                        row_string += f"{value:.{n_dp}f}"
                     else:
-                        lower_bound = self.task_context["hyperparameter_constraints"][
-                            hyperparameter_names[i]
-                        ][2][1]
-                    n_dp = self._count_decimal_places(lower_bound)
-                    value = row[i]
+                        row_string += str(value)
 
-                    if self.apply_warping:
-                        if hyp_type == "int" and hyp_transform != "log":
-                            row_string += str(int(value))
-                        elif hyp_type == "float" or hyp_transform == "log":
-                            row_string += f"{value:.{n_dp}f}"
-                        elif hyp_type == "ordinal":
-                            row_string += f"{value:.{n_dp}f}"
-                        else:
-                            row_string += str(value)
-                    else:
-                        if hyp_type == "int":
-                            row_string += str(int(value))
-                        elif hyp_type in ["float", "ordinal"]:
-                            row_string += f"{value:.{n_dp}f}"
-                        else:
-                            row_string += str(value)
-
-                    if i != len(row) - 1:
-                        row_string += ", "
-                row_string += " ##"
-                example = {"Q": row_string}
-                if observed_fvals is not None:
-                    row_index = observed_fvals.index.get_loc(index)
-                    perf = f"{observed_fvals.values[row_index][0]:.6f}"
-                    example["A"] = perf
-                examples.append(example)
-        elif observed_fvals is not None:
-            examples = [{"A": f"{observed_fvals:.6f}"}]
-        else:
-            raise ValueError("No observed configurations or performance values provided.")
+                if i != len(row) - 1:
+                    row_string += ", "
+            row_string += " ##"
+            example = {"Q": row_string}
+            if observed_fvals is not None:
+                row_index = observed_fvals.index.get_loc(index)
+                perf = f"{observed_fvals.values[row_index][0]:.6f}"
+                example["A"] = perf
+            examples.append(example)
 
         return examples
 
@@ -326,24 +315,6 @@ class LLM_ACQ:
                 A tuple containing:
                 - A list of generated prompt templates (`FewShotPromptTemplate`).
                 - A list of query templates (`list[dict[str, str]]`), where each dictionary represents a structured query.
-
-        ### Example:
-        ```python
-        >>> import pandas as pd
-        >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
-        >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
-        >>> acq = LLM_ACQ(
-        ...     task_context={"hyperparameter_constraints": {
-        ...         "x1": ["float", None, [0, 10]],
-        ...         "x2": ["float", None, [0, 1]]
-        ...     }},
-        ...     n_candidates=10,
-        ...     n_templates=2,
-        ...     lower_is_better=True
-        ... )
-        >>> templates, queries = acq._gen_prompt_templates_acquisitions(configs, fvals, 0.4)
-        >>> len(templates) == 1 and len(queries) == 1
-        True
         """
 
         all_prompt_templates = []
@@ -446,21 +417,14 @@ class LLM_ACQ:
 
         return all_prompt_templates, all_query_templates
 
-    async def _async_generate(self, user_message: str) -> Optional[tuple[Any, float, int]]:
+    async def _async_generate(self, user_message: str) -> Optional[tuple[Any, float]]:
         """Generate a response from the LLM asynchronously.
 
         Args:
             user_message (str): The prompt message to send to the LLM.
 
         Returns:
-            Optional[tuple[Any, float, int]]: A tuple containing the LLM response,
-                total cost, and total tokens used.
-
-        Example:
-            >>> # This is an async method that returns Optional[tuple[Any, float, int]]
-            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
-            >>> # response = asyncio.run(acq._async_generate("Test message"))
-            >>> # response will be either None or (response_content, cost, tokens)
+            Optional[tuple[Any, float]]: A tuple containing the LLM response and total cost.
         """
         print("Sending inquiries to the LLM - acquisition function")
 
@@ -480,7 +444,7 @@ class LLM_ACQ:
         self,
         prompt_templates: list[FewShotPromptTemplate],
         query_templates: list[list[dict[str, str]]],
-    ) -> list[Optional[tuple[Any, float, int]]]:
+    ) -> list[Optional[tuple[Any, float]]]:
         """Perform concurrent generation of responses from the LLM asynchronously.
 
         Args:
@@ -488,15 +452,7 @@ class LLM_ACQ:
             query_templates (list[list[dict[str, str]]]): List of query templates.
 
         Returns:
-            list[Optional[tuple[Any, float, int]]]: A list of results from the LLM requests.
-
-        Example:
-            >>> # This is an async method that returns list[Optional[tuple[Any, float, int]]]
-            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
-            >>> templates = [PromptTemplate(input_variables=["x"], template="test {x}")]
-            >>> query_temps = [[{"A": "0.5"}]]
-            >>> # responses = asyncio.run(acq._async_generate_concurrently(templates, query_temps))
-            >>> # responses will be a list of (response_content, cost, tokens) tuples or None
+            list[Optional[tuple[Any, float]]]: A list of results from the LLM requests.
         """
         coroutines = []
         for prompt_template, query_template in zip(prompt_templates, query_templates):
@@ -508,13 +464,12 @@ class LLM_ACQ:
 
         assert len(tasks) == int(self.n_templates)
 
-        results = [None] * len(coroutines)
+        results: list[Optional[tuple[Any, float]]] = [None] * len(coroutines)
         llm_response = await asyncio.gather(*tasks)
 
         for idx, response in enumerate(llm_response):
             if response is not None:
-                resp, tot_cost = response
-                results[idx] = (resp, tot_cost)
+                results[idx] = response
 
         return results
 
@@ -539,7 +494,7 @@ class LLM_ACQ:
             response_json[key] = float(value)
 
         return response_json
-    #TODO: remove the debug prints after debugging
+
     def _filter_candidate_points(
         self,
         observed_points: list[dict[str, float]],
@@ -557,22 +512,6 @@ class LLM_ACQ:
 
         Returns:
             pd.DataFrame: A DataFrame containing the filtered candidate configurations.
-
-        Example:
-            >>> acq = LLM_ACQ(
-            ...     task_context={"hyperparameter_constraints": {
-            ...         "x1": ["float", None, [0, 10]],
-            ...         "x2": ["float", None, [0, 1]]
-            ...     }},
-            ...     n_candidates=10,
-            ...     n_templates=2,
-            ...     lower_is_better=True
-            ... )
-            >>> observed = [{"x1": 1.0, "x2": 0.1}]
-            >>> candidates = [{"x1": 1.0, "x2": 0.1}, {"x1": 2.0, "x2": 0.2}]
-            >>> filtered = acq._filter_candidate_points(observed, candidates)
-            >>> len(filtered) == 1
-            True
         """
         print("\n--- Debug: _filter_candidate_points ---")
         print(f"Number of observed points: {len(observed_points)}")
@@ -663,70 +602,25 @@ class LLM_ACQ:
 
         print("Filtered candidates after range check:", filtered_candidates)
 
-        filtered_candidates = pd.DataFrame(filtered_candidates)
-        print("DataFrame before drop_duplicates:", filtered_candidates)
+        # Convert to DataFrame after filtering
+        filtered_df = pd.DataFrame(filtered_candidates)
+        print("DataFrame before drop_duplicates:", filtered_df)
 
-        filtered_candidates = filtered_candidates.drop_duplicates()
-        print("DataFrame after drop_duplicates:", filtered_candidates)
+        if not filtered_df.empty:
+            filtered_df = filtered_df.drop_duplicates()
+            print("DataFrame after drop_duplicates:", filtered_df)
 
-        filtered_candidates = filtered_candidates.reset_index(drop=True)
-        print("Final filtered candidates:", filtered_candidates)
+            filtered_df = filtered_df.reset_index(drop=True)
+            print("Final filtered candidates:", filtered_df)
 
         print("--- End of Debug: _filter_candidate_points ---\n")
 
-        return filtered_candidates
+        return filtered_df
 
-    def get_candidate_points(
-        self,
-        observed_configs: pd.DataFrame,
-        observed_fvals: pd.DataFrame,
-        use_feature_semantics: bool = True,
-        use_context: str = "full_context",
-        alpha: float = -0.2,
-    ) -> tuple[pd.DataFrame, float, float]:
-        """Generate candidate points for the acquisition function.
-
-        Args:
-            observed_configs (pd.DataFrame): Observed hyperparameter configurations.
-            observed_fvals (pd.DataFrame): Observed performance values.
-            use_feature_semantics (bool, optional): Whether to use feature names. Defaults to True.
-            use_context (str, optional): Level of context to include. Defaults to "full_context".
-            alpha (float, optional): Controls target performance relative to best observed.
-                Defaults to -0.2.
-
-        Returns:
-            tuple[pd.DataFrame, float, float]: A tuple containing the filtered candidate points,
-                total cost, and time taken.
-
-        Example:
-            >>> configs = pd.DataFrame({'x1': [1.0, 2.0], 'x2': [0.1, 0.2]})
-            >>> fvals = pd.DataFrame({'value': [0.5, 0.6]})
-            >>> acq = LLM_ACQ(
-            ...     task_context={"hyperparameter_constraints": {
-            ...         "x1": ["float", None, [0, 10]],
-            ...         "x2": ["float", None, [0, 1]]
-            ...     }},
-            ...     n_candidates=10,
-            ...     n_templates=2,
-            ...     lower_is_better=True
-            ... )
-            >>> candidates, cost, time = acq.get_candidate_points(configs, fvals)
-            >>> isinstance(candidates, pd.DataFrame)
-            True
-        """
-        assert -1 <= alpha <= 1, "alpha must be between -1 and 1"
-        if alpha == 0:
-            alpha = -1e-3
-        self.alpha = alpha
-
-        if self.prompt_setting is not None:
-            use_context = self.prompt_setting
-
-        start_time = time.time()
-
-        range_val = np.abs(np.max(observed_fvals.values) - np.min(observed_fvals.values))
-        if range_val == 0:
-            range_val = 0.1 * np.abs(np.max(observed_fvals.values))
+    def _adjust_alpha_and_desired_fval(
+        self, observed_fvals: pd.DataFrame, alpha: float
+    ) -> tuple[float, float]:
+        """Helper method to adjust alpha and compute desired_fval."""
         alpha_range = [0.1, 1e-2, 1e-3, -1e-3, -1e-2, -0.1]
 
         if self.lower_is_better:
@@ -788,6 +682,39 @@ class LLM_ACQ:
                 f"desired fval: {desired_fval:.6f}"
             )
 
+        return alpha, desired_fval
+
+    def get_candidate_points(
+        self,
+        observed_configs: pd.DataFrame,
+        observed_fvals: pd.DataFrame,
+        use_feature_semantics: bool = True,
+        use_context: str = "full_context",
+        alpha: float = -0.2,
+    ) -> tuple[pd.DataFrame, float, float]:
+        """Generate candidate points for the acquisition function.
+
+        Args:
+            observed_configs (pd.DataFrame): Observed hyperparameter configurations.
+            observed_fvals (pd.DataFrame): Observed performance values.
+            use_feature_semantics (bool, optional): Whether to use feature names. Defaults to True.
+            use_context (str, optional): Level of context to include. Defaults to "full_context".
+            alpha (float, optional): Controls target performance relative to best observed.
+                Defaults to -0.2.
+
+        Returns:
+            tuple[pd.DataFrame, float, float]: A tuple containing the filtered candidate points,
+                total cost, and time taken.
+        """
+        assert -1 <= alpha <= 1, "alpha must be between -1 and 1"
+        if alpha == 0:
+            alpha = -1e-3
+        self.alpha = alpha
+
+        start_time = time.time()
+
+        # Use helper method to compute desired_fval
+        alpha, desired_fval = self._adjust_alpha_and_desired_fval(observed_fvals, alpha)
         self.desired_fval = desired_fval
 
         if self.warping_transformer is not None:
@@ -811,6 +738,7 @@ class LLM_ACQ:
 
         number_candidate_points = 0
         filtered_candidate_points = pd.DataFrame()
+        tot_cost = 0.0  # Initialize total cost
 
         retry = 0
         while number_candidate_points < 5:
@@ -819,26 +747,32 @@ class LLM_ACQ:
             )
 
             candidate_points = []
-            tot_cost = 0
 
             for response in llm_responses:
                 if response is None:
                     continue
-                for response_content in response:
-                    try:
-                        response_content = response_content.split("##")[1].strip()
-                        candidate_points.append(self._convert_to_json(response_content))
-                    except Exception:
-                        print(response_content)
-                        continue
-                tot_cost += response[1]
+
+                # Unpack the tuple properly
+                response_content, cost = response
+                tot_cost += cost
+
+                try:
+                    response_content = response_content.split("##")[1].strip()
+                    candidate_points.append(self._convert_to_json(response_content))
+                except Exception:
+                    print(response_content)
+                    continue
 
             proposed_points = self._filter_candidate_points(
                 observed_configs.to_dict(orient="records"), candidate_points
             )
-            filtered_candidate_points = pd.concat(
-                [filtered_candidate_points, proposed_points], ignore_index=True
-            )
+
+            # Check if proposed_points is not empty before concatenating
+            if not proposed_points.empty:
+                filtered_candidate_points = pd.concat(
+                    [filtered_candidate_points, proposed_points], ignore_index=True
+                )
+
             number_candidate_points = filtered_candidate_points.shape[0]
 
             print(

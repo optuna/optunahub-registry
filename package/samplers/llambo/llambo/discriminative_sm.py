@@ -4,14 +4,19 @@ import asyncio
 import re
 import time
 from typing import Any
+from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
 
 from llambo.discriminative_sm_utils import gen_prompt_templates
+from llambo.rate_limiter import apply_rate_limit
 from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 from scipy.stats import norm
-from llambo.rate_limiter import apply_rate_limit
+
+
+T = TypeVar("T")
 
 
 class LLMDiscriminativeSM:
@@ -63,7 +68,6 @@ class LLMDiscriminativeSM:
         key: str = "",
         model: str = "gpt-4-mini",
         max_requests_per_minute: int = 100,
-
     ) -> None:
         """
         Initialize the LLM discriminative surrogate model.
@@ -106,12 +110,11 @@ class LLMDiscriminativeSM:
         self.OpenAI_instance = OpenAI_interface(key, model=model, debug=False)
         apply_rate_limit(self.OpenAI_instance, max_requests_per_minute=max_requests_per_minute)
 
-
         assert isinstance(self.shuffle_features, bool), "shuffle_features must be a boolean"
 
     async def _async_generate(
         self, few_shot_template: str, query_example: dict[str, Any], query_idx: int
-    ) -> Optional[Tuple[int, Any, float, int]]:
+    ) -> Optional[Tuple[int, Any, float]]:
         """
         Generate a response from the LLM asynchronously.
 
@@ -121,8 +124,8 @@ class LLMDiscriminativeSM:
             query_idx: Index of the query.
 
         Returns:
-            Optional[Tuple[int, Any, float, int]]: Query index, response, total cost,
-                and total tokens if successful, None otherwise.
+            Optional[Tuple[int, Any, float]]: Query index, response, and total cost
+                if successful, None otherwise.
 
         Example:
             >>> # In an async function
@@ -173,7 +176,7 @@ class LLMDiscriminativeSM:
         ]
 
         tasks = [asyncio.create_task(c) for c in coroutines]
-        results = [[] for _ in range(len(query_examples))]
+        results: List[List[Any]] = [[] for _ in range(len(query_examples))]
         llm_response = await asyncio.gather(*tasks)
 
         for response in llm_response:
@@ -185,7 +188,7 @@ class LLMDiscriminativeSM:
 
     async def _predict(
         self, all_prompt_templates: list[str], query_examples: list[dict[str, Any]]
-    ) -> Tuple[np.ndarray, np.ndarray, float, float, int, float]:
+    ) -> Tuple[np.ndarray, np.ndarray, float, float, float]:
         """
         Make predictions for query examples using prompt templates.
 
@@ -199,14 +202,13 @@ class LLMDiscriminativeSM:
                 - Standard deviations
                 - Success rate
                 - Total cost
-                - Total tokens
                 - Time taken
 
         Example:
             >>> # In an async function
             >>> templates = ["Template {Q}"]
             >>> queries = [{"Q": "example query"}]
-            >>> mean, std, rate, cost, tokens, time = model._predict(templates, queries)
+            >>> mean, std, rate, cost, time = model._predict(templates, queries)
         """
         start = time.time()
         all_preds = []
@@ -252,6 +254,41 @@ class LLMDiscriminativeSM:
 
         return y_mean, y_std, success_rate, tot_cost, time_taken
 
+    async def _get_recalibrator(
+        self, observed_configs: Any, observed_fvals: Any
+    ) -> Tuple[Any, float, float]:
+        """
+        Get a recalibrator for uncertainty estimates.
+
+        Args:
+            observed_configs: Previously observed configurations.
+            observed_fvals: Previously observed function values.
+
+        Returns:
+            Tuple containing:
+                - Recalibrator object
+                - Total cost
+                - Time taken
+        """
+        # Placeholder implementation - replace with actual recalibrator logic
+        time_taken = 0.0
+        tot_cost = 0.0
+
+        # Create a simple pass-through recalibrator
+        class SimpleRecalibrator:
+            def __call__(self, mean: np.ndarray, std: np.ndarray, confidence_level: float) -> Any:
+                class RecalibratorResult:
+                    def __init__(self, lower: np.ndarray, upper: np.ndarray) -> None:
+                        self.lower = lower
+                        self.upper = upper
+
+                z_score = norm.ppf((1 + confidence_level) / 2)
+                lower = mean - z_score * std
+                upper = mean + z_score * std
+                return RecalibratorResult(lower=lower, upper=upper)
+
+        return SimpleRecalibrator(), tot_cost, time_taken
+
     async def _evaluate_candidate_points(
         self,
         observed_configs: Any,
@@ -285,8 +322,8 @@ class LLMDiscriminativeSM:
             >>> candidates = pd.DataFrame({"x": [4, 5]})
             >>> results = model._evaluate_candidate_points(configs, fvals, candidates)
         """
-        all_run_cost = 0
-        all_run_time = 0
+        all_run_cost: float = 0.0
+        all_run_time: float = 0.0
 
         if self.use_recalibration and self.recalibrator is None:
             recalibrator, tot_cost, time_taken = await self._get_recalibrator(
@@ -322,8 +359,8 @@ class LLMDiscriminativeSM:
             recalibrated_res = self.recalibrator(y_mean, y_std, 0.68)
             y_std = np.abs(recalibrated_res.upper - recalibrated_res.lower) / 2
 
-        all_run_cost += tot_cost
-        all_run_time += time_taken
+        all_run_cost += float(tot_cost)
+        all_run_time += float(time_taken)
 
         if not return_ei:
             return y_mean, y_std, all_run_cost, all_run_time

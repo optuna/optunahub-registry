@@ -3,7 +3,15 @@ from __future__ import annotations
 import functools
 import threading
 import time
-from typing import Any, Callable
+from typing import Any
+from typing import Callable
+from typing import cast
+from typing import TypeVar
+
+
+# Define generic types for functions
+F = TypeVar("F", bound=Callable[..., Any])
+
 
 class RateLimiter:
     """
@@ -31,10 +39,12 @@ class RateLimiter:
         # Initialize with a time far in the past to allow the first request immediately
         self.last_request_time = time.time() - self.min_interval
         self.lock = threading.RLock()
-        print(f"Rate limiter initialized: {max_requests_per_minute} requests/minute "
-              f"({self.min_interval:.2f}s between requests)")
+        print(
+            f"Rate limiter initialized: {max_requests_per_minute} requests/minute "
+            f"({self.min_interval:.2f}s between requests)"
+        )
 
-    def wait_if_needed(self):
+    def wait_if_needed(self) -> None:
         """
         Wait if necessary to maintain the rate limit.
         """
@@ -53,7 +63,7 @@ class RateLimiter:
             self.last_request_time = time.time()
 
 
-def rate_limited(max_requests_per_minute: int = 60):
+def rate_limited(max_requests_per_minute: int = 60) -> Callable[[F], F]:
     """
     Decorator factory to rate limit a function.
 
@@ -65,13 +75,13 @@ def rate_limited(max_requests_per_minute: int = 60):
     """
     limiter = RateLimiter(max_requests_per_minute)
 
-    def decorator(func):
+    def decorator(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             limiter.wait_if_needed()
             return func(*args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 
@@ -100,14 +110,14 @@ class OpenAIRateLimiter:
 
         # Define a rate-limited version of the ask method
         @functools.wraps(self.original_ask)
-        def rate_limited_ask(*args, **kwargs):
+        def rate_limited_ask(*args: Any, **kwargs: Any) -> Any:
             self.limiter.wait_if_needed()
             return self.original_ask(*args, **kwargs)
 
         # Replace the original ask method with our rate-limited version
         openai_interface.ask = rate_limited_ask
 
-    def restore_original(self):
+    def restore_original(self) -> None:
         """Restore the original ask method."""
         self.openai_interface.ask = self.original_ask
 

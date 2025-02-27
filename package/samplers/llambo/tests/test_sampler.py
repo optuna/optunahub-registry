@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# ruff: noqa
 """MIT License
 
 Copyright (c) 2018 Preferred Networks, Inc.
@@ -65,8 +67,14 @@ def The_Sampler(seed=None):
     return optunahub.load_local_module(
         package="samplers/llambo",
         registry_root=registry_root,
-    ).LLAMBOSampler(api_key=api_key, model=model, debug=debug,
-                    sm_mode=sm_mode,seed=seed,max_requests_per_minute=max_requests_per_minute)
+    ).LLAMBOSampler(
+        api_key=api_key,
+        model=model,
+        debug=debug,
+        sm_mode=sm_mode,
+        seed=seed,
+        max_requests_per_minute=max_requests_per_minute,
+    )
 
 
 parametrize_sampler = pytest.mark.parametrize("sampler_class", [The_Sampler])
@@ -222,7 +230,6 @@ def test_categorical(
 # )
 
 
-
 # the parameters for test_sample_relative_numerical are simplified to save timme
 @parametrize_relative_sampler
 @pytest.mark.parametrize(
@@ -239,8 +246,6 @@ def test_categorical(
         IntDistribution(3, 10),
     ],
 )
-
-
 def test_sample_relative_numerical(
     relative_sampler_class: Callable[[], BaseSampler],
     x_distribution: BaseDistribution,

@@ -4,12 +4,13 @@ import time
 from typing import Any
 from typing import Optional
 
-from llambo.llambo import LLAMBO
 import optuna
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 import optunahub
 import pandas as pd
+
+from llambo.llambo import LLAMBO
 
 
 class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
@@ -73,6 +74,13 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self.api_key = api_key
         self.model = model
         self.max_requests_per_minute = max_requests_per_minute
+
+        # Initialize attributes that will be set later
+        self.lower_is_better = True  # Default, will be set properly in sample_relative
+        self.init_configs: list[dict[str, Any]] = []  # Will be populated in sample_relative
+        self.hyperparameter_constraints: dict[
+            str, list[Any]
+        ] = {}  # Will be populated in _initialize_llambo
 
         # Initialize empty DataFrames instead of lists for thread-safety
         self.init_observed_configs = pd.DataFrame()
@@ -172,6 +180,11 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         Returns:
             A dictionary mapping parameter names to their sampled values.
         """
+        # Ensure LLAMBO instance exists before calling its methods
+        if self.LLAMBO_instance is None:
+            self._debug_print("LLAMBO instance is None when trying to sample parameters")
+            return {}
+
         sampled_configuration = self.LLAMBO_instance.sample_configurations()
         return sampled_configuration
 
@@ -258,24 +271,15 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             return categorical_params
 
         # Thread safety: ensure all required attributes are initialized
-        if not hasattr(self, "lower_is_better") or not hasattr(self, "init_configs"):
+        if not hasattr(self, "lower_is_better") or self.lower_is_better is None:
             self.lower_is_better = (
                 True if study.direction == optuna.study.StudyDirection.MINIMIZE else False
             )
+
+        if not hasattr(self, "init_configs") or not self.init_configs:
             self.init_configs = self.generate_random_samples(
                 numerical_space, self.n_initial_samples
             )
-
-        # Make sure LLAMBO is initialized
-        if self.LLAMBO_instance is None:
-            self._initialize_llambo(numerical_space)
-
-        # If DataFrames aren't initialized yet, do it now
-        if not hasattr(self, "init_observed_configs") or self.init_observed_configs is None:
-            self.init_observed_configs = pd.DataFrame()
-
-        if not hasattr(self, "init_observed_fvals") or self.init_observed_fvals is None:
-            self.init_observed_fvals = pd.DataFrame(columns=["score"])
 
         # For initial trials, use the pre-generated random samples
         if trial.number <= self.n_initial_samples:
@@ -309,6 +313,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
             return {**config, **categorical_params}
 
+        # Initialize LLAMBO if not done already
+        if self.LLAMBO_instance is None:
+            self._initialize_llambo(numerical_space)
+
         # For later trials, use the LLAMBO instance for sampling
         if trial.number == self.n_initial_samples + 1:
             # Check if we need to initialize LLAMBO with observed data
@@ -339,27 +347,40 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             # Ensure observed_fvals_df has the expected structure
             observed_fvals_df = self.init_observed_fvals.copy()
 
-            # Initialize LLAMBO with observed data
-            try:
-                self.LLAMBO_instance._initialize(None, observed_configs_df, observed_fvals_df)
-            except Exception as e:
-                # If initialization fails, fall back to random sampling
-                self._debug_print(
-                    f"LLAMBO initialization failed: {e}. Falling back to random sampling."
-                )
+            # Make sure LLAMBO is initialized before calling _initialize
+            if self.LLAMBO_instance is not None:
+                # Initialize LLAMBO with observed data
+                try:
+                    self.LLAMBO_instance._initialize(None, observed_configs_df, observed_fvals_df)
+                except Exception as e:
+                    # If initialization fails, fall back to random sampling
+                    self._debug_print(
+                        f"LLAMBO initialization failed: {e}. Falling back to random sampling."
+                    )
+                    return {
+                        **self.generate_random_samples(numerical_space, 1)[0],
+                        **categorical_params,
+                    }
+            else:
+                self._debug_print("LLAMBO instance is None when trying to initialize with data")
                 return {
                     **self.generate_random_samples(numerical_space, 1)[0],
                     **categorical_params,
                 }
 
-        # Use LLAMBO to sample numerical parameters.
+        # Use LLAMBO to sample numerical parameters if it has been initialized
         try:
-            numerical_params = self.LLAMBO_instance.sample_configurations()
+            if self.LLAMBO_instance is None:
+                self._debug_print("LLAMBO instance is None when trying to sample configurations")
+                numerical_params = self.generate_random_samples(numerical_space, 1)[0]
+            else:
+                numerical_params = self.LLAMBO_instance.sample_configurations()
 
             # Ensure integer values are actually integers
             for param_name, value in numerical_params.items():
-                if param_name in numerical_space and isinstance(numerical_space[param_name],
-                                                                optuna.distributions.IntDistribution):
+                if param_name in numerical_space and isinstance(
+                    numerical_space[param_name], optuna.distributions.IntDistribution
+                ):
                     numerical_params[param_name] = int(value)
 
         except Exception as e:

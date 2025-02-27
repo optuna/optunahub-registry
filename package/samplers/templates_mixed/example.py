@@ -365,7 +365,11 @@ if run_benchmark:
         plt.figure(figsize=(10, 6))
         plt.plot(mean_custom, label="Sampler_name (Mean Performance)", linestyle="-", color="blue")
         plt.fill_between(
-            range(number_of_trials), mean_custom - std_custom, mean_custom + std_custom, color="blue", alpha=0.2
+            range(number_of_trials),
+            mean_custom - std_custom,
+            mean_custom + std_custom,
+            color="blue",
+            alpha=0.2,
         )
         plt.plot(mean_rs, label="RandomSampler (Mean Performance)", linestyle="--", color="orange")
         plt.fill_between(
@@ -439,7 +443,11 @@ else:
     plt.figure(figsize=(10, 6))
     plt.plot(mean_custom, label="Sampler_name (Mean Performance)", linestyle="-", color="blue")
     plt.fill_between(
-        range(number_of_trials), mean_custom - std_custom, mean_custom + std_custom, color="blue", alpha=0.2
+        range(number_of_trials),
+        mean_custom - std_custom,
+        mean_custom + std_custom,
+        color="blue",
+        alpha=0.2,
     )
     plt.plot(mean_rs, label="RandomSampler (Mean Performance)", linestyle="--", color="orange")
     plt.fill_between(
