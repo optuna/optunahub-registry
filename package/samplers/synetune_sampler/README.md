@@ -12,8 +12,7 @@ license: MIT License
 A sampler that uses SyneTune v0.13.0 that can be run by the following:
 
 ```shell
-$ pip install pytest optunahub syne-tune
-$ python -m pytest package/samplers/synetune_sampler/tests/
+$ pip install optunahub syne-tune
 ```
 
 Please check the API reference for more details:
@@ -25,7 +24,7 @@ Please check the API reference for more details:
 - `search_space`: A dictionary of Optuna distributions.
 - `mode`: Defines direction of optimization. Must be one of the following: `[min, max]`.
 - `metric`: The metric to be optimized.
-- `searcher_method`: The optimization method to be run on the objective. Currently supports: `[cqr, kde, regularized_evolution, bore]`.
+- `searcher_method`: The optimization method to be run on the objective. Currently supported searcher methods: `[cqr, kde, regularized_evolution, bore]`.
 - `searcher_kwargs`: Optional. Additional arguments for the searcher_method. More details can be found in the API documentation
 
 ## Installation
@@ -65,13 +64,11 @@ study.optimize(objective, n_trials=n_trials)
 print(study.best_trial.params)
 ```
 
-See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/smac_sampler/example.py) for a full example.
+See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/package/samplers/synetune_sampler/example.py) for a full example.
 
 ## Others
 
 SyneTune is maintained by the SyneTune team. If you have trouble using SyneTune, a concrete question or found a bug, please create an issue under the [Synetune](https://github.com/syne-tune/syne-tune) repository.
-
-For all other inquiries, please file an issue on the SyneTune repository.
 
 ### Reference
 
