@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # Sampler configuration parameters
     api_key = os.environ.get(
         "API_KEY",
-        "",  # Replace with your actual key or load via env variable
+        "",  # Replace with your actual key or load via env variable    ,  # Replace with your actual key or load via env variable
     )
     model = "gpt-4o-mini"
     debug = True
@@ -86,7 +86,6 @@ if __name__ == "__main__":
         debug=debug,
         sm_mode=sm_mode,
         max_requests_per_minute=max_requests_per_minute,
-        n_trials=n_trials,
     )
 
     # Create random sampler for comparison

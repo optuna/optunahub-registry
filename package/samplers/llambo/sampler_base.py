@@ -165,7 +165,6 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             n_gens=self.n_gens,
             alpha=self.alpha,
             n_initial_samples=self.n_initial_samples,
-            n_trials=self.n_trials,
             top_pct=top_pct,
             key=self.api_key,
             model=self.model,

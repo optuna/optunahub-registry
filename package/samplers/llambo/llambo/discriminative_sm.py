@@ -10,8 +10,8 @@ from typing import Tuple
 from typing import TypeVar
 
 from llambo.discriminative_sm_utils import gen_prompt_templates
+from llambo.llm.inquiry import OpenAI_interface
 from llambo.rate_limiter import apply_rate_limit
-from LLM_utils.inquiry import OpenAI_interface
 import numpy as np
 from scipy.stats import norm
 

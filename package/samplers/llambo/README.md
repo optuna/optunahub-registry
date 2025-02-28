@@ -386,7 +386,7 @@ api_key = os.environ.get(
     "API_KEY",
     "", # Replace with your actual key or load via env variable
 )
-n_trials=30
+
 module = optunahub.load_module("samplers/llambo")
 LLAMBOSampler = module.LLAMBOSampler
 sampler = LLAMBOSampler(
@@ -394,13 +394,12 @@ sampler = LLAMBOSampler(
     sm_mode="discriminative",   # or "generative"
     api_key=api_key, 
     model="gpt-4o-mini", # supports gpt-4o-mini, gpt-4o, deepseek-chat, and deepseek-reasoner
-    n_trials=n_trials,
     debug=True,
 )
 
 # 3. Create an Optuna study and optimize
 study = optuna.create_study(direction="minimize", sampler=sampler)
-study.optimize(objective, n_trials=n_trials)
+study.optimize(objective, n_trials=30)
 
 # 4. Print results
 print("Best value:", study.best_value)

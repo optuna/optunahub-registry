@@ -29,7 +29,6 @@ class LLAMBO:
         n_gens: int = 10,
         alpha: float = 0.1,
         n_initial_samples: int = 5,
-        n_trials: int = 100,
         top_pct: Optional[float] = None,
         use_input_warping: bool = False,
         prompt_setting: Optional[str] = None,
@@ -49,7 +48,6 @@ class LLAMBO:
             n_gens: Number of generations/iterations
             alpha: Exploration-exploitation trade-off parameter
             n_initial_samples: Number of initial random samples
-            n_trials: Total number of optimization trials
             top_pct: Top percentage for generative mode
             use_input_warping: Whether to use input warping
             prompt_setting: Custom prompt setting
@@ -66,7 +64,6 @@ class LLAMBO:
         self.n_gens = n_gens
         self.alpha = alpha
         self.n_initial_samples = n_initial_samples
-        self.n_trials = n_trials
         self.key = key
         self.model = model
         self.max_requests_per_minute = max_requests_per_minute
@@ -266,8 +263,6 @@ class LLAMBO:
         Returns:
             Dictionary containing the selected configuration
         """
-        if self.current_trial >= self.n_trials:
-            return None
 
         # Ensure we have at least one observation
         if self.observed_fvals.empty:
