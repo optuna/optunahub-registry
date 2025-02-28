@@ -582,9 +582,8 @@ def create_samplers_for_objective(
     }
 
     # Create the LLAMBO sampler with the appropriate search space
-    llambo_sampler = optunahub.load_local_module(
+    llambo_sampler = optunahub.load_module(
         package="samplers/llambo",
-        registry_root=registry_root,
     ).LLAMBOSampler(
         api_key=api_key,
         model=model,
