@@ -116,7 +116,7 @@ class LLAMBOSampler(SimpleBaseSampler):
   API key for the language model service (e.g., OpenAI).
 
 - **`model`** *(str, default="gpt-4o-mini")*\
-  Identifier for the chosen LLM model.
+  Identifier for the chosen LLM model. Currently supports supports gpt-4o-mini, gpt-4o, deepseek-chat, and deepseek-reasoner.
 
 - **`max_requests_per_minute`** *(int, default=100)*\
   Maximum rate of LLM queries per minute.
@@ -356,7 +356,7 @@ ______________________________________________________________________
 ## Installation
 
 1. `optuna` and `optunahub` are required.
-1. `bash pip install -r `
+1. `pip install -r https://hub.optuna.org/samplers/llambo/requirements.txt`
 
 (You also need credentials or an API key for your chosen LLM.)
 
@@ -369,6 +369,8 @@ Below is a minimal example using **LLAMBOSampler** with Optuna:
 ```python
 import optuna
 from optuna import Trial
+import optunahub
+import os
 
 # 1. Define a sample objective function (e.g., a simple 2D function)
 def objective(trial: Trial):
@@ -377,18 +379,26 @@ def objective(trial: Trial):
     return (x**2 + y**2)  # Minimization
 
 # 2. Instantiate LLAMBOSampler
-from sampler_base import LLAMBOSampler  # Or from your local path
+
+api_key = os.environ.get(
+    "API_KEY",
+    "", # Replace with your actual key or load via env variable
+)
+n_trials=30
+module = optunahub.load_module("samplers/llambo")
+LLAMBOSampler = module.LLAMBOSampler
 sampler = LLAMBOSampler(
     custom_task_description="Minimize x^2 + y^2 over the range [-5, 5].",
     sm_mode="discriminative",   # or "generative"
-    api_key="YOUR_LLM_API_KEY", # Replace with your actual key
-    model="gpt-4o-mini",
-    debug=True
+    api_key=api_key, 
+    model="gpt-4o-mini", # supports gpt-4o-mini, gpt-4o, deepseek-chat, and deepseek-reasoner
+    n_trials=n_trials,
+    debug=True,
 )
 
 # 3. Create an Optuna study and optimize
 study = optuna.create_study(direction="minimize", sampler=sampler)
-study.optimize(objective, n_trials=30)
+study.optimize(objective, n_trials=n_trials)
 
 # 4. Print results
 print("Best value:", study.best_value)

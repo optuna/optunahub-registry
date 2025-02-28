@@ -1,10 +1,14 @@
-# mypy: ignore-errors
-# ruff: noqa
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -92,7 +96,9 @@ def objective_lr(trial: optuna.Trial) -> float:
 
     # Hyperparameter suggestions
     fit_intercept = trial.suggest_categorical("fit_intercept", [True, False])
-    normalize = trial.suggest_categorical("normalize", [True, False])
+    # Note: normalize parameter is deprecated in sklearn 1.0 and removed in 1.2
+    # Keeping it here for compatibility but not using it in the model
+    _ = trial.suggest_categorical("normalize", [True, False])
 
     pipeline = Pipeline(
         [
@@ -156,7 +162,12 @@ def objective_rf(trial: optuna.Trial) -> float:
 
 
 # Mapping of objective functions
-objective_map = {"rf": objective_rf, "svm": objective_svm, "lr": objective_lr, "gb": objective_gb}
+objective_map: Dict[str, Callable[[optuna.Trial], float]] = {
+    "rf": objective_rf,
+    "svm": objective_svm,
+    "lr": objective_lr,
+    "gb": objective_gb,
+}
 
 # ---------------Settings---------------
 
@@ -171,6 +182,10 @@ sm_mode = "discriminative"
 debug = True
 model = "gpt-4o-mini"
 max_requests_per_minute = 60
+api_key = os.environ.get(
+    "API_KEY",
+    "",
+)  # Set your API key here or via env variable
 
 # Experiment configuration
 num_experiments = 5  # Number of independent experiments
@@ -178,22 +193,39 @@ number_of_trials = 30  # Number of trials per experiment
 n_jobs = 1
 
 # For local loading
-registry_root = "/home/j/experiments/optunahub-registry/package"
+registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
 
 
 # ---------------Utility Functions for Saving/Loading Results---------------
 
 
-def get_results_dir(objective_name, sampler_name):
-    """Create and return the directory path for saving results."""
+def get_results_dir(objective_name: str, sampler_name: str) -> Path:
+    """Create and return the directory path for saving results.
+
+    Args:
+        objective_name: Name of the objective function
+        sampler_name: Name of the sampler ('llambo' or 'random')
+
+    Returns:
+        Path object for the directory
+    """
     base_dir = Path("results")
     sampler_dir = base_dir / objective_name / sampler_name
     sampler_dir.mkdir(parents=True, exist_ok=True)
     return sampler_dir
 
 
-def save_study(study, objective_name, sampler_name, exp_num):
-    """Save study data to disk without pickling the actual study object."""
+def save_study(
+    study: optuna.study.Study, objective_name: str, sampler_name: str, exp_num: int
+) -> None:
+    """Save study data to disk without pickling the actual study object.
+
+    Args:
+        study: The study object to save
+        objective_name: Name of the objective function
+        sampler_name: Name of the sampler
+        exp_num: Experiment number
+    """
     results_dir = get_results_dir(objective_name, sampler_name)
 
     # Extract trials data
@@ -244,8 +276,17 @@ def save_study(study, objective_name, sampler_name, exp_num):
         f.write(f"Direction: {study.direction}\n")
 
 
-def load_study(objective_name, sampler_name, exp_num):
-    """Check if study data exists on disk."""
+def load_study(objective_name: str, sampler_name: str, exp_num: int) -> Optional[bool]:
+    """Check if study data exists on disk.
+
+    Args:
+        objective_name: Name of the objective function
+        sampler_name: Name of the sampler
+        exp_num: Experiment number
+
+    Returns:
+        True if study exists, None otherwise
+    """
     results_dir = get_results_dir(objective_name, sampler_name)
     trials_path = results_dir / f"trials_exp{exp_num}.json"
 
@@ -256,8 +297,19 @@ def load_study(objective_name, sampler_name, exp_num):
     return None
 
 
-def load_best_values(objective_name, sampler_name, exp_num):
-    """Load best values from disk if they exist."""
+def load_best_values(
+    objective_name: str, sampler_name: str, exp_num: int
+) -> Optional[List[float]]:
+    """Load best values from disk if they exist.
+
+    Args:
+        objective_name: Name of the objective function
+        sampler_name: Name of the sampler
+        exp_num: Experiment number
+
+    Returns:
+        List of best values or None if not found
+    """
     results_dir = get_results_dir(objective_name, sampler_name)
     best_values_path = results_dir / f"best_values_exp{exp_num}.json"
 
@@ -267,7 +319,7 @@ def load_best_values(objective_name, sampler_name, exp_num):
     return None
 
 
-def check_trial_progress(objective_name, sampler_name, exp_num):
+def check_trial_progress(objective_name: str, sampler_name: str, exp_num: int) -> int:
     """Check how many trials have been completed for a specific experiment.
 
     Args:
@@ -292,8 +344,16 @@ def check_trial_progress(objective_name, sampler_name, exp_num):
     return 0
 
 
-def check_experiments_completed(objective_name, num_experiments):
-    """Check if all experiments for a given objective are already completed."""
+def check_experiments_completed(objective_name: str, num_experiments: int) -> bool:
+    """Check if all experiments for a given objective are already completed.
+
+    Args:
+        objective_name: Name of the objective function
+        num_experiments: Number of experiments to check
+
+    Returns:
+        True if all experiments are completed, False otherwise
+    """
     llambo_completed = True
     random_completed = True
 
@@ -312,8 +372,18 @@ def check_experiments_completed(objective_name, num_experiments):
 
 
 # Helper function to create distributions for loaded trials
-def _suggest_distribution(param_name, param_value):
-    """Create appropriate distribution objects for parameters based on their names and values."""
+def _suggest_distribution(
+    param_name: str, param_value: Any
+) -> optuna.distributions.BaseDistribution:
+    """Create appropriate distribution objects for parameters based on their names and values.
+
+    Args:
+        param_name: Parameter name
+        param_value: Parameter value
+
+    Returns:
+        Optuna distribution object
+    """
     if param_name in ["C", "learning_rate"]:
         # These are likely log-uniform parameters
         return optuna.distributions.FloatDistribution(1e-5, 1e3, log=True)
@@ -354,8 +424,15 @@ def _suggest_distribution(param_name, param_value):
 
 
 def resume_optimization(
-    objective_function, objective_name, sampler_name, exp_num, sampler, direction, n_trials, n_jobs
-):
+    objective_function: Callable[[optuna.Trial], float],
+    objective_name: str,
+    sampler_name: str,
+    exp_num: int,
+    sampler: optuna.samplers.BaseSampler,
+    direction: str,
+    n_trials: int,
+    n_jobs: int,
+) -> Tuple[Optional[optuna.study.Study], Optional[List[float]]]:
     """Resume or start optimization with proper trial count.
 
     Args:
@@ -369,8 +446,8 @@ def resume_optimization(
         n_jobs: Number of parallel jobs
 
     Returns:
-        study: The completed study
-        best_values: List of best values throughout optimization
+        study: The completed study or None if already completed
+        best_values: List of best values throughout optimization or None
     """
     # Check existing progress
     results_dir = get_results_dir(objective_name, sampler_name)
@@ -450,20 +527,29 @@ def resume_optimization(
 
 # Callback to save study after each trial
 class SaveCallback:
-    def __init__(self, objective_name, sampler_name, exp_num):
+    def __init__(self, objective_name: str, sampler_name: str, exp_num: int) -> None:
         self.objective_name = objective_name
         self.sampler_name = sampler_name
         self.exp_num = exp_num
 
-    def __call__(self, study, trial):
+    def __call__(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
         save_study(study, self.objective_name, self.sampler_name, self.exp_num)
 
 
 # ---------------Loading samplers---------------
 
 
-def create_samplers_for_objective(objective_name):
-    """Create samplers specific to the objective function."""
+def create_samplers_for_objective(
+    objective_name: str,
+) -> Tuple[optuna.samplers.BaseSampler, optuna.samplers.BaseSampler]:
+    """Create samplers specific to the objective function.
+
+    Args:
+        objective_name: Name of the objective function
+
+    Returns:
+        Tuple of (LLAMBO sampler, random sampler)
+    """
     # Define a search space for LLAMBO sampler using the proper distribution types
     search_spaces = {
         "rf": {
@@ -506,6 +592,7 @@ def create_samplers_for_objective(objective_name):
         sm_mode=sm_mode,
         max_requests_per_minute=max_requests_per_minute,
         search_space=search_spaces.get(objective_name),  # Using search_space parameter
+        n_trials=number_of_trials,  # Add this line
     )
 
     # Create the Random sampler
@@ -517,7 +604,7 @@ def create_samplers_for_objective(objective_name):
 # ---------------Experiments---------------
 
 
-def run_experiments():
+def run_experiments() -> None:
     """Run the benchmark experiments for all objective functions."""
     # Ensure the results directory exists
     os.makedirs("results", exist_ok=True)
@@ -615,8 +702,16 @@ def run_experiments():
         visualize_results(objective_name)
 
 
-def save_aggregated_results(objective_name, results_llambo, results_random):
-    """Save aggregated results for all experiments of an objective."""
+def save_aggregated_results(
+    objective_name: str, results_llambo: np.ndarray, results_random: np.ndarray
+) -> None:
+    """Save aggregated results for all experiments of an objective.
+
+    Args:
+        objective_name: Name of the objective function
+        results_llambo: Results from LLAMBO sampler
+        results_random: Results from random sampler
+    """
     base_dir = Path("results") / objective_name
     base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -631,8 +726,17 @@ def save_aggregated_results(objective_name, results_llambo, results_random):
         json.dump(results_dict, f)
 
 
-def load_aggregated_results(objective_name):
-    """Load aggregated results for all experiments of an objective."""
+def load_aggregated_results(
+    objective_name: str,
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """Load aggregated results for all experiments of an objective.
+
+    Args:
+        objective_name: Name of the objective function
+
+    Returns:
+        Tuple of (LLAMBO results, random results) as numpy arrays
+    """
     base_dir = Path("results") / objective_name
 
     # Try loading from numpy files first
@@ -640,69 +744,23 @@ def load_aggregated_results(objective_name):
         results_llambo = np.load(base_dir / "results_llambo.npy")
         results_random = np.load(base_dir / "results_random.npy")
         return results_llambo, results_random
-    except:
+    except Exception:
         # Fall back to JSON if numpy files don't exist
         try:
             with open(base_dir / "aggregated_results.json", "r") as f:
                 results_dict = json.load(f)
             return np.array(results_dict["llambo"]), np.array(results_dict["random"])
-        except:
+        except Exception:
             # If neither exists, return None
             return None, None
 
 
-def visualize_results(objective_name):
-    """Visualize the results for a specific objective."""
-    # Load the aggregated results
-    results_llambo, results_random = load_aggregated_results(objective_name)
+def run_single_experiment(objective_name: str) -> None:
+    """Run a single experiment for the chosen objective function.
 
-    if results_llambo is None or results_random is None:
-        print(f"No results found for {objective_name}. Skipping visualization.")
-        return
-
-    # Determine optimization direction
-    direction = "minimize" if objective_name == "lr" else "maximize"
-
-    # Compute performance metrics
-    mean_llambo = np.mean(results_llambo, axis=0)
-    std_llambo = np.std(results_llambo, axis=0)
-    mean_random = np.mean(results_random, axis=0)
-    std_random = np.std(results_random, axis=0)
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(mean_llambo, label="LLAMBO (Mean Performance)", linestyle="-", color="blue")
-    plt.fill_between(
-        range(len(mean_llambo)),
-        mean_llambo - std_llambo,
-        mean_llambo + std_llambo,
-        color="blue",
-        alpha=0.2,
-    )
-    plt.plot(mean_random, label="RandomSampler (Mean Performance)", linestyle="--", color="orange")
-    plt.fill_between(
-        range(len(mean_random)),
-        mean_random - std_random,
-        mean_random + std_random,
-        color="orange",
-        alpha=0.2,
-    )
-    plt.title(f"Performance Comparison ({objective_name.capitalize()} - {direction.capitalize()})")
-    plt.xlabel("Trial Number")
-    plt.ylabel("Objective Value (Log Scale)")
-    plt.yscale("log")
-    plt.grid(which="both", linestyle="--", linewidth=0.5)
-    plt.legend()
-
-    # Save plot to file
-    filename = f"results/{objective_name}_{direction}.png"
-    plt.savefig(filename, dpi=300)
-    plt.close()
-
-    print(f"Visualization saved to {filename}")
-
-
-def run_single_experiment(objective_name):
-    """Run a single experiment for the chosen objective function."""
+    Args:
+        objective_name: Name of the objective function
+    """
     # Create samplers specific to this objective
     llambo_sampler, random_sampler = create_samplers_for_objective(objective_name)
 
@@ -781,6 +839,60 @@ def run_single_experiment(objective_name):
 
     # Visualize results
     visualize_results(objective_name)
+
+
+def visualize_results(objective_name: str) -> None:
+    """Visualize the results for a specific objective.
+
+    Args:
+        objective_name: Name of the objective function
+    """
+    # Load the aggregated results
+    results_llambo, results_random = load_aggregated_results(objective_name)
+
+    if results_llambo is None or results_random is None:
+        print(f"No results found for {objective_name}. Skipping visualization.")
+        return
+
+    # Determine optimization direction
+    direction = "minimize" if objective_name == "lr" else "maximize"
+
+    # Compute performance metrics
+    mean_llambo = np.mean(results_llambo, axis=0)
+    std_llambo = np.std(results_llambo, axis=0)
+    mean_random = np.mean(results_random, axis=0)
+    std_random = np.std(results_random, axis=0)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(mean_llambo, label="LLAMBO (Mean Performance)", linestyle="-", color="blue")
+    plt.fill_between(
+        range(len(mean_llambo)),
+        mean_llambo - std_llambo,
+        mean_llambo + std_llambo,
+        color="blue",
+        alpha=0.2,
+    )
+    plt.plot(mean_random, label="RandomSampler (Mean Performance)", linestyle="--", color="orange")
+    plt.fill_between(
+        range(len(mean_random)),
+        mean_random - std_random,
+        mean_random + std_random,
+        color="orange",
+        alpha=0.2,
+    )
+    plt.title(f"Performance Comparison ({objective_name.capitalize()} - {direction.capitalize()})")
+    plt.xlabel("Trial Number")
+    plt.ylabel("Objective Value (Log Scale)")
+    plt.yscale("log")
+    plt.grid(which="both", linestyle="--", linewidth=0.5)
+    plt.legend()
+
+    # Save plot to file
+    filename = f"results/{objective_name}_{direction}.png"
+    plt.savefig(filename, dpi=300)
+    plt.close()
+
+    print(f"Visualization saved to {filename}")
 
 
 # ---------------Main Execution---------------
