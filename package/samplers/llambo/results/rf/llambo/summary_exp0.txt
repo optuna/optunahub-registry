@@ -1,4 +1,0 @@
-Number of trials: 30
-Best value: 0.9737589325238727
-Best params: {'n_estimators': 299, 'max_depth': 29, 'min_samples_split': 4, 'min_samples_leaf': 1, 'max_features': 'log2', 'bootstrap': False}
-Direction: 2

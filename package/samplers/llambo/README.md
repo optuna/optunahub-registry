@@ -355,6 +355,8 @@ ______________________________________________________________________
 
 ## Installation
 
+The recommended Python version is `3.10` and above.
+
 1. `optuna` and `optunahub` are required.
 1. `pip install -r https://hub.optuna.org/samplers/llambo/requirements.txt`
 
