@@ -3,7 +3,7 @@ author: Samuel D. McDermott
 title: Thompson Sampler
 description: Sampler based on Thompson sampling for categorical variables.
 tags: [sampler, Thompson sampling, categorical variables]
-optuna_versions: [3.5.0, 3.6.0]
+optuna_versions: [4.2.1]
 license: MIT License
 ---
 
