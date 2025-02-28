@@ -1,107 +1,75 @@
 ---
 author: Samuel D. McDermott
 title: Thompson Sampler
-description: 'This sampler performs Thompson sampling for categorical variables: after a burn-in phase, it compares a random sample from each category to decide its next categorical choice.'
-tags: [sampler, categorical variable]
-optuna_versions: [3.6.1.]
+description: Sampler based on Thompson sampling for categorical variables.
+tags: [sampler, Thompson sampling, categorical variables]
+optuna_versions: [3.5.0, 3.6.0]
 license: MIT License
 ---
 
-Instruction (Please remove this instruction after you carefully read)
+## Class or Function Names
 
-- Please read the [tutorial guide](https://optuna.github.io/optunahub-registry/recipes/001_first.html) to register your feature in OptunaHub. You can find more detailed explanation of the following contents in the tutorial.
-- Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) would also be helpful.
-- **Please do not use HTML tags in the `README.md` file. Only markdown is allowed. For security reasons, the HTML tags will be removed when the package is registered on the web page.**
-
-## Abstract
-
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
-
-**Example**
-
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
-
-## APIs
-
-Please provide API documentation describing how to use your package's functionalities.
-The documentation format is arbitrary, but at least the important class/function names that you implemented should be listed here.
-More users will take advantage of your package by providing detailed and helpful documentation.
-
-**Example**
-
-- `MoCmaSampler(*, search_space: dict[str, BaseDistribution] | None = None, popsize: int | None = None, seed: int | None = None)`
-  - `search_space`: A dictionary containing the search space that defines the parameter space. The keys are the parameter names and the values are [the parameter's distribution](https://optuna.readthedocs.io/en/stable/reference/distributions.html). If the search space is not provided, the sampler will infer the search space dynamically.
-    Example:
-    ```python
-    search_space = {
-        "x": optuna.distributions.FloatDistribution(-5, 5),
-        "y": optuna.distributions.FloatDistribution(-5, 5),
-    }
-    MoCmaSampler(search_space=search_space)
-    ```
-  - `popsize`: Population size of the CMA-ES algorithm. If not provided, the population size will be set based on the search space dimensionality. If you have a sufficient evaluation budget, it is recommended to increase the popsize.
-  - `seed`: Seed for random number generator.
-
-Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.
-
-## Installation
-
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
-```shell
-$ pip install scipy torch
-```
-
-If your package has `requirements.txt`, it will be automatically uploaded to the OptunaHub, and the package dependencies will be available to install as follows.
-
-```shell
- pip install -r https://hub.optuna.org/{category}/{your_package_name}/requirements.txt
-```
+- ThompsonSampler
 
 ## Example
 
-Please fill in the code snippet to use the implemented feature here.
-
-**Example**
-
 ```python
-import optuna
 import optunahub
+from collections import defaultdict
+import logging
+logger = logging.getLogger(__name__)
 
+mod = optunahub.load_module("samplers/thompson_sampler")
+sampler = mod.ThompsonSampler()
+
+def gaussians(x: float, label: str):
+    """
+    Args:
+        x: float: nuisance parameter
+        label: str: determines which of four Gaussians we sample from
+    
+    Returns:
+        a Gaussian sample from one of four different normal distributions, depending on the choice of `label` 
+    """
+    if label == 'a':
+        return np.random.normal(loc = 1, scale = 8)
+    elif label == 'b':
+        return np.random.normal(loc = 5, scale = 2)
+    elif label == 'c':
+        return np.random.normal(loc = 0, scale = 3)
+    else:
+        return np.random.normal(loc = 2, scale = 2)
 
 def objective(trial):
-  x = trial.suggest_float("x", -5, 5)
-  return x**2
+    xv = trial.suggest_float('x', -1, 1)
+    label = trial.suggest_categorical('label', ['a', 'b', 'c', 'd'])
+    return gaussians(xv, label)
 
 
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=100)
+package_name = "package/samplers/thompson_sampler"
+sampler = optunahub.load_module(
+    package=package_name
+).ThompsonSampler()
+
+study_T = optuna.create_study(direction='maximize',
+                            sampler=sampler)
+study_T.optimize(objective, n_trials=111)
+
+study_base = optuna.create_study(direction='maximize')
+study_base.optimize(objective, n_trials=111)
+lab_dict = defaultdict(list)
+for i in study_base.trials:
+    lab_dict[i.params['label']].append(i.values[0])
+    
+for k, v in study_T.categorical_variable_samples.items():
+    print(f"label {k}:")
+    print(f"\tThompson sampler: max = {max(v)} from {len(v)} samples")
+    print(f"\tBase sampler: max = {max(lab_dict[k])} from {len(lab_dict[k])} samples")
+    print("\n")
 ```
+
+The base sampler follows a "winner takes all" approach, whereas Thompson sampling does a better job of balancing exploration and exploitation.
 
 ## Others
 
-Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, **this section can be removed**.
-
-<!--
-For example, you can add sections to introduce a corresponding paper.
-
-### Reference
-Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
-Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
-
-### Bibtex
-```
-@inproceedings{optuna_2019,
-    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
-    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
-    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
-    year={2019}
-}
-```
--->
+This package provides a sampler based on the principles of Thompson sampling. For a pedagogical introduction, see [A Tutorial on Thompson Sampling](https://arxiv.org/abs/1707.02038).
