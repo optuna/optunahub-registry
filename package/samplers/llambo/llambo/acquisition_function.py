@@ -513,12 +513,6 @@ class LLM_ACQ:
         Returns:
             pd.DataFrame: A DataFrame containing the filtered candidate configurations.
         """
-        print("\n--- Debug: _filter_candidate_points ---")
-        print(f"Number of observed points: {len(observed_points)}")
-        print(f"Number of candidate points: {len(candidate_points)}")
-        print("Observed points:", observed_points)
-        print("Candidate points:", candidate_points)
-
         rounded_observed = [
             {key: round(value, precision) for key, value in d.items()} for d in observed_points
         ]
@@ -526,51 +520,33 @@ class LLM_ACQ:
             {key: round(value, precision) for key, value in d.items()} for d in candidate_points
         ]
 
-        print("Rounded observed points:", rounded_observed)
-        print("Rounded candidate points:", rounded_candidate)
-
         filtered_candidates = [
             x
             for i, x in enumerate(candidate_points)
             if rounded_candidate[i] not in rounded_observed
         ]
 
-        print(f"Candidates after checking existing points: {filtered_candidates}")
-
         def is_within_range(value: float, allowed_range: tuple[str, str, list[float]]) -> bool:
             """Check if a value is within an allowed range."""
             value_type, transform, search_range = allowed_range
-            print(f"Checking value {value} of type {value_type} with transform {transform}")
-            print(f"Allowed range: {search_range}")
 
             if value_type == "int":
                 min_val, max_val = search_range
                 if transform == "log" and self.apply_warping:
                     min_val = np.log10(min_val)
                     max_val = np.log10(max_val)
-                    result = min_val <= value <= max_val
-                    print(f"Log warped int check: {result}")
-                    return result
-                result = min_val <= value <= max_val and int(value) == value
-                print(f"Int check: {result}")
-                return result
+                    return min_val <= value <= max_val
+                return min_val <= value <= max_val and int(value) == value
             elif value_type == "float":
                 min_val, max_val = search_range
                 if transform == "log" and self.apply_warping:
                     min_val = np.log10(min_val)
                     max_val = np.log10(max_val)
-                    result = min_val <= value <= max_val
-                    print(f"Log warped float check: {result}")
-                    return result
-                result = min_val <= value <= max_val
-                print(f"Float check: {result}")
-                return result
+                    return min_val <= value <= max_val
+                return min_val <= value <= max_val
             elif value_type == "ordinal":
-                result = any(math.isclose(value, x, abs_tol=1e-2) for x in allowed_range[2])
-                print(f"Ordinal check: {result}")
-                return result
+                return any(math.isclose(value, x, abs_tol=1e-2) for x in allowed_range[2])
             else:
-                print(f"Unknown parameter type: {value_type}")
                 raise ValueError("Unknown hyperparameter value type")
 
         def is_dict_within_ranges(
@@ -578,13 +554,10 @@ class LLM_ACQ:
             ranges_dict: dict[str, tuple[str, str, list[float]]],
         ) -> bool:
             """Check if all values in a dictionary are within their respective allowable ranges."""
-            print("\nChecking dict ranges:", d)
-            ranges_check = all(
+            return all(
                 key in ranges_dict and is_within_range(value, ranges_dict[key])
                 for key, value in d.items()
             )
-            print(f"Ranges check result: {ranges_check}")
-            return ranges_check
 
         def filter_dicts_by_ranges(
             dict_list: list[dict[str, float]],
@@ -594,26 +567,17 @@ class LLM_ACQ:
             return [d for d in dict_list if is_dict_within_ranges(d, ranges_dict)]
 
         hyperparameter_constraints = self.task_context["hyperparameter_constraints"]
-        print("\nHyperparameter constraints:", hyperparameter_constraints)
 
         filtered_candidates = filter_dicts_by_ranges(
             filtered_candidates, hyperparameter_constraints
         )
 
-        print("Filtered candidates after range check:", filtered_candidates)
-
         # Convert to DataFrame after filtering
         filtered_df = pd.DataFrame(filtered_candidates)
-        print("DataFrame before drop_duplicates:", filtered_df)
 
         if not filtered_df.empty:
             filtered_df = filtered_df.drop_duplicates()
-            print("DataFrame after drop_duplicates:", filtered_df)
-
             filtered_df = filtered_df.reset_index(drop=True)
-            print("Final filtered candidates:", filtered_df)
-
-        print("--- End of Debug: _filter_candidate_points ---\n")
 
         return filtered_df
 
