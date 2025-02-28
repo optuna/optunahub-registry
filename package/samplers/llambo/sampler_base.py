@@ -1,15 +1,17 @@
+# Change the initialization of LLAMBO_instance in __init__ to use Optional type
 from __future__ import annotations
 
 import time
 from typing import Any
 from typing import Optional
 
-from llambo.llambo import LLAMBO
 import optuna
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 import optunahub
 import pandas as pd
+
+from .llambo.llambo import LLAMBO
 
 
 class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
@@ -86,7 +88,8 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         # Initialize with the column structure required by LLAMBO
         self.init_observed_fvals = pd.DataFrame(columns=["score"])
 
-        self.LLAMBO_instance = None
+        # Fix: Properly type-annotate LLAMBO_instance
+        self.LLAMBO_instance: Optional[LLAMBO] = None
 
     def _split_search_space(
         self, search_space: dict[str, optuna.distributions.BaseDistribution]
@@ -185,6 +188,11 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             return {}
 
         sampled_configuration = self.LLAMBO_instance.sample_configurations()
+        # Handle case where sample_configurations returns None
+        if sampled_configuration is None:
+            self._debug_print("LLAMBO instance returned None for sample_configurations")
+            return {}
+
         return sampled_configuration
 
     def _debug_print(self, message: str) -> None:
@@ -373,7 +381,13 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 self._debug_print("LLAMBO instance is None when trying to sample configurations")
                 numerical_params = self.generate_random_samples(numerical_space, 1)[0]
             else:
-                numerical_params = self.LLAMBO_instance.sample_configurations()
+                config = self.LLAMBO_instance.sample_configurations()
+                # Handle case where sample_configurations returns None
+                if config is None:
+                    self._debug_print("LLAMBO instance returned None for sample_configurations")
+                    numerical_params = self.generate_random_samples(numerical_space, 1)[0]
+                else:
+                    numerical_params = config
 
             # Ensure integer values are actually integers
             for param_name, value in numerical_params.items():

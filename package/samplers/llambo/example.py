@@ -73,6 +73,7 @@ if __name__ == "__main__":
 
     # Load the LLAMBO sampler module
     module = optunahub.load_module("samplers/llambo")
+    # module = optunahub.load_local_module("samplers/llambo",registry_root="/home/j/PycharmProjects/optunahub-registry/package")
     LLAMBOSampler = module.LLAMBOSampler
 
     # Create LLM-based sampler
