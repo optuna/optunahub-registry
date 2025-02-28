@@ -3,15 +3,13 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
+from llambo.acquisition_function import LLM_ACQ
+from llambo.discriminative_sm import LLMDiscriminativeSM
+from llambo.generative_sm import LLMGenerativeSM
+from llambo.warping import NumericalTransformer
 import numpy as np
 import pandas as pd
-
-from .acquisition_function import LLM_ACQ
-from .discriminative_sm import LLMDiscriminativeSM
-from .generative_sm import LLMGenerativeSM
-from .warping import NumericalTransformer
 
 
 class LLAMBO:
@@ -100,17 +98,13 @@ class LLAMBO:
         if use_input_warping:
             warping_transformer = NumericalTransformer(task_context["hyperparameter_constraints"])
 
-        # Define surrogate model type union to handle both model types
-        self.surrogate_model: Union[LLMGenerativeSM, LLMDiscriminativeSM]
-
         # Initialize surrogate model based on mode
         if sm_mode == "generative":
             self.surrogate_model = LLMGenerativeSM(
                 task_context=task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
-                # FIX 1: Provide a default value for top_pct if None
-                top_pct=top_pct if top_pct is not None else 0.1,
+                top_pct=top_pct,
                 n_templates=n_templates,
                 key=self.key,
                 model=self.model,
@@ -280,28 +274,24 @@ class LLAMBO:
             raise ValueError("No observations available for sampling")
 
         # Get candidate points using acquisition function
-        # FIX 3: Unpack only the expected number of values
-        candidate_points, acq_values = self.acq_func.get_candidate_points(
+        candidate_points, _, _ = self.acq_func.get_candidate_points(
             self.observed_configs, self.observed_fvals[["score"]], alpha=self.alpha
-        )[:2]
+        )
 
         # Add delay between acquisition function and surrogate model
         print(f"Inserting delay of {self.delay_seconds:.2f} seconds between ACQ and SM components")
         time.sleep(self.delay_seconds)
 
-        # Check the surrogate model type
-        if isinstance(self.surrogate_model, LLMGenerativeSM):
+        # Check the surrogate model type by class name
+        if self.surrogate_model.__class__.__name__ == "LLMGenerativeSM":
             # For generative SM, we need to use asyncio to run the coroutine
             import asyncio
 
-            # FIX 4: Properly await the coroutine result
-            coroutine_result = asyncio.run(
+            sel_candidate_point, _, _ = asyncio.run(
                 self.surrogate_model.select_query_point(
                     self.observed_configs, self.observed_fvals[["score"]], candidate_points
                 )
             )
-            # Unpack the result properly - taking the first value and ignoring the rest
-            sel_candidate_point = coroutine_result[0]
         else:
             # For discriminative SM or any other model, call the method directly
             sel_candidate_point, _, _ = self.surrogate_model.select_query_point(
