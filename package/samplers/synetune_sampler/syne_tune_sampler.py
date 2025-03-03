@@ -29,32 +29,47 @@ from syne_tune.optimizer.scheduler import AskTellScheduler
 
 # Currently supported methods
 searcher_cls_dict = {
-    "random_search": RandomSearch,
-    "bore": BORE,
-    "kde": KDE,
-    "regularized_evolution": REA,
-    "cqr": CQR,
+    "RandomSearch": RandomSearch,
+    "BORE": BORE,
+    "KDE": KDE,
+    "REA": REA,
+    "CQR": CQR,
 }
 
 
 class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
     def __init__(
         self,
+        metric: str,
         search_space: dict[str, BaseDistribution],
         mode: str = "min",
-        metric: str = "mean_loss",
-        searcher_method: str = "random_search",
-        trial_mapping: Optional[dict] = None,
+        searcher_method: str = "CQR",
         searcher_kwargs: Optional[dict] = None,
     ) -> None:
+        """
+         A sampler that uses SyneTune v0.13.0 or greater.
+
+        Please check the API reference for more details:
+            https://syne-tune.readthedocs.io/en/latest/_apidoc/modules.html
+
+        Args:
+            search_space:
+                A dictionary of Optuna distributions.
+            metric:
+                The metric to optimize.
+            searcher_method:
+                The search method to be run. Currently supported searcher methods are: BORE, CQR, KDE, REA, RandomSearch.
+            mode:
+                Direction of optimization, either "min" or "max". Defaults to "min".
+            searcher_kwargs: Additional keyword arguments for the searcher. Defaults to None.
+        """
         super().__init__(search_space)
         if searcher_kwargs is None:
             searcher_kwargs = {}
-        if trial_mapping is None:
-            trial_mapping = {}
+        assert mode in ["min", "max"]
         self.metric = metric
         self.mode = mode
-        self.trial_mapping = trial_mapping
+        self.trial_mapping: dict[str, Trial] = {}
         self._syne_tune_space = self._convert_optuna_to_syne_tune(search_space)
         self.scheduler = AskTellScheduler(
             base_scheduler=searcher_cls_dict[searcher_method](
