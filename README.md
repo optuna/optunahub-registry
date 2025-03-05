@@ -6,7 +6,7 @@ OptunaHub Registry
 :link: [**OptunaHub**](https://hub.optuna.org/)
 | :page_with_curl: [**Docs**](https://optuna.github.io/optunahub/)
 | :page_with_curl: [**Tutorials**](https://optuna.github.io/optunahub-registry/)
-| :question: [**OptunaHub FAQ**](https://optuna.org/)
+| :question: [**OptunaHub FAQ**](https://optuna.github.io/optunahub/faq.html)
 | [**Optuna.org**](https://optuna.org/)
 
 OptunaHub Registry is a registry service for sharing and discovering user-defined Optuna packages. It provides a platform for users to share their Optuna packages with others and discover useful packages created by other users.
