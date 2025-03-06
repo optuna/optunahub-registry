@@ -6,8 +6,7 @@ from typing import Optional
 import tiktoken
 import transformers
 
-from llambo.llm.prompter import PromptBase
-
+from .prompter import PromptBase
 
 class Calculator:
     # Pricing per 1M input tokens in USD for GPT models

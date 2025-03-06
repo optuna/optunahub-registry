@@ -10,8 +10,8 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.chat import ChatCompletionMessageParam
 
-from llambo.llm.cost import Calculator
-from llambo.llm.fault_tolerance import retry_overtime_kill
+from .cost import Calculator
+from .fault_tolerance import retry_overtime_kill
 
 
 class LLMBase:
