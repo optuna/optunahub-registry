@@ -12,9 +12,9 @@ from typing import TypeVar
 import numpy as np
 from scipy.stats import norm
 
-from llambo.discriminative_sm_utils import gen_prompt_templates
-from llambo.llm.inquiry import OpenAI_interface
-from llambo.rate_limiter import apply_rate_limit
+from .discriminative_sm_utils import gen_prompt_templates
+from .llm.inquiry import OpenAI_interface
+from .rate_limiter import apply_rate_limit
 
 
 T = TypeVar("T")

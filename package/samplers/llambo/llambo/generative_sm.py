@@ -16,9 +16,9 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-from llambo.generative_sm_utils import gen_prompt_tempates
-from llambo.llm.inquiry import OpenAI_interface
-from llambo.rate_limiter import apply_rate_limit
+from .generative_sm_utils import gen_prompt_tempates
+from .llm.inquiry import OpenAI_interface
+from .rate_limiter import apply_rate_limit
 
 
 class LLMGenerativeSM:
@@ -92,7 +92,7 @@ class LLMGenerativeSM:
         few_shot_template: str,
         query_example: dict[str, Any],
         query_idx: int,
-    ) -> tuple[int, str, float, int]:
+    ) -> tuple[int, str | None, float, int]:
         """
         Generate predictions asynchronously using the LLM.
 
@@ -129,6 +129,8 @@ class LLMGenerativeSM:
         ]
 
         resp, tot_cost = self.OpenAI_instance.ask(message)
+        if resp is None:
+            resp = ""
         # The fourth return value (tokens used) is missing in the implementation
         # Adding a placeholder value of 0 for total tokens
         total_tokens = 0  # This should be updated if token count is available

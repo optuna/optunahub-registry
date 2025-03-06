@@ -11,8 +11,8 @@ from langchain import PromptTemplate
 import numpy as np
 import pandas as pd
 
-from llambo.llm.inquiry import OpenAI_interface
-from llambo.rate_limiter import apply_rate_limit
+from .llm.inquiry import OpenAI_interface
+from .rate_limiter import apply_rate_limit
 
 
 class LLM_ACQ:

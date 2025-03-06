@@ -3,14 +3,20 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 import numpy as np
 import pandas as pd
 
-from llambo.acquisition_function import LLM_ACQ
-from llambo.discriminative_sm import LLMDiscriminativeSM
-from llambo.generative_sm import LLMGenerativeSM
-from llambo.warping import NumericalTransformer
+from .acquisition_function import LLM_ACQ
+from .discriminative_sm import LLMDiscriminativeSM
+from .generative_sm import LLMGenerativeSM
+from .warping import NumericalTransformer
+
+
+# Define type variables for surrogate models to solve type annotation issues
+T = TypeVar("T")
 
 
 class LLAMBO:
@@ -68,6 +74,7 @@ class LLAMBO:
         self.key = key
         self.model = model
         self.max_requests_per_minute = max_requests_per_minute
+        self.sm_mode = sm_mode  # Store the surrogate model mode
 
         # Calculate delay between API calls based on rate limit
         self.delay_seconds = 60.0 / max_requests_per_minute if max_requests_per_minute > 0 else 0
@@ -96,13 +103,19 @@ class LLAMBO:
         if use_input_warping:
             warping_transformer = NumericalTransformer(task_context["hyperparameter_constraints"])
 
+        # Use a non-None default value for top_pct if it's None
+        effective_top_pct = 0.2 if top_pct is None else top_pct
+
+        # Define surrogate model type for proper type annotation
+        self.surrogate_model: Union[LLMGenerativeSM, LLMDiscriminativeSM]
+
         # Initialize surrogate model based on mode
         if sm_mode == "generative":
             self.surrogate_model = LLMGenerativeSM(
                 task_context=task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
-                top_pct=top_pct,
+                top_pct=effective_top_pct,  # Fixed: Use non-None value
                 n_templates=n_templates,
                 key=self.key,
                 model=self.model,
@@ -270,29 +283,59 @@ class LLAMBO:
             raise ValueError("No observations available for sampling")
 
         # Get candidate points using acquisition function
-        candidate_points, _, _ = self.acq_func.get_candidate_points(
+        # The acquisition function might return 3 or 4 values, so we need to handle this properly
+        acquisition_result = self.acq_func.get_candidate_points(
             self.observed_configs, self.observed_fvals[["score"]], alpha=self.alpha
         )
+
+        # Handle the case where get_candidate_points returns 3 or 4 values
+        if len(acquisition_result) == 3:
+            candidate_points, acq_scores, acq_time = acquisition_result
+        else:
+            # If there are 4 values, extract just the ones we need
+            candidate_points = acquisition_result[0]
 
         # Add delay between acquisition function and surrogate model
         print(f"Inserting delay of {self.delay_seconds:.2f} seconds between ACQ and SM components")
         time.sleep(self.delay_seconds)
 
-        # Check the surrogate model type by class name
-        if self.surrogate_model.__class__.__name__ == "LLMGenerativeSM":
+        # Check the surrogate model type by stored mode
+        if self.sm_mode == "generative":
             # For generative SM, we need to use asyncio to run the coroutine
             import asyncio
+            import inspect
 
-            sel_candidate_point, _, _ = asyncio.run(
-                self.surrogate_model.select_query_point(
-                    self.observed_configs, self.observed_fvals[["score"]], candidate_points
-                )
-            )
-        else:
-            # For discriminative SM or any other model, call the method directly
-            sel_candidate_point, _, _ = self.surrogate_model.select_query_point(
+            # Get the select_query_point method
+            query_point_method = self.surrogate_model.select_query_point(
                 self.observed_configs, self.observed_fvals[["score"]], candidate_points
             )
+
+            # Check if the result is a coroutine or already the result
+            if inspect.iscoroutine(query_point_method):
+                # If it's a coroutine, run it with asyncio
+                result = asyncio.run(query_point_method)
+            else:
+                # If it's already the result, use it directly
+                result = query_point_method
+
+            # The result might have 3 or 4 elements, extract only what we need
+            if len(result) >= 3:
+                sel_candidate_point = result[0]
+            else:
+                # Handle unexpected return format
+                raise ValueError(f"Unexpected return format from select_query_point: {result}")
+        else:
+            # For discriminative SM, call the method directly
+            result = self.surrogate_model.select_query_point(
+                self.observed_configs, self.observed_fvals[["score"]], candidate_points
+            )
+
+            # Extract the first 3 elements regardless of how many are returned
+            if len(result) >= 3:
+                sel_candidate_point = result[0]
+            else:
+                # Handle unexpected return format
+                raise ValueError(f"Unexpected return format from select_query_point: {result}")
 
         return sel_candidate_point.to_dict(orient="records")[0]
 

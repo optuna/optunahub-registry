@@ -63,8 +63,7 @@ if __name__ == "__main__":
     # Sampler configuration parameters
     api_key = os.environ.get(
         "API_KEY",
-        "",  # Replace with your actual key or load via env variable    ,  # Replace with your actual key or load via env variable
-    )
+        ""    )
     model = "gpt-4o-mini"
     debug = True
     sm_mode = "discriminative"
@@ -74,7 +73,7 @@ if __name__ == "__main__":
     # Load the LLAMBO sampler module
     # module = optunahub.load_module("samplers/llambo")
     module = optunahub.load_local_module(
-        "samplers/llambo", registry_root="/home/j/PycharmProjects/optunahub-registry/package"
+        "samplers/llambo", registry_root="/home/j/experiments/optunahub-registry/package"
     )
     LLAMBOSampler = module.LLAMBOSampler
 
