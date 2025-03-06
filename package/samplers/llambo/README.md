@@ -75,7 +75,6 @@ class LLAMBOSampler(SimpleBaseSampler):
         n_templates: int = 2,
         n_gens: int = 10,
         alpha: float = 0.1,
-        n_trials: int = 100,
         api_key: str = "",
         model: str = "gpt-4o-mini",
         max_requests_per_minute: int = 100,
@@ -108,9 +107,6 @@ class LLAMBOSampler(SimpleBaseSampler):
 
 - **`alpha`** *(float, default=0.1)*\
   Exploration-exploitation parameter for the acquisition function.
-
-- **`n_trials`** *(int, default=100)*\
-  Total number of trials in the search process.
 
 - **`api_key`** *(str, optional)*\
   API key for the language model service (e.g., OpenAI).

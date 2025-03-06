@@ -63,14 +63,14 @@ if __name__ == "__main__":
     # Sampler configuration parameters
     api_key = os.environ.get(
         "API_KEY",
-        "",  # Replace with your actual key or load via env variable    ,  # Replace with your actual key or load via env variable
+        "",  # Replace with your actual key or load via env variable
     )
     model = "gpt-4o-mini"
     debug = True
     sm_mode = "discriminative"
     max_requests_per_minute = 60
     n_trials = 30
-    n_jobs = 10
+    n_jobs = 1
 
     # Load the LLAMBO sampler module
     module = optunahub.load_module("samplers/llambo")
