@@ -13,11 +13,12 @@ import time
 from typing import Any
 from typing import Sequence
 
+import numpy as np
+import pandas as pd
+
 from llambo.generative_sm_utils import gen_prompt_tempates
 from llambo.llm.inquiry import OpenAI_interface
 from llambo.rate_limiter import apply_rate_limit
-import numpy as np
-import pandas as pd
 
 
 class LLMGenerativeSM:

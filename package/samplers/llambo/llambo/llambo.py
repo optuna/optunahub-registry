@@ -4,12 +4,13 @@ from typing import Dict
 from typing import Optional
 from typing import Tuple
 
+import numpy as np
+import pandas as pd
+
 from llambo.acquisition_function import LLM_ACQ
 from llambo.discriminative_sm import LLMDiscriminativeSM
 from llambo.generative_sm import LLMGenerativeSM
 from llambo.warping import NumericalTransformer
-import numpy as np
-import pandas as pd
 
 
 class LLAMBO:

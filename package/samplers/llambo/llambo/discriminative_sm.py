@@ -9,11 +9,12 @@ from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 
+import numpy as np
+from scipy.stats import norm
+
 from llambo.discriminative_sm_utils import gen_prompt_templates
 from llambo.llm.inquiry import OpenAI_interface
 from llambo.rate_limiter import apply_rate_limit
-import numpy as np
-from scipy.stats import norm
 
 
 T = TypeVar("T")

@@ -3,9 +3,10 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from llambo.llm.prompter import PromptBase
 import tiktoken
 import transformers
+
+from llambo.llm.prompter import PromptBase
 
 
 class Calculator:
@@ -226,9 +227,6 @@ class Calculator:
 
                 # Convert the input sequence to a single string for truncation
                 input_string = " ".join(input_sequence)
-
-                # Calculate the token-to-string length ratio
-                token_to_length_ratio = self.input_token_length / len(input_string)
 
                 # Estimate the required reduction percentage
                 required_reduction_ratio = adjusted_limit / self.input_token_length

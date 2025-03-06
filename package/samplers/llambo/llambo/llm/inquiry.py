@@ -6,11 +6,12 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-from llambo.llm.cost import Calculator
-from llambo.llm.fault_tolerance import retry_overtime_kill
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.chat import ChatCompletionMessageParam
+
+from llambo.llm.cost import Calculator
+from llambo.llm.fault_tolerance import retry_overtime_kill
 
 
 class LLMBase:
@@ -129,7 +130,7 @@ class OpenAI_interface(LLMBase):
 
         Args:
             messages (list[ChatCompletionMessageParam]): The messages to be sent to the chat model.
-            ret_dict (Optional[dict[str, str]], optional): A dictionary to capture the
+            ret_dict (Optional[dict[str, Any]], optional): A dictionary to capture the
                 method's return value. Defaults to None.
 
         Returns:
@@ -171,22 +172,25 @@ class OpenAI_interface(LLMBase):
     def ask(
         self,
         messages: list[ChatCompletionMessageParam],
-        ret_dict: Optional[dict[str, any]] = None,
+        ret_dict: Optional[dict[str, Any]] = None,
     ) -> tuple[Optional[str], float]:
         """
         Send a message to the chat model with retry functionality for handling timeouts.
 
         Args:
             messages (list[ChatCompletionMessageParam]): The messages to be sent to the chat model.
-            ret_dict (Optional[dict[str, str]], optional): A dictionary to capture the
+            ret_dict (Optional[dict[str, Any]], optional): A dictionary to capture the
                 method's return value. Defaults to None.
 
         Returns:
-            Optional[str]: The chat model's response text, or None if the request fails.
+            tuple[Optional[str], float]: The chat model's response text and cost,
+                or ("termination_signal", cost) if the request times out.
         """
 
         def target_function(ret_dict: dict[str, Any], *args: Any) -> None:
-            self.ask_base(*args, ret_dict=ret_dict)
+            # We need to unpack args properly here - the first arg is messages
+            messages = args[0]
+            self.ask_base(messages, ret_dict=ret_dict)
 
         exceeded, result = retry_overtime_kill(
             target_function=target_function,
@@ -206,7 +210,7 @@ class OpenAI_interface(LLMBase):
     def ask_with_test(
         self,
         messages: list[ChatCompletionMessageParam],
-        tests: Callable[[str], str],
+        tests: Callable[[str], Any],
     ) -> tuple[Any, float]:
         """
         This method is only for simple testing functions with retry, such as testing general
@@ -224,7 +228,7 @@ class OpenAI_interface(LLMBase):
         cost_accumulation = 0.0
 
         def target_function(ret_dict: dict[str, Any], *args: Any) -> None:
-            response, cost = self.ask_base(*args, ret_dict=ret_dict)
+            response, cost = self.ask_base(*args)
             ret_dict["response"] = response
             ret_dict["cost"] = cost
 
@@ -262,30 +266,57 @@ class OpenAI_interface(LLMBase):
         return "termination_signal", cost_accumulation
 
 
-def extract_code_base(raw_sequence, language="python"):
+def extract_code_base(raw_sequence: str, language: str = "python") -> str:
+    """
+    Extract code from a raw text sequence based on code block markers.
+
+    Args:
+        raw_sequence (str): The raw text containing code blocks.
+        language (str, optional): The programming language to extract. Defaults to "python".
+
+    Returns:
+        str: The extracted code or the original sequence if no code blocks are found.
+    """
+    # Try to find code block markers with language specification
     try:
         sub1 = f"```{language}"
         idx1 = raw_sequence.index(sub1)
-    except:
+    except ValueError:
         try:
             sub1 = f"``` {language}"
             idx1 = raw_sequence.index(sub1)
-        except:
+        except ValueError:
             try:
                 sub1 = "```"
                 idx1 = raw_sequence.index(sub1)
-            except:
+            except ValueError:
                 return raw_sequence
+
+    # Find the closing code block marker
     sub2 = "```"
-    idx2 = raw_sequence.index(
-        sub2,
-        idx1 + 1,
-    )
-    extraction = raw_sequence[idx1 + len(sub1) + 1 : idx2]
-    return extraction
+    try:
+        idx2 = raw_sequence.index(
+            sub2,
+            idx1 + 1,
+        )
+        extraction = raw_sequence[idx1 + len(sub1) + 1 : idx2]
+        return extraction
+    except ValueError:
+        return raw_sequence
 
 
-def extract_code(raw_sequence, language="python", mode="code"):
+def extract_code(raw_sequence: str, language: str = "python", mode: str = "code") -> Any:
+    """
+    Extract and optionally parse code from a raw text sequence.
+
+    Args:
+        raw_sequence (str): The raw text containing code blocks.
+        language (str, optional): The programming language to extract. Defaults to "python".
+        mode (str, optional): The extraction mode, either "code" or "python_object". Defaults to "code".
+
+    Returns:
+        Any: The extracted code as a string or a Python object based on the mode.
+    """
     extraction = extract_code_base(raw_sequence, language)
     if mode == "code":
         return extraction
