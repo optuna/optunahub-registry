@@ -70,6 +70,7 @@ if __name__ == "__main__":
     sm_mode = "discriminative"
     max_requests_per_minute = 60
     n_trials = 30
+    n_jobs = 10
 
     # Load the LLAMBO sampler module
     module = optunahub.load_module("samplers/llambo")
@@ -94,10 +95,10 @@ if __name__ == "__main__":
 
     # Run optimization
     print("Running LLM-based optimization...")
-    llm_study.optimize(objective_rf, n_trials=n_trials)
+    llm_study.optimize(objective_rf, n_trials=n_trials, n_jobs=n_jobs)
 
     print("Running random optimization...")
-    random_study.optimize(objective_rf, n_trials=n_trials)
+    random_study.optimize(objective_rf, n_trials=n_trials, n_jobs=n_jobs)
 
     # Print results
     print("\nLLM-based sampler results:")

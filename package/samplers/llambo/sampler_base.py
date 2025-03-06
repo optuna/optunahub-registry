@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any
 from typing import Optional
@@ -87,6 +88,20 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         # Fix the type error by properly annotating LLAMBO_instance
         self.LLAMBO_instance: Optional[LLAMBO] = None
 
+        # Add locks for thread safety
+        self._llambo_init_lock = threading.Lock()
+        self._obs_data_lock = threading.Lock()
+
+        # Add a flag to track if initialization has been completed
+        self._llambo_initialized = False
+        self._min_trials_processed = 0
+
+        # Add timeout and retry mechanism
+        self._initialization_attempts = 0
+        self._max_initialization_attempts = 3
+        self._last_initialization_attempt = 0.0
+        self._initialization_timeout = 30  # seconds
+
     def _split_search_space(
         self, search_space: dict[str, optuna.distributions.BaseDistribution]
     ) -> tuple[
@@ -119,7 +134,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
     def _initialize_llambo(
         self, numerical_space: dict[str, optuna.distributions.BaseDistribution]
-    ) -> None:
+    ) -> bool:
         """
         Initialize the LLAMBO instance using only the numerical portion of the search space.
 
@@ -128,47 +143,72 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         Args:
             numerical_space: Dictionary of numerical parameter distributions.
+
+        Returns:
+            bool: True if initialization was successful, False otherwise
         """
-        self.hyperparameter_constraints = {}
-        for param_name, distribution in numerical_space.items():
-            if isinstance(distribution, optuna.distributions.FloatDistribution):
-                dtype = "float"
-                dist_type = "log" if distribution.log else "linear"
-                bounds = [distribution.low, distribution.high]
-            elif isinstance(distribution, optuna.distributions.IntDistribution):
-                dtype = "int"
-                dist_type = "log" if distribution.log else "linear"
-                bounds = [distribution.low, distribution.high]
-            else:
-                continue  # Ignore any non-numerical parameter.
-            self.hyperparameter_constraints[param_name] = [dtype, dist_type, bounds]
+        if not numerical_space:
+            return False
 
-        if self.debug:
-            print(
-                f"Hyperparameter constraints (numerical only): {self.hyperparameter_constraints}"
-            )
+        current_time = time.time()
+        # Check if we should retry initialization based on timeout
+        if (
+            self._initialization_attempts >= self._max_initialization_attempts
+            and current_time - self._last_initialization_attempt < self._initialization_timeout
+        ):
+            return False
 
-        # Build a task context that only includes numerical hyperparameters.
-        task_context = {
-            "custom_task_description": self.custom_task_description,
-            "lower_is_better": self.lower_is_better,
-            "hyperparameter_constraints": self.hyperparameter_constraints,
-        }
-        top_pct = 0.25 if self.sm_mode == "generative" else None
+        self._last_initialization_attempt = current_time
+        self._initialization_attempts += 1
 
-        self.LLAMBO_instance = LLAMBO(
-            task_context,
-            self.sm_mode,
-            n_candidates=self.num_candidates,
-            n_templates=self.n_templates,
-            n_gens=self.n_gens,
-            alpha=self.alpha,
-            n_initial_samples=self.n_initial_samples,
-            top_pct=top_pct,
-            key=self.api_key,
-            model=self.model,
-            max_requests_per_minute=self.max_requests_per_minute,
-        )
+        with self._llambo_init_lock:
+            # Double-check locking pattern - check again if already initialized
+            if self.LLAMBO_instance is not None:
+                return True
+
+            self.hyperparameter_constraints = {}
+            for param_name, distribution in numerical_space.items():
+                if isinstance(distribution, optuna.distributions.FloatDistribution):
+                    dtype = "float"
+                    dist_type = "log" if distribution.log else "linear"
+                    bounds = [distribution.low, distribution.high]
+                elif isinstance(distribution, optuna.distributions.IntDistribution):
+                    dtype = "int"
+                    dist_type = "log" if distribution.log else "linear"
+                    bounds = [distribution.low, distribution.high]
+                else:
+                    continue  # Ignore any non-numerical parameter.
+                self.hyperparameter_constraints[param_name] = [dtype, dist_type, bounds]
+
+            if not self.hyperparameter_constraints:
+                return False
+
+            # Build a task context that only includes numerical hyperparameters.
+            task_context = {
+                "custom_task_description": self.custom_task_description,
+                "lower_is_better": self.lower_is_better,
+                "hyperparameter_constraints": self.hyperparameter_constraints,
+            }
+            top_pct = 0.25 if self.sm_mode == "generative" else None
+
+            try:
+                self.LLAMBO_instance = LLAMBO(
+                    task_context,
+                    self.sm_mode,
+                    n_candidates=self.num_candidates,
+                    n_templates=self.n_templates,
+                    n_gens=self.n_gens,
+                    alpha=self.alpha,
+                    n_initial_samples=self.n_initial_samples,
+                    top_pct=top_pct,
+                    key=self.api_key,
+                    model=self.model,
+                    max_requests_per_minute=self.max_requests_per_minute,
+                )
+                return True
+            except Exception:
+                self.LLAMBO_instance = None
+                return False
 
     def _sample_parameters(self) -> dict[str, Any]:
         """
@@ -179,12 +219,14 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         """
         # Ensure LLAMBO instance exists before calling its methods
         if self.LLAMBO_instance is None:
-            self._debug_print("LLAMBO instance is None when trying to sample parameters")
             return {}
 
-        sampled_configuration = self.LLAMBO_instance.sample_configurations()
-        # Ensure we return a dictionary even if sample_configurations returns None
-        return sampled_configuration if sampled_configuration is not None else {}
+        try:
+            sampled_configuration = self.LLAMBO_instance.sample_configurations()
+            # Ensure we return a dictionary even if sample_configurations returns None
+            return sampled_configuration if sampled_configuration is not None else {}
+        except Exception:
+            return {}
 
     def _debug_print(self, message: str) -> None:
         """
@@ -225,6 +267,110 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         """Reset the random number generator seeds."""
         self._rng.rng.seed()
         self._random_sampler.reseed_rng()
+
+    def _collect_initial_data(self, study: optuna.study.Study) -> None:
+        """
+        Collect data from completed trials for initializing LLAMBO.
+        Thread-safe method to collect data from completed trials.
+
+        Args:
+            study: Optuna study object.
+        """
+        with self._obs_data_lock:
+            # Collect all completed trials data
+            completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
+            if not completed_trials:
+                return
+
+            # Process each completed trial and add to our observed data
+            trials_added = 0
+            for completed_trial in completed_trials:
+                # Skip trials we've already processed
+                if self.init_observed_configs.shape[0] > 0:
+                    # Check if this trial's parameters are already in our data
+                    is_duplicate = False
+                    try:
+                        # More robust duplicate checking
+                        params_df = pd.DataFrame([completed_trial.params])
+                        merged = pd.merge(self.init_observed_configs, params_df)
+                        is_duplicate = not merged.empty
+                    except Exception:
+                        is_duplicate = False
+
+                    if is_duplicate:
+                        continue
+
+                try:
+                    # Add new configuration as DataFrame for concatenation
+                    new_config = pd.DataFrame([completed_trial.params])
+                    self.init_observed_configs = pd.concat(
+                        [self.init_observed_configs, new_config], ignore_index=True
+                    )
+                    # Add value to DataFrame with consistent column structure
+                    new_fval = pd.DataFrame({"score": [completed_trial.value]})
+                    self.init_observed_fvals = pd.concat(
+                        [self.init_observed_fvals, new_fval], ignore_index=True
+                    )
+                    trials_added += 1
+                except Exception:
+                    pass
+
+            # Update how many trials we've processed
+            self._min_trials_processed = len(self.init_observed_configs)
+
+    def _initialize_llambo_with_data(
+        self, numerical_space: dict[str, optuna.distributions.BaseDistribution]
+    ) -> bool:
+        """
+        Thread-safe method to initialize LLAMBO with observed data.
+
+        Args:
+            numerical_space: Dictionary of numerical parameter distributions.
+
+        Returns:
+            bool: True if initialization was successful, False otherwise
+        """
+        if self._min_trials_processed < self.n_initial_samples:
+            return False
+
+        with self._llambo_init_lock:
+            # Double-check locking pattern
+            if self._llambo_initialized:
+                return True
+
+            # Ensure LLAMBO instance exists
+            if self.LLAMBO_instance is None:
+                return False
+
+            # Retain only numerical keys from observed configurations
+            try:
+                observed_configs_df = self.init_observed_configs.copy()
+
+                if observed_configs_df.empty:
+                    return False
+
+                # Ensure we only keep columns that exist in numerical_space
+                numerical_cols = [
+                    col for col in numerical_space.keys() if col in observed_configs_df.columns
+                ]
+
+                if not numerical_cols:
+                    return False
+
+                observed_configs_df = observed_configs_df[numerical_cols]
+
+                # Ensure observed_fvals_df has the expected structure
+                observed_fvals_df = self.init_observed_fvals.copy()
+
+                if observed_fvals_df.empty or "score" not in observed_fvals_df.columns:
+                    return False
+
+                # Initialize LLAMBO with observed data
+                self.LLAMBO_instance._initialize(None, observed_configs_df, observed_fvals_df)
+                self._llambo_initialized = True
+                return True
+            except Exception:
+                return False
 
     def sample_relative(
         self,
@@ -270,108 +416,51 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         # Thread safety: ensure all required attributes are initialized
         if not hasattr(self, "lower_is_better") or self.lower_is_better is None:
-            self.lower_is_better = study.direction == optuna.study.StudyDirection.MINIMIZE
+            if study.direction is not None:
+                self.lower_is_better = study.direction == optuna.study.StudyDirection.MINIMIZE
+            else:
+                # If multi-objective, just use first direction
+                self.lower_is_better = study.directions[0] == optuna.study.StudyDirection.MINIMIZE
 
         if not hasattr(self, "init_configs") or not self.init_configs:
             self.init_configs = self.generate_random_samples(
                 numerical_space, self.n_initial_samples
             )
 
+        # Always collect completed trials data - do this regardless of trial number
+        self._collect_initial_data(study)
+
         # For initial trials, use the pre-generated random samples
-        if trial.number <= self.n_initial_samples:
+        if trial.number < self.n_initial_samples:
             # Safely get a configuration - handle out-of-bounds index
-            config_idx = min(trial.number - 1, len(self.init_configs) - 1)
+            config_idx = min(trial.number, len(self.init_configs) - 1)
             config = self.init_configs[config_idx]
-
-            # Update history with completed trials
-            if trial.number > 1:
-                completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
-                if completed_trials:
-                    # Find the most recent completed trial that we haven't recorded yet
-                    # This is more robust than just taking the last one
-                    for completed_trial in reversed(completed_trials):
-                        # Skip trials we've already processed (check by trial number)
-                        if self.init_observed_configs.shape[0] > 0:
-                            # Skip if we've already seen this trial number
-                            continue
-
-                        # Add new configuration as DataFrame for concatenation
-                        new_config = pd.DataFrame([completed_trial.params])
-                        self.init_observed_configs = pd.concat(
-                            [self.init_observed_configs, new_config], ignore_index=True
-                        )
-                        # Add value to DataFrame with consistent column structure
-                        new_fval = pd.DataFrame({"score": [completed_trial.value]})
-                        self.init_observed_fvals = pd.concat(
-                            [self.init_observed_fvals, new_fval], ignore_index=True
-                        )
-                        break  # Process one trial at a time
-
             return {**config, **categorical_params}
 
-        # Initialize LLAMBO if not done already
+        # For trials after initial phase, handle LLAMBO initialization and usage
+
+        # Step 1: Initialize LLAMBO if not done already
         if self.LLAMBO_instance is None:
             self._initialize_llambo(numerical_space)
 
-        # For later trials, use the LLAMBO instance for sampling
-        if trial.number == self.n_initial_samples + 1:
-            # Check if we need to initialize LLAMBO with observed data
-            if len(self.init_observed_configs) == 0:
-                # Collect all completed trials data if we haven't done so yet
-                completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
-                for completed_trial in completed_trials:
-                    # Add new configuration as DataFrame for concatenation
-                    new_config = pd.DataFrame([completed_trial.params])
-                    self.init_observed_configs = pd.concat(
-                        [self.init_observed_configs, new_config], ignore_index=True
-                    )
-                    # Add value to DataFrame with consistent column structure
-                    new_fval = pd.DataFrame({"score": [completed_trial.value]})
-                    self.init_observed_fvals = pd.concat(
-                        [self.init_observed_fvals, new_fval], ignore_index=True
-                    )
+        # Step 2: Initialize LLAMBO with data if we have enough trials and haven't done so
+        if (
+            not self._llambo_initialized
+            and self.LLAMBO_instance is not None
+            and self._min_trials_processed >= self.n_initial_samples
+        ):
+            self._initialize_llambo_with_data(numerical_space)
 
-            # Retain only numerical keys from observed configurations
-            observed_configs_df = self.init_observed_configs.copy()
-            if not observed_configs_df.empty:
-                # Ensure we only keep columns that exist in numerical_space
-                numerical_cols = [
-                    col for col in numerical_space.keys() if col in observed_configs_df.columns
-                ]
-                observed_configs_df = observed_configs_df[numerical_cols]
-
-            # Ensure observed_fvals_df has the expected structure
-            observed_fvals_df = self.init_observed_fvals.copy()
-
-            # Make sure LLAMBO is initialized before calling _initialize
-            if self.LLAMBO_instance is not None:
-                # Initialize LLAMBO with observed data
-                try:
-                    self.LLAMBO_instance._initialize(None, observed_configs_df, observed_fvals_df)
-                except Exception as e:
-                    # If initialization fails, fall back to random sampling
-                    self._debug_print(
-                        f"LLAMBO initialization failed: {e}. Falling back to random sampling."
-                    )
-                    return {
-                        **self.generate_random_samples(numerical_space, 1)[0],
-                        **categorical_params,
-                    }
-            else:
-                self._debug_print("LLAMBO instance is None when trying to initialize with data")
-                return {
-                    **self.generate_random_samples(numerical_space, 1)[0],
-                    **categorical_params,
-                }
-
-        # Use LLAMBO to sample numerical parameters if it has been initialized
+        # Step 3: Use LLAMBO to sample if it's initialized, otherwise use random sampling
         try:
-            if self.LLAMBO_instance is None:
-                self._debug_print("LLAMBO instance is None when trying to sample configurations")
+            if not self._llambo_initialized or self.LLAMBO_instance is None:
                 numerical_params = self.generate_random_samples(numerical_space, 1)[0]
             else:
-                result = self.LLAMBO_instance.sample_configurations()
-                numerical_params = result if result is not None else {}
+                result = self._sample_parameters()
+                if not result:
+                    numerical_params = self.generate_random_samples(numerical_space, 1)[0]
+                else:
+                    numerical_params = result
 
             # Ensure integer values are actually integers
             for param_name, value in numerical_params.items():
@@ -380,9 +469,8 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 ):
                     numerical_params[param_name] = int(value)
 
-        except Exception as e:
+        except Exception:
             # If LLAMBO sampling fails, fall back to random sampling
-            self._debug_print(f"LLAMBO sampling failed: {e}. Falling back to random sampling.")
             numerical_params = self.generate_random_samples(numerical_space, 1)[0]
 
         # Merge the numerical and categorical parameters.
@@ -407,13 +495,32 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             state: Trial state.
             values: Trial values.
         """
-        if self.LLAMBO_instance is not None:
-            if state == optuna.trial.TrialState.COMPLETE and values is not None:
+        if state == optuna.trial.TrialState.COMPLETE and values is not None:
+            # Update data collection first
+            self._collect_initial_data(study)
+
+            # Try to initialize LLAMBO if needed and possible
+            if not self._llambo_initialized or self.LLAMBO_instance is None:
+                if self._min_trials_processed >= self.n_initial_samples:
+                    # Re-create numerical_space
+                    numerical_space, _ = self._split_search_space(study.sampler._search_space)
+
+                    if not self.LLAMBO_instance:
+                        self._initialize_llambo(numerical_space)
+
+                    if self.LLAMBO_instance and not self._llambo_initialized:
+                        self._initialize_llambo_with_data(numerical_space)
+
+            # Update LLAMBO with trial result
+            if self._llambo_initialized and self.LLAMBO_instance is not None:
                 # Filter trial.params to keep only numerical keys
                 filtered_params = {
                     k: v for k, v in trial.params.items() if k in self.hyperparameter_constraints
                 }
-                self.LLAMBO_instance.update_history(filtered_params, values[0])
+                try:
+                    self.LLAMBO_instance.update_history(filtered_params, values[0])
+                except Exception:
+                    pass
 
     def generate_random_samples(
         self, search_space: dict[str, optuna.distributions.BaseDistribution], num_samples: int = 1
