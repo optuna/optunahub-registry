@@ -8,6 +8,7 @@ import transformers
 
 from .prompter import PromptBase
 
+
 class Calculator:
     # Pricing per 1M input tokens in USD for GPT models
     GPT_input_pricing: Dict[str, float] = {

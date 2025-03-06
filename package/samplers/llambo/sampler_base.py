@@ -29,7 +29,6 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         n_templates: Number of prompt templates to use.
         n_gens: Number of generations per template.
         alpha: Exploration-exploitation trade-off parameter.
-        n_trials: Total number of optimization trials.
         api_key: API key for the language model service.
         model: Language model identifier to use.
         max_requests_per_minute: Maximum number of requests per minute.
@@ -47,7 +46,6 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         n_templates: int = 2,
         n_gens: int = 10,
         alpha: float = 0.1,
-        n_trials: int = 100,
         api_key: str = "",
         model: str = "gpt-4o-mini",
         max_requests_per_minute: int = 100,
@@ -70,7 +68,6 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self.n_templates = n_templates
         self.n_gens = n_gens
         self.alpha = alpha
-        self.n_trials = n_trials
         self.api_key = api_key
         self.model = model
         self.max_requests_per_minute = max_requests_per_minute
@@ -273,9 +270,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         # Thread safety: ensure all required attributes are initialized
         if not hasattr(self, "lower_is_better") or self.lower_is_better is None:
-            self.lower_is_better = (
-                True if study.direction == optuna.study.StudyDirection.MINIMIZE else False
-            )
+            self.lower_is_better = study.direction == optuna.study.StudyDirection.MINIMIZE
 
         if not hasattr(self, "init_configs") or not self.init_configs:
             self.init_configs = self.generate_random_samples(

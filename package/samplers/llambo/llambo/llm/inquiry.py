@@ -36,7 +36,7 @@ class LLMBase:
         self,
         api_key: Optional[str],
         model: str = "gpt-4-mini",
-        timeout: float = 60,
+        timeout: int = 60,  # Changed from float to int
         maximum_generation_attempts: int = 3,
         maximum_timeout_attempts: int = 3,
         debug: bool = False,
@@ -79,7 +79,7 @@ class OpenAI_interface(LLMBase):
         self,
         api_key: str,
         model: str = "gpt-4-mini",
-        timeout: float = 60,
+        timeout: int = 60,  # Changed from float to int
         maximum_generation_attempts: int = 3,
         maximum_timeout_attempts: int = 3,
         debug: bool = False,
@@ -200,7 +200,15 @@ class OpenAI_interface(LLMBase):
             ret=True,
         )
 
-        response_text, cost = result.get("result")
+        if not result or "result" not in result:
+            return "termination_signal", 0.0
+
+        # Handle the case where result.get("result") might be None
+        result_value = result.get("result")
+        if result_value is None:
+            return "termination_signal", 0.0
+
+        response_text, cost = result_value
 
         if not exceeded:
             return response_text, cost
@@ -245,7 +253,7 @@ class OpenAI_interface(LLMBase):
                 ret=True,
             )
 
-            if exceeded:
+            if exceeded or not result:
                 print(f"Inquiry timed out for {self.maximum_timeout_attempts} times, retrying...")
                 continue
 
@@ -253,10 +261,14 @@ class OpenAI_interface(LLMBase):
             cost = result.get("cost", 0.0)
             cost_accumulation += cost
 
+            if response is None:
+                print("Received None response, retrying...")
+                continue
+
             try:
-                response = tests(response)
+                tested_response = tests(response)
                 print("Test passed")
-                return response, cost_accumulation
+                return tested_response, cost_accumulation
             except Exception:
                 print("Test failed, reason:")
                 print(traceback.format_exc())
