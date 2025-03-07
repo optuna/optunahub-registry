@@ -97,7 +97,7 @@ class LLAMBOSampler(SimpleBaseSampler):
 #### **Parameters**
 
 - **`custom_task_description`** *(str, optional)*\
-  A user-provided description for the optimization task (used in prompt generation).
+  A user-defined description of the optimization task, used for prompt generation. This can be a concise one-sentence summary or a detailed, multi-paragraph explanation.
 
 - **`n_initial_samples`** *(int, default=5)*\
   Number of initial random samples before LLAMBO-based sampling starts.
@@ -124,10 +124,10 @@ class LLAMBOSampler(SimpleBaseSampler):
   Identifier for the chosen LLM model. Currently supports supports gpt-4o-mini, gpt-4o, deepseek-chat, and deepseek-reasoner.
 
 - **`max_requests_per_minute`** *(int, default=100)*\
-  Maximum rate of LLM queries per minute.
+  Maximum rate of LLM queries per minute.  This is especially useful when your API has a rate limit, such as the restrictions in OpenAI's free-tier plan.
 
 - **`search_space`** *(dict, optional)*\
-  If specified, defines the parameter distributions for the sampler.
+  If specified, defines the parameter distributions for the sampler. Leave it as `None` in general.
 
 - **`seed`** *(int, optional)*\
   Seed for random number generation to ensure reproducible sampling.
