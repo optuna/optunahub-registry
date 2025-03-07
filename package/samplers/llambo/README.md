@@ -16,11 +16,11 @@ license: MIT License
 1. **Zero-Shot Warmstarting**\
    LLAMBO frames the optimization problem in natural language, allowing the LLM to propose promising initial solutions. This jump-starts the search by exploiting the LLM’s pre-trained knowledge base.
 
-1. **Enhanced Surrogate Modeling**\
-   Traditional BO uses surrogate models (e.g., Gaussian Processes) trained solely on observed data. LLAMBO augments this with the LLM’s few-shot learning capacity, particularly beneficial in sparse data regimes.
+2**Enhanced Surrogate Modeling**\
+Traditional BO uses surrogate models (e.g., Gaussian Processes) trained solely on observed data. LLAMBO augments this with the LLM’s few-shot learning capacity, particularly beneficial in sparse data regimes.
 
-1. **Efficient Candidate Sampling**\
-   LLAMBO orchestrates iterative sampling by conditioning the LLM on both historical evaluations and high-level problem context. This results in candidate points that effectively balance exploration and exploitation.
+3**Efficient Candidate Sampling**\
+LLAMBO orchestrates iterative sampling by conditioning the LLM on both historical evaluations and high-level problem context. This results in candidate points that effectively balance exploration and exploitation.
 
 ### Implementation
 
@@ -44,6 +44,13 @@ This implementation of LLAMBO differs from the [original implementation](https:/
      ```
      "Do not recommend float values; you can only recommend integer values."  
      ```
+
+1. **Adaptive Few-Shot Templates for Type-Aware Formatting**:
+
+   - The system generates hyperparameter values with precision appropriate to their type in the few-shot templates.
+   - For float-valued hyperparameters, it maintains proper decimal precision (ensuring at least one decimal place).
+   - For integer-valued hyperparameters, it formats values as whole numbers without decimal places.
+   - This type-aware formatting helps the LLM better understand the precision requirements for different hyperparameter types.
 
 1. **Alternative Rate Limiting Mechanism**:
 
