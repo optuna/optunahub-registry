@@ -386,8 +386,12 @@ class LLM_ACQ:
                 try:
                     if constraint[0] == "float":
                         float_params.append(hyperparameter)
-                        n_dp = self._count_decimal_places(constraint[2][0])
                         lower_bound, upper_bound = constraint[2]
+                        # Calculate decimal places for both bounds
+                        lower_dp = self._count_decimal_places(lower_bound)
+                        upper_dp = self._count_decimal_places(upper_bound)
+                        # Ensure at least 1 decimal place for floats
+                        n_dp = max(1, lower_dp, upper_dp)
                         prefix += f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}] (float, precise to {n_dp} decimals)\n"
 
                     elif constraint[0] == "int":
