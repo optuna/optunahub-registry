@@ -56,12 +56,6 @@ def prepare_configurations(
 
     Returns:
         list[dict[str, str]]: List of prepared configuration examples.
-
-    Example:
-        >>> constraints = {"learning_rate": ["float", "linear", (0.001, 0.1)]}
-        >>> configs = pd.DataFrame({"learning_rate": [0.01, 0.05]})
-        >>> prepare_configurations(constraints, configs)
-        [{'Q': 'learning_rate is 0.010'}, {'Q': 'learning_rate is 0.050'}]
     """
     examples: list[dict[str, str]] = []
     hyperparameter_names = observed_configs.columns
@@ -99,7 +93,16 @@ def prepare_configurations(
             else:
                 lower_bound = hyperparameter_constraints[hyperparameter_names[i]][2][1]
 
+            # Get base precision from constraint
             n_dp = _count_decimal_places(lower_bound)
+
+            # For float types, ensure we use appropriate precision
+            if hyp_type == "float":
+                # Get actual precision from the value itself
+                actual_dp = _count_decimal_places(row[i])
+                # Use at least 1 decimal place for floats, or more if value has more precision
+                n_dp = max(1, n_dp, actual_dp)
+
             prefix = f"{hyperparameter_names[i]}" if use_feature_semantics else f"X{i + 1}"
             row_string += f"{prefix} is "
 

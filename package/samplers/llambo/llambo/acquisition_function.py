@@ -239,8 +239,17 @@ class LLM_ACQ:
                     lower_bound = self.task_context["hyperparameter_constraints"][
                         hyperparameter_names[i]
                     ][2][1]
+
+                # Get base precision from constraint
                 n_dp = self._count_decimal_places(lower_bound)
                 value = row[i]
+
+                # For float types, ensure we use appropriate precision
+                if hyp_type == "float":
+                    # Get actual precision from the value itself
+                    actual_dp = self._count_decimal_places(value)
+                    # Use at least 1 decimal place for floats, or more if value has more precision
+                    n_dp = max(1, n_dp, actual_dp)
 
                 if self.apply_warping:
                     if hyp_type == "int" and hyp_transform != "log":
@@ -325,7 +334,19 @@ class LLM_ACQ:
         observed_values_str = ""
         for col in observed_configs.columns:
             unique_vals = sorted(observed_configs[col].unique())
-            observed_values_str += f"- {col}: {', '.join(f'{val:.6f}' for val in unique_vals)}\n"
+            formatted_vals = []
+            for val in unique_vals:
+                hyp_type = self.task_context["hyperparameter_constraints"][col][0]
+                if hyp_type == "int":
+                    formatted_vals.append(str(int(val)))
+                elif hyp_type == "float":
+                    # For floats, ensure we show at least 1 decimal place, and all significant digits
+                    actual_dp = self._count_decimal_places(val)
+                    n_dp = max(1, actual_dp)
+                    formatted_vals.append(f"{val:.{n_dp}f}")
+                else:
+                    formatted_vals.append(str(val))
+            observed_values_str += f"- {col}: {', '.join(formatted_vals)}\n"
 
         for i in range(n_prompts):
             few_shot_examples = self._prepare_configurations_acquisition(
@@ -353,26 +374,29 @@ class LLM_ACQ:
                 prefix += "\n"
             prefix += "The allowable ranges for the hyperparameters are:\n"
 
-            integer_constraint = None
+            # First, identify all hyperparameter types
+            integer_params = []
+            float_params = []
+            other_params = []
 
-            for i, (hyperparameter, constraint) in enumerate(hyperparameter_constraints.items()):
+            for hyperparameter, constraint in hyperparameter_constraints.items():
                 if constraint is None or len(constraint) < 3:
                     continue  # Skip invalid constraints
 
                 try:
                     if constraint[0] == "float":
+                        float_params.append(hyperparameter)
                         n_dp = self._count_decimal_places(constraint[2][0])
                         lower_bound, upper_bound = constraint[2]
                         prefix += f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}] (float, precise to {n_dp} decimals)\n"
 
                     elif constraint[0] == "int":
-                        integer_constraint = (
-                            "Do not recommend float values, you can only recommend integer values."
-                        )
+                        integer_params.append(hyperparameter)
                         lower_bound, upper_bound = constraint[2]
                         prefix += f"- {hyperparameter}: [{lower_bound}, {upper_bound}] (int)\n"
 
                     elif constraint[0] == "ordinal":
+                        other_params.append(hyperparameter)
                         prefix += (
                             f"- {hyperparameter}: (ordinal, must take value in {constraint[2]})\n"
                         )
@@ -380,6 +404,22 @@ class LLM_ACQ:
                 except Exception as e:
                     print(f"Error processing constraint for {hyperparameter}: {e}")
                     continue
+
+            # Determine integer constraint message based on parameter types
+            integer_constraint = None
+            if integer_params:
+                if not float_params and not other_params:
+                    # All parameters are integers
+                    integer_constraint = (
+                        "Do not recommend float values, you can only recommend integer values."
+                    )
+                else:
+                    # Mixed parameter types
+                    params_str = ", ".join(integer_params)
+                    if len(integer_params) == 1:
+                        integer_constraint = f"For the hyperparameter {params_str}, do not recommend float values, you can only recommend integer values."
+                    else:
+                        integer_constraint = f"For the hyperparameters {params_str}, do not recommend float values, you can only recommend integer values."
 
             # **Add instruction to avoid recommending existing values with explicit listing**
             prefix += (
@@ -390,7 +430,12 @@ class LLM_ACQ:
                 "have already been observed.**\n"
                 "The following values have already been observed and **must not be recommended again**:\n"
                 f"{observed_values_str}\n"
-                f"{integer_constraint}\n"
+            )
+
+            if integer_constraint:
+                prefix += f"{integer_constraint}\n"
+
+            prefix += (
                 "Your response must only contain the predicted configuration, "
                 "in the format ## configuration ##.\n"
             )

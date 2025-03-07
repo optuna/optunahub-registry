@@ -54,12 +54,6 @@ def prepare_configurations(
 
     Returns:
         list[dict[str, str]]: List of examples formatted for prompt templates.
-
-    Example:
-        >>> constraints = {'learning_rate': [0.001, 0.1, [0.001]]}
-        >>> configs = pd.DataFrame({'learning_rate': [0.01, 0.05]})
-        >>> prepare_configurations(constraints, True, 0.5, configs)
-        [{'Q': 'learning_rate: 0.010'}, {'Q': 'learning_rate: 0.050'}]
     """
     examples: list[dict[str, str]] = []
     hyperparameter_names = observed_configs.columns
@@ -87,14 +81,31 @@ def prepare_configurations(
     for index, row in observed_configs.iterrows():
         row_string = ""
         for i in range(len(row)):
-            lower_bound = hyperparameter_constraints[hyperparameter_names[i]][2]
-            n_dp = _count_decimal_places(lower_bound[0]) + 2
+            # Get the hyperparameter constraints
+            constraint = hyperparameter_constraints[hyperparameter_names[i]]
+            hyp_type = constraint[0]  # Type (int, float, etc.)
 
-            value = (
-                f"{row[i]:.{n_dp}f}"
-                if isinstance(row[i], float) and not row[i] % 1 == 0
-                else str(row[i])
-            )
+            # Get the lower bound of the constraint
+            lower_bound = constraint[2][0]
+
+            # Determine base precision from constraint
+            n_dp = _count_decimal_places(lower_bound)
+
+            # For float types, ensure we use appropriate precision
+            if hyp_type == "float":
+                # Get actual precision from the value itself
+                actual_dp = _count_decimal_places(row[i])
+                # Use at least 1 decimal place for floats, or more if value has more precision
+                n_dp = max(1, n_dp, actual_dp)
+
+            # Format the value based on its type
+            if hyp_type == "int":
+                value = str(int(row[i]))
+            elif hyp_type == "float":
+                value = f"{row[i]:.{n_dp}f}"
+            else:
+                value = str(row[i])
+
             row_string += f"{hyperparameter_names[i]}: {value}"
 
             if i != len(row) - 1:
