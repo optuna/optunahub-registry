@@ -6,8 +6,8 @@ import time
 from typing import Any
 from typing import Optional
 
-from langchain import FewShotPromptTemplate
-from langchain import PromptTemplate
+from langchain.prompts import FewShotPromptTemplate
+from langchain.prompts import PromptTemplate
 import numpy as np
 import pandas as pd
 

@@ -56,14 +56,12 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         model: str = "gpt-4o-mini",
         max_requests_per_minute: int = 100,
         search_space: Optional[dict[str, optuna.distributions.BaseDistribution]] = None,
-        debug: bool = False,
         seed: Optional[int] = None,
     ) -> None:
         super().__init__(search_space)
         self.seed = seed
         self._rng = LazyRandomState(seed)
         self._random_sampler = RandomSampler(seed=seed)
-        self.debug = debug
         self.last_time = time.time()
         self.last_trial_count = 0
 
@@ -232,41 +230,6 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             return sampled_configuration if sampled_configuration is not None else {}
         except Exception:
             return {}
-
-    def _debug_print(self, message: str) -> None:
-        """
-        Print a debug message if debug mode is enabled.
-
-        Args:
-            message: Message to print.
-        """
-        if self.debug:
-            print(message)
-
-    def _calculate_speed(self, n_completed: int) -> None:
-        """
-        Calculate and print the optimization speed statistics.
-
-        Args:
-            n_completed: Number of completed trials.
-        """
-        if not self.debug:
-            return
-
-        if n_completed % 100 == 0 and n_completed > 0:
-            current_time = time.time()
-            elapsed_time = current_time - self.last_time
-            trials_processed = n_completed - self.last_trial_count
-
-            if elapsed_time > 0:
-                speed = trials_processed / elapsed_time
-                print(f"\n[Speed Stats] Trials {self.last_trial_count} to {n_completed}")
-                print(f"Speed: {speed:.2f} trials/second")
-                print(f"Time elapsed: {elapsed_time:.2f} seconds")
-                print("-" * 50)
-
-            self.last_time = current_time
-            self.last_trial_count = n_completed
 
     def reseed_rng(self) -> None:
         """Reset the random number generator seeds."""

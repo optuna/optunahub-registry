@@ -76,6 +76,9 @@ class LLAMBO:
         self.max_requests_per_minute = max_requests_per_minute
         self.sm_mode = sm_mode  # Store the surrogate model mode
 
+        # Add a variable to track accumulated cost
+        self.accumulated_cost = 0.0
+
         # Calculate delay between API calls based on rate limit
         self.delay_seconds = 60.0 / max_requests_per_minute if max_requests_per_minute > 0 else 0
         print(
@@ -290,10 +293,18 @@ class LLAMBO:
 
         # Handle the case where get_candidate_points returns 3 or 4 values
         if len(acquisition_result) == 3:
-            candidate_points, acq_scores, acq_time = acquisition_result
+            candidate_points, acq_cost, acq_time = acquisition_result
+            # Track acquisition function cost
+            self.accumulated_cost += acq_cost
+            print(f"Acquisition function cost: ${acq_cost:.4f}")
         else:
             # If there are 4 values, extract just the ones we need
             candidate_points = acquisition_result[0]
+            # If cost is provided as second value, track it
+            if len(acquisition_result) > 1 and isinstance(acquisition_result[1], (int, float)):
+                acq_cost = acquisition_result[1]
+                self.accumulated_cost += acq_cost
+                print(f"Acquisition function cost: ${acq_cost:.4f}")
 
         # Add delay between acquisition function and surrogate model
         print(f"Inserting delay of {self.delay_seconds:.2f} seconds between ACQ and SM components")
@@ -321,6 +332,10 @@ class LLAMBO:
             # The result might have 3 or 4 elements, extract only what we need
             if len(result) >= 3:
                 sel_candidate_point = result[0]
+                # Extract and track surrogate model cost
+                sm_cost = result[1]
+                self.accumulated_cost += sm_cost
+                print(f"Surrogate model cost: ${sm_cost:.4f}")
             else:
                 # Handle unexpected return format
                 raise ValueError(f"Unexpected return format from select_query_point: {result}")
@@ -333,9 +348,18 @@ class LLAMBO:
             # Extract the first 3 elements regardless of how many are returned
             if len(result) >= 3:
                 sel_candidate_point = result[0]
+                # Extract and track surrogate model cost
+                sm_cost = result[1]
+                self.accumulated_cost += sm_cost
+                print(f"Surrogate model cost: ${sm_cost:.4f}")
             else:
                 # Handle unexpected return format
                 raise ValueError(f"Unexpected return format from select_query_point: {result}")
+
+        # Print accumulated cost so far
+        print(
+            f"---------------------Accumulated cost so far: ${self.accumulated_cost:.4f}---------------------"
+        )
 
         return sel_candidate_point.to_dict(orient="records")[0]
 

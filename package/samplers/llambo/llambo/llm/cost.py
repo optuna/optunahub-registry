@@ -93,14 +93,8 @@ class Calculator:
 
     def calculate_input_token_length_GPT(self) -> int:
         """Calculate the number of tokens used by a list of messages."""
-        try:
-            encoding = tiktoken.encoding_for_model(self.model)
-        except KeyError:
-            print(
-                "Warning: model not found for tokenization. Using cl100k_base encoding for cost "
-                "calculation."
-            )
-            encoding = tiktoken.get_encoding("cl100k_base")
+
+        encoding = tiktoken.get_encoding("cl100k_base")
 
         tokens_per_message = 3
         tokens_per_name = 1
@@ -127,12 +121,8 @@ class Calculator:
         Returns:
             int: The number of tokens in the output sequence.
         """
-        try:
-            # Initialize tokenizer for the specific model
-            tokenizer = tiktoken.encoding_for_model(self.model)
-        except KeyError:
-            print("Warning: Model not found. Using cl100k_base encoding as a fallback.")
-            tokenizer = tiktoken.get_encoding("cl100k_base")
+
+        tokenizer = tiktoken.get_encoding("cl100k_base")
 
         # Tokenize the output sequence
         if self.output_sequence_string:
