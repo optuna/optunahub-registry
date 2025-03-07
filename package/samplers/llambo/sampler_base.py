@@ -5,6 +5,7 @@ import time
 from typing import Any
 from typing import Optional
 
+import nest_asyncio
 import optuna
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -12,6 +13,10 @@ import optunahub
 import pandas as pd
 
 from .llambo.llambo import LLAMBO
+
+
+# Avoid asyncio issues in Notebook environment
+nest_asyncio.apply()
 
 
 class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
