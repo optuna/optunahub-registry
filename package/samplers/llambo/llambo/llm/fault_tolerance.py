@@ -3,7 +3,6 @@ from __future__ import annotations
 import multiprocessing
 from typing import Any
 from typing import Callable
-from typing import Optional
 from typing import TypeVar
 import warnings
 
@@ -135,78 +134,3 @@ def retry_overtime_kill(
         stacklevel=2,
     )
     return True, {}
-
-
-def retry_overtime_decorator(
-    time_limit: int = 60,
-    maximum_retry: int = 3,
-    ret: bool = True,
-) -> Callable[[Callable[..., R]], Callable[..., Optional[R]]]:
-    """
-    Create a decorator that adds timeout and retry functionality to a function.
-
-    This decorator wraps a function to provide retry functionality when the function
-    execution exceeds a specified time limit. It supports both regular functions
-    and class methods, handling the self parameter appropriately. Compared to
-    `retry_overtime_kill`, this decorator could be more efficient. However, this
-    decorator could be less convenient in a class, where the class instance is not
-    available for arguments of the decorator.
-
-    Args:
-        time_limit: Maximum execution time allowed in seconds per attempt.
-        maximum_retry: Maximum number of retry attempts if time limit is exceeded.
-        ret: Whether the function returns data that needs to be captured.
-
-    Returns:
-        Callable: A decorator function that adds timeout and retry functionality.
-
-    Example:
-        >>> @retry_overtime_decorator(time_limit=3, maximum_retry=2)
-        ... def example_task(ret_dict):
-        ...     import time
-        ...
-        ...     time.sleep(2)
-        ...     ret_dict["result"] = 42
-        ...
-        >>> result = example_task()
-        Attempt 1 of 2
-        The operation finishes in time
-        >>> print(result)
-        42
-    """
-
-    def decorator(target_function: Callable[..., R]) -> Callable[..., Optional[R]]:
-        def wrapper(*args: Any, **kwargs: Any) -> Optional[R]:
-            # Handle class methods vs regular functions
-            if args and hasattr(args[0], "__class__"):
-                self_instance = args[0]
-                message = args[1]
-                target_function_args = ((message,), kwargs)
-
-                def target_function_with_self(
-                    ret_dict: dict[str, Any], *func_args: Any
-                ) -> Any:  # Changed from -> None
-                    return target_function(self_instance, func_args[0][0], ret_dict)
-
-            else:
-                target_function_args = (args, kwargs)
-
-                def target_function_with_self(
-                    ret_dict: dict[str, Any],
-                    *func_args: Any,
-                ) -> Any:  # Changed from -> None
-                    return target_function(ret_dict, *func_args[0], **func_args[1])
-
-            exceeded, result = retry_overtime_kill(
-                target_function=target_function_with_self,
-                target_function_args=target_function_args,
-                time_limit=time_limit,
-                maximum_retry=maximum_retry,
-                ret=ret,
-            )
-
-            return result.get("result") if result else None
-
-        return wrapper
-
-    return decorator
