@@ -428,7 +428,7 @@ module = optunahub.load_module("samplers/llambo")
 LLAMBOSampler = module.LLAMBOSampler
 sampler = LLAMBOSampler(
     custom_task_description="Minimize x^2 + y^2 over the range [-5, 5].",
-    sm_mode="generative",   # or "generative"
+    sm_mode="generative",   # or "discriminative"
     api_key=api_key, 
     model="gpt-4o-mini", # supports gpt-4o-mini, gpt-4o, deepseek-chat, and deepseek-reasoner
 )
@@ -443,6 +443,6 @@ print("Best params:", study.best_params)
 ```
 
 1. **Objective**: Illustrates a basic 2D paraboloid to be minimized.
-1. **LLAMBOSampler**: Uses the discriminative LLM-based model to suggest numeric parameters.
+1. **LLAMBOSampler**: Uses the generative LLM-based model to suggest numeric parameters.
 1. **Study**: Runs 30 trials, of which the initial few use random sampling, with subsequent trials guided by LLAMBO’s surrogate.
 1. **Results**: Print the minimal value found and the associated `x, y`.
