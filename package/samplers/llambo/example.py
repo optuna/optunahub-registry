@@ -30,7 +30,7 @@ def objective_rf(trial: Trial) -> float:
     min_samples_leaf = trial.suggest_int("min_samples_leaf", 1, 10)
     max_features = trial.suggest_categorical("max_features", ["sqrt", "log2", None])
     bootstrap = trial.suggest_categorical("bootstrap", [True, False])
-    ccp_alpha = trial.suggest_float("ccp_alpha", 0.0, 0.1, step=0.001)
+    ccp_alpha = trial.suggest_float("ccp_alpha", 0.0, 0.01, step=0.001)
 
     # Define a pipeline with scaling and RandomForestClassifier
     pipeline = Pipeline(
@@ -63,7 +63,6 @@ if __name__ == "__main__":
         "",  # Replace with your actual key or load via env variable
     )
     model = "gpt-4o-mini"
-    debug = True
     sm_mode = "discriminative"
     max_requests_per_minute = 60
     n_trials = 30
@@ -78,7 +77,6 @@ if __name__ == "__main__":
         custom_task_description="Optimize RandomForest hyperparameters for digit classification.",
         api_key=api_key,
         model=model,
-        debug=debug,
         sm_mode=sm_mode,
         max_requests_per_minute=max_requests_per_minute,
     )

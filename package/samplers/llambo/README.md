@@ -86,7 +86,6 @@ class LLAMBOSampler(SimpleBaseSampler):
         model: str = "gpt-4o-mini",
         max_requests_per_minute: int = 100,
         search_space: Optional[dict[str, optuna.distributions.BaseDistribution]] = None,
-        debug: bool = False,
         seed: Optional[int] = None,
     ):
         ...
@@ -126,9 +125,6 @@ class LLAMBOSampler(SimpleBaseSampler):
 
 - **`search_space`** *(dict, optional)*\
   If specified, defines the parameter distributions for the sampler.
-
-- **`debug`** *(bool, default=False)*\
-  If `True`, prints debugging statements for tracing the sampling process.
 
 - **`seed`** *(int, optional)*\
   Seed for random number generation to ensure reproducible sampling.
@@ -397,7 +393,6 @@ sampler = LLAMBOSampler(
     sm_mode="discriminative",   # or "generative"
     api_key=api_key, 
     model="gpt-4o-mini", # supports gpt-4o-mini, gpt-4o, deepseek-chat, and deepseek-reasoner
-    debug=True,
 )
 
 # 3. Create an Optuna study and optimize
