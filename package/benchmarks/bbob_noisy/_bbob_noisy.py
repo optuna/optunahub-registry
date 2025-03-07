@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import cocoex as ex
 import optuna
 import optunahub
+
+
+try:
+    import cocoex as ex
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install coco-experiment` to use `bbob_noisy`.")
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
@@ -23,9 +28,11 @@ class Problem(optunahub.benchmarks.BaseProblem):
         https://numbbo.github.io/coco-doc/apidocs/cocoex/cocoex.Problem.html
         """
 
+        self._valid_arguments = False
         assert 101 <= function_id <= 130, "function_id must be in [101, 130]"
         assert dimension in [2, 3, 5, 10, 20, 40], "dimension must be in [2, 3, 5, 10, 20, 40]"
         assert 1 <= instance_id <= 15, "instance_id must be in [1, 15]"
+        self._valid_arguments = True
 
         self._problem = ex.Suite("bbob-noisy", "", "").get_problem_by_function_dimension_instance(
             function=function_id, dimension=dimension, instance=instance_id
@@ -64,4 +71,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         return getattr(self._problem, name)
 
     def __del__(self) -> None:
+        if not self._valid_arguments:
+            return
+
         self._problem.free()

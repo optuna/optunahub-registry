@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import optproblems.zdt
 import optuna
 import optunahub
+
+
+try:
+    import optproblems.zdt
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install optproblems diversipy` to use `zdt`.")
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
@@ -27,7 +32,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
                 f"x{i}": optuna.distributions.FloatDistribution(
                     self._problem.min_bounds[i], self._problem.max_bounds[i]
                 )
-                for i in range(self.problem.num_variables)
+                for i in range(self._problem.num_variables)
             }
         else:
             self._search_space = {}

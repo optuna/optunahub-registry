@@ -40,7 +40,7 @@ class MOEAdElitePopulationSelectionStrategy:
             )
             self._compute_neighborhoods(weight_vectors)
 
-        if len(population) == self._population_size:
+        if len(population) < self._population_size * 2:
             return population
 
         self._update_reference_point(study.directions, population)

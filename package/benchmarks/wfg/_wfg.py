@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import optproblems.wfg
 import optuna
 import optunahub
+
+
+try:
+    import optproblems.wfg
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install optproblems diversipy` to use `wfg`.")
 
 
 class Problem(optunahub.benchmarks.BaseProblem):

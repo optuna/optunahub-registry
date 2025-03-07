@@ -1,7 +1,7 @@
 ---
 author: Shuhei Watanabe
-title: c-TPE; Tree-structured Parzen Estimator with Inequality Constraints for Expensive Hyperparameter Optimization
-description: The optimizer that reproduces the algorithm described in the paper ``c-TPE; Tree-structured Parzen Estimator with Inequality Constraints for Expensive Hyperparameter Optimization''.
+title: 'c-TPE: Tree-structured Parzen Estimator with Inequality Constraints for Expensive Hyperparameter Optimization'
+description: 'The optimizer that reproduces the algorithm described in the paper `c-TPE: Tree-structured Parzen Estimator with Inequality Constraints for Expensive Hyperparameter Optimization`.'
 tags: [sampler, tpe, c-tpe, paper, research]
 optuna_versions: [v4.1.0]
 license: MIT License

@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import cocoex as ex
 import optuna
 import optunahub
+
+
+try:
+    import cocoex as ex
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install coco-experiment` to use `bbob_biobj`.")
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
@@ -23,9 +28,11 @@ class Problem(optunahub.benchmarks.BaseProblem):
         https://coco-platform.org/testsuites/bbob-biobj/overview.html
         """
 
+        self._valid_arguments = False
         assert 1 <= function_id <= 92, "function_id must be in [1, 92]"
         assert dimension in [2, 3, 5, 10, 20, 40], "dimension must be in [2, 3, 5, 10, 20, 40]"
         assert 1 <= instance_id <= 15, "instance_id must be in [1, 15]"
+        self._valid_arguments = True
 
         # The first 55 functions of the bbob-biobj-ext suite are the same as in the original bbob-biobj test suite
         # to which 37 functions are added. So we always use the bbob-biobj-ext suite for simplicity.
@@ -68,4 +75,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         return getattr(self._problem, name)
 
     def __del__(self) -> None:
+        if not self._valid_arguments:
+            return
+
         self._problem.free()

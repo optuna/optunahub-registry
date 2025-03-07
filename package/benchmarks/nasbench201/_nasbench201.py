@@ -5,9 +5,9 @@ import optunahub
 
 
 try:
-    from hpo_benchmarks import HPOBench
+    from hpo_benchmarks import NASBench201
 except ModuleNotFoundError:
-    raise ModuleNotFoundError("Please run `pip install simple-hpo-bench` to use `hpobench_nn`.")
+    raise ModuleNotFoundError("Please run `pip install simple-hpo-bench` to use `nasbench201`.")
 
 
 _INDEX_SUFFIX = "_index"
@@ -17,7 +17,7 @@ _DIRECTIONS = {
 }
 
 
-def _extract_search_space(bench: HPOBench) -> dict[str, optuna.distributions.BaseDistribution]:
+def _extract_search_space(bench: NASBench201) -> dict[str, optuna.distributions.BaseDistribution]:
     param_types = bench.param_types
     search_space = {}
     for param_name, choices in bench.search_space.items():
@@ -32,8 +32,8 @@ def _extract_search_space(bench: HPOBench) -> dict[str, optuna.distributions.Bas
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
-    available_metric_names: list[str] = HPOBench.available_metric_names
-    available_dataset_names: list[int] = HPOBench.available_dataset_names
+    available_metric_names: list[str] = NASBench201.available_metric_names
+    available_dataset_names: list[int] = NASBench201.available_dataset_names
 
     def __init__(
         self, dataset_id: int, seed: int | None = None, metric_names: list[str] | None = None
@@ -45,7 +45,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
             )
 
         self.dataset_name = self.available_dataset_names[dataset_id]
-        self._problem = HPOBench(
+        self._problem = NASBench201(
             dataset_name=self.dataset_name, seed=seed, metric_names=metric_names
         )
         self._search_space = _extract_search_space(self._problem)
