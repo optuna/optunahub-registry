@@ -16,14 +16,14 @@ license: MIT License
 1. **Zero-Shot Warmstarting**\
    LLAMBO frames the optimization problem in natural language, allowing the LLM to propose promising initial solutions. This jump-starts the search by exploiting the LLM’s pre-trained knowledge base.
 
-2**Enhanced Surrogate Modeling**\
-Traditional BO uses surrogate models (e.g., Gaussian Processes) trained solely on observed data. LLAMBO augments this with the LLM’s few-shot learning capacity, particularly beneficial in sparse data regimes.
+1. **Enhanced Surrogate Modeling**\
+   Traditional BO uses surrogate models (e.g., Gaussian Processes) trained solely on observed data. LLAMBO augments this with the LLM’s few-shot learning capacity, particularly beneficial in sparse data regimes.
 
-3**Efficient Candidate Sampling**\
-LLAMBO orchestrates iterative sampling by conditioning the LLM on both historical evaluations and high-level problem context. This results in candidate points that effectively balance exploration and exploitation.
+1. **Efficient Candidate Sampling**\
+   LLAMBO orchestrates iterative sampling by conditioning the LLM on both historical evaluations and high-level problem context. This results in candidate points that effectively balance exploration and exploitation.
 
-4**Cost Information**\
-As of March 2025, using GPT-4o-mini costs $0.150 per 1M input tokens and $0.600 per 1M output tokens. With such pricing, the estimated cost per run with `n_trials = 30` ranges between $0.05 and $0.10. This implementation also displays the accumulated cost at the end of each trial."
+1. **Cost Information**\
+   As of March 2025, using GPT-4o-mini costs $0.150 per 1M input tokens and $0.600 per 1M output tokens. With such pricing, the estimated cost per run with `n_trials = 30` ranges between $0.05 and $0.10. This implementation also displays the accumulated cost at the end of each trial."
 
 ### Implementation
 
