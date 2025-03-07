@@ -22,6 +22,9 @@ Traditional BO uses surrogate models (e.g., Gaussian Processes) trained solely o
 3**Efficient Candidate Sampling**\
 LLAMBO orchestrates iterative sampling by conditioning the LLM on both historical evaluations and high-level problem context. This results in candidate points that effectively balance exploration and exploitation.
 
+4**Cost Information**\
+As of March 2025, using GPT-4o-mini costs $0.150 per 1M input tokens and $0.600 per 1M output tokens. With such pricing, the estimated cost per run with `n_trials = 30` ranges between $0.05 and $0.10. This implementation also displays the accumulated cost at the end of each trial."
+
 ### Implementation
 
 This implementation of LLAMBO differs from the [original implementation](https://github.com/tennisonliu/LLAMBO/) in several key ways:
