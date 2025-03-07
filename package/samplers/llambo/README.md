@@ -80,7 +80,7 @@ class LLAMBOSampler(SimpleBaseSampler):
         self,
         custom_task_description: Optional[str] = None,
         n_initial_samples: int = 5,
-        sm_mode: str = "discriminative",
+        sm_mode: str = "generative",
         num_candidates: int = 10,
         n_templates: int = 2,
         n_gens: int = 10,
@@ -99,10 +99,45 @@ class LLAMBOSampler(SimpleBaseSampler):
 - **`custom_task_description`** *(str, optional)*\
   A user-defined description of the optimization task, used for prompt generation. This can be a concise one-sentence summary or a detailed, multi-paragraph explanation.
 
+  For example, the prompt can be:
+
+  ```
+    Optimize RandomForest hyperparameters for digit classification.
+  ```
+
+  or:
+
+  ```
+    Optimize a RandomForest classifier for handwritten digit classification using the digits dataset.
+    
+    Dataset information:
+    - The digits dataset contains 1797 8x8 images of handwritten digits (0-9)
+    - Each image is represented as a 64-dimensional feature vector
+    - The task is a 10-class classification problem
+
+    Hyperparameters to tune:
+    - n_estimators: Number of trees in the forest (range: 10-1000)
+    - max_depth: Maximum depth of each tree (range: 2-100)
+    - min_samples_split: Minimum samples required to split a node (range: 2-50)
+    - min_samples_leaf: Minimum samples required at a leaf node (range: 1-30)
+    - max_features: Number of features to consider when looking for the best split (options: "sqrt", "log2", None)
+    - bootstrap: Whether to use bootstrap samples (options: True, False)
+    - criterion: Function to measure split quality (options: "gini", "entropy", "log_loss")
+    - ccp_alpha: Complexity parameter for minimal cost-complexity pruning (range: 0.0-0.1)
+    - max_leaf_nodes: Maximum number of leaf nodes (range: 2-1000)
+    - min_impurity_decrease: Minimum impurity decrease required for split (range: 0.0-0.5)
+
+    Background knowledge:
+    - RandomForest is an ensemble method that combines multiple decision trees
+    - It's generally robust to overfitting but may require tuning to achieve optimal performance
+    - For small datasets like digits, a moderate number of trees with controlled depth often works well
+    - The performance metric is classification accuracy
+  ```
+
 - **`n_initial_samples`** *(int, default=5)*\
   Number of initial random samples before LLAMBO-based sampling starts.
 
-- **`sm_mode`** *({"discriminative", "generative"}, default="discriminative")*\
+- **`sm_mode`** *({"discriminative", "generative"}, default="generative")*\
   Defines which LLM-based surrogate model to use for numerical parameters.
 
 - **`num_candidates`** *(int, default=10)*\
@@ -393,7 +428,7 @@ module = optunahub.load_module("samplers/llambo")
 LLAMBOSampler = module.LLAMBOSampler
 sampler = LLAMBOSampler(
     custom_task_description="Minimize x^2 + y^2 over the range [-5, 5].",
-    sm_mode="discriminative",   # or "generative"
+    sm_mode="generative",   # or "generative"
     api_key=api_key, 
     model="gpt-4o-mini", # supports gpt-4o-mini, gpt-4o, deepseek-chat, and deepseek-reasoner
 )

@@ -47,7 +47,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self,
         custom_task_description: Optional[str] = None,
         n_initial_samples: int = 5,
-        sm_mode: str = "discriminative",
+        sm_mode: str = "generative",
         num_candidates: int = 10,
         n_templates: int = 2,
         n_gens: int = 10,

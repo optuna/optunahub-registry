@@ -63,7 +63,7 @@ if __name__ == "__main__":
         "",  # Replace with your actual key or load via env variable
     )
     model = "gpt-4o-mini"
-    sm_mode = "discriminative"
+    sm_mode = "generative"
     max_requests_per_minute = 60
     n_trials = 30
     n_jobs = 1
