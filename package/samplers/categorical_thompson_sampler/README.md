@@ -1,6 +1,6 @@
 ---
 author: Samuel D. McDermott
-title: Thompson Sampler
+title: Categorical Thompson Sampler
 description: Sampler based on Thompson sampling for categorical variables.
 tags: [sampler, Thompson sampling, categorical variables]
 optuna_versions: [4.2.1]
@@ -18,9 +18,6 @@ import optunahub
 from collections import defaultdict
 import logging
 logger = logging.getLogger(__name__)
-
-mod = optunahub.load_module("samplers/thompson_sampler")
-sampler = mod.ThompsonSampler()
 
 def gaussians(x: float, label: str):
     """
@@ -46,10 +43,10 @@ def objective(trial):
     return gaussians(xv, label)
 
 
-package_name = "package/samplers/thompson_sampler"
+package_name = "package/samplers/categorical_thompson_sampler"
 sampler = optunahub.load_module(
     package=package_name
-).ThompsonSampler()
+).CategoricalThompsonSampler()
 
 study_T = optuna.create_study(direction='maximize',
                             sampler=sampler)

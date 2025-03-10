@@ -21,7 +21,7 @@ def objective(trial: optuna.Trial) -> float:
 
 
 # TODO: Change package_name to test your package.
-package_name = "package/samplers/thompson_sampler"
+package_name = "package/samplers/categorical_thompson_sampler"
 test_local = True
 
 if test_local:
@@ -29,7 +29,7 @@ if test_local:
     sampler = optunahub.load_local_module(
         package=package_name,
         registry_root="/Users/sammcd/locgit/optunahub-registry",  # Path to the root of the optunahub-registry.
-    ).ThompsonSampler()
+    ).CategoricalThompsonSampler()
 else:
     # This is an example of how to load a sampler from your fork of the optunahub-registry.
     # Please remove repo_owner and ref arguments before submitting a pull request.

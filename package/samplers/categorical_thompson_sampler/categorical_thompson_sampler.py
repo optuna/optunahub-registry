@@ -13,7 +13,7 @@ import optuna
 logger = logging.getLogger(__name__)
 
 
-class ThompsonSampler(optuna.samplers.BaseSampler):
+class CategoricalThompsonSampler(optuna.samplers.BaseSampler):
     """
     This subclasses optuna.sampler.BaseSampler to add Thompson sampling for categorical variables.
     It defaults to a specified `base_sampler` for other variables.
