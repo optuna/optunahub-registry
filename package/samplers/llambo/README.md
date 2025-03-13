@@ -1,5 +1,5 @@
 ---
-author: [Jinglue Xu]
+author: [ Jinglue Xu, Tennison Liu, Nicolás Astorga, Nabeel Seedat, and Mihaela van der Schaar]
 title: LLAMBO (Large Language Models to Enhance Bayesian Optimization)
 description: This repository integrates Large Language Models (LLMs) with Bayesian Optimization, enabling enhanced surrogate modeling, zero-shot warmstarting, and more efficient candidate sampling in hyperparameter optimization and other black-box optimization tasks.
 tags: [sampler, LLM, Bayesian Optimization, generative, discriminative, dynamic search space]

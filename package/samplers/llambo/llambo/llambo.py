@@ -20,19 +20,12 @@ T = TypeVar("T")
 
 
 class LLAMBO:
-    """
-    Language Models for Bayesian Optimization (LLAMBO)
-
-    This class implements the LLAMBO algorithm, which combines language models
-    with Bayesian optimization for hyperparameter optimization.
-    """
-
     def __init__(
         self,
         task_context: Dict[str, Any],
         sm_mode: str,
         n_candidates: int = 10,
-        n_templates: int = 2,
+        num_prompt_variants: int = 2,
         n_gens: int = 10,
         alpha: float = 0.1,
         n_initial_samples: int = 5,
@@ -45,55 +38,74 @@ class LLAMBO:
         max_requests_per_minute: int = 100,
     ) -> None:
         """
-        Initialize LLAMBO optimizer.
+        Initialize the LLAMBO optimizer for hyperparameter tuning using large language models.
 
         Args:
-            task_context: Dictionary containing task-specific information
-            sm_mode: Surrogate model mode ("generative" or "discriminative")
-            n_candidates: Number of candidate points to generate
-            n_templates: Number of templates to use for prompting
-            n_gens: Number of generations/iterations
-            alpha: Exploration-exploitation trade-off parameter
-            n_initial_samples: Number of initial random samples
-            top_pct: Top percentage for generative mode
-            use_input_warping: Whether to use input warping
-            prompt_setting: Custom prompt setting
-            shuffle_features: Whether to shuffle features
-            key: API key for language model
-            model: Language model identifier
-            max_requests_per_minute: Maximum number of requests per minute
+            task_context (Dict[str, Any]): Dictionary containing context information for the task,
+                including hyperparameter constraints and an optional task description. It should also
+                include a "lower_is_better" key to indicate whether the optimization is a minimization
+                (True) or maximization (False) problem.
+            sm_mode (str): The surrogate model mode to use; typically "generative" for a generative
+                model or another value for a discriminative model.
+            n_candidates (int, optional): Total number of candidate configurations to generate.
+                These candidates will be evaluated by the acquisition function. Defaults to 10.
+            num_prompt_variants (int, optional): Number of distinct prompt variants (i.e., different
+                few-shot prompt templates) to be used. Each variant is sent as a separate inquiry to
+                the LLM to increase response diversity. Defaults to 2.
+            n_gens (int, optional): Number of generations (or suggestions) produced per inquiry.
+                This value is often used internally to divide n_candidates evenly across prompt variants.
+                Defaults to 10.
+            alpha (float, optional): Exploration-exploitation trade-off parameter used in the acquisition
+                function to adjust the target performance. Defaults to 0.1.
+            n_initial_samples (int, optional): Number of initial random configurations to sample before
+                the surrogate model is used for further sampling. Defaults to 5.
+            top_pct (Optional[float], optional): The top percentage threshold of configurations considered
+                as high-performing; if not provided, a default value of 0.2 is used.
+            use_input_warping (bool, optional): Flag to indicate whether numerical hyperparameters should be
+                transformed (warped) before optimization. Defaults to False.
+            prompt_setting (Optional[str], optional): Optional parameter to customize prompt details for
+                the LLM. Defaults to None.
+            shuffle_features (bool, optional): If True, randomizes the order of hyperparameter features in prompts
+                to reduce potential bias. Defaults to False.
+            key (str, optional): API key for accessing the LLM service.
+            model (str, optional): Identifier for the LLM model to be used.
+            max_requests_per_minute (int, optional): Maximum number of API requests allowed per minute.
+                Used to calculate inter-component delays. Defaults to 100.
+
+        This constructor initializes the LLAMBO framework by setting up observation tracking,
+        computing an inter-component delay based on the provided rate limit, and configuring the surrogate
+        model (either generative or discriminative) along with the acquisition function. It integrates
+        diverse prompt variants (via num_prompt_variants) to ensure robust and varied inquiries to the LLM.
         """
-        # Store initialization parameters
-        self.task_context = task_context
-        self.lower_is_better = task_context["lower_is_better"]
+        # Copy and update task context with the optimization direction.
+        self.task_context = dict(task_context)
+        self.task_context.setdefault("lower_is_better", True)  # default to minimization
+        self.lower_is_better = self.task_context["lower_is_better"]
+
         self.n_candidates = n_candidates
-        self.n_templates = n_templates
+        self.num_prompt_variants = num_prompt_variants
         self.n_gens = n_gens
         self.alpha = alpha
         self.n_initial_samples = n_initial_samples
         self.key = key
         self.model = model
         self.max_requests_per_minute = max_requests_per_minute
-        self.sm_mode = sm_mode  # Store the surrogate model mode
+        self.sm_mode = sm_mode
 
-        # Add a variable to track accumulated cost
+        # Initialize accumulated cost tracking
         self.accumulated_cost = 0.0
-
-        # Calculate delay between API calls based on rate limit
-        self.delay_seconds = 60.0 / max_requests_per_minute if max_requests_per_minute > 0 else 0
-        print(
-            f"Setting inter-component delay of {self.delay_seconds:.2f} seconds based on rate limit"
-        )
-
-        # Initialize state variables
+        # Initialize current trial counter
         self.current_trial = 0
-        self.start_time = None
 
-        # Initialize observation tracking with proper columns
+        # Delay between API calls based on rate limit.
+        self.delay_seconds = 60.0 / max_requests_per_minute if max_requests_per_minute > 0 else 0
+        print(f"Inter-component delay set to {self.delay_seconds:.2f} seconds.")
+
+        # Initialize observation tracking.
         self.observed_configs = pd.DataFrame()
         self.observed_fvals = pd.DataFrame(columns=["score", "generalization_score"])
 
-        # Initialize best values based on optimization direction
+        # Set initial best values.
         if self.lower_is_better:
             self.best_fval = float("inf")
             self.best_gen_fval = float("inf")
@@ -101,35 +113,35 @@ class LLAMBO:
             self.best_fval = -float("inf")
             self.best_gen_fval = -float("inf")
 
-        # Initialize components
         warping_transformer = None
         if use_input_warping:
-            warping_transformer = NumericalTransformer(task_context["hyperparameter_constraints"])
+            warping_transformer = NumericalTransformer(
+                self.task_context["hyperparameter_constraints"]
+            )
 
-        # Use a non-None default value for top_pct if it's None
         effective_top_pct = 0.2 if top_pct is None else top_pct
 
-        # Define surrogate model type for proper type annotation
+        # Declare the surrogate_model type once
         self.surrogate_model: Union[LLMGenerativeSM, LLMDiscriminativeSM]
 
-        # Initialize surrogate model based on mode
+        # Initialize the surrogate model based on the mode.
         if sm_mode == "generative":
             self.surrogate_model = LLMGenerativeSM(
-                task_context=task_context,
+                task_context=self.task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
-                top_pct=effective_top_pct,  # Fixed: Use non-None value
-                n_templates=n_templates,
+                top_pct=effective_top_pct,
+                num_prompt_variants=num_prompt_variants,
                 key=self.key,
                 model=self.model,
                 max_requests_per_minute=self.max_requests_per_minute,
             )
-        else:  # discriminative mode
+        else:
             self.surrogate_model = LLMDiscriminativeSM(
-                task_context=task_context,
+                task_context=self.task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
-                n_templates=n_templates,
+                num_prompt_variants=num_prompt_variants,
                 warping_transformer=warping_transformer,
                 prompt_setting=prompt_setting,
                 shuffle_features=shuffle_features,
@@ -138,18 +150,16 @@ class LLAMBO:
                 max_requests_per_minute=self.max_requests_per_minute,
             )
 
-        # Initialize acquisition function
+        # Initialize acquisition function similarly.
         self.acq_func = LLM_ACQ(
-            task_context=task_context,
+            task_context=self.task_context,
             n_candidates=n_candidates,
-            n_templates=n_templates,
+            num_prompt_variants=num_prompt_variants,
             lower_is_better=self.lower_is_better,
-            warping_transformer=warping_transformer,
-            prompt_setting=prompt_setting,
-            shuffle_features=shuffle_features,
             key=self.key,
             model=self.model,
             max_requests_per_minute=self.max_requests_per_minute,
+            shuffle_features=shuffle_features,
         )
 
     def _initialize(

@@ -83,6 +83,13 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             str, list[Any]
         ] = {}  # Will be populated in _initialize_llambo
 
+        # Initialize task_context with default values
+        self.task_context: dict[str, Any] = {
+            "custom_task_description": custom_task_description,
+            "lower_is_better": True,  # Default value, will be updated in sample_relative
+            "hyperparameter_constraints": {},  # Will be populated in _initialize_llambo
+        }
+
         # Initialize empty DataFrames instead of lists for thread-safety
         self.init_observed_configs = pd.DataFrame()
         # Initialize with the column structure required by LLAMBO
@@ -199,7 +206,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                     task_context,
                     self.sm_mode,
                     n_candidates=self.num_candidates,
-                    n_templates=self.n_templates,
+                    num_prompt_variants=self.n_templates,
                     n_gens=self.n_gens,
                     alpha=self.alpha,
                     n_initial_samples=self.n_initial_samples,
@@ -368,58 +375,66 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         if len(search_space) == 0:
             return {}
 
-        # Split search space into numerical and categorical parameters.
+            # Determine the optimization direction.
+        if study.direction is not None:
+            self.lower_is_better = study.direction == optuna.study.StudyDirection.MINIMIZE
+        else:
+            self.lower_is_better = study.directions[0] == optuna.study.StudyDirection.MINIMIZE
+
+            # Update task_context with direction info.
+        if not hasattr(self, "task_context") or self.task_context is None:
+            self.task_context = {}
+        self.task_context["lower_is_better"] = self.lower_is_better
+
+        # Split search space into numerical and categorical components.
         numerical_space, categorical_space = self._split_search_space(search_space)
 
-        # Sample categorical parameters using RandomSampler.
+        # Sample categorical parameters using the RandomSampler.
         categorical_params = {}
         for param_name, distribution in categorical_space.items():
             categorical_params[param_name] = self._random_sampler.sample_independent(
                 study, trial, param_name, distribution
             )
 
-        # If no numerical parameters exist, return only categorical parameters.
+        # If no numerical parameters exist, return only the categorical ones.
         if not numerical_space:
             return categorical_params
 
-        # Thread safety: ensure all required attributes are initialized
-        if not hasattr(self, "lower_is_better") or self.lower_is_better is None:
-            if study.direction is not None:
-                self.lower_is_better = study.direction == optuna.study.StudyDirection.MINIMIZE
-            else:
-                # If multi-objective, just use first direction
-                self.lower_is_better = study.directions[0] == optuna.study.StudyDirection.MINIMIZE
+        # --- NEW: Ensure initial configurations are generated ---
+        if not self.init_configs or len(self.init_configs) == 0:
+            try:
+                self.init_configs = self.generate_random_samples(
+                    numerical_space, self.n_initial_samples
+                )
+                print(f"Generated {len(self.init_configs)} initial configurations.")
+            except Exception as e:
+                print(f"Error generating initial configurations: {e}")
+                # Fall back to a single random sample if generation fails.
+                self.init_configs = [self.generate_random_samples(numerical_space, 1)[0]]
 
-        if not hasattr(self, "init_configs") or not self.init_configs:
-            self.init_configs = self.generate_random_samples(
-                numerical_space, self.n_initial_samples
-            )
-
-        # Always collect completed trials data - do this regardless of trial number
-        self._collect_initial_data(study)
-
-        # For initial trials, use the pre-generated random samples
+        # For trials within the initial phase, use pre-generated random samples.
         if trial.number < self.n_initial_samples:
-            # Safely get a configuration - handle out-of-bounds index
             config_idx = min(trial.number, len(self.init_configs) - 1)
             config = self.init_configs[config_idx]
             return {**config, **categorical_params}
 
-        # For trials after initial phase, handle LLAMBO initialization and usage
+        # Always collect completed trials data.
+        self._collect_initial_data(study)
 
-        # Step 1: Initialize LLAMBO if not done already
+        # For trials after the initial phase, ensure LLAMBO is initialized.
         if self.LLAMBO_instance is None:
-            self._initialize_llambo(numerical_space)
+            if not self._initialize_llambo(numerical_space):
+                print("LLAMBO initialization failed. Falling back to random sampling.")
+                return {
+                    **self.generate_random_samples(numerical_space, 1)[0],
+                    **categorical_params,
+                }
 
-        # Step 2: Initialize LLAMBO with data if we have enough trials and haven't done so
-        if (
-            not self._llambo_initialized
-            and self.LLAMBO_instance is not None
-            and self._min_trials_processed >= self.n_initial_samples
-        ):
-            self._initialize_llambo_with_data(numerical_space)
+        if not self._llambo_initialized and self._min_trials_processed >= self.n_initial_samples:
+            if not self._initialize_llambo_with_data(numerical_space):
+                print("LLAMBO data initialization failed; falling back to random sampling.")
 
-        # Step 3: Use LLAMBO to sample if it's initialized, otherwise use random sampling
+        # Use LLAMBO to sample numerical parameters.
         try:
             if not self._llambo_initialized or self.LLAMBO_instance is None:
                 numerical_params = self.generate_random_samples(numerical_space, 1)[0]
@@ -430,18 +445,15 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 else:
                     numerical_params = result
 
-            # Ensure integer values are actually integers
             for param_name, value in numerical_params.items():
                 if param_name in numerical_space and isinstance(
                     numerical_space[param_name], optuna.distributions.IntDistribution
                 ):
                     numerical_params[param_name] = int(value)
-
-        except Exception:
-            # If LLAMBO sampling fails, fall back to random sampling
+        except Exception as e:
+            print(f"Error during LLAMBO sampling, falling back to random sampling: {e}")
             numerical_params = self.generate_random_samples(numerical_space, 1)[0]
 
-        # Merge the numerical and categorical parameters.
         combined_params = {**numerical_params, **categorical_params}
         return combined_params
 
@@ -467,28 +479,37 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             # Update data collection first
             self._collect_initial_data(study)
 
-            # Try to initialize LLAMBO if needed and possible
+            # Try to initialize LLAMBO if needed
             if not self._llambo_initialized or self.LLAMBO_instance is None:
                 if self._min_trials_processed >= self.n_initial_samples:
                     # Re-create numerical_space
-                    numerical_space, _ = self._split_search_space(study.sampler._search_space)
+                    try:
+                        numerical_space, _ = self._split_search_space(study.sampler._search_space)
 
-                    if not self.LLAMBO_instance:
-                        self._initialize_llambo(numerical_space)
+                        if not self.LLAMBO_instance:
+                            if not self._initialize_llambo(numerical_space):
+                                print("Warning: LLAMBO initialization failed during after_trial.")
 
-                    if self.LLAMBO_instance and not self._llambo_initialized:
-                        self._initialize_llambo_with_data(numerical_space)
+                        if self.LLAMBO_instance and not self._llambo_initialized:
+                            if not self._initialize_llambo_with_data(numerical_space):
+                                print(
+                                    "Warning: LLAMBO data initialization failed during after_trial."
+                                )
 
-            # Update LLAMBO with trial result
+                    except Exception as e:
+                        print(f"Error in LLAMBO initialization during after_trial: {e}")
+
+            # Update LLAMBO with trial result if initialization is successful
             if self._llambo_initialized and self.LLAMBO_instance is not None:
                 # Filter trial.params to keep only numerical keys
                 filtered_params = {
                     k: v for k, v in trial.params.items() if k in self.hyperparameter_constraints
                 }
+
                 try:
                     self.LLAMBO_instance.update_history(filtered_params, values[0])
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Error updating LLAMBO history during after_trial: {e}")
 
     def generate_random_samples(
         self, search_space: dict[str, optuna.distributions.BaseDistribution], num_samples: int = 1

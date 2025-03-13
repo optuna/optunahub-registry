@@ -56,7 +56,7 @@ class LLMGenerativeSM:
         n_gens: int,
         lower_is_better: bool,
         top_pct: float,
-        n_templates: int = 1,
+        num_prompt_variants: int = 2,
         verbose: bool = False,
         key: str = "",
         model: str = "gpt-4o-mini",
@@ -70,7 +70,7 @@ class LLMGenerativeSM:
             n_gens: Number of generations to perform.
             lower_is_better: Whether lower objective values are better.
             top_pct: Top percentage of configurations to consider.
-            n_templates: Number of prompt templates to use.
+            num_prompt_variants: Number of prompt templates to use.
             verbose: Whether to print detailed information.
             key: OpenAI API key.
             model: Name of the OpenAI model to use.
@@ -80,7 +80,7 @@ class LLMGenerativeSM:
         self.n_gens = n_gens
         self.lower_is_better = lower_is_better
         self.top_pct = top_pct
-        self.n_templates = n_templates
+        self.num_prompt_variants = num_prompt_variants
         self.recalibrator = None
         self.OpenAI_instance = OpenAI_interface(key, model=model, debug=False)
         apply_rate_limit(self.OpenAI_instance, max_requests_per_minute=max_requests_per_minute)
@@ -328,7 +328,7 @@ class LLMGenerativeSM:
             candidate_configs,
             self.lower_is_better,
             self.top_pct,
-            n_prompts=self.n_templates,
+            n_prompts=self.num_prompt_variants,
         )
 
         print("*" * 100)
@@ -456,21 +456,41 @@ class LLMGenerativeSM:
             >>> asyncio.run(example_usage())
             True
         """
+        # Ensure inputs are in DataFrame format
         if not isinstance(observed_configs, pd.DataFrame):
             observed_configs = pd.DataFrame(observed_configs)
         if not isinstance(candidate_configs, pd.DataFrame):
             candidate_configs = pd.DataFrame(candidate_configs)
 
+        # Apply warping transformations if applicable
         observed_configs = self._warp_candidate_points(observed_configs)
         candidate_configs = self._warp_candidate_points(candidate_configs)
 
-        pred_probs, cost, time_taken = await self._evaluate_candidate_points(
-            observed_configs,
-            observed_fvals,
-            candidate_configs,
-        )
+        # Evaluate candidate points using the surrogate model
+        try:
+            pred_probs, cost, time_taken = await self._evaluate_candidate_points(
+                observed_configs,
+                observed_fvals,
+                candidate_configs,
+            )
+        except Exception as e:
+            print(f"Error in _evaluate_candidate_points: {e}")
+            pred_probs = np.full(len(candidate_configs), np.nan)  # Return NaNs if failure occurs
+            cost = 0.0
+            time_taken = 0.0
 
-        best_point_index = np.argmax(pred_probs)
+        # Ensure we do not return NaNs by falling back to random selection if needed
+        if np.isnan(pred_probs).all():
+            print("All predictions are NaN. Falling back to random selection.")
+            best_point_index = np.random.choice(len(candidate_configs))
+        else:
+            # Select the best point based on the optimization direction
+            if self.lower_is_better:
+                best_point_index = np.nanargmin(pred_probs)  # Choose the lowest predicted value
+            else:
+                best_point_index = np.nanargmax(pred_probs)  # Choose the highest predicted value
+
+        # Unwarp the candidate points before returning
         candidate_configs = self._unwarp_candidate_points(candidate_configs)
         best_point = candidate_configs.iloc[[best_point_index], :]
 

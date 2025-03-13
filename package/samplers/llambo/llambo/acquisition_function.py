@@ -24,7 +24,7 @@ class LLM_ACQ:
     Args:
         task_context (dict[str, Any]): Contextual information about the optimization task.
         n_candidates (int): Number of candidate configurations to generate.
-        n_templates (int): Number of prompt templates to use for generating candidates.
+        num_prompt_variants (int): Number of distinct prompt variants.
         lower_is_better (bool): Whether lower values of the objective function are better.
         jitter (bool, optional): Whether to add jitter to the desired performance target.
             Defaults to False.
@@ -41,7 +41,7 @@ class LLM_ACQ:
     Attributes:
         task_context (dict[str, Any]): Contextual information about the optimization task.
         n_candidates (int): Number of candidate configurations to generate.
-        n_templates (int): Number of prompt templates to use.
+        num_prompt_variants (int): Number of distinct prompt variants.
         n_gens (int): Number of generations per template.
         lower_is_better (bool): Whether lower values are better.
         apply_jitter (bool): Whether jitter is applied.
@@ -61,7 +61,7 @@ class LLM_ACQ:
         >>> acq = LLM_ACQ(
         ...     task_context=task_context,
         ...     n_candidates=10,
-        ...     n_templates=2,
+        ...     num_prompt_variants=2,
         ...     lower_is_better=True
         ... )
     """
@@ -70,7 +70,7 @@ class LLM_ACQ:
         self,
         task_context: dict[str, Any],
         n_candidates: int,
-        n_templates: int,
+        num_prompt_variants: int,
         lower_is_better: bool,
         jitter: bool = False,
         warping_transformer: Optional[Any] = None,
@@ -82,8 +82,8 @@ class LLM_ACQ:
     ) -> None:
         self.task_context = task_context
         self.n_candidates = n_candidates
-        self.n_templates = n_templates
-        self.n_gens = int(n_candidates / n_templates)
+        self.num_prompt_variants = num_prompt_variants
+        self.n_gens = int(n_candidates / num_prompt_variants)
         self.lower_is_better = lower_is_better
         self.apply_jitter = jitter
         self.OpenAI_instance = OpenAI_interface(api_key=key, model=model, debug=True)
@@ -111,7 +111,7 @@ class LLM_ACQ:
             float: The jittered performance target.
 
         Example:
-            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, num_prompt_variants=2, lower_is_better=True)
             >>> acq.observed_best = 0.8
             >>> acq.observed_worst = 0.9
             >>> acq.alpha = 0.1
@@ -145,7 +145,7 @@ class LLM_ACQ:
             int: The number of decimal places.
 
         Example:
-            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, num_prompt_variants=2, lower_is_better=True)
             >>> acq._count_decimal_places(123.456)
             3
             >>> acq._count_decimal_places(123.0)
@@ -512,7 +512,7 @@ class LLM_ACQ:
 
         tasks = [asyncio.create_task(c) for c in coroutines]
 
-        assert len(tasks) == int(self.n_templates)
+        assert len(tasks) == int(self.num_prompt_variants)
 
         results: list[Optional[tuple[Any, float]]] = [None] * len(coroutines)
         llm_response = await asyncio.gather(*tasks)
@@ -533,7 +533,7 @@ class LLM_ACQ:
             dict[str, float]: A dictionary containing the parsed hyperparameter configuration.
 
         Example:
-            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, n_templates=2, lower_is_better=True)
+            >>> acq = LLM_ACQ(task_context={}, n_candidates=10, num_prompt_variants=2, lower_is_better=True)
             >>> acq._convert_to_json("x1: 1.0, x2: 2.0")
             {'x1': 1.0, 'x2': 2.0}
         """
@@ -634,66 +634,72 @@ class LLM_ACQ:
     def _adjust_alpha_and_desired_fval(
         self, observed_fvals: pd.DataFrame, alpha: float
     ) -> tuple[float, float]:
-        """Helper method to adjust alpha and compute desired_fval."""
-        alpha_range = [0.1, 1e-2, 1e-3, -1e-3, -1e-2, -0.1]
+        """
+        Adjust alpha and compute a desired target value based on optimization direction.
+
+        Args:
+            observed_fvals: DataFrame containing observed performance values.
+            alpha: Exploration-exploitation trade-off parameter (should be positive).
+
+        Returns:
+            tuple[float, float]: (Adjusted alpha value, desired target function value)
+        """
+        # Ensure alpha is positive for consistent interpretation.
+        # (If a negative value is passed, take its absolute.)
+        alpha = abs(alpha)
+        alpha_range = [0.1, 1e-2, 1e-3, 1e-4, 1e-5]
 
         if self.lower_is_better:
+            # Minimization: lower values are better.
             self.observed_best = np.min(observed_fvals.values)
             self.observed_worst = np.max(observed_fvals.values)
             range_val = self.observed_worst - self.observed_best
-            desired_fval = self.observed_best - alpha * range_val
 
+            desired_fval = self.observed_best - alpha * range_val
             iteration = 0
             max_iterations = 10
-
             while desired_fval <= 0.00001 and iteration < max_iterations:
                 alpha_updated = False
-
-                for alpha_ in alpha_range:
-                    if alpha_ < alpha:
-                        alpha = alpha_
+                for alpha_candidate in alpha_range:
+                    if alpha_candidate < alpha:
+                        alpha = alpha_candidate
                         desired_fval = self.observed_best - alpha * range_val
                         alpha_updated = True
                         break
-
                 if not alpha_updated:
+                    # If we can't reduce alpha further, use a fallback value.
+                    desired_fval = max(0.00001, self.observed_best * 0.9)
                     break
-
                 iteration += 1
 
             print(
-                f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], "
-                f"desired fval: {desired_fval:.6f}"
+                f"[Minimization] Desired fval: {desired_fval:.6f} (best: {self.observed_best:.6f}, range: {range_val:.6f}, adjusted alpha: {alpha})"
             )
-
         else:
+            # Maximization: higher values are better.
             self.observed_best = np.max(observed_fvals.values)
             self.observed_worst = np.min(observed_fvals.values)
             range_val = self.observed_best - self.observed_worst
-            desired_fval = self.observed_best + alpha * range_val
 
+            desired_fval = self.observed_best + alpha * range_val
             iteration = 0
             max_iterations = 10
-
             while desired_fval >= 0.9999 and iteration < max_iterations:
                 alpha_updated = False
-
-                for alpha_ in alpha_range:
-                    if alpha_ < alpha:
-                        alpha = alpha_
+                for alpha_candidate in alpha_range:
+                    if alpha_candidate < alpha:
+                        alpha = alpha_candidate
                         desired_fval = self.observed_best + alpha * range_val
                         alpha_updated = True
                         break
-
                 if not alpha_updated:
-                    print("[WARNING] No smaller alpha found in alpha_range! Breaking loop")
+                    print("[WARNING] Cannot adjust alpha further for maximization target")
+                    desired_fval = min(0.9999, self.observed_best * 1.05)
                     break
-
                 iteration += 1
 
             print(
-                f"Adjusted alpha: {alpha} | [original alpha: {self.alpha}], "
-                f"desired fval: {desired_fval:.6f}"
+                f"[Maximization] Desired fval: {desired_fval:.6f} (best: {self.observed_best:.6f}, range: {range_val:.6f}, adjusted alpha: {alpha})"
             )
 
         return alpha, desired_fval
@@ -703,34 +709,22 @@ class LLM_ACQ:
         observed_configs: pd.DataFrame,
         observed_fvals: pd.DataFrame,
         use_feature_semantics: bool = True,
-        use_context: str = "full_context",
-        alpha: float = -0.2,
+        alpha: float = 0.1,
     ) -> tuple[pd.DataFrame, float, float]:
-        """Generate candidate points for the acquisition function.
-
-        Args:
-            observed_configs (pd.DataFrame): Observed hyperparameter configurations.
-            observed_fvals (pd.DataFrame): Observed performance values.
-            use_feature_semantics (bool, optional): Whether to use feature names. Defaults to True.
-            use_context (str, optional): Level of context to include. Defaults to "full_context".
-            alpha (float, optional): Controls target performance relative to best observed.
-                Defaults to -0.2.
-
-        Returns:
-            tuple[pd.DataFrame, float, float]: A tuple containing the filtered candidate points,
-                total cost, and time taken.
-        """
-        assert -1 <= alpha <= 1, "alpha must be between -1 and 1"
-        if alpha == 0:
-            alpha = -1e-3
-        self.alpha = alpha
+        # Validate and store alpha.
+        # Instead of forcing alpha to be between -1 and 1 and then taking abs(),
+        # we assume alpha is a small positive number that represents the exploration/exploitation trade-off.
+        if alpha <= 0:
+            alpha = 1e-3
+        self.alpha = alpha  # Keep alpha as a positive number
 
         start_time = time.time()
 
-        # Use helper method to compute desired_fval
-        alpha, desired_fval = self._adjust_alpha_and_desired_fval(observed_fvals, alpha)
+        # Adjust the target based on the optimization direction.
+        alpha_adjusted, desired_fval = self._adjust_alpha_and_desired_fval(observed_fvals, alpha)
         self.desired_fval = desired_fval
 
+        # (Optional) Warp observed_configs if using a transformer.
         if self.warping_transformer is not None:
             observed_configs = self.warping_transformer.warp(observed_configs)
 
@@ -738,77 +732,57 @@ class LLM_ACQ:
             observed_configs,
             observed_fvals,
             desired_fval,
-            n_prompts=self.n_templates,
+            n_prompts=self.num_prompt_variants,
             use_feature_semantics=use_feature_semantics,
             shuffle_features=self.shuffle_features,
         )
 
         print("=" * 100)
         print("EXAMPLE ACQUISITION PROMPT")
-        print(f"Length of prompt templates: {len(prompt_templates)}")
-        print(f"Length of query templates: {len(query_templates)}")
         print(prompt_templates[0].format(A=query_templates[0][0]["A"]))
         print("=" * 100)
 
-        number_candidate_points = 0
-        filtered_candidate_points = pd.DataFrame()
-        tot_cost = 0.0  # Initialize total cost
-
+        tot_cost = 0.0
         retry = 0
-        while number_candidate_points < 5:
+        filtered_candidate_points = pd.DataFrame()
+
+        while filtered_candidate_points.shape[0] < 5:
             llm_responses = asyncio.run(
                 self._async_generate_concurrently(prompt_templates, query_templates)
             )
-
             candidate_points = []
-
             for response in llm_responses:
                 if response is None:
                     continue
-
-                # Unpack the tuple properly
                 response_content, cost = response
                 tot_cost += cost
-
                 try:
+                    # Expecting the response in format: "## value ##"
                     response_content = response_content.split("##")[1].strip()
                     candidate_points.append(self._convert_to_json(response_content))
-                except Exception:
-                    print(response_content)
+                except Exception as e:
+                    print(f"Error parsing response: {e} | Response was: {response_content}")
                     continue
 
-            proposed_points = self._filter_candidate_points(
-                observed_configs.to_dict(orient="records"), candidate_points
+            # Relax filtering: use a tolerance when comparing rounded candidate points.
+            filtered_candidate_points = self._filter_candidate_points(
+                observed_configs.to_dict(orient="records"), candidate_points, precision=6
             )
-
-            # Check if proposed_points is not empty before concatenating
-            if not proposed_points.empty:
-                filtered_candidate_points = pd.concat(
-                    [filtered_candidate_points, proposed_points], ignore_index=True
-                )
-
-            number_candidate_points = filtered_candidate_points.shape[0]
-
             print(
-                f"Attempt: {retry}, number of proposed candidate points: {len(candidate_points)}, ",
-                f"number of accepted candidate points: {filtered_candidate_points.shape[0]}",
+                f"Attempt {retry}: {len(candidate_points)} candidates proposed, {filtered_candidate_points.shape[0]} accepted."
             )
-
             retry += 1
             if retry > 10:
-                print(f"Desired fval: {desired_fval:.6f}")
-                print(f"Number of proposed candidate points: {len(candidate_points)}")
-                print(f"Number of accepted candidate points: {filtered_candidate_points.shape[0]}")
-                if len(candidate_points) > 5:
+                if len(candidate_points) >= 5:
                     filtered_candidate_points = pd.DataFrame(candidate_points)
                     break
                 else:
-                    raise RuntimeError("LLM failed to generate candidate points after 10 retries")
+                    raise RuntimeError(
+                        "LLM failed to generate sufficient candidate points after 10 retries"
+                    )
 
         if self.warping_transformer is not None:
             filtered_candidate_points = self.warping_transformer.unwarp(filtered_candidate_points)
 
-        end_time = time.time()
-        time_taken = end_time - start_time
-
+        time_taken = time.time() - start_time
         return filtered_candidate_points, tot_cost, time_taken

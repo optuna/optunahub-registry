@@ -60,7 +60,7 @@ class LLMDiscriminativeSM:
         n_gens: int,
         lower_is_better: bool,
         bootstrapping: bool = False,
-        n_templates: int = 1,
+        num_prompt_variants: int = 2,
         use_recalibration: bool = False,
         warping_transformer: Optional[Any] = None,
         verbose: bool = False,
@@ -78,7 +78,7 @@ class LLMDiscriminativeSM:
             n_gens: Number of generations per query.
             lower_is_better: Whether lower values are better.
             bootstrapping: Whether to use bootstrapping.
-            n_templates: Number of prompt templates.
+            num_prompt_variants: Number of prompt templates to use.
             use_recalibration: Whether to use recalibration.
             warping_transformer: Transformer for feature warping.
             verbose: Whether to print verbose output.
@@ -95,7 +95,7 @@ class LLMDiscriminativeSM:
         self.n_gens = n_gens
         self.lower_is_better = lower_is_better
         self.bootstrapping = bootstrapping
-        self.n_templates = n_templates
+        self.num_prompt_variants = num_prompt_variants
 
         assert not (
             bootstrapping and use_recalibration
@@ -340,7 +340,7 @@ class LLMDiscriminativeSM:
             observed_configs,
             observed_fvals,
             candidate_configs,
-            n_prompts=self.n_templates,
+            n_prompts=self.num_prompt_variants,
             bootstrapping=self.bootstrapping,
             use_feature_semantics=use_feature_semantics,
             shuffle_features=self.shuffle_features,
