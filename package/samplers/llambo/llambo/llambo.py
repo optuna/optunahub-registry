@@ -298,7 +298,11 @@ class LLAMBO:
         # Get candidate points using acquisition function
         # The acquisition function might return 3 or 4 values, so we need to handle this properly
         acquisition_result = self.acq_func.get_candidate_points(
-            self.observed_configs, self.observed_fvals[["score"]], alpha=self.alpha
+            self.observed_configs,
+            self.observed_fvals[["score"]],
+            alpha=self.alpha,
+            current_trial=self.current_trial,
+            n_initial_samples=self.n_initial_samples,
         )
 
         # Handle the case where get_candidate_points returns 3 or 4 values

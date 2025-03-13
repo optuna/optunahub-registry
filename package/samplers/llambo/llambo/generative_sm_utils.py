@@ -131,39 +131,27 @@ def gen_prompt_tempates(
     n_prompts: int = 1,
 ) -> tuple[list[FewShotPromptTemplate], list[dict[str, str]]]:
     """
-    Generate prompt templates for the few-shot learning task.
+    Generate prompt templates for the few-shot learning task for the generative surrogate model.
 
     Args:
-        task_context (dict): Context information about the optimization task.
+        task_context (dict): Context information about the optimization task, possibly including "n_initial_samples" and "current_trial".
         observed_configs (pd.DataFrame): Previously observed configurations.
-        observed_fvals (pd.DataFrame): Observed function values.
+        observed_fvals (pd.DataFrame): Observed performance values.
         candidate_configs (pd.DataFrame): Candidate configurations to evaluate.
         lower_is_better (bool): Whether lower values indicate better performance.
         top_pct (float): Percentage threshold for top performers.
         n_prompts (int): Number of prompt templates to generate.
 
     Returns:
-        tuple[list[FewShotPromptTemplate], list[dict[str, str]]]: Tuple containing:
-            - List of prompt templates
-            - List of query examples
-
-    Example:
-        >>> context = {
-        ...     "hyperparameter_constraints": {"lr": ["float", "linear", [0.001, 0.1]]}
-        ... }
-        >>> observed = pd.DataFrame({"lr": [0.01, 0.05]})
-        >>> fvals = pd.DataFrame({"value": [0.8, 0.9]})
-        >>> candidates = pd.DataFrame({"lr": [0.03]})
-        >>> templates, queries = gen_prompt_tempates(
-        ...     context, observed, fvals, candidates, False, 0.5
-        ... )
+        Tuple of:
+          - A list of FewShotPromptTemplate objects.
+          - A list of query examples (dicts).
     """
-    # Get custom task description if available
     custom_task_description = task_context.get("custom_task_description")
     all_prompt_templates: list[FewShotPromptTemplate] = []
 
     for i in range(n_prompts):
-        # Prepare few-shot examples using observed configurations and values
+        # Prepare few-shot examples using observed configurations and values.
         few_shot_examples = prepare_configurations(
             task_context["hyperparameter_constraints"],
             lower_is_better,
@@ -173,7 +161,6 @@ def gen_prompt_tempates(
             seed=i,
         )
 
-        # Define the example template format for each configuration-performance pair
         example_template = """
 Hyperparameter configuration: {Q}
 Classification: {A}"""
@@ -183,17 +170,12 @@ Classification: {A}"""
             template=example_template,
         )
 
-        # Build the prefix for the prompt template
         prefix = (
             "The following are examples of hyperparameter configurations "
             "for a black-box optimization task. "
         )
         if custom_task_description is not None:
-            prefix += "Below is a description of the task:\n"
-            prefix += custom_task_description
-            prefix += "\n"
-
-        # Add information about the classification scheme
+            prefix += "Below is a description of the task:\n" + custom_task_description + "\n"
         prefix += (
             f"The performance classification is 1 if the configuration is in the "
             f"best-performing {top_pct * 100}% of all configurations and 0 otherwise. "
@@ -203,12 +185,23 @@ Classification: {A}"""
             "classification in the format ## performance classification ##."
         )
 
-        # Define the suffix for querying new configurations
+        # Add adaptive random sampling warning based on task_context values.
+        n_initial_samples = task_context.get("n_initial_samples", 0)
+        if n_initial_samples > 0 and len(observed_configs) > 0:
+            fraction_random = n_initial_samples / len(observed_configs)
+            if fraction_random == 1.0:
+                warning = "\nNote: All configurations above are based on uniform random sampling. Avoid following this random pattern."
+            elif fraction_random >= 0.5:
+                percent = int(fraction_random * 100)
+                warning = f"\nNote: Approximately {percent}% of the configurations above are based on uniform random sampling. Avoid following this pattern."
+            else:
+                warning = ""
+            prefix += warning
+
         suffix = """
 Hyperparameter configuration: {Q}
 Classification: """
 
-        # Create the few-shot prompt template
         few_shot_prompt = FewShotPromptTemplate(
             examples=few_shot_examples,
             example_prompt=example_prompt,
@@ -219,7 +212,6 @@ Classification: """
         )
         all_prompt_templates.append(few_shot_prompt)
 
-    # Prepare query examples using candidate configurations
     query_examples = prepare_configurations(
         task_context["hyperparameter_constraints"],
         lower_is_better,

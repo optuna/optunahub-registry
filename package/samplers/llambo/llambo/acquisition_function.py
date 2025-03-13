@@ -288,6 +288,8 @@ class LLM_ACQ:
         n_prompts: int = 1,
         use_feature_semantics: bool = True,
         shuffle_features: bool = False,
+        current_trial: int = 0,  # New parameter
+        n_initial_samples: int = 0,  # New parameter
     ) -> tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]:
         """
         Generate prompt templates for the acquisition function.
@@ -319,6 +321,10 @@ class LLM_ACQ:
                 Whether to include feature names in the prompts for better interpretability. Defaults to `True`.
             shuffle_features (bool, optional):
                 Whether to shuffle the order of hyperparameters in the generated prompts. Defaults to `False`.
+            current_trial (int, optional):
+                The current trial number. Defaults to 0.
+            n_initial_samples (int, optional):
+                Number of initial random samples. Defaults to 0.
 
         ### Returns:
             tuple[list[FewShotPromptTemplate], list[list[dict[str, str]]]]:
@@ -444,9 +450,26 @@ class LLM_ACQ:
                 "in the format ## configuration ##.\n"
             )
 
-            suffix = """
-        Performance: {A}
-        Hyperparameter configuration:"""
+            # Determine the warning about random sampling based on current trial and n_initial_samples
+            warning = ""
+            suffix_ending = "Hyperparameter configuration:"
+
+            if n_initial_samples > 0 and len(observed_configs) > 0:
+                # Assume that exactly n_initial_samples configurations (e.g., the first ones) were generated randomly.
+                fraction_random = n_initial_samples / len(observed_configs)
+                if fraction_random == 1.0:
+                    warning = "\nNote: All configurations above are based on uniform random sampling. Avoid following this uniformly random pattern."
+                elif fraction_random >= 0.5:
+                    percent = int(fraction_random * 100)
+                    warning = f"\nNote: Approximately {percent}% of the configurations above are based on uniform random sampling. Avoid following this uniformly random pattern."
+                else:
+                    warning = ""
+                suffix_ending = "Hyperparameter configuration (with careful reasoning based on the description of the task instead of following the uniformly random sampling pattern):"
+
+            suffix = f"""
+        {warning}
+        Performance: {{A}}
+        {suffix_ending}"""
 
             few_shot_prompt = FewShotPromptTemplate(
                 examples=few_shot_examples,
@@ -710,7 +733,26 @@ class LLM_ACQ:
         observed_fvals: pd.DataFrame,
         use_feature_semantics: bool = True,
         alpha: float = 0.1,
+        current_trial: int = 0,  # New parameter
+        n_initial_samples: int = 0,  # New parameter
     ) -> tuple[pd.DataFrame, float, float]:
+        """
+        Get candidate points for the next evaluation.
+
+        Args:
+            observed_configs: DataFrame containing observed configurations.
+            observed_fvals: DataFrame containing observed performance values.
+            use_feature_semantics: Whether to use feature semantics.
+            alpha: Exploration-exploitation trade-off parameter.
+            current_trial: Current trial number.
+            n_initial_samples: Number of initial random samples.
+
+        Returns:
+            Tuple containing:
+                - DataFrame of candidate points
+                - Cost of generating candidates
+                - Time taken
+        """
         # Validate and store alpha.
         # Instead of forcing alpha to be between -1 and 1 and then taking abs(),
         # we assume alpha is a small positive number that represents the exploration/exploitation trade-off.
@@ -735,6 +777,8 @@ class LLM_ACQ:
             n_prompts=self.num_prompt_variants,
             use_feature_semantics=use_feature_semantics,
             shuffle_features=self.shuffle_features,
+            current_trial=current_trial,
+            n_initial_samples=n_initial_samples,
         )
 
         print("=" * 100)

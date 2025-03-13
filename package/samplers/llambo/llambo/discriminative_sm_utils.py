@@ -150,10 +150,10 @@ def gen_prompt_templates(
     apply_warping: bool = False,
 ) -> tuple[list[FewShotPromptTemplate], list[dict[str, str]]]:
     """
-    Generate prompt templates for the few-shot learning task.
+    Generate prompt templates for the few-shot learning task for the discriminative surrogate model.
 
     Args:
-        task_context (dict): Context information for the task.
+        task_context (dict): Context information for the task, which may include keys "n_initial_samples" and "current_trial".
         observed_configs (pd.DataFrame): Observed hyperparameter configurations.
         observed_fvals (pd.DataFrame): Observed performance values.
         candidate_configs (pd.DataFrame): Candidate configurations to evaluate.
@@ -164,17 +164,9 @@ def gen_prompt_templates(
         apply_warping (bool): Whether to apply warping to numeric values.
 
     Returns:
-        tuple[list[FewShotPromptTemplate], list[dict[str, str]]]: Generated prompt
-            templates and query examples.
-
-    Example:
-        >>> context = {"hyperparameter_constraints": {...}}
-        >>> configs = pd.DataFrame(...)
-        >>> fvals = pd.DataFrame(...)
-        >>> candidates = pd.DataFrame(...)
-        >>> templates, examples = gen_prompt_templates(
-        ...     context, configs, fvals, candidates
-        ... )
+        Tuple of:
+          - A list of FewShotPromptTemplate objects.
+          - A list of query examples (dicts).
     """
     custom_task_description = task_context.get("custom_task_description")
     all_prompt_templates: list[FewShotPromptTemplate] = []
@@ -205,11 +197,24 @@ Performance: {A}"""
             "black-box optimization task. "
         )
         if custom_task_description is not None:
-            prefix += "Below is a description of the task:\n" f"{custom_task_description}\n"
+            prefix += "Below is a description of the task:\n" + custom_task_description + "\n"
         prefix += (
             "Your response should only contain the predicted performance in the "
             "format ## performance ##."
         )
+
+        # Add adaptive random sampling warning based on task_context values.
+        n_initial_samples = task_context.get("n_initial_samples", 0)
+        if n_initial_samples > 0 and len(observed_configs) > 0:
+            fraction_random = n_initial_samples / len(observed_configs)
+            if fraction_random == 1.0:
+                warning = "\nNote: All configurations above are based on uniform random sampling. Avoid following this random pattern."
+            elif fraction_random >= 0.5:
+                percent = int(fraction_random * 100)
+                warning = f"\nNote: Approximately {percent}% of the configurations above are based on uniform random sampling. Avoid following this pattern."
+            else:
+                warning = ""
+            prefix += warning
 
         suffix = """
 Hyperparameter configuration: {Q}
