@@ -61,6 +61,9 @@ This implementation of LLAMBO differs from the [original implementation](https:/
 
 ______________________________________________________________________
 
+## 
+______________________________________________________________________
+
 ## APIs
 
 ______________________________________________________________________
@@ -97,7 +100,7 @@ class LLAMBOSampler(SimpleBaseSampler):
 #### **Parameters**
 
 - **`custom_task_description`** *(str, optional)*\
-  A user-defined description of the optimization task, used for prompt generation. This can be a concise one-sentence summary or a detailed, multi-paragraph explanation.
+  A user-defined description of the optimization task, used for prompt generation. This can be a concise one-sentence summary or a detailed, multi-paragraph explanation.  However, it's best to keep descriptions concise, especially when using a lightweight LLM.
 
   For example, the prompt can be:
 
