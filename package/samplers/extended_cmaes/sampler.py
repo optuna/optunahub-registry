@@ -35,7 +35,7 @@ _EPS = 1e-10
 # The value of system_attrs must be less than 2046 characters on RDBStorage.
 _SYSTEM_ATTR_MAX_LENGTH = 2045
 
-class CmaEsWithOptions(CmaEsSampler):
+class ExtendedCmaEsSampler(CmaEsSampler):
     def __init__(
         self,
         x0: dict[str, Any] | None = None,
