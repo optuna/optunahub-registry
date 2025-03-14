@@ -60,7 +60,7 @@ model = "gpt-4o-mini"
 max_requests_per_minute = 60
 
 
-registry_root = "/home/j/PycharmProjects/optunahub-registry/package"
+registry_root = "../../../package"
 
 
 def The_Sampler(seed=None):
