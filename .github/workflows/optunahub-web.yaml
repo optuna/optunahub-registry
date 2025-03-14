@@ -19,9 +19,9 @@ jobs:
         with:
           path: optunahub-web
       - name: Check
-        run: |
-          ls
-          make build
         working-directory: ./optunahub-web
+        run: |
+          pwd
+          make build
       - name: Clean up
         run: rm -rf optunahub-web
