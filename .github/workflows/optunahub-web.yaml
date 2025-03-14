@@ -20,7 +20,7 @@ jobs:
           path: optunahub-web
       - name: Check
         run: |
-          cat Makefile
+          ls
           make build
         working-directory: ./optunahub-web
       - name: Clean up
