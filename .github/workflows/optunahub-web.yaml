@@ -1,0 +1,25 @@
+name: check optunahub-web
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Clone optunahub-web
+        run: git clone https://github.com/optuna/optunahub-web.git
+      - name: Clone optuna-registory under optunahub-web
+        uses: actions/checkout@v4
+        with:
+          path: optunahub-web
+      - name: Check
+        run: make build
+        working-directory: ./optunahub-web
+      - name: Clean up
+        run: rm -rf optunahub-web
