@@ -18,10 +18,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: optunahub-web
+      - run: tree -L 2
       - name: Check
         working-directory: ./optunahub-web
         run: |
-          pwd
           make build
       - name: Clean up
         run: rm -rf optunahub-web
