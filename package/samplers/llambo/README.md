@@ -63,7 +63,6 @@ This implementation of LLAMBO differs from the [original implementation](https:/
 
    - An additional warning is adaptively embedded in the prompt to prevent the LLM from mimicking uniform random sampling patterns from few-shot examples based on past results from random sampling.
 
-    
 ______________________________________________________________________
 
 ## APIs
