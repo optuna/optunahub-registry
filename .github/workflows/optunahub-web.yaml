@@ -19,7 +19,9 @@ jobs:
         with:
           path: optunahub-web
       - name: Check
-        run: make build
+        run: |
+          cat Makefile
+          make build
         working-directory: ./optunahub-web
       - name: Clean up
         run: rm -rf optunahub-web
