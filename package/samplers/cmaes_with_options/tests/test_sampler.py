@@ -26,6 +26,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import cmaes_with_options
+from cmaes_with_options import CmaEsWithOptions
 
 
 CmaEsWithOptions = optunahub.load_local_module(

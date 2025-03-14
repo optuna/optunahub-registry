@@ -30,7 +30,7 @@ from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
 # cmaes = _LazyImport("cmaes")
-CmaClass = Union[cmaes.CMA, cmaes.SepCMA, cmaes.CMAwM]
+# CmaClass = Union[cmaes.CMA, cmaes.SepCMA, cmaes.CMAwM]
 
 _logger = logging.get_logger(__name__)
 
@@ -134,30 +134,30 @@ class CmaEsWithOptions(CmaEsSampler):
             )
         print("after")
 
-        # if self._with_margin:
-        #     steps = np.empty(len(trans._search_space), dtype=float)
-        #     for i, dist in enumerate(trans._search_space.values()):
-        #         assert isinstance(dist, (IntDistribution, FloatDistribution))
-        #         # Set step 0.0 for continuous search space.
-        #         if dist.step is None or dist.log:
-        #             steps[i] = 0.0
-        #         elif dist.low == dist.high:
-        #             steps[i] = 1.0
-        #         else:
-        #             steps[i] = dist.step / (dist.high - dist.low)
+        if self._with_margin:
+            steps = np.empty(len(trans._search_space), dtype=float)
+            for i, dist in enumerate(trans._search_space.values()):
+                assert isinstance(dist, (IntDistribution, FloatDistribution))
+                # Set step 0.0 for continuous search space.
+                if dist.step is None or dist.log:
+                    steps[i] = 0.0
+                elif dist.low == dist.high:
+                    steps[i] = 1.0
+                else:
+                    steps[i] = dist.step / (dist.high - dist.low)
             
-        #     print("cwawm")
+            print("cwawm")
 
-        #     return cmaes.CMAwM(
-        #         mean=mean,
-        #         sigma=sigma0,
-        #         bounds=trans.bounds,
-        #         steps=steps,
-        #         cov=cov,
-        #         seed=self._cma_rng.rng.randint(1, 2**31 - 2),
-        #         n_max_resampling=10 * n_dimension,
-        #         population_size=population_size,
-        #     )
+            return cmaes.CMAwM(
+                mean=mean,
+                sigma=sigma0,
+                bounds=trans.bounds,
+                steps=steps,
+                cov=cov,
+                seed=self._cma_rng.rng.randint(1, 2**31 - 2),
+                n_max_resampling=10 * n_dimension,
+                population_size=population_size,
+            )
         
         return cmaes.CMA(
             mean=mean,
