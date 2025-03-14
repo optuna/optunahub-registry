@@ -29,9 +29,6 @@ from optuna.study._study_direction import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
-# cmaes = _LazyImport("cmaes")
-# CmaClass = Union[cmaes.CMA, cmaes.SepCMA, cmaes.CMAwM]
-
 _logger = logging.get_logger(__name__)
 
 _EPS = 1e-10
@@ -95,7 +92,6 @@ class CmaEsWithOptions(CmaEsSampler):
             restart_strategy=restart_strategy,
             popsize=popsize,
             inc_popsize=inc_popsize,
-            # use_separable_cma=use_separable_cma,
             with_margin=with_margin,
             lr_adapt=lr_adapt,
             source_trials=source_trials,
@@ -116,13 +112,10 @@ class CmaEsWithOptions(CmaEsSampler):
         population_size: int | None = None,
         randomize_start_point: bool = False,
     ) -> "CmaClass":
-        print("call init_optimizer in CmaEsWithOptions")
-        print("here")
-        mean, sigma0, cov, bounds, n_dimension, population_size = self._get_cma_params(
+        mean, sigma0, cov, bounds, n_dimension, population_size = self._get_cmaes_params(
             trans, direction, population_size, randomize_start_point
         )
 
-        print("here")
         if self._use_separable_cma:
             return cmaes.SepCMA(
                 mean=mean,
@@ -132,7 +125,6 @@ class CmaEsWithOptions(CmaEsSampler):
                 n_max_resampling=10 * n_dimension,
                 population_size=population_size,
             )
-        print("after")
 
         if self._with_margin:
             steps = np.empty(len(trans._search_space), dtype=float)
@@ -146,8 +138,6 @@ class CmaEsWithOptions(CmaEsSampler):
                 else:
                     steps[i] = dist.step / (dist.high - dist.low)
             
-            print("cwawm")
-
             return cmaes.CMAwM(
                 mean=mean,
                 sigma=sigma0,
@@ -169,93 +159,3 @@ class CmaEsWithOptions(CmaEsSampler):
             population_size=population_size,
             lr_adapt=self._lr_adapt,
         )
-
-        # lower_bounds = trans.bounds[:, 0]
-        # upper_bounds = trans.bounds[:, 1]
-        # n_dimension = len(trans.bounds)
-
-        # if self._source_trials is None:
-        #     if randomize_start_point:
-        #         mean = lower_bounds + (upper_bounds - lower_bounds) * self._cma_rng.rng.rand(
-        #             n_dimension
-        #         )
-        #     elif self._x0 is None:
-        #         mean = lower_bounds + (upper_bounds - lower_bounds) / 2
-        #     else:
-        #         # `self._x0` is external representations.
-        #         mean = trans.transform(self._x0)
-
-        #     if self._sigma0 is None:
-        #         sigma0 = np.min((upper_bounds - lower_bounds) / 6)
-        #     else:
-        #         sigma0 = self._sigma0
-
-        #     cov = None
-        # else:
-        #     expected_states = [TrialState.COMPLETE]
-        #     if self._consider_pruned_trials:
-        #         expected_states.append(TrialState.PRUNED)
-
-        #     # TODO(c-bata): Filter parameters by their values instead of checking search space.
-        #     sign = 1 if direction == StudyDirection.MINIMIZE else -1
-        #     source_solutions = [
-        #         (trans.transform(t.params), sign * cast(float, t.value))
-        #         for t in self._source_trials
-        #         if t.state in expected_states
-        #         and _is_compatible_search_space(trans, t.distributions)
-        #     ]
-        #     if len(source_solutions) == 0:
-        #         raise ValueError("No compatible source_trials")
-
-        #     # TODO(c-bata): Add options to change prior parameters (alpha and gamma).
-        #     mean, sigma0, cov = cmaes.get_warm_start_mgd(source_solutions)
-
-        # # Avoid ZeroDivisionError in cmaes.
-        # sigma0 = max(sigma0, _EPS)
-
-        # if self._use_separable_cma:
-        #     print("return here")
-        #     return cmaes.SepCMA(
-        #         mean=mean,
-        #         sigma=sigma0,
-        #         bounds=trans.bounds,
-        #         seed=self._cma_rng.rng.randint(1, 2**31 - 2),
-        #         n_max_resampling=10 * n_dimension,
-        #         population_size=population_size,
-        #     )
-
-        # if self._with_margin:
-        #     steps = np.empty(len(trans._search_space), dtype=float)
-        #     for i, dist in enumerate(trans._search_space.values()):
-        #         assert isinstance(dist, (IntDistribution, FloatDistribution))
-        #         # Set step 0.0 for continuous search space.
-        #         if dist.step is None or dist.log:
-        #             steps[i] = 0.0
-        #         elif dist.low == dist.high:
-        #             steps[i] = 1.0
-        #         else:
-        #             steps[i] = dist.step / (dist.high - dist.low)
-
-        #     return cmaes.CMAwM(
-        #         mean=mean,
-        #         sigma=sigma0,
-        #         bounds=trans.bounds,
-        #         steps=steps,
-        #         cov=cov,
-        #         seed=self._cma_rng.rng.randint(1, 2**31 - 2),
-        #         n_max_resampling=10 * n_dimension,
-        #         population_size=population_size,
-        #     )
-
-        # return cmaes.CMA(
-        #     mean=mean,
-        #     sigma=sigma0,
-        #     cov=cov,
-        #     bounds=trans.bounds,
-        #     seed=self._cma_rng.rng.randint(1, 2**31 - 2),
-        #     n_max_resampling=10 * n_dimension,
-        #     population_size=population_size,
-        #     lr_adapt=self._lr_adapt,
-        # )
-
-    

@@ -33,10 +33,6 @@ CmaEsWithOptions = optunahub.load_local_module(
     package="samplers/cmaes_with_options", registry_root="package/"
 ).CmaEsWithOptions
 
-# sepcma = optunahub.load_local_module(
-#     package="samplers/cmaes_with_options", registry_root="package/"
-# ).cmaes_with_options.cmaes.SepCMA
-
 
 def test_consider_pruned_trials_experimental_warning() -> None:
     with pytest.warns(optuna.exceptions.ExperimentalWarning):
