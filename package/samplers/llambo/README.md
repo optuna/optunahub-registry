@@ -59,9 +59,14 @@ This implementation of LLAMBO differs from the [original implementation](https:/
 
    - A different rate limiter is implemented (see `llambo/rate_limiter.py`) to regulate LLM call rate limits for general users.
 
+1. **More Robust handling of few-shot prompting of past observations**:
+
+   - An additional warning is adaptively embedded in the prompt to prevent the LLM from mimicking uniform random sampling patterns from few-shot examples based on past results from random sampling.
+
 ______________________________________________________________________
 
 ## 
+
 ______________________________________________________________________
 
 ## APIs
