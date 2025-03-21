@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+import traceback
 from typing import Any
 from typing import Optional
 
@@ -32,7 +33,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         n_initial_samples: Number of initial random samples before using LLAMBO.
         sm_mode: Surrogate model mode, either "discriminative" or "generative".
         num_candidates: Number of candidate points to generate.
-        n_templates: Number of prompt templates to use.
+        num_prompt_variants (int): Number of distinct prompt variants.
         n_gens: Number of generations per template.
         alpha: Exploration-exploitation trade-off parameter.
         api_key: API key for the language model service.
@@ -41,6 +42,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         search_space: Optional search space to sample from.
         debug: Whether to print debug information.
         seed: Random seed for reproducibility.
+        azure: Whether to use Azure API endpoints.
+        azure_api_base: Azure API base URL, required if azure=True.
+        azure_api_version: Azure API version, required if azure=True.
+        azure_deployment_name: Azure deployment name, required if azure=True.
     """
 
     def __init__(
@@ -49,7 +54,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         n_initial_samples: int = 5,
         sm_mode: str = "generative",
         num_candidates: int = 10,
-        n_templates: int = 2,
+        num_prompt_variants: int = 2,
         n_gens: int = 10,
         alpha: float = 0.1,
         api_key: str = "",
@@ -57,7 +62,32 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         max_requests_per_minute: int = 100,
         search_space: Optional[dict[str, optuna.distributions.BaseDistribution]] = None,
         seed: Optional[int] = None,
+        azure: bool = False,
+        azure_api_base: Optional[str] = None,
+        azure_api_version: Optional[str] = None,
+        azure_deployment_name: Optional[str] = None,
     ) -> None:
+        """
+        Initialize the LLAMBO sampler.
+
+        Args:
+            custom_task_description: Optional description of the optimization task for the LLM.
+            n_initial_samples: Number of initial random samples before using LLAMBO.
+            sm_mode: Surrogate model mode, either "discriminative" or "generative".
+            num_candidates: Number of candidate points to generate.
+            num_prompt_variants (int): Number of distinct prompt variants.
+            n_gens: Number of generations per template.
+            alpha: Exploration-exploitation trade-off parameter.
+            api_key: API key for the language model service.
+            model: Language model identifier to use.
+            max_requests_per_minute: Maximum number of requests per minute.
+            search_space: Optional search space to sample from.
+            seed: Random seed for reproducibility.
+            azure: Whether to use Azure API endpoints.
+            azure_api_base: Azure API base URL, required if azure=True.
+            azure_api_version: Azure API version, required if azure=True.
+            azure_deployment_name: Azure deployment name, required if azure=True.
+        """
         super().__init__(search_space)
         self.seed = seed
         self._rng = LazyRandomState(seed)
@@ -69,12 +99,42 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self.n_initial_samples = n_initial_samples
         self.sm_mode = sm_mode
         self.num_candidates = num_candidates
-        self.n_templates = n_templates
+        self.num_prompt_variants = num_prompt_variants
         self.n_gens = n_gens
         self.alpha = alpha
         self.api_key = api_key
         self.model = model
         self.max_requests_per_minute = max_requests_per_minute
+
+        # Azure parameters
+        self.azure = azure
+        self.azure_api_base = azure_api_base
+        self.azure_api_version = azure_api_version
+        self.azure_deployment_name = azure_deployment_name
+
+        # Initialize task_context here (this is what was missing)
+        self.task_context: dict[str, Any] = {
+            "custom_task_description": self.custom_task_description,
+            "lower_is_better": True,  # Default value, will be updated in sample_relative
+        }
+
+        # Validate Azure parameters if Azure is enabled
+        if self.azure:
+            if (
+                not self.azure_api_base
+                or not self.azure_api_version
+                or not self.azure_deployment_name
+            ):
+                raise ValueError(
+                    "Azure API base, version, and deployment name are required when using Azure."
+                )
+
+            # Validate model compatibility with Azure
+            supported_models = ["gpt-4o-mini", "gpt-4o", "deepseek-chat", "deepseek-reasoner"]
+            if model not in supported_models:
+                raise ValueError(
+                    f"Model {model} is not supported for Azure. Supported models: {supported_models}"
+                )
 
         # Initialize attributes that will be set later
         self.lower_is_better = True  # Default, will be set properly in sample_relative
@@ -82,13 +142,6 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self.hyperparameter_constraints: dict[
             str, list[Any]
         ] = {}  # Will be populated in _initialize_llambo
-
-        # Initialize task_context with default values
-        self.task_context: dict[str, Any] = {
-            "custom_task_description": custom_task_description,
-            "lower_is_better": True,  # Default value, will be updated in sample_relative
-            "hyperparameter_constraints": {},  # Will be populated in _initialize_llambo
-        }
 
         # Initialize empty DataFrames instead of lists for thread-safety
         self.init_observed_configs = pd.DataFrame()
@@ -113,7 +166,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self._initialization_timeout = 30  # seconds
 
     def _split_search_space(
-        self, search_space: dict[str, optuna.distributions.BaseDistribution]
+        self, search_space: Optional[dict[str, optuna.distributions.BaseDistribution]]
     ) -> tuple[
         dict[str, optuna.distributions.BaseDistribution],
         dict[str, optuna.distributions.BaseDistribution],
@@ -130,6 +183,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         Returns:
             Tuple containing (numerical_space, categorical_space).
         """
+        # Handle None search_space
+        if search_space is None:
+            return {}, {}
+
         numerical_space = {}
         categorical_space = {}
         for name, dist in search_space.items():
@@ -206,7 +263,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                     task_context,
                     self.sm_mode,
                     n_candidates=self.num_candidates,
-                    num_prompt_variants=self.n_templates,
+                    num_prompt_variants=self.num_prompt_variants,
                     n_gens=self.n_gens,
                     alpha=self.alpha,
                     n_initial_samples=self.n_initial_samples,
@@ -214,9 +271,16 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                     key=self.api_key,
                     model=self.model,
                     max_requests_per_minute=self.max_requests_per_minute,
+                    azure=self.azure,
+                    azure_api_base=self.azure_api_base,
+                    azure_api_version=self.azure_api_version,
+                    azure_deployment_name=self.azure_deployment_name,
                 )
                 return True
-            except Exception:
+            except Exception as e:
+                error_traceback = traceback.format_exc()
+                print(f"Error initializing LLAMBO: {e}")
+                print(f"Traceback:\n{error_traceback}")
                 self.LLAMBO_instance = None
                 return False
 
@@ -235,7 +299,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             sampled_configuration = self.LLAMBO_instance.sample_configurations()
             # Ensure we return a dictionary even if sample_configurations returns None
             return sampled_configuration if sampled_configuration is not None else {}
-        except Exception:
+        except Exception as e:
+            error_traceback = traceback.format_exc()
+            print(f"Error in LLAMBO.sample_configurations: {e}")
+            print(f"Traceback:\n{error_traceback}")
             return {}
 
     def reseed_rng(self) -> None:
@@ -269,7 +336,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                         params_df = pd.DataFrame([completed_trial.params])
                         merged = pd.merge(self.init_observed_configs, params_df)
                         is_duplicate = not merged.empty
-                    except Exception:
+                    except Exception as e:
+                        error_traceback = traceback.format_exc()
+                        print(f"Error checking for duplicate configurations: {e}")
+                        print(f"Traceback:\n{error_traceback}")
                         is_duplicate = False
 
                     if is_duplicate:
@@ -287,8 +357,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                         [self.init_observed_fvals, new_fval], ignore_index=True
                     )
                     trials_added += 1
-                except Exception:
-                    pass
+                except Exception as e:
+                    error_traceback = traceback.format_exc()
+                    print(f"Error adding trial data: {e}")
+                    print(f"Traceback:\n{error_traceback}")
 
             # Update how many trials we've processed
             self._min_trials_processed = len(self.init_observed_configs)
@@ -344,7 +416,10 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 self.LLAMBO_instance._initialize(None, observed_configs_df, observed_fvals_df)
                 self._llambo_initialized = True
                 return True
-            except Exception:
+            except Exception as e:
+                error_traceback = traceback.format_exc()
+                print(f"Error initializing LLAMBO with data: {e}")
+                print(f"Traceback:\n{error_traceback}")
                 return False
 
     def sample_relative(
@@ -408,7 +483,9 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 )
                 print(f"Generated {len(self.init_configs)} initial configurations.")
             except Exception as e:
+                error_traceback = traceback.format_exc()
                 print(f"Error generating initial configurations: {e}")
+                print(f"Traceback:\n{error_traceback}")
                 # Fall back to a single random sample if generation fails.
                 self.init_configs = [self.generate_random_samples(numerical_space, 1)[0]]
 
@@ -424,7 +501,15 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         # For trials after the initial phase, ensure LLAMBO is initialized.
         if self.LLAMBO_instance is None:
             if not self._initialize_llambo(numerical_space):
-                print("LLAMBO initialization failed. Falling back to random sampling.")
+                print("=" * 80)
+                print("WARNING: LLAMBO initialization failed. Falling back to random sampling.")
+                print(
+                    "This means the LLM sampler cannot be used and random sampling will be used instead."
+                )
+                print(
+                    "Check the error messages above for more details on why initialization failed."
+                )
+                print("=" * 80)
                 return {
                     **self.generate_random_samples(numerical_space, 1)[0],
                     **categorical_params,
@@ -432,15 +517,29 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         if not self._llambo_initialized and self._min_trials_processed >= self.n_initial_samples:
             if not self._initialize_llambo_with_data(numerical_space):
-                print("LLAMBO data initialization failed; falling back to random sampling.")
+                print("=" * 80)
+                print(
+                    "WARNING: LLAMBO data initialization failed; falling back to random sampling."
+                )
+                print(
+                    "This means the collected trial data could not be used to initialize the LLM sampler."
+                )
+                print(
+                    "Check the error messages above for more details on why data initialization failed."
+                )
+                print("=" * 80)
 
         # Use LLAMBO to sample numerical parameters.
         try:
             if not self._llambo_initialized or self.LLAMBO_instance is None:
+                print("LLAMBO not initialized. Using random sampling for this trial.")
                 numerical_params = self.generate_random_samples(numerical_space, 1)[0]
             else:
                 result = self._sample_parameters()
                 if not result:
+                    print(
+                        "LLAMBO sampling returned empty result. Using random sampling for this trial."
+                    )
                     numerical_params = self.generate_random_samples(numerical_space, 1)[0]
                 else:
                     numerical_params = result
@@ -451,7 +550,9 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 ):
                     numerical_params[param_name] = int(value)
         except Exception as e:
+            error_traceback = traceback.format_exc()
             print(f"Error during LLAMBO sampling, falling back to random sampling: {e}")
+            print(f"Traceback:\n{error_traceback}")
             numerical_params = self.generate_random_samples(numerical_space, 1)[0]
 
         combined_params = {**numerical_params, **categorical_params}
@@ -479,37 +580,48 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             # Update data collection first
             self._collect_initial_data(study)
 
-            # Try to initialize LLAMBO if needed
+            # Try to initialize LLAMBO if needed and possible
             if not self._llambo_initialized or self.LLAMBO_instance is None:
                 if self._min_trials_processed >= self.n_initial_samples:
                     # Re-create numerical_space
                     try:
-                        numerical_space, _ = self._split_search_space(study.sampler._search_space)
+                        # Try to access the search space with proper error handling
+                        search_space = getattr(study.sampler, "_search_space", None)
+                        numerical_space, _ = self._split_search_space(search_space)
+                    except (AttributeError, TypeError) as e:
+                        error_traceback = traceback.format_exc()
+                        print(
+                            f"Warning: Error accessing search space: {e}. Continuing without LLAMBO initialization."
+                        )
+                        print(f"Traceback:\n{error_traceback}")
+                        return
 
-                        if not self.LLAMBO_instance:
-                            if not self._initialize_llambo(numerical_space):
-                                print("Warning: LLAMBO initialization failed during after_trial.")
+                    if not self.LLAMBO_instance:
+                        self._initialize_llambo(numerical_space)
 
-                        if self.LLAMBO_instance and not self._llambo_initialized:
-                            if not self._initialize_llambo_with_data(numerical_space):
-                                print(
-                                    "Warning: LLAMBO data initialization failed during after_trial."
-                                )
+                    if self.LLAMBO_instance and not self._llambo_initialized:
+                        self._initialize_llambo_with_data(numerical_space)
 
-                    except Exception as e:
-                        print(f"Error in LLAMBO initialization during after_trial: {e}")
-
-            # Update LLAMBO with trial result if initialization is successful
+            # Update LLAMBO with trial result
             if self._llambo_initialized and self.LLAMBO_instance is not None:
+                # Check if hyperparameter_constraints exists and is not empty
+                if (
+                    not hasattr(self, "hyperparameter_constraints")
+                    or not self.hyperparameter_constraints
+                ):
+                    print("Warning: hyperparameter_constraints not initialized. Skipping update.")
+                    return
+
                 # Filter trial.params to keep only numerical keys
                 filtered_params = {
                     k: v for k, v in trial.params.items() if k in self.hyperparameter_constraints
                 }
-
                 try:
                     self.LLAMBO_instance.update_history(filtered_params, values[0])
                 except Exception as e:
-                    print(f"Error updating LLAMBO history during after_trial: {e}")
+                    error_traceback = traceback.format_exc()
+                    print(f"Error updating LLAMBO history: {e}")
+                    print(f"Traceback:\n{error_traceback}")
 
     def generate_random_samples(
         self, search_space: dict[str, optuna.distributions.BaseDistribution], num_samples: int = 1

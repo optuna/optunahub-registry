@@ -12,7 +12,7 @@ import pandas as pd
 from .acquisition_function import LLM_ACQ
 from .discriminative_sm import LLMDiscriminativeSM
 from .generative_sm import LLMGenerativeSM
-from .warping import NumericalTransformer
+from .utils import NumericalTransformer
 
 
 # Define type variables for surrogate models to solve type annotation issues
@@ -36,52 +36,43 @@ class LLAMBO:
         key: str = "",
         model: str = "",
         max_requests_per_minute: int = 100,
+        azure: bool = False,
+        azure_api_base: Optional[str] = None,
+        azure_api_version: Optional[str] = None,
+        azure_deployment_name: Optional[str] = None,
     ) -> None:
         """
-        Initialize the LLAMBO optimizer for hyperparameter tuning using large language models.
+        Initialize LLAMBO optimizer.
 
         Args:
-            task_context (Dict[str, Any]): Dictionary containing context information for the task,
-                including hyperparameter constraints and an optional task description. It should also
-                include a "lower_is_better" key to indicate whether the optimization is a minimization
-                (True) or maximization (False) problem.
-            sm_mode (str): The surrogate model mode to use; typically "generative" for a generative
-                model or another value for a discriminative model.
-            n_candidates (int, optional): Total number of candidate configurations to generate.
-                These candidates will be evaluated by the acquisition function. Defaults to 10.
+            task_context: Dictionary containing task-specific information
+            sm_mode: Surrogate model mode ("generative" or "discriminative")
+            n_candidates: Number of candidate points to generate
             num_prompt_variants (int, optional): Number of distinct prompt variants (i.e., different
-                few-shot prompt templates) to be used. Each variant is sent as a separate inquiry to
-                the LLM to increase response diversity. Defaults to 2.
-            n_gens (int, optional): Number of generations (or suggestions) produced per inquiry.
-                This value is often used internally to divide n_candidates evenly across prompt variants.
-                Defaults to 10.
-            alpha (float, optional): Exploration-exploitation trade-off parameter used in the acquisition
-                function to adjust the target performance. Defaults to 0.1.
-            n_initial_samples (int, optional): Number of initial random configurations to sample before
-                the surrogate model is used for further sampling. Defaults to 5.
-            top_pct (Optional[float], optional): The top percentage threshold of configurations considered
-                as high-performing; if not provided, a default value of 0.2 is used.
-            use_input_warping (bool, optional): Flag to indicate whether numerical hyperparameters should be
-                transformed (warped) before optimization. Defaults to False.
-            prompt_setting (Optional[str], optional): Optional parameter to customize prompt details for
-                the LLM. Defaults to None.
-            shuffle_features (bool, optional): If True, randomizes the order of hyperparameter features in prompts
-                to reduce potential bias. Defaults to False.
-            key (str, optional): API key for accessing the LLM service.
-            model (str, optional): Identifier for the LLM model to be used.
-            max_requests_per_minute (int, optional): Maximum number of API requests allowed per minute.
-                Used to calculate inter-component delays. Defaults to 100.
-
-        This constructor initializes the LLAMBO framework by setting up observation tracking,
-        computing an inter-component delay based on the provided rate limit, and configuring the surrogate
-        model (either generative or discriminative) along with the acquisition function. It integrates
-        diverse prompt variants (via num_prompt_variants) to ensure robust and varied inquiries to the LLM.
+            few-shot prompt templates) to be used. Each variant is sent as a separate inquiry to
+            the LLM to increase response diversity. Defaults to 2.
+            alpha: Exploration-exploitation trade-off parameter
+            n_initial_samples: Number of initial random samples
+            top_pct: Top percentage for generative mode
+            use_input_warping: Whether to use input warping
+            prompt_setting: Custom prompt setting
+            shuffle_features: Whether to shuffle features
+            key: API key for language model
+            model: Language model identifier
+            max_requests_per_minute: Maximum number of requests per minute
+            azure: Whether to use Azure API endpoints
+            azure_api_base: Azure API base URL
+            azure_api_version: Azure API version
+            azure_deployment_name: Azure deployment name
         """
-        # Copy and update task context with the optimization direction.
-        self.task_context = dict(task_context)
-        self.task_context.setdefault("lower_is_better", True)  # default to minimization
-        self.lower_is_better = self.task_context["lower_is_better"]
+        # Store initialization parameters
+        self.task_context = task_context
 
+        # Add n_initial_samples and current_trial to task_context for surrogate models to access
+        self.task_context["n_initial_samples"] = n_initial_samples
+        self.task_context["current_trial"] = 0
+
+        self.lower_is_better = task_context["lower_is_better"]
         self.n_candidates = n_candidates
         self.num_prompt_variants = num_prompt_variants
         self.n_gens = n_gens
@@ -90,22 +81,32 @@ class LLAMBO:
         self.key = key
         self.model = model
         self.max_requests_per_minute = max_requests_per_minute
-        self.sm_mode = sm_mode
+        self.sm_mode = sm_mode  # Store the surrogate model mode
 
-        # Initialize accumulated cost tracking
+        # Azure parameters
+        self.azure = azure
+        self.azure_api_base = azure_api_base
+        self.azure_api_version = azure_api_version
+        self.azure_deployment_name = azure_deployment_name
+
+        # Add a variable to track accumulated cost
         self.accumulated_cost = 0.0
-        # Initialize current trial counter
-        self.current_trial = 0
 
-        # Delay between API calls based on rate limit.
+        # Calculate delay between API calls based on rate limit
         self.delay_seconds = 60.0 / max_requests_per_minute if max_requests_per_minute > 0 else 0
-        print(f"Inter-component delay set to {self.delay_seconds:.2f} seconds.")
+        print(
+            f"Setting inter-component delay of {self.delay_seconds:.2f} seconds based on rate limit"
+        )
 
-        # Initialize observation tracking.
+        # Initialize state variables
+        self.current_trial = 0
+        self.start_time = None
+
+        # Initialize observation tracking with proper columns
         self.observed_configs = pd.DataFrame()
         self.observed_fvals = pd.DataFrame(columns=["score", "generalization_score"])
 
-        # Set initial best values.
+        # Initialize best values based on optimization direction
         if self.lower_is_better:
             self.best_fval = float("inf")
             self.best_gen_fval = float("inf")
@@ -113,32 +114,36 @@ class LLAMBO:
             self.best_fval = -float("inf")
             self.best_gen_fval = -float("inf")
 
+        # Initialize components
         warping_transformer = None
         if use_input_warping:
-            warping_transformer = NumericalTransformer(
-                self.task_context["hyperparameter_constraints"]
-            )
+            warping_transformer = NumericalTransformer(task_context["hyperparameter_constraints"])
 
+        # Use a non-None default value for top_pct if it's None
         effective_top_pct = 0.2 if top_pct is None else top_pct
 
-        # Declare the surrogate_model type once
+        # Define surrogate model type for proper type annotation
         self.surrogate_model: Union[LLMGenerativeSM, LLMDiscriminativeSM]
 
-        # Initialize the surrogate model based on the mode.
+        # Initialize surrogate model based on mode
         if sm_mode == "generative":
             self.surrogate_model = LLMGenerativeSM(
-                task_context=self.task_context,
+                task_context=task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
-                top_pct=effective_top_pct,
+                top_pct=effective_top_pct,  # Fixed: Use non-None value
                 num_prompt_variants=num_prompt_variants,
                 key=self.key,
                 model=self.model,
                 max_requests_per_minute=self.max_requests_per_minute,
+                azure=self.azure,
+                azure_api_base=self.azure_api_base,
+                azure_api_version=self.azure_api_version,
+                azure_deployment_name=self.azure_deployment_name,
             )
-        else:
+        else:  # discriminative mode
             self.surrogate_model = LLMDiscriminativeSM(
-                task_context=self.task_context,
+                task_context=task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
                 num_prompt_variants=num_prompt_variants,
@@ -148,18 +153,28 @@ class LLAMBO:
                 key=self.key,
                 model=self.model,
                 max_requests_per_minute=self.max_requests_per_minute,
+                azure=self.azure,
+                azure_api_base=self.azure_api_base,
+                azure_api_version=self.azure_api_version,
+                azure_deployment_name=self.azure_deployment_name,
             )
 
-        # Initialize acquisition function similarly.
+        # Initialize acquisition function
         self.acq_func = LLM_ACQ(
-            task_context=self.task_context,
+            task_context=task_context,
             n_candidates=n_candidates,
             num_prompt_variants=num_prompt_variants,
             lower_is_better=self.lower_is_better,
+            warping_transformer=warping_transformer,
+            prompt_setting=prompt_setting,
+            shuffle_features=shuffle_features,
             key=self.key,
             model=self.model,
             max_requests_per_minute=self.max_requests_per_minute,
-            shuffle_features=shuffle_features,
+            azure=self.azure,
+            azure_api_base=self.azure_api_base,
+            azure_api_version=self.azure_api_version,
+            azure_deployment_name=self.azure_deployment_name,
         )
 
     def _initialize(
@@ -301,8 +316,8 @@ class LLAMBO:
             self.observed_configs,
             self.observed_fvals[["score"]],
             alpha=self.alpha,
-            current_trial=self.current_trial,
             n_initial_samples=self.n_initial_samples,
+            current_trial=self.current_trial,
         )
 
         # Handle the case where get_candidate_points returns 3 or 4 values
@@ -310,7 +325,9 @@ class LLAMBO:
             candidate_points, acq_cost, acq_time = acquisition_result
             # Track acquisition function cost
             self.accumulated_cost += acq_cost
-            print(f"Acquisition function cost: ${acq_cost:.4f}")
+            # Only print cost for non-Azure deployments
+            if not hasattr(self, "azure") or not self.azure:
+                print(f"Acquisition function cost: ${acq_cost:.4f}")
         else:
             # If there are 4 values, extract just the ones we need
             candidate_points = acquisition_result[0]
@@ -318,7 +335,9 @@ class LLAMBO:
             if len(acquisition_result) > 1 and isinstance(acquisition_result[1], (int, float)):
                 acq_cost = acquisition_result[1]
                 self.accumulated_cost += acq_cost
-                print(f"Acquisition function cost: ${acq_cost:.4f}")
+                # Only print cost for non-Azure deployments
+                if not hasattr(self, "azure") or not self.azure:
+                    print(f"Acquisition function cost: ${acq_cost:.4f}")
 
         # Add delay between acquisition function and surrogate model
         print(f"Inserting delay of {self.delay_seconds:.2f} seconds between ACQ and SM components")
@@ -349,7 +368,9 @@ class LLAMBO:
                 # Extract and track surrogate model cost
                 sm_cost = result[1]
                 self.accumulated_cost += sm_cost
-                print(f"Surrogate model cost: ${sm_cost:.4f}")
+                # Only print cost for non-Azure deployments
+                if not hasattr(self, "azure") or not self.azure:
+                    print(f"Surrogate model cost: ${sm_cost:.4f}")
             else:
                 # Handle unexpected return format
                 raise ValueError(f"Unexpected return format from select_query_point: {result}")
@@ -365,15 +386,18 @@ class LLAMBO:
                 # Extract and track surrogate model cost
                 sm_cost = result[1]
                 self.accumulated_cost += sm_cost
-                print(f"Surrogate model cost: ${sm_cost:.4f}")
+                # Only print cost for non-Azure deployments
+                if not hasattr(self, "azure") or not self.azure:
+                    print(f"Surrogate model cost: ${sm_cost:.4f}")
             else:
                 # Handle unexpected return format
                 raise ValueError(f"Unexpected return format from select_query_point: {result}")
 
-        # Print accumulated cost so far
-        print(
-            f"---------------------Accumulated cost so far: ${self.accumulated_cost:.4f}---------------------"
-        )
+        # Print accumulated cost so far - only for non-Azure deployments
+        if not hasattr(self, "azure") or not self.azure:
+            print(
+                f"---------------------Accumulated cost so far: ${self.accumulated_cost:.4f}---------------------"
+            )
 
         return sel_candidate_point.to_dict(orient="records")[0]
 
@@ -415,6 +439,8 @@ class LLAMBO:
             self.best_gen_fval = current_score
 
         self.current_trial += 1
+        # Update current_trial in task_context for surrogate models
+        self.task_context["current_trial"] = self.current_trial
 
     def _evaluate_config_step(self, config: Dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """

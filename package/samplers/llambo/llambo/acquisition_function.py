@@ -11,8 +11,8 @@ from langchain.prompts import PromptTemplate
 import numpy as np
 import pandas as pd
 
-from .llm.inquiry import OpenAI_interface
-from .rate_limiter import apply_rate_limit
+from .llm import OpenAI_interface
+from .utils import apply_rate_limit
 
 
 class LLM_ACQ:
@@ -79,14 +79,55 @@ class LLM_ACQ:
         key: str = "",
         model: str = "gpt-4o-mini",
         max_requests_per_minute: int = 100,
+        azure: bool = False,
+        azure_api_base: Optional[str] = None,
+        azure_api_version: Optional[str] = None,
+        azure_deployment_name: Optional[str] = None,
     ) -> None:
+        """
+        Initialize the LLM acquisition function.
+
+        Args:
+            task_context: Dictionary with task-specific information.
+            n_candidates: Number of candidate configurations to generate.
+            num_prompt_variants (int): Number of distinct prompt variants.
+            lower_is_better: Whether lower values are better.
+            jitter: Whether to add jitter to desired performance target.
+            warping_transformer: Transformer for feature warping.
+            prompt_setting: Custom prompt setting.
+            shuffle_features: Whether to shuffle features in prompts.
+            key: API key for language model.
+            model: Model identifier to use.
+            max_requests_per_minute: Maximum requests per minute.
+            azure: Whether to use Azure API endpoints.
+            azure_api_base: Azure API base URL.
+            azure_api_version: Azure API version.
+            azure_deployment_name: Azure deployment name.
+        """
         self.task_context = task_context
         self.n_candidates = n_candidates
         self.num_prompt_variants = num_prompt_variants
         self.n_gens = int(n_candidates / num_prompt_variants)
         self.lower_is_better = lower_is_better
         self.apply_jitter = jitter
-        self.OpenAI_instance = OpenAI_interface(api_key=key, model=model, debug=True)
+
+        # Azure parameters
+        self.azure = azure
+        self.azure_api_base = azure_api_base
+        self.azure_api_version = azure_api_version
+        self.azure_deployment_name = azure_deployment_name
+
+        # Initialize OpenAI interface with Azure support if needed
+        self.OpenAI_instance = OpenAI_interface(
+            api_key=key,
+            model=model,
+            debug=True,
+            azure=azure,
+            azure_api_base=azure_api_base,
+            azure_api_version=azure_api_version,
+            azure_deployment_name=azure_deployment_name,
+        )
+
         apply_rate_limit(self.OpenAI_instance, max_requests_per_minute=max_requests_per_minute)
 
         if warping_transformer is None:
@@ -733,8 +774,8 @@ class LLM_ACQ:
         observed_fvals: pd.DataFrame,
         use_feature_semantics: bool = True,
         alpha: float = 0.1,
-        current_trial: int = 0,  # New parameter
-        n_initial_samples: int = 0,  # New parameter
+        current_trial: int = 0,
+        n_initial_samples: int = 0,
     ) -> tuple[pd.DataFrame, float, float]:
         """
         Get candidate points for the next evaluation.
@@ -754,8 +795,6 @@ class LLM_ACQ:
                 - Time taken
         """
         # Validate and store alpha.
-        # Instead of forcing alpha to be between -1 and 1 and then taking abs(),
-        # we assume alpha is a small positive number that represents the exploration/exploitation trade-off.
         if alpha <= 0:
             alpha = 1e-3
         self.alpha = alpha  # Keep alpha as a positive number
@@ -786,14 +825,17 @@ class LLM_ACQ:
         print(prompt_templates[0].format(A=query_templates[0][0]["A"]))
         print("=" * 100)
 
+        # Initialize variables for accumulation strategy
         tot_cost = 0.0
         retry = 0
-        filtered_candidate_points = pd.DataFrame()
+        filtered_candidate_points = pd.DataFrame()  # Initialize empty DataFrame for accumulation
 
         while filtered_candidate_points.shape[0] < 5:
             llm_responses = asyncio.run(
                 self._async_generate_concurrently(prompt_templates, query_templates)
             )
+
+            # Process responses into candidate points
             candidate_points = []
             for response in llm_responses:
                 if response is None:
@@ -808,21 +850,38 @@ class LLM_ACQ:
                     print(f"Error parsing response: {e} | Response was: {response_content}")
                     continue
 
-            # Relax filtering: use a tolerance when comparing rounded candidate points.
-            filtered_candidate_points = self._filter_candidate_points(
+            # Filter current batch of candidate points
+            proposed_points = self._filter_candidate_points(
                 observed_configs.to_dict(orient="records"), candidate_points, precision=6
             )
+
+            # 🔥 Accumulate filtered points across retry attempts
+            if not proposed_points.empty:
+                filtered_candidate_points = pd.concat(
+                    [filtered_candidate_points, proposed_points], ignore_index=True
+                )
+
+                # Remove duplicate configurations that might occur across retry attempts
+                filtered_candidate_points = filtered_candidate_points.drop_duplicates()
+
             print(
-                f"Attempt {retry}: {len(candidate_points)} candidates proposed, {filtered_candidate_points.shape[0]} accepted."
+                f"Attempt {retry}: {len(candidate_points)} candidates proposed, "
+                f"{proposed_points.shape[0]} accepted this attempt, "
+                f"{filtered_candidate_points.shape[0]} total accumulated."
             )
+
             retry += 1
             if retry > 10:
-                if len(candidate_points) >= 5:
+                # If we have at least one candidate, use what we've got
+                if not filtered_candidate_points.empty:
+                    break
+                # If we have no valid candidates at all, try using unfiltered points
+                elif len(candidate_points) > 0:
                     filtered_candidate_points = pd.DataFrame(candidate_points)
                     break
                 else:
                     raise RuntimeError(
-                        "LLM failed to generate sufficient candidate points after 10 retries"
+                        "LLM failed to generate any valid candidate points after 10 retries"
                     )
 
         if self.warping_transformer is not None:
