@@ -9,9 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: tree -L 2
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - run: tree -L 2
       - name: Clone optunahub-web
         run: git clone --recursive https://github.com/optuna/optunahub-web.git
       - name: Clone optuna-registory under optunahub-web
