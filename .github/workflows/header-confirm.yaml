@@ -15,6 +15,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install python-frontmatter
+        run: |
+          pip install python-frontmatter
       - name: Confirm headers
         run: python optunahub-registry/header_confirm.py
