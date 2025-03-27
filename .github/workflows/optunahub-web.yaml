@@ -14,10 +14,12 @@ jobs:
           python-version: '3.11'
       - name: Clone optunahub-web
         run: git clone https://github.com/optuna/optunahub-web.git
+      - name: Create optuna-registry under optunahub-web
+        run: mkdir optunahub-web/optunahub-registry
       - name: Clone optuna-registry under optunahub-web
         uses: actions/checkout@v4
         with:
-          path: optunahub-web
+          path: optunahub-web/optunahub-registry
       - run: tree -L 2
       - name: Check
         working-directory: ./optunahub-web
