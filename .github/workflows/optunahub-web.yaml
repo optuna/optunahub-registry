@@ -20,7 +20,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: optunahub-web/optunahub-registry
-      - run: tree -L 2
       - name: Install dependencies of optunahub-web
         working-directory: ./optunahub-web
         run: pip install -r requirements.txt
@@ -28,7 +27,7 @@ jobs:
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: '0.124.1'
-      - name: Check
+      - name: Build optunahub-web
         working-directory: ./optunahub-web
         run: |
           pwd
