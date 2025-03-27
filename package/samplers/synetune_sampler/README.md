@@ -19,12 +19,17 @@ Please check the API reference for more details:
 
 - https://syne-tune.readthedocs.io/en/latest/\_apidoc/modules.html
 
-### `SyneTuneSampler(search_space: dict[str, BaseDistribution],mode: str = "min",metric: str = "mean_loss",searcher_method: str = "random_search",searcher_kwargs: dict = None)`
+### `SyneTuneSampler(search_space: dict[str, BaseDistribution],direction: str = "min",metric: str = "mean_loss",searcher_method: str = "random_search",searcher_kwargs: dict = None)`
 
 - `search_space`: A dictionary of Optuna distributions.
-- `mode`: Defines direction of optimization. Must be one of the following: `[min, max]`.
+- `direction`: Defines direction of optimization. Must be one of the following: `[min, max]`.
 - `metric`: The metric to be optimized.
-- `searcher_method`: The optimization method to be run on the objective. Currently supported searcher methods: `[cqr, kde, regularized_evolution, bore]`.
+- `searcher_method`: The optimization method to be run on the objective. Currently supported searcher methods: `[CQR, KDE, REA, BORE, RandomSearch]`.
+  - **RandomSearch**: Selects hyperparameters randomly from the search space, providing a simple baseline method that requires no prior knowledge.
+  - **BORE**: Bayesian Optimization with Density-Ratio Estimation, an adaptive method that models the probability of improvement using density estimation.
+  - **KDE**: Kernel Density Estimation, which builds a probabilistic model of promising hyperparameters based on past evaluations.
+  - **REA**: Regularized Evolution Algorithm, a population-based evolutionary approach that mutates and selects the best-performing hyperparameter sets over time.
+  - **CQR**: Conformal Quantile Regression, a robust uncertainty-aware optimization method that uses quantile regression for reliable performance estimation.
 - `searcher_kwargs`: Optional. Additional arguments for the searcher_method. More details can be found in the API documentation
 
 ## Installation
@@ -40,8 +45,7 @@ import optuna
 import optunahub
 
 
-module = optunahub.load_module("samplers/synetune_sampler")
-SyneTuneSampler = module.SyneTuneSampler
+SyneTuneSampler = optunahub.load_module("samplers/synetune_sampler").SyneTuneSampler
 
 
 def objective(trial: optuna.trial.Trial) -> float:
@@ -52,11 +56,11 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 n_trials = 100
 sampler = SyneTuneSampler(
-    {
+    search_space={
         "x": optuna.distributions.FloatDistribution(-10, 10),
         "y": optuna.distributions.IntDistribution(-10, 10),
     },
-    searcher_method="cqr",
+    searcher_method="CQR",
     metric="mean_loss",
 )
 study = optuna.create_study(sampler=sampler)

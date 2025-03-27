@@ -2,8 +2,7 @@ import optuna
 import optunahub
 
 
-module = optunahub.load_module("samplers/synetune_sampler")
-SyneTuneSampler = module.syne_tune_sampler
+SyneTuneSampler = optunahub.load_module("samplers/synetune_sampler").SyneTuneSampler
 
 
 if __name__ == "__main__":
@@ -14,10 +13,10 @@ if __name__ == "__main__":
         y = trial.suggest_int("y", -10, 10)
         return x**2 + y**2
 
-    # Select method of choice here, i.e. Conformalized Quantile Regression (cqr)
-    method_param = "cqr"
+    # Select method of choice here, i.e. Conformalized Quantile Regression (CQR)
+    method_param = "CQR"
     sampler = SyneTuneSampler(
-        {
+        search_space={
             "x": optuna.distributions.FloatDistribution(-10, 10),
             "y": optuna.distributions.IntDistribution(-10, 10),
         },

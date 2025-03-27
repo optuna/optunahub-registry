@@ -42,7 +42,7 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         self,
         metric: str,
         search_space: dict[str, BaseDistribution],
-        mode: str = "min",
+        direction: str = "min",
         searcher_method: str = "CQR",
         searcher_kwargs: Optional[dict] = None,
     ) -> None:
@@ -59,21 +59,21 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
                 The metric to optimize.
             searcher_method:
                 The search method to be run. Currently supported searcher methods are: BORE, CQR, KDE, REA, RandomSearch.
-            mode:
+            direction:
                 Direction of optimization, either "min" or "max". Defaults to "min".
             searcher_kwargs: Additional keyword arguments for the searcher. Defaults to None.
         """
         super().__init__(search_space)
         if searcher_kwargs is None:
             searcher_kwargs = {}
-        assert mode in ["min", "max"]
+        assert direction in ["min", "max"]
         self.metric = metric
-        self.mode = mode
+        self.direction = direction
         self.trial_mapping: dict[str, Trial] = {}
         self._syne_tune_space = self._convert_optuna_to_syne_tune(search_space)
         self.scheduler = AskTellScheduler(
             base_scheduler=searcher_cls_dict[searcher_method](
-                self._syne_tune_space, metric=self.metric, mode=self.mode, **searcher_kwargs
+                self._syne_tune_space, metric=self.metric, mode=self.direction, **searcher_kwargs
             )
         )
 
@@ -85,6 +85,10 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
             if isinstance(distribution, CategoricalDistribution):
                 syne_tune_space[name] = choice(distribution.choices)
             elif distribution.step is not None:
+                if distribution.log:
+                    raise ValueError(
+                        f"{self.__class__.__name__} cannot specify not None `step` and `log=True` simultaneously."
+                    )
                 if isinstance(distribution, IntDistribution):
                     syne_tune_space[name] = finrange(
                         lower=distribution.low,
@@ -123,20 +127,19 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         trial: FrozenTrial,
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
+        if (self.direction == "min" and study.direction.name != "MINIMIZE") or (
+            self.direction == "max" and study.direction.name != "MAXIMIZE"
+        ):
+            raise ValueError(
+                f"The direction mismatch in {self.__class__.__name__} and `create_study`."
+            )
         trial_suggestion: Trial = self.scheduler.ask()
-        self.trial_mapping[trial_suggestion.trial_id] = trial_suggestion
+        self.trial_mapping[trial.number] = trial_suggestion
         return trial_suggestion.config
 
     def after_trial(
         self, study: Study, trial: FrozenTrial, state: TrialState, values: Sequence[float]
     ) -> None:
-        params = trial.params
-
-        trial = Trial(
-            trial_id=trial.number,
-            config=params,
-            creation_time=self.trial_mapping[trial.number].creation_time,
+        self.scheduler.tell(
+            trial=self.trial_mapping[trial.number], experiment_result={self.metric: values[0]}
         )
-        experiment_results = {self.metric: values[0]}
-
-        self.scheduler.tell(trial=trial, experiment_result=experiment_results)
