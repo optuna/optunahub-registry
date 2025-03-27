@@ -29,8 +29,6 @@ jobs:
           hugo-version: '0.124.1'
       - name: Build optunahub-web
         working-directory: ./optunahub-web
-        run: |
-          pwd
-          make build 
+        run: make build 
       - name: Clean up
         run: rm -rf optunahub-web
