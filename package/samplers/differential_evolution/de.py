@@ -104,7 +104,10 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         self._random_sampler = RandomSampler(seed=seed)
 
         # DE algorithm parameters
-        self.population_size = population_size
+        self._initial_population_size = population_size  # Store the initial setting
+        self.population_size = (
+            population_size if isinstance(population_size, int) else None
+        )  # Will be resolved later
         self.F = F
         self.CR = CR
         self.debug = debug
@@ -129,34 +132,32 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         self.last_processed_gen = -1
         self.current_gen_vectors: np.ndarray | None = None
 
-        if self.population_size == "auto":
-            self.population_size = self._determine_pop_size(search_space)
-
     def _determine_pop_size(
         self, search_space: dict[str, optuna.distributions.BaseDistribution] | None
     ) -> int:
         """Determine the population size based on the search space dimensionality.
-
         Args:
             search_space:
                 Dictionary mapping parameter names to their distribution ranges.
-
         Returns:
             int:
                 The population size.
         """
-        if search_space is None:
+        if search_space is None or len(search_space) == 0:
             return 20
         else:
-            dimension = len(search_space)
+            numerical_space, categorical_space = self._split_search_space(search_space)
+
+            # Count only numerical dimensions for DE algorithm
+            numerical_dimension = len(numerical_space)
 
             # Start with a baseline multiplier
-            if dimension < 5:
+            if numerical_dimension < 5:
                 # For very low dimension, maintain at least 20 individuals
                 # to ensure diversity.
                 base_multiplier = 10
                 min_pop = 20
-            elif dimension <= 30:
+            elif numerical_dimension <= 30:
                 # For moderately sized problems, a standard 10x dimension
                 # is a good starting point.
                 base_multiplier = 10
@@ -168,7 +169,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 min_pop = 50
 
             # Calculate a preliminary population size (can be fine-tuned further)
-            population_size = max(min_pop, base_multiplier * dimension)
+            population_size = max(min_pop, base_multiplier * numerical_dimension)
 
             return population_size
 
@@ -211,7 +212,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 Array of trial vectors (population_size x len(active_indices)).
         """
 
-        if isinstance(self.population_size, str):
+        if not isinstance(self.population_size, int):
             raise ValueError("Population size must be resolved to an integer before this point.")
 
         trial_vectors = np.zeros((self.population_size, len(active_indices)))
@@ -338,6 +339,12 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         if len(search_space) == 0:
             return {}
 
+        # Resolve population size if it's still "auto" and we now have a search space
+        if self.population_size is None and self._initial_population_size == "auto":
+            self.population_size = self._determine_pop_size(search_space)
+            if self.debug:
+                print(f"[DEBUG] Auto population size resolved to: {self.population_size}")
+
         # Determine the direction of optimization
         sign = 1 if study.direction == optuna.study.StudyDirection.MINIMIZE else -1
 
@@ -359,7 +366,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         active_keys = list(numerical_space.keys())
 
         # Ensure numerical_params includes all possible keys
-        if self.numerical_params is None:
+        if not self.numerical_params:
             self.numerical_params = active_keys
         else:
             # Dynamically adjust numerical_params to reflect the current trial's search space
@@ -370,6 +377,7 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
         # Get indices for the active keys
         active_indices = [self.numerical_params.index(name) for name in active_keys]
 
+        # Ensure population_size is an integer
         if not isinstance(self.population_size, int):
             raise ValueError(
                 "Population size must be an integer before initializing trial vectors."
@@ -444,9 +452,6 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                     for j, name in enumerate(self.numerical_params):
                         if name in t.params:  # Only include active parameters
                             trial_vectors[i, j] = t.params[name]
-
-                # if not isinstance(self.population_size, int):
-                #     raise ValueError("Population size must be an integer before this point.")
 
                 if self.fitness is None:
                     raise ValueError("Fitness array must be initialized before this operation.")
