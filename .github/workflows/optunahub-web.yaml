@@ -22,7 +22,7 @@ jobs:
       - name: Check
         working-directory: ./optunahub-web
         run: |
-          ls
+          pwd
           make build 
       - name: Clean up
         run: rm -rf optunahub-web
