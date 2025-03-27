@@ -29,6 +29,7 @@ from optuna.study._study_direction import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
+CmaClass = Union[cmaes.CMA, cmaes.CMAwM]
 _logger = logging.get_logger(__name__)
 
 _EPS = 1e-10
