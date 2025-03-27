@@ -24,6 +24,10 @@ jobs:
       - name: Install dependencies of optunahub-web
         working-directory: ./optunahub-web
         run: pip install -r requirements.txt
+      - name: Install Hugo
+        run: |
+          sudo apt update
+          sudo apt install hugo
       - name: Check
         working-directory: ./optunahub-web
         run: |
