@@ -14,7 +14,7 @@ jobs:
           python-version: '3.11'
       - name: Clone optunahub-web
         run: git clone https://github.com/optuna/optunahub-web.git
-      - name: Clone optuna-registory under optunahub-web
+      - name: Clone optuna-registry under optunahub-web
         uses: actions/checkout@v4
         with:
           path: optunahub-web
