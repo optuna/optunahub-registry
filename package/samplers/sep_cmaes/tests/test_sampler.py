@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import os
+import sys
 from typing import Any
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -12,25 +14,17 @@ from cmaes import CMA
 from cmaes import CMAwM
 from cmaes import SepCMA
 import numpy as np
-import pytest
-
 import optuna
 from optuna import create_trial
 from optuna._transform import _SearchSpaceTransform
 from optuna.testing.storages import StorageSupplier
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
-import optunahub
+import pytest
 
-import sys
-import os
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from sampler import SepCmaEsSampler
-
-
-SepCmaEsSampler = optunahub.load_local_module(
-    package="samplers/sep_cmaes", registry_root="package/"
-).SepCmaEsSampler
 
 
 def test_consider_pruned_trials_experimental_warning() -> None:
@@ -241,9 +235,7 @@ def test_incompatible_search_space(with_margin: bool) -> None:
     source_study.optimize(objective1, 20)
 
     # Should not raise an exception.
-    sampler = SepCmaEsSampler(
-        with_margin=with_margin, source_trials=source_study.trials
-    )
+    sampler = SepCmaEsSampler(with_margin=with_margin, source_trials=source_study.trials)
     target_study1 = optuna.create_study(sampler=sampler)
     target_study1.optimize(objective1, 20)
 
@@ -254,9 +246,7 @@ def test_incompatible_search_space(with_margin: bool) -> None:
         return x0 + x1 + x2
 
     # Should raise an exception.
-    sampler = SepCmaEsSampler(
-        with_margin=with_margin, source_trials=source_study.trials
-    )
+    sampler = SepCmaEsSampler(with_margin=with_margin, source_trials=source_study.trials)
     target_study2 = optuna.create_study(sampler=sampler)
     with pytest.raises(ValueError):
         target_study2.optimize(objective2, 20)
@@ -286,9 +276,7 @@ def test_sample_relative_1d() -> None:
 
 def test_sample_relative_n_startup_trials() -> None:
     independent_sampler = optuna.samplers.RandomSampler()
-    sampler = SepCmaEsSampler(
-        n_startup_trials=2, independent_sampler=independent_sampler
-    )
+    sampler = SepCmaEsSampler(n_startup_trials=2, independent_sampler=independent_sampler)
     study = optuna.create_study(sampler=sampler)
 
     def objective(t: optuna.Trial) -> float:

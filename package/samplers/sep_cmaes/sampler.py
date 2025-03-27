@@ -1,33 +1,17 @@
-import cmaes
-from optuna.samplers._cmaes import CmaEsSampler
-
-from collections.abc import Callable
-from collections.abc import Sequence
-import copy
-import math
-import pickle
 from typing import Any
-from typing import cast
-from typing import NamedTuple
-from typing import TYPE_CHECKING
 from typing import Union
 
+import cmaes
 import numpy as np
-
-import optuna
 from optuna import logging
-from optuna._experimental import warn_experimental_argument
-from optuna._imports import _LazyImport
 from optuna._transform import _SearchSpaceTransform
-from optuna.distributions import BaseDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 from optuna.samplers import BaseSampler
-from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.search_space import IntersectionSearchSpace
+from optuna.samplers._cmaes import CmaEsSampler
 from optuna.study._study_direction import StudyDirection
 from optuna.trial import FrozenTrial
-from optuna.trial import TrialState
+
 
 CmaClass = Union[cmaes.CMA, cmaes.CMAwM]
 _logger = logging.get_logger(__name__)
@@ -35,6 +19,7 @@ _logger = logging.get_logger(__name__)
 _EPS = 1e-10
 # The value of system_attrs must be less than 2046 characters on RDBStorage.
 _SYSTEM_ATTR_MAX_LENGTH = 2045
+
 
 class SepCmaEsSampler(CmaEsSampler):
     def __init__(
@@ -60,7 +45,7 @@ class SepCmaEsSampler(CmaEsSampler):
             raise ValueError(
                 "Currently, we do not support `use_separable_cma=True` and `with_margin=True`."
             )
-        
+
         # TODO(c-bata): Support WS-sep-CMA-ES.
         if source_trials is not None and use_separable_cma:
             raise ValueError(
@@ -79,7 +64,6 @@ class SepCmaEsSampler(CmaEsSampler):
                 "Currently, we do not support `use_separable_cma=True` and `with_margin=True`."
             )
 
-        
         self._use_separable_cma = use_separable_cma
 
         super().__init__(
@@ -138,7 +122,7 @@ class SepCmaEsSampler(CmaEsSampler):
                     steps[i] = 1.0
                 else:
                     steps[i] = dist.step / (dist.high - dist.low)
-            
+
             return cmaes.CMAwM(
                 mean=mean,
                 sigma=sigma0,
@@ -149,7 +133,7 @@ class SepCmaEsSampler(CmaEsSampler):
                 n_max_resampling=10 * n_dimension,
                 population_size=population_size,
             )
-        
+
         return cmaes.CMA(
             mean=mean,
             sigma=sigma0,
