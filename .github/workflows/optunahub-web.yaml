@@ -1,11 +1,11 @@
-name: Check optunahub-web
+name: Test OptunaHub Web Build
 on:
   push:
     branches:
       - main
   pull_request: {}
 jobs:
-  check:
+  test-optunahub-web-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +29,6 @@ jobs:
           hugo-version: '0.124.1'
       - name: Build optunahub-web
         working-directory: ./optunahub-web
-        run: make build 
+        run: make build
       - name: Clean up
         run: rm -rf optunahub-web
