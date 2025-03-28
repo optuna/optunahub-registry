@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from hebo.design_space.design_space import DesignSpace
-from hebo.optimizers.hebo import HEBO
 import numpy as np
 import optuna
 from optuna.distributions import BaseDistribution
@@ -20,6 +18,9 @@ from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 import optunahub
 import pandas as pd
+
+from hebo.design_space.design_space import DesignSpace
+from hebo.optimizers.hebo import HEBO
 
 
 _logger = get_logger(f"optuna.{__name__}")
