@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 import optuna
 from optuna import Trial
@@ -14,6 +15,7 @@ from sklearn.preprocessing import StandardScaler
 def objective_rf(trial: Trial) -> float:
     """Machine learning objective using RandomForestClassifier.
     Args:
+
         trial: The trial object to suggest hyperparameters.
     Returns:
         Mean accuracy obtained using cross-validation.
@@ -23,6 +25,7 @@ def objective_rf(trial: Trial) -> float:
     X, y = data.data, data.target
     # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
     # Hyperparameter suggestions
     n_estimators = trial.suggest_int("n_estimators", 50, 300)
     max_depth = trial.suggest_int("max_depth", 5, 30)
@@ -45,83 +48,81 @@ def objective_rf(trial: Trial) -> float:
                     min_samples_leaf=min_samples_leaf,
                     max_features=max_features,
                     bootstrap=bootstrap,
-                    ccp_alpha=ccp_alpha,  # Added float parameter
+                    ccp_alpha=ccp_alpha,
                     random_state=42,
                 ),
             ),
         ]
     )
+
     # Cross-validation for accuracy
     scores = cross_val_score(pipeline, X_train, y_train, cv=5, scoring="accuracy")
     return scores.mean()
 
 
+def get_llambo_sampler(use_azure: bool = False) -> Any:
+    """Create and return a LLAMBO sampler based on configuration.
+
+    Args:
+        use_azure: Whether to use Azure OpenAI API.
+
+    Returns:
+        Configured LLAMBOSampler instance.
+    """
+    # sampler parameters
+    params = {
+        "custom_task_description": "Optimize RandomForest hyperparameters for digit classification.",
+        "sm_mode": "discriminative",
+        "max_requests_per_minute": 60,
+        "n_initial_samples": 5,
+    }
+
+    if use_azure:
+        # Verify required Azure environment variables
+        required_vars = ["OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_API_VERSION"]
+        missing_vars = [var for var in required_vars if var not in os.environ]
+
+        if missing_vars:
+            print(f"Missing required Azure environment variables: {missing_vars}")
+            print("Falling back to standard OpenAI API...")
+            return get_llambo_sampler(use_azure=False)
+
+        print("Using Azure OpenAI API")
+        return LLAMBOSampler(
+            **params,
+            api_key=os.environ["OPENAI_API_KEY"],
+            model="gpt-4o",
+            azure=True,
+            azure_api_base=os.environ["OPENAI_API_BASE"],
+            azure_api_version=os.environ["OPENAI_API_VERSION"],
+            azure_deployment_name="gpt-4o",
+        )
+    else:
+        # Standard OpenAI API
+        api_key = os.environ.get("OPENAI_API_KEY", "")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is required")
+
+        print("Using standard OpenAI API")
+        return LLAMBOSampler(
+            **params,
+            api_key=api_key,
+            model="gpt-4o-mini",
+        )
+
+
 if __name__ == "__main__":
-    # Load the LLAMBO sampler module
-    module = optunahub.load_module("samplers/llambo")
-
-    LLAMBOSampler = module.LLAMBOSampler
-
     # Configuration
-    sm_mode = "generative"
-    max_requests_per_minute = 60
+    use_azure = True  # Set to True to use Azure OpenAI
     n_trials = 30
     n_jobs = 1
 
-    # Check if we're using Azure OpenAI
-    use_azure = False
+    # Load the LLAMBO sampler module
+    module = optunahub.load_module("samplers/llambo")
+    LLAMBOSampler = module.LLAMBOSampler
 
-    # Verify required Azure environment variables
-    required_vars = ["OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_API_VERSION"]
-    missing_vars = [var for var in required_vars if var not in os.environ]
-
-    if not missing_vars and use_azure:
-        print("Using Azure OpenAI with the following configuration:")
-        api_key = os.environ["OPENAI_API_KEY"]
-        api_base = os.environ["OPENAI_API_BASE"]
-        api_version = os.environ["OPENAI_API_VERSION"]
-        deployment_name = "gpt-4o"  # This is your engine name
-
-        print(f"API Base: {api_base}")
-        print(f"API Version: {api_version}")
-        print(f"Deployment Name: {deployment_name}")
-        print(f"API Key: {api_key[:5]}... (truncated for security)")
-
-        use_azure = False
-    else:
-        print("Using standard OpenAI API...")
-        # Fallback to standard OpenAI API key
-        api_key = os.environ.get(
-            "API_KEY",
-            "",  # Put your key here or load it from environment variables.
-        )
-        model = "deepseek-chat"
-
-    # Create the appropriate sampler based on available credentials
-    if use_azure:
-        llm_sampler = LLAMBOSampler(
-            custom_task_description="Optimize RandomForest hyperparameters for digit classification.",
-            sm_mode=sm_mode,
-            max_requests_per_minute=max_requests_per_minute,
-            api_key=api_key,
-            model="gpt-4o",  # Model name should match your deployment model
-            n_initial_samples=5,
-            azure=True,
-            azure_api_base=api_base,
-            azure_api_version=api_version,
-            azure_deployment_name=deployment_name,
-        )
-    else:
-        # Create standard OpenAI sampler
-        llm_sampler = LLAMBOSampler(
-            custom_task_description="Optimize RandomForest hyperparameters for digit classification.",
-            api_key=api_key,
-            model=model,
-            sm_mode=sm_mode,
-            max_requests_per_minute=max_requests_per_minute,
-        )
-
-    # Create random sampler for comparison
+    # Create samplers
+    llm_sampler = get_llambo_sampler(use_azure)
     random_sampler = optuna.samplers.RandomSampler(seed=42)
 
     # Create studies

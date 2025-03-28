@@ -40,31 +40,108 @@ class LLAMBO:
         azure_api_base: Optional[str] = None,
         azure_api_version: Optional[str] = None,
         azure_deployment_name: Optional[str] = None,
+        bootstrapping: bool = False,
+        use_recalibration: bool = False,
     ) -> None:
         """
-        Initialize LLAMBO optimizer.
+        Initialize the LLAMBO optimizer.
 
         Args:
-            task_context: Dictionary containing task-specific information
-            sm_mode: Surrogate model mode ("generative" or "discriminative")
-            n_candidates: Number of candidate points to generate
-            num_prompt_variants (int, optional): Number of distinct prompt variants (i.e., different
-            few-shot prompt templates) to be used. Each variant is sent as a separate inquiry to
-            the LLM to increase response diversity. Defaults to 2.
-            alpha: Exploration-exploitation trade-off parameter
-            n_initial_samples: Number of initial random samples
-            top_pct: Top percentage for generative mode
-            use_input_warping: Whether to use input warping
-            prompt_setting: Custom prompt setting
-            shuffle_features: Whether to shuffle features
-            key: API key for language model
-            model: Language model identifier
-            max_requests_per_minute: Maximum number of requests per minute
-            azure: Whether to use Azure API endpoints
-            azure_api_base: Azure API base URL
-            azure_api_version: Azure API version
-            azure_deployment_name: Azure deployment name
+            task_context (Dict[str, Any]):
+                Dictionary containing task-specific information, such as hyperparameter
+                constraints, evaluation metrics, and other relevant metadata required
+                for the optimization process.
+
+            sm_mode (str):
+                Surrogate model mode. Can be:
+                - "generative": Uses a generative model for candidate proposal generation.
+                - "discriminative": Uses a discriminative model for evaluation and scoring.
+
+            n_candidates (int, optional):
+                Number of candidate points to generate in each optimization step.
+                Defaults to 10.
+
+            num_prompt_variants (int, optional):
+                Number of distinct prompt variants (i.e., different few-shot prompt templates)
+                to be used. Each variant is sent as a separate inquiry to the LLM to
+                increase response diversity. Defaults to 2.
+
+            n_gens (int, optional):
+                Number of samples to generate from the model in each generation step.
+                Higher values increase robustness but also increase computational cost.
+                Defaults to 10.
+
+            alpha (float, optional):
+                Exploration-exploitation trade-off parameter. A higher value favors
+                exploration, while a lower value favors exploitation. Defaults to 0.1.
+
+            n_initial_samples (int, optional):
+                Number of initial random samples to collect before using the surrogate
+                model for proposing candidates. This is useful for bootstrapping the
+                optimization process. Defaults to 5.
+
+            top_pct (Optional[float], optional):
+                The top percentage of generated samples to consider as promising when
+                using the generative surrogate model. Ignored when using a discriminative model.
+                Defaults to None.
+
+            use_input_warping (bool, optional):
+                Whether to apply input warping to transform the input space into a
+                representation that is easier for the surrogate model to learn.
+                Defaults to False.
+
+            prompt_setting (Optional[str], optional):
+                A custom prompt setting to modify the prompt templates or styles used
+                by the model. Defaults to None.
+
+            shuffle_features (bool, optional):
+                Whether to shuffle the features before presenting them to the model,
+                which can sometimes improve model robustness. Defaults to False.
+
+            key (str, optional):
+                API key used for accessing the underlying language model.
+                Leave empty if the model does not require authentication. Defaults to "".
+
+            model (str, optional):
+                Identifier for the language model to use (e.g., "gpt-4", "gpt-3.5-turbo").
+                This specifies which model to use for generating or evaluating candidates.
+                Defaults to "".
+
+            max_requests_per_minute (int, optional):
+                Maximum number of requests allowed per minute when interacting with
+                the model. This helps avoid rate limits. Defaults to 100.
+
+            azure (bool, optional):
+                Whether to use Azure-specific API endpoints instead of OpenAI's default endpoints.
+                If True, additional Azure-specific parameters must be provided. Defaults to False.
+
+            azure_api_base (Optional[str], optional):
+                The base URL for the Azure API, if using an Azure deployment.
+                Defaults to None.
+
+            azure_api_version (Optional[str], optional):
+                The version of the Azure API to use, if applicable. Defaults to None.
+
+            azure_deployment_name (Optional[str], optional):
+                The specific Azure deployment name to use for querying the model.
+                Required if `azure` is True. Defaults to None.
+
+            bootstrapping (bool, optional):
+                Whether to enable bootstrapping for the discriminative surrogate model.
+                When True, the model will use multiple bootstrap samples to estimate
+                uncertainty. Defaults to False.
+
+            use_recalibration (bool, optional):
+                Whether to apply recalibration to the discriminative surrogate model.
+                This improves uncertainty estimation by adjusting the model's predictive
+                distribution. Defaults to False.
+
+        Raises:
+            ValueError:
+                If `sm_mode` is "generative" and either `bootstrapping` or `use_recalibration`
+                is set to True. These features are only supported in "discriminative" mode.
         """
+
         # Store initialization parameters
         self.task_context = task_context
 
@@ -88,6 +165,15 @@ class LLAMBO:
         self.azure_api_base = azure_api_base
         self.azure_api_version = azure_api_version
         self.azure_deployment_name = azure_deployment_name
+
+        self.bootstrapping = bootstrapping
+        self.use_recalibration = use_recalibration
+
+        if sm_mode == "generative" and (self.bootstrapping or self.use_recalibration):
+            raise ValueError(
+                "Bootstrapping/recalibration are only supported in discriminative mode. "
+                "Disable them or set `sm_mode='discriminative'`."
+            )
 
         # Add a variable to track accumulated cost
         self.accumulated_cost = 0.0
@@ -146,6 +232,8 @@ class LLAMBO:
                 task_context=task_context,
                 n_gens=n_gens,
                 lower_is_better=self.lower_is_better,
+                bootstrapping=self.bootstrapping,
+                use_recalibration=self.use_recalibration,
                 num_prompt_variants=num_prompt_variants,
                 warping_transformer=warping_transformer,
                 prompt_setting=prompt_setting,
