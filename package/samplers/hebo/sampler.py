@@ -191,8 +191,15 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         values: Sequence[float] | None,
     ) -> None:
         if self._hebo is not None and values is not None:
+            # Note that trial.values is None and trial.state is RUNNNING here.
+            trial_ = optuna.trial.create_trial(
+                state=state,  # updated
+                params=trial.params,
+                distributions=trial.distributions,
+                values=values,  # updated
+            )
             self._transform_to_dict_and_observe(
-                hebo=self._hebo, search_space=trial.distributions, study=study, trials=[trial]
+                hebo=self._hebo, search_space=trial.distributions, study=study, trials=[trial_]
             )
 
     def _convert_to_hebo_design_space(
