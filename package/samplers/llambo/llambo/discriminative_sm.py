@@ -336,20 +336,21 @@ class LLMDiscriminativeSM:
         Raises:
             AssertionError: If both bootstrapping and recalibration are enabled.
         """
+
         self.task_context = task_context
         self.n_gens = n_gens
         self.lower_is_better = lower_is_better
         self.bootstrapping = bootstrapping
         self.num_prompt_variants = num_prompt_variants
 
-        assert not (
-            bootstrapping and use_recalibration
-        ), "Cannot do recalibration and bootstrapping at the same time"
+        # Assert for compatibility
+        if self.bootstrapping and use_recalibration:
+            raise ValueError("Cannot enable both bootstrapping and recalibration simultaneously.")
 
         self.use_recalibration = use_recalibration
         self.warping_transformer = warping_transformer
         self.apply_warping = warping_transformer is not None
-        self.recalibrator = None
+        self.recalibrator = None  # To be created later if needed
         self.verbose = verbose
         self.prompt_setting = prompt_setting
         self.shuffle_features = shuffle_features
@@ -360,7 +361,7 @@ class LLMDiscriminativeSM:
         self.azure_api_version = azure_api_version
         self.azure_deployment_name = azure_deployment_name
 
-        # Initialize OpenAI interface with Azure support if needed
+        # Initialize OpenAI interface
         self.OpenAI_instance = OpenAI_interface(
             key,
             model=model,
@@ -462,16 +463,10 @@ class LLMDiscriminativeSM:
         Returns:
             Tuple containing:
                 - Mean predictions
-                - Standard deviations
+                - Standard deviations (recalibrated if enabled)
                 - Success rate
                 - Total cost
                 - Time taken
-
-        Example:
-            >>> # In an async function
-            >>> templates = ["Template {Q}"]
-            >>> queries = [{"Q": "example query"}]
-            >>> mean, std, rate, cost, time = model._predict(templates, queries)
         """
         start = time.time()
         all_preds = []
@@ -507,13 +502,22 @@ class LLMDiscriminativeSM:
         time_taken = time.time() - start
         success_rate = sum(bool_pred_returned) / len(bool_pred_returned)
 
+        # Convert predictions to numpy array
         all_preds = np.array(all_preds).astype(float)
+
+        # Calculate y_mean and y_std
         y_mean = np.nanmean(all_preds, axis=1)
         y_std = np.nanstd(all_preds, axis=1)
 
+        # Handling NaNs in predictions
         y_mean[np.isnan(y_mean)] = np.nanmean(y_mean)
         y_std[np.isnan(y_std)] = np.nanmean(y_std)
         y_std[y_std < 1e-5] = 1e-5
+
+        # Apply recalibration if enabled
+        if self.use_recalibration and self.recalibrator is not None:
+            recalibrated_res = self.recalibrator(y_mean, y_std, 0.68)
+            y_std = np.abs(recalibrated_res.upper - recalibrated_res.lower) / 2
 
         return y_mean, y_std, success_rate, tot_cost, time_taken
 
@@ -533,24 +537,82 @@ class LLMDiscriminativeSM:
                 - Total cost
                 - Time taken
         """
-        # Placeholder implementation - replace with actual recalibrator logic
-        time_taken = 0.0
-        tot_cost = 0.0
+        import time
 
-        # Create a simple pass-through recalibrator
+        import numpy as np
+        from scipy.stats import linregress
+        from scipy.stats import norm
+
+        start_time = time.time()
+        tot_cost = 0.0  # Cost for building the recalibrator if any LLM call is made
+
+        # Create a recalibrator class
         class SimpleRecalibrator:
+            def __init__(self, slope: float = 1.0, intercept: float = 0.0):
+                """
+                Initialize the Simple Recalibrator with optional slope and intercept.
+                This allows for a simple linear transformation of std to match actual error.
+                """
+                self.slope = slope
+                self.intercept = intercept
+
             def __call__(self, mean: np.ndarray, std: np.ndarray, confidence_level: float) -> Any:
+                """
+                Adjust the uncertainty estimation based on the calibration slope and intercept.
+                Args:
+                    mean: Array of predicted means.
+                    std: Array of predicted standard deviations.
+                    confidence_level: Desired confidence interval (e.g., 0.68 for 1 sigma).
+                Returns:
+                    An object with `.lower` and `.upper` attributes.
+                """
+
                 class RecalibratorResult:
                     def __init__(self, lower: np.ndarray, upper: np.ndarray) -> None:
                         self.lower = lower
                         self.upper = upper
 
+                # Adjust std using the learned slope and intercept
+                adjusted_std = self.slope * std + self.intercept
                 z_score = norm.ppf((1 + confidence_level) / 2)
-                lower = mean - z_score * std
-                upper = mean + z_score * std
+
+                lower = mean - z_score * adjusted_std
+                upper = mean + z_score * adjusted_std
+
                 return RecalibratorResult(lower=lower, upper=upper)
 
-        return SimpleRecalibrator(), tot_cost, time_taken
+        # Estimate slope & intercept via regression if there are enough points
+        if len(observed_configs) > 10:  # Arbitrary threshold for having enough data
+            predicted_means = np.array(observed_fvals["mean"])
+            predicted_stds = np.array(observed_fvals["std"])
+
+            # True observed values (ground-truth evaluations)
+            true_values = np.array(observed_fvals["true"])
+
+            # Calculate absolute errors between predictions and true values
+            errors = np.abs(predicted_means - true_values)
+
+            # Avoid divide-by-zero by capping small stds
+            capped_stds = np.maximum(predicted_stds, 1e-8)
+
+            # Regress the observed errors against the predicted stds
+            slope, intercept, _, _, _ = linregress(capped_stds, errors)
+
+            # Create a recalibrator with the learned parameters
+            recalibrator = SimpleRecalibrator(slope=slope, intercept=intercept)
+            print(
+                f"[Recalibration] Using Linear Regression Recalibrator with slope={slope:.4f}, intercept={intercept:.4f}"
+            )
+
+        else:
+            # Not enough data for regression, fall back to default scaling (no calibration)
+            recalibrator = SimpleRecalibrator()
+            print("[Recalibration] Not enough data for regression. Using default recalibration.")
+
+        # Measure time taken
+        time_taken = time.time() - start_time
+
+        return recalibrator, tot_cost, time_taken
 
     async def _evaluate_candidate_points(
         self,
@@ -561,7 +623,7 @@ class LLMDiscriminativeSM:
         return_ei: bool = False,
     ) -> Tuple[Any, ...]:
         """
-        Evaluate candidate points using the LLM model.
+        Evaluate candidate points using the LLM model with support for bootstrapping and recalibration.
 
         Args:
             observed_configs: Previously observed configurations.
@@ -583,7 +645,7 @@ class LLMDiscriminativeSM:
             >>> configs = pd.DataFrame({"x": [1, 2, 3]})
             >>> fvals = pd.Series([0.1, 0.2, 0.3])
             >>> candidates = pd.DataFrame({"x": [4, 5]})
-            >>> results = model._evaluate_candidate_points(configs, fvals, candidates)
+            >>> results = await model._evaluate_candidate_points(configs, fvals, candidates)
         """
         all_run_cost: float = 0.0
         all_run_time: float = 0.0
@@ -614,16 +676,31 @@ class LLMDiscriminativeSM:
         print(f"Number of query_examples: {len(query_examples)}")
         print(all_prompt_templates[0].format(Q=query_examples[0]["Q"]))
 
-        y_mean, y_std, success_rate, tot_cost, time_taken = await self._predict(
-            all_prompt_templates, query_examples
-        )
+        y_mean_list, y_std_list = [], []
+        total_cost, total_time = 0.0, 0.0
+
+        # Bootstrapping process
+        for _ in range(self.num_prompt_variants if self.bootstrapping else 1):
+            y_mean, y_std, success_rate, tot_cost, time_taken = await self._predict(
+                all_prompt_templates, query_examples
+            )
+            y_mean_list.append(y_mean)
+            y_std_list.append(y_std)
+            total_cost += tot_cost
+            total_time += time_taken
+
+        if self.bootstrapping:
+            y_mean = np.mean(y_mean_list, axis=0)
+            y_std = np.sqrt(np.mean(np.square(y_std_list), axis=0))
+        else:
+            y_mean, y_std = y_mean_list[0], y_std_list[0]
 
         if self.recalibrator is not None:
             recalibrated_res = self.recalibrator(y_mean, y_std, 0.68)
             y_std = np.abs(recalibrated_res.upper - recalibrated_res.lower) / 2
 
-        all_run_cost += float(tot_cost)
-        all_run_time += float(time_taken)
+        all_run_cost += total_cost
+        all_run_time += total_time
 
         if not return_ei:
             return y_mean, y_std, all_run_cost, all_run_time

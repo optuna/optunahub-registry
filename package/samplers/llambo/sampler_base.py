@@ -46,6 +46,8 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         azure_api_base: Azure API base URL, required if azure=True.
         azure_api_version: Azure API version, required if azure=True.
         azure_deployment_name: Azure deployment name, required if azure=True.
+        bootstrapping: Whether to enable bootstrapping for the discriminative surrogate model.
+        use_recalibration: Whether to enable recalibration for the discriminative surrogate model.
     """
 
     def __init__(
@@ -66,6 +68,8 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         azure_api_base: Optional[str] = None,
         azure_api_version: Optional[str] = None,
         azure_deployment_name: Optional[str] = None,
+        bootstrapping: bool = False,
+        use_recalibration: bool = False,
     ) -> None:
         """
         Initialize the LLAMBO sampler.
@@ -87,6 +91,8 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
             azure_api_base: Azure API base URL, required if azure=True.
             azure_api_version: Azure API version, required if azure=True.
             azure_deployment_name: Azure deployment name, required if azure=True.
+            bootstrapping: Whether to enable bootstrapping for the discriminative surrogate model.
+            use_recalibration: Whether to enable recalibration for the discriminative surrogate model.
         """
         super().__init__(search_space)
         self.seed = seed
@@ -111,6 +117,22 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         self.azure_api_base = azure_api_base
         self.azure_api_version = azure_api_version
         self.azure_deployment_name = azure_deployment_name
+
+        # NEW: store the flags
+        self.bootstrapping = bootstrapping
+        self.use_recalibration = use_recalibration
+
+        # Optional guard: Only allow bootstrapping/recalibration for discriminative
+        if self.sm_mode == "generative" and (self.bootstrapping or self.use_recalibration):
+            raise ValueError(
+                "bootstrapping/use_recalibration are only supported if sm_mode='discriminative'."
+            )
+
+        # If you want to also forbid enabling both at once, do so:
+        if self.bootstrapping and self.use_recalibration:
+            raise ValueError(
+                "Cannot enable both bootstrapping and recalibration at the same time."
+            )
 
         # Initialize task_context here (this is what was missing)
         self.task_context: dict[str, Any] = {
@@ -139,9 +161,7 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         # Initialize attributes that will be set later
         self.lower_is_better = True  # Default, will be set properly in sample_relative
         self.init_configs: list[dict[str, Any]] = []  # Will be populated in sample_relative
-        self.hyperparameter_constraints: dict[
-            str, list[Any]
-        ] = {}  # Will be populated in _initialize_llambo
+        self.hyperparameter_constraints: dict[str, list[Any]] = {}
 
         # Initialize empty DataFrames instead of lists for thread-safety
         self.init_observed_configs = pd.DataFrame()
@@ -256,9 +276,11 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                 "lower_is_better": self.lower_is_better,
                 "hyperparameter_constraints": self.hyperparameter_constraints,
             }
+
             top_pct = 0.25 if self.sm_mode == "generative" else None
 
             try:
+                # Use user-specified flags for bootstrapping/recalibration
                 self.LLAMBO_instance = LLAMBO(
                     task_context,
                     self.sm_mode,
@@ -275,6 +297,8 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
                     azure_api_base=self.azure_api_base,
                     azure_api_version=self.azure_api_version,
                     azure_deployment_name=self.azure_deployment_name,
+                    bootstrapping=self.bootstrapping,
+                    use_recalibration=self.use_recalibration,
                 )
                 return True
             except Exception as e:
@@ -450,13 +474,13 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         if len(search_space) == 0:
             return {}
 
-            # Determine the optimization direction.
+        # Determine the optimization direction.
         if study.direction is not None:
             self.lower_is_better = study.direction == optuna.study.StudyDirection.MINIMIZE
         else:
             self.lower_is_better = study.directions[0] == optuna.study.StudyDirection.MINIMIZE
 
-            # Update task_context with direction info.
+        # Update task_context with direction info.
         if not hasattr(self, "task_context") or self.task_context is None:
             self.task_context = {}
         self.task_context["lower_is_better"] = self.lower_is_better
