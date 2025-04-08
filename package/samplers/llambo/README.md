@@ -96,6 +96,8 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
         azure_api_base: Optional[str] = None,
         azure_api_version: Optional[str] = None,
         azure_deployment_name: Optional[str] = None,
+        bootstrapping: bool = False,
+        use_recalibration: bool = False,
     ):
         ...
 ```
@@ -184,6 +186,12 @@ class LLAMBOSampler(optunahub.samplers.SimpleBaseSampler):
 
 - **`azure_deployment_name`** *(str, optional)*\
   Azure deployment name, required if `azure=True`.
+
+- **`bootstrapping`** *(bool, default=False)*\
+  Whether to enable bootstrapping for the discriminative surrogate model. This technique generates multiple prediction estimates through sampling with replacement from observed data, which can improve prediction robustness and uncertainty estimation. Only valid when `sm_mode="discriminative"`.
+
+- **`use_recalibration`** *(bool, default=False)*\
+  Whether to enable recalibration for the discriminative surrogate model. This applies a post-processing step to adjust the raw predictions from the model to better match the empirical distribution of observed values, potentially improving prediction accuracy. Only valid when `sm_mode="discriminative"`. Cannot be used simultaneously with bootstrapping.
 
 #### **Key Methods**
 
