@@ -23,8 +23,6 @@ class BaseMutation(abc.ABC):
                 The value to mutate.
             rng:
                 An instance of ``numpy.random.RandomState``.
-            study:
-                Target study object.
             search_space_bounds:
                 A ``numpy.ndarray`` with dimensions ``len_search_space x 2`` representing
                 numerical distribution bounds constructed from transformed search space.
