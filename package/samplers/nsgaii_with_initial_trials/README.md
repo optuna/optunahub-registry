@@ -16,9 +16,13 @@ In this implementation, the already sampled results are included in the initial 
 Note, however, that this has the effect that the implementation does not necessarily support multi-threading in the generation of the initial generation.
 After the initial generation, the implementation is similar to the built-in NSGAII.
 
-## Class or Function Names
+## APIs
 
-- NSGAIIwITSampler
+- `NSGAIIwITSampler(*, mutation, population_size, mutation_prob, crossover, crossover_prob, swapping_prob, seed, constraints_func, elite_population_selection_strategy, child_generation_strategy, after_trial_strategy)`
+  - `mutation`: Mutation to be applied when creating child individual.
+  - Supported mutation methods are listed below
+    - `Uniform`, `Polynomial`, `Gauss`
+  - The other arguments are the same as for Optuna's NSGA-II.
 
 ## Example
 
@@ -36,12 +40,14 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
 
 
 storage = optuna.storages.InMemoryStorage()
+study_name = "test"
+directions=["minimize", "minimize"],
 
 # Sampling 0 generation using enqueueing & qmc sampler
 study = optuna.create_study(
-    directions=["minimize", "minimize"],
+    directions=directions,
     sampler=optuna.samplers.QMCSampler(seed=42),
-    study_name="test",
+    study_name=study_name,
     storage=storage,
 )
 study.enqueue_trial(
@@ -58,9 +64,9 @@ sampler = optunahub.load_module(
 ).NSGAIIwITSampler(population_size=25, seed=42)
 
 study = optuna.create_study(
-    directions=["minimize", "minimize"],
+    directions=directions,
     sampler=sampler,
-    study_name="test",
+    study_name=study_name,
     storage=storage,
     load_if_exists=True,
 )

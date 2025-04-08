@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
+from collections.abc import Sequence
 import hashlib
 from typing import Any
 from typing import TYPE_CHECKING
@@ -8,7 +10,15 @@ from typing import TYPE_CHECKING
 import optuna
 from optuna.distributions import BaseDistribution
 from optuna.samplers import NSGAIISampler
+from optuna.samplers._lazy_random_state import LazyRandomState
+from optuna.samplers.nsgaii._crossovers._base import BaseCrossover
+from optuna.samplers.nsgaii._crossovers._uniform import UniformCrossover
 from optuna.trial import FrozenTrial
+from optuna.trial import TrialState
+
+from ._child_generation_strategy import NSGAIIwITChildGenerationStrategy
+from ._mutations._base import BaseMutation
+from ._mutations.uniform import UniformMutation
 
 
 if TYPE_CHECKING:
@@ -21,6 +31,51 @@ _POPULATION_CACHE_KEY_PREFIX = "nsga2wit:population"
 
 
 class NSGAIIwITSampler(NSGAIISampler):
+    def __init__(
+        self,
+        *,
+        population_size: int = 50,
+        mutation: BaseMutation | None = None,
+        mutation_prob: float | None = None,
+        crossover: BaseCrossover | None = None,
+        crossover_prob: float = 0.9,
+        swapping_prob: float = 0.5,
+        seed: int | None = None,
+        constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
+        elite_population_selection_strategy: (
+            Callable[[Study, list[FrozenTrial]], list[FrozenTrial]] | None
+        ) = None,
+        after_trial_strategy: (
+            Callable[[Study, FrozenTrial, TrialState, Sequence[float] | None], None] | None
+        ) = None,
+    ) -> None:
+        if mutation is None:
+            mutation = UniformMutation()
+
+        if crossover is None:
+            crossover = UniformCrossover(swapping_prob)
+
+        super().__init__(
+            population_size=population_size,
+            mutation_prob=mutation_prob,
+            crossover=crossover,
+            crossover_prob=crossover_prob,
+            swapping_prob=swapping_prob,
+            seed=seed,
+            constraints_func=constraints_func,
+            elite_population_selection_strategy=elite_population_selection_strategy,
+            child_generation_strategy=NSGAIIwITChildGenerationStrategy(
+                mutation=mutation,
+                mutation_prob=mutation_prob,
+                crossover=crossover,
+                crossover_prob=crossover_prob,
+                swapping_prob=swapping_prob,
+                constraints_func=constraints_func,
+                rng=LazyRandomState(seed),
+            ),
+            after_trial_strategy=after_trial_strategy,
+        )
+
     def sample_relative(
         self,
         study: Study,
