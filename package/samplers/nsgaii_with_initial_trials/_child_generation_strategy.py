@@ -107,10 +107,13 @@ class NSGAIIwITChildGenerationStrategy:
             if self._rng.rng.rand() >= mutation_prob:
                 params[param_name] = child_params[param_name]
             else:
-                params[param_name] = perform_mutation(
+                mutation_value = perform_mutation(
                     self._mutation,
                     self._rng.rng,
                     search_space[param_name],
                     child_params[param_name],
                 )
+                if mutation_value is not None:
+                    params[param_name] = mutation_value
+
         return params

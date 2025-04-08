@@ -24,6 +24,7 @@ In addition, enhancements to Optuna's NSGA-II include the option to select mutat
 - `NSGAIIwITSampler(*, mutation=None, population_size=50, mutation_prob=None, crossover=None, crossover_prob=0.9, swapping_prob=0.5, seed=None, constraints_func=None, elite_population_selection_strategy=None, after_trial_strategy=None)`
   - `mutation`: Mutation to be applied when creating child individual. If None, `UniformMutation` is selected.
     - [Kalyanmoy Deb and Debayan Deb. 2014. Analysing mutation schemes for real-parameter genetic algorithms. Int. J. Artif. Intell. Soft Comput. 4, 1 (February 2014), 1–28.](https://doi.org/10.1504/IJAISC.2014.059280)
+  - For categorical variables, it is always `UniformMutation`.
   - Supported mutation methods are listed below
     - `UniformMutation()`
       - This is a mutation method that uses a Uniform distribution for the distribution of the generated individuals.
