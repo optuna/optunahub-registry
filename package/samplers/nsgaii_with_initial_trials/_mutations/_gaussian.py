@@ -6,8 +6,8 @@ from numpy.random import RandomState
 from ._base import BaseMutation
 
 
-class GaussMutation(BaseMutation):
-    def __init__(self, sigma_factor: float = 0.1) -> None:
+class GaussianMutation(BaseMutation):
+    def __init__(self, sigma_factor: float = 1.0 / 30.0) -> None:
         self._sigma_factor = sigma_factor
 
     def mutation(self, value: float, rng: RandomState, search_space_bonds: ndarray) -> float:

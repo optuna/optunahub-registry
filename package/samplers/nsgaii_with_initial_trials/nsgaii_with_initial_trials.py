@@ -18,7 +18,7 @@ from optuna.trial import TrialState
 
 from ._child_generation_strategy import NSGAIIwITChildGenerationStrategy
 from ._mutations._base import BaseMutation
-from ._mutations.uniform import UniformMutation
+from ._mutations._uniform import UniformMutation
 
 
 if TYPE_CHECKING:
