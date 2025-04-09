@@ -11,11 +11,11 @@ license: MIT License
 
 This package offers a CMA-ES-based sampler with support for advanced restart strategies, specifically IPOP-CMA-ES and BIPOP-CMA-ES. Originally implemented in Optuna (≤4.2), this functionality was removed to enhance the maintainability of Optuna's core algorithms.
 
-Please note that this sampler does not support CategoricalDistribution. However, :class:`~optuna.distributions.FloatDistribution` with `step`, (:func:`~optuna.trial.Trial.suggest_float`) and :class:`~optuna.distributions.IntDistribution` (:func:`~optuna.trial.Trial.suggest_int`) are supported.
+Please note that this sampler does not support CategoricalDistribution. However, `optuna.distributions.FloatDistribution` with `step`, (`optuna.trial.Trial.suggest_float`) and `optuna.distributions.IntDistribution` (`optuna.trial.Trial.suggest_int`) are supported.
 
-If your search space contains categorical parameters, I recommend you to use :class:`~optuna.samplers.TPESampler` instead. Furthermore, there is room for performance improvements in parallel optimization settings. This sampler cannot use some trials for updating the parameters of multivariate normal distribution.
+If your search space contains categorical parameters, I recommend you to use `optuna.samplers.TPESampler` instead. Furthermore, there is room for performance improvements in parallel optimization settings. This sampler cannot use some trials for updating the parameters of multivariate normal distribution.
 
-This sampler uses `cmaes <https://github.com/CyberAgentAILab/cmaes>`\_\_ as the backend.
+This sampler uses [`cmaes`](https://github.com/CyberAgentAILab/cmaes) as the backend.
 
 ## APIs
 
@@ -28,28 +28,23 @@ This sampler uses `cmaes <https://github.com/CyberAgentAILab/cmaes>`\_\_ as the 
 
   - `n_startup_trials`: The independent sampling is used instead of the CMA-ES algorithm until the given number of trials finish in the same study.
 
-  - `independent_sampler`: A :class:`~optuna.samplers.BaseSampler` instance that is used for independent sampling. The parameters not contained in the relative search space are sampled by this sampler. The search space for :class:`~optuna.samplers.CmaEsSampler` is determined by :func:`~optuna.search_space.intersection_search_space()`. If :obj:`None` is specified, :class:`~optuna.samplers.RandomSampler` is used as the default.
+  - `independent_sampler`: A `optuna.samplers.BaseSampler` instance that is used for independent sampling. The parameters not contained in the relative search space are sampled by this sampler. The search space for `optuna.samplers.CmaEsSampler` is determined by `optuna.search_space.intersection_search_space()`. If `None` is specified, `optuna.samplers.RandomSampler` is used as the default.
 
-    - seealso::
-      :class:`optuna.samplers` module provides built-in independent samplers such as :class:`~optuna.samplers.RandomSampler` and :class:`~optuna.samplers.TPESampler`.
+  - `warn_independent_sampling`: If this is `True`, a warning message is emitted when the value of a parameter is sampled by using an independent sampler. Note that the parameters of the first trial in a study are always sampled via an independent sampler, so no warning messages are emitted in this case.
 
-  - `warn_independent_sampling`: If this is :obj:`True`, a warning message is emitted when the value of a parameter is sampled by using an independent sampler. Note that the parameters of the first trial in a study are always sampled via an independent sampler, so no warning messages are emitted in this case.
-
-  - `restart_strategy`: Strategy for restarting CMA-ES optimization when converges to a local minimum. If :obj:`None` is given, CMA-ES will not restart (default). If 'ipop' is given, CMA-ES will restart with increasing population size. if 'bipop' is given, CMA-ES will restart with the population size increased or decreased. Please see also `inc_popsize` parameter.
+  - `restart_strategy`: Strategy for restarting CMA-ES optimization when converges to a local minimum. If `None` is given, CMA-ES will not restart (default). If 'ipop' is given, CMA-ES will restart with increasing population size. if 'bipop' is given, CMA-ES will restart with the population size increased or decreased. Please see also `inc_popsize` parameter.
 
   - `popsize`: A population size of CMA-ES. When `restart_strategy = 'ipop'` or `restart_strategy = 'bipop'` is specified, this is used as the initial population size.
 
   - `inc_popsize`: Multiplier for increasing population size before each restart. This argument will be used when `restart_strategy = 'ipop'` or `restart_strategy = 'bipop'` is specified.
 
-  - `consider_pruned_trials`: If this is :obj:`True`, the PRUNED trials are considered for sampling.
+  - `consider_pruned_trials`: If this is `True`, the PRUNED trials are considered for sampling. Note that it is suggested to set this flag `False` when the `optuna.pruners.MedianPruner` is used. On the other hand, it is suggested to set this flag `True` when the `optuna.pruners.HyperbandPruner` is used. Please see [the benchmark result](https://github.com/optuna/optuna/pull/1229) for the details.
 
-    - .. note:: It is suggested to set this flag :obj:`False` when the :class:`~optuna.pruners.MedianPruner` is used. On the other hand, it is suggested to set this flag :obj:`True` when the :class:`~optuna.pruners.HyperbandPruner` is used. Please see `the benchmark result <https://github.com/optuna/optuna/pull/1229>`\_\_ for the details.
+  - `use_separable_cma`: If this is `True`, the covariance matrix is constrained to be diagonal. Due to reduce the model complexity, the learning rate for the covariance matrix is increased. Consequently, this algorithm outperforms CMA-ES on separable functions.
 
-  - `use_separable_cma`: If this is :obj:`True`, the covariance matrix is constrained to be diagonal. Due to reduce the model complexity, the learning rate for the covariance matrix is increased. Consequently, this algorithm outperforms CMA-ES on separable functions.
+  - `with_margin`: If this is `True`, CMA-ES with margin is used. This algorithm prevents samples in each discrete distribution (`optuna.distributions.FloatDistribution` with `step` and `optuna.distributions.IntDistribution`) from being fixed to a single point. Currently, this option cannot be used with `use_separable_cma=True`.
 
-  - `with_margin`: If this is :obj:`True`, CMA-ES with margin is used. This algorithm prevents samples in each discrete distribution (:class:`~optuna.distributions.FloatDistribution` with `step` and :class:`~optuna.distributions.IntDistribution`) from being fixed to a single point. Currently, this option cannot be used with `use_separable_cma=True`.
-
-  - `lr_adapt`: If this is :obj:`True`, CMA-ES with learning rate adaptation is used. This algorithm focuses on working well on multimodal and/or noisy problems with default settings. Currently, this option cannot be used with `use_separable_cma=True` or `with_margin=True`.
+  - `lr_adapt`: If this is `True`, CMA-ES with learning rate adaptation is used. This algorithm focuses on working well on multimodal and/or noisy problems with default settings. Currently, this option cannot be used with `use_separable_cma=True` or `with_margin=True`.
 
   - `source_trials`: This option is for Warm Starting CMA-ES, a method to transfer prior knowledge on similar HPO tasks through the initialization of CMA-ES. This method estimates a promising distribution from `source_trials` and generates the parameter of multivariate gaussian distribution. Please note that it is prohibited to use `x0`, `sigma0`, or `use_separable_cma` argument together.
 
@@ -74,6 +69,12 @@ sampler = optuna.samplers.CmaEsSampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=20)
 
+```
+
+## Installation
+
+```sh
+pip install -r https://hub.optuna.org/samplers/restart_cmaes/requirements.txt
 ```
 
 ### Reference

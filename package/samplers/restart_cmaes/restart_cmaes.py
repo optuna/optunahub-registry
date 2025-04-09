@@ -49,11 +49,6 @@ from typing import cast
 from typing import NamedTuple
 from typing import Union
 
-# if TYPE_CHECKING:
-#     import cmaes
-#     CmaClass = Union[cmaes.CMA, cmaes.SepCMA, cmaes.CMAwM]
-# else:
-#     cmaes = _LazyImport("cmaes")
 import cmaes
 import numpy as np
 import optuna
@@ -71,8 +66,9 @@ from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
 
-_logger = logging.get_logger(__name__)
 CmaClass = Union[cmaes.CMA, cmaes.CMAwM]
+
+_logger = logging.get_logger(__name__)
 
 _EPS = 1e-10
 # The value of system_attrs must be less than 2046 characters on RDBStorage.
