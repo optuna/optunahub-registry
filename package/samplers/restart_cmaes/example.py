@@ -6,7 +6,7 @@ module = optunahub.load_module("samplers/restart_cmaes")
 RestartCmaEsSampler = module.RestartCmaEsSampler
 
 
-def objective(trial):
+def objective(trial: optuna.Trial) -> float:
     x = trial.suggest_float("x", -1, 1)
     y = trial.suggest_int("y", -1, 1)
     return x**2 + y
