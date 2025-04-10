@@ -26,7 +26,7 @@ This package serves as a wrapper for the original benchmark.
 
 - `search_space`: Return the search space.
   - Returns: `dict[str, optuna.distributions.BaseDistribution]`
-- `directions`: Return the optimization directions.
+- `directions`: Return the optimization directions. For now, only `optuna.study.StudyDirection.MINIMIZE` is supported.
   - Returns: `list[optuna.study.StudyDirection]`
 - `evaluate(params: dict[str, float])`: Evaluate the objective function given a dictionary of parameters.
   - Args:
@@ -43,17 +43,23 @@ The properties and functions of classes in [`hpa.problem`](https://github.com/No
 
 Please install [hpa repository](https://github.com/Nobuo-Namura/hpa) in your python environment.
 
-```
+```shell
 pip install git+https://github.com/Nobuo-Namura/hpa
 ```
 
 or clone the repository and get into it, and run
 
-```
+```shell
 pip install .
 ```
 
 See the installation details by visiting [here](https://github.com/Nobuo-Namura/hpa?tab=readme-ov-file#installation).
+
+Or you can install the required packages from optunahub.
+
+```shell
+pip install -r https://hub.optuna.org/benchmarks/hpa/requirements.txt
+```
 
 ## Example
 
