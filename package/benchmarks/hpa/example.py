@@ -5,7 +5,7 @@ import optunahub
 
 
 hpa = optunahub.load_module("benchmarks/hpa")
-problem = hpa.ConstrainedProblem("HPA131") 
+problem = hpa.ConstrainedProblem("HPA131")
 study = optuna.create_study(directions=problem.directions)
 study.optimize(problem, n_trials=10)
 print(study.best_trial)

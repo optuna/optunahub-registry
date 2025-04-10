@@ -1,29 +1,81 @@
-import optuna
-import optunahub
 from typing import Any
 from typing import List
 
-import hpa.problem
+import optuna
+import optunahub
+
 
 _problem_names = [
-    "HPA131", "HPA101", "HPA142", "HPA102", "HPA143", "HPA103",
-    "HPA241", "HPA201", "HPA222", "HPA202", "HPA233", "HPA203",
-    "HPA244", "HPA204", "HPA245", "HPA205", "HPA341", "HPA301",
-    "HPA322", "HPA302", "HPA333", "HPA303", "HPA344", "HPA304",
-    "HPA345", "HPA305", "HPA441", "HPA401", "HPA422", "HPA402",
-    "HPA443", "HPA403", "HPA541", "HPA501", "HPA542", "HPA502",
-    "HPA641", "HPA601", "HPA941", "HPA901",
+    "HPA131",
+    "HPA101",
+    "HPA142",
+    "HPA102",
+    "HPA143",
+    "HPA103",
+    "HPA241",
+    "HPA201",
+    "HPA222",
+    "HPA202",
+    "HPA233",
+    "HPA203",
+    "HPA244",
+    "HPA204",
+    "HPA245",
+    "HPA205",
+    "HPA341",
+    "HPA301",
+    "HPA322",
+    "HPA302",
+    "HPA333",
+    "HPA303",
+    "HPA344",
+    "HPA304",
+    "HPA345",
+    "HPA305",
+    "HPA441",
+    "HPA401",
+    "HPA422",
+    "HPA402",
+    "HPA443",
+    "HPA403",
+    "HPA541",
+    "HPA501",
+    "HPA542",
+    "HPA502",
+    "HPA641",
+    "HPA601",
+    "HPA941",
+    "HPA901",
 ]
 
 _constrained_problem_names = [
-    'HPA131', 'HPA142', 'HPA143', 'HPA241', 'HPA222', 'HPA233', 
-    'HPA244', 'HPA245', 'HPA341', 'HPA322', 'HPA333', 'HPA344', 
-    'HPA345', 'HPA441', 'HPA422', 'HPA443', 'HPA541', 'HPA542', 
-    'HPA641', 'HPA941'
+    "HPA131",
+    "HPA142",
+    "HPA143",
+    "HPA241",
+    "HPA222",
+    "HPA233",
+    "HPA244",
+    "HPA245",
+    "HPA341",
+    "HPA322",
+    "HPA333",
+    "HPA344",
+    "HPA345",
+    "HPA441",
+    "HPA422",
+    "HPA443",
+    "HPA541",
+    "HPA542",
+    "HPA641",
+    "HPA941",
 ]
 
+
 class Problem(optunahub.benchmarks.BaseProblem):
-    def __init__(self, problem_name: str, n_div: int = 4, level: int = 0, NORMALIZED: bool = True ) -> None:
+    def __init__(
+        self, problem_name: str, n_div: int = 4, level: int = 0, NORMALIZED: bool = True
+    ) -> None:
         """Initialize the problem.
         Args:
             problem_name: Name of problem.
@@ -44,11 +96,20 @@ class Problem(optunahub.benchmarks.BaseProblem):
         self._level = level
         self._normalized = NORMALIZED
 
-        self._problem = eval("hpa.problem." + problem_name + '(n_div=' + str(n_div) + ', level=' + str(level) + ', NORMALIZED=' + str(NORMALIZED) + ')')
+        self._problem = eval(
+            "hpa.problem."
+            + problem_name
+            + "(n_div="
+            + str(n_div)
+            + ", level="
+            + str(level)
+            + ", NORMALIZED="
+            + str(NORMALIZED)
+            + ")"
+        )
 
         self._search_space = {
-            f"x{i}": optuna.distributions.FloatDistribution(0, 1)
-            for i in range(self._problem.nx)
+            f"x{i}": optuna.distributions.FloatDistribution(0, 1) for i in range(self._problem.nx)
         }
 
     @property
@@ -60,7 +121,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
     def directions(self) -> list[optuna.study.StudyDirection]:
         """Return the optimization directions."""
         return [optuna.study.StudyDirection.MINIMIZE] * self._problem.nf
-    
+
     def evaluate(self, params: dict[str, float]) -> List[float]:
         if self._problem_name in _constrained_problem_names:
             return self._problem([params[name] for name in self._search_space])[0].tolist()
@@ -76,4 +137,3 @@ class ConstrainedProblem(optunahub.benchmarks.ConstrainedMixin, Problem):
             return self._problem([params[name] for name in self._search_space])[1].tolist()
         else:
             raise TypeError(f"{self._problem_name} is not a constrained problem.")
-    

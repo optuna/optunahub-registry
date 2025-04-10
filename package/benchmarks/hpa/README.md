@@ -1,13 +1,14 @@
 ---
 author: Optuna team
-title: 'Single and Multi-objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design'
-description: 'The benchmark problem for human-powered aircraft design introduced in the paper `Single and Multi-Objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design`'
+title: Single and Multi-objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design
+description: The benchmark problem for human-powered aircraft design introduced in the paper `Single and Multi-Objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design`
 tags: [benchmark, HPA, multi-objective, human-powered aircraft]
 optuna_versions: [4.1.0]
 license: MIT License
 ---
 
 ## Abstract
+
 The benchmark for human-powered aircraft (hpa) design is introduced in the paper [Single and Multi-Objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design](https://arxiv.org/abs/2312.08953).
 The original benchmark is available [here](https://github.com/Nobuo-Namura/hpa).
 This package serves as a wrapper for the original benchmark.
@@ -38,20 +39,24 @@ This package serves as a wrapper for the original benchmark.
 
 The properties and functions of classes in [`hpa.problem`](https://github.com/Nobuo-Namura/hpa/blob/main/hpa/problem.py) are also available such as `nx`, `plot_wing3d`.
 
-
 ## Installation
 
 Please install [hpa repository](https://github.com/Nobuo-Namura/hpa) in your python environment.
+
 ```
 pip install git+https://github.com/Nobuo-Namura/hpa
 ```
+
 or clone the repository and get into it, and run
+
 ```
 pip install .
 ```
+
 See the installation details by visiting [here](https://github.com/Nobuo-Namura/hpa?tab=readme-ov-file#installation).
 
 ## Example
+
 ```Python
 from __future__ import annotations
 
@@ -65,6 +70,7 @@ study = optuna.create_study(directions=problem.directions)
 study.optimize(problem, n_trials=10)
 print(study.best_trial)
 ```
+
 ## Reference
 
 Namura, N. [Single and Multi-objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design](https://link.springer.com/chapter/10.1007/978-981-96-3506-1_14).
