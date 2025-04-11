@@ -12,7 +12,6 @@ license: MIT License
 This package provides a sampler using Google Vizier.
 It is a simple wrapper around Vizier's Python client, enabling its optimization capabilities within the Optuna framework.
 
-
 ## Class or Function Names
 
 - VizierSampler
@@ -42,4 +41,3 @@ plot_hypervolume_history(study, reference_point=[0.5, 0.5])
 ```
 
 ## Benchmarks
-

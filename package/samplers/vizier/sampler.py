@@ -11,7 +11,6 @@ from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 import optunahub
 
-from vizier import algorithms as vz_algorithms
 from vizier.service import clients
 from vizier.service import pyvizier as vz
 
@@ -48,13 +47,15 @@ def _add_search_space_to_problem(
 
 
 class VizierSampler(optunahub.samplers.SimpleBaseSampler):
+    search_space: dict[str, BaseDistribution] | None = None
+    suggestions: list[clients.Trial] | None = None
+
     def __init__(
         self, algorithm: str = "DEFAULT", search_space: dict[str, BaseDistribution] | None = None
     ):
         super().__init__(search_space)
         self.algorithm: str = algorithm
         self.study_client: clients.Study | None = None
-        self.suggestions: list[clients.Trial] | None = None
 
     def sample_relative(
         self,
@@ -91,8 +92,9 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
 
         self.suggestions = self.study_client.suggest(count=1)
 
-        ret = {}
-
+        ret: dict[str, Any] = {}
+        if self.suggestions is None:
+            assert False, "unreachable"
         for key, value in self.suggestions[0].parameters.items():
             ret[key] = value
         return ret
