@@ -28,9 +28,11 @@ study.optimize(objective, n_trials=128)
 
 # Using previous sampling results as the initial generation,
 # sampled by NSGAII.
-sampler = optunahub.load_module(
+module = optunahub.load_module(
     "samplers/nsgaii_with_initial_trials",
-).NSGAIIwITSampler(population_size=25, seed=42)
+)
+mutation = module.PolynomialMutation(eta=20)
+sampler = module.NSGAIIwITSampler(population_size=25, seed=42, mutation=mutation)
 
 study = optuna.create_study(
     directions=["minimize", "minimize"],
