@@ -71,24 +71,7 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
             self.search_space = search_space
 
         if self.study_client is None:
-            problem = vz.ProblemStatement()
-            _add_search_space_to_problem(problem, search_space)
-            problem.metric_information = list(
-                vz.MetricInformation(
-                    name=f"direction_{i}",
-                    goal=vz.ObjectiveMetricGoal.MAXIMIZE
-                    if direction == optuna.study.StudyDirection.MAXIMIZE
-                    else vz.ObjectiveMetricGoal.MINIMIZE,
-                )
-                for i, direction in enumerate(study.directions)
-            )
-
-            study_config = vz.StudyConfig.from_problem(problem)
-            study_config.algorithm = self.algorithm
-
-            self.study_client = clients.Study.from_study_config(
-                study_config, owner="owner", study_id=study.study_name
-            )
+            self.study_client = self._create_study_client(study, search_space)
 
         self.suggestions = self.study_client.suggest(count=1)
 
@@ -116,3 +99,40 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
                     }
                 )
             )
+            self.suggestions = None
+        elif values is not None and state == TrialState.COMPLETE:
+            vz_trial = vz.Trial(parameters={key: value for key, value in trial.params.items()})
+            vz_trial.complete(
+                vz.Measurement(
+                    {
+                        f"direction_{i}": value
+                        for i, value in enumerate(values)
+                        if value is not None
+                    }
+                )
+            )
+            if self.study_client is None:
+                self.study_client = self._create_study_client(study, trial.distributions)
+            self.study_client.add_trial(vz_trial)
+
+    def _create_study_client(
+        self, study: Study, search_space: dict[str, BaseDistribution]
+    ) -> clients.Study:
+        problem = vz.ProblemStatement()
+        _add_search_space_to_problem(problem, search_space)
+        problem.metric_information = list(
+            vz.MetricInformation(
+                name=f"direction_{i}",
+                goal=vz.ObjectiveMetricGoal.MAXIMIZE
+                if direction == optuna.study.StudyDirection.MAXIMIZE
+                else vz.ObjectiveMetricGoal.MINIMIZE,
+            )
+            for i, direction in enumerate(study.directions)
+        )
+
+        study_config = vz.StudyConfig.from_problem(problem)
+        study_config.algorithm = self.algorithm
+
+        return clients.Study.from_study_config(
+            study_config, owner="owner", study_id=study.study_name
+        )
