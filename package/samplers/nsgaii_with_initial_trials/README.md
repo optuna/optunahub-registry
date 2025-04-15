@@ -53,7 +53,7 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
 
 storage = optuna.storages.InMemoryStorage()
 study_name = "test"
-directions=["minimize", "minimize"],
+directions = ["minimize", "minimize"]
 
 # Sampling 0 generation using enqueueing & qmc sampler
 study = optuna.create_study(
