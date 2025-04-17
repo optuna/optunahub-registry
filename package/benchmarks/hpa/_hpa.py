@@ -3,6 +3,7 @@ from typing import List
 
 import optuna
 import optunahub
+import hpa.problem
 
 
 _problem_names = [
