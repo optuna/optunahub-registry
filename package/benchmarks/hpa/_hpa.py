@@ -3,6 +3,7 @@ from typing import List
 
 import optuna
 import optunahub
+
 import hpa.problem
 
 
@@ -97,16 +98,10 @@ class Problem(optunahub.benchmarks.BaseProblem):
         self._level = level
         self._normalized = NORMALIZED
 
-        self._problem = eval(
-            "hpa.problem."
-            + problem_name
-            + "(n_div="
-            + str(n_div)
-            + ", level="
-            + str(level)
-            + ", NORMALIZED="
-            + str(NORMALIZED)
-            + ")"
+        self._problem = getattr(hpa.problem, problem_name)(
+            n_div=self._n_div,
+            level=self._level,
+            NORMALIZED=self._normalized,
         )
 
         self._search_space = {
