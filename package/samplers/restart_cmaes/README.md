@@ -3,13 +3,13 @@ author: Optuna team
 title: CMA-ES Sampler that support IPOP-CMA-ES and BIPOP-CMA-ES
 description: A CMA-ES-based sampler that supports advanced restart strategies, IPOP-CMA-ES and BIPOP-CMA-ES.
 tags: [sampler, CMA-ES, IPOP-CMA-ES, BIPOP-CMA-ES]
-optuna_versions: [4.2.1.]
+optuna_versions: [4.2.1]
 license: MIT License
 ---
 
 ## Abstract
 
-This package offers a CMA-ES-based sampler with support for advanced restart strategies, specifically IPOP-CMA-ES and BIPOP-CMA-ES. Originally implemented in Optuna (≤4.2), this functionality was removed to enhance the maintainability of Optuna's core algorithms.
+This package offers a CMA-ES-based sampler with support for advanced restart strategies, specifically IPOP-CMA-ES and BIPOP-CMA-ES. Originally implemented in Optuna prior to v4.4.0, this functionality was removed to enhance the maintainability of Optuna's core algorithms.
 
 Please note that this sampler does not support CategoricalDistribution. However, `optuna.distributions.FloatDistribution` with `step`, (`optuna.trial.Trial.suggest_float`) and `optuna.distributions.IntDistribution` (`optuna.trial.Trial.suggest_int`) are supported.
 
@@ -65,7 +65,9 @@ def objective(trial):
     return x**2 + y
 
 
-sampler = optuna.samplers.CmaEsSampler()
+sampler = optuna.samplers.CmaEsSampler()  # CMA-ES without restart (default)
+# sampler = optuna.samplers.CmaEsSampler(restart_strategy="ipop")  # IPOP-CMA-ES
+# sampler = optuna.samplers.CmaEsSampler(restart_strategy="bipop")  # BIPOP-CMA-ES
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=20)
 

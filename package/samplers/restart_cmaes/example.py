@@ -12,6 +12,8 @@ def objective(trial: optuna.Trial) -> float:
     return x**2 + y
 
 
-sampler = optuna.samplers.CmaEsSampler()
+sampler = optuna.samplers.CmaEsSampler()  # CMA-ES without restart (default)
+# sampler = optuna.samplers.CmaEsSampler(restart_strategy="ipop")  # IPOP-CMA-ES
+# sampler = optuna.samplers.CmaEsSampler(restart_strategy="bipop")  # BIPOP-CMA-ES
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=20)
