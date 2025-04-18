@@ -15,47 +15,16 @@ from vizier.service import clients
 from vizier.service import pyvizier as vz
 
 
-def _add_search_space_to_problem(
-    problem: vz.ProblemStatement, search_space: dict[str, BaseDistribution]
-) -> None:
-    for param_name, param_distribution in search_space.items():
-        if isinstance(param_distribution, optuna.distributions.IntDistribution):
-            problem.search_space.root.add_int_param(
-                param_name, param_distribution.low, param_distribution.high
-            )
-        elif isinstance(param_distribution, optuna.distributions.FloatDistribution):
-            problem.search_space.root.add_float_param(
-                param_name, param_distribution.low, param_distribution.high
-            )
-        elif isinstance(param_distribution, optuna.distributions.CategoricalDistribution):
-            if all(isinstance(choice, (int, float)) for choice in param_distribution.choices):
-                problem.search_space.root.add_discrete_param(
-                    param_name, cast(list[int | float], param_distribution.choices)
-                )
-                return
-            if all(isinstance(choice, str) for choice in param_distribution.choices):
-                problem.search_space.root.add_categorical_param(
-                    param_name, cast(list[str], param_distribution.choices)
-                )
-                return
-            raise ValueError(
-                f"Vizier only supports int, float, or str choices in CategoricalDistribution. "
-                f"Got {param_distribution.choices}."
-            )
-        else:
-            raise ValueError(f"Vizier sampler does not support {param_distribution}.")
-
-
 class VizierSampler(optunahub.samplers.SimpleBaseSampler):
     search_space: dict[str, BaseDistribution] | None = None
     suggestions: list[clients.Trial] | None = None
+    study_client: clients.Study | None = None
 
     def __init__(
         self, algorithm: str = "DEFAULT", search_space: dict[str, BaseDistribution] | None = None
     ):
         super().__init__(search_space)
         self.algorithm: str = algorithm
-        self.study_client: clients.Study | None = None
 
     def sample_relative(
         self,
@@ -75,11 +44,17 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
 
         self.suggestions = self.study_client.suggest(count=1)
 
-        ret: dict[str, Any] = {}
         if self.suggestions is None:
             assert False, "unreachable"
-        for key, value in self.suggestions[0].parameters.items():
-            ret[key] = value
+
+        ret = {}
+
+        for search_space_item, vz_param in zip(search_space, self.suggestions[0].parameters):
+            # Since the Vizier API returns a float on int distribution, we need to cast it to the correct type.
+            if isinstance(search_space_item[1], optuna.distributions.IntDistribution):
+                ret[search_space_item[0]] = int(vz_param[1])
+            else:
+                ret[search_space_item[0]] = vz_param[1]
         return ret
 
     def after_trial(
@@ -101,7 +76,10 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
             )
             self.suggestions = None
         elif values is not None and state == TrialState.COMPLETE:
-            vz_trial = vz.Trial(parameters={key: value for key, value in trial.params.items()})
+            if self.study_client is None:
+                self.study_client = self._create_study_client(study, trial.distributions)
+            self.study_client.trials
+            vz_trial = vz.Trial(parameters=trial.params)
             vz_trial.complete(
                 vz.Measurement(
                     {
@@ -111,15 +89,13 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
                     }
                 )
             )
-            if self.study_client is None:
-                self.study_client = self._create_study_client(study, trial.distributions)
             self.study_client.add_trial(vz_trial)
 
     def _create_study_client(
         self, study: Study, search_space: dict[str, BaseDistribution]
     ) -> clients.Study:
         problem = vz.ProblemStatement()
-        _add_search_space_to_problem(problem, search_space)
+        self._add_search_space_to_problem(problem, search_space)
         problem.metric_information = list(
             vz.MetricInformation(
                 name=f"direction_{i}",
@@ -129,10 +105,39 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
             )
             for i, direction in enumerate(study.directions)
         )
-
         study_config = vz.StudyConfig.from_problem(problem)
         study_config.algorithm = self.algorithm
-
         return clients.Study.from_study_config(
             study_config, owner="owner", study_id=study.study_name
         )
+
+    def _add_search_space_to_problem(
+        self, problem: vz.ProblemStatement, search_space: dict[str, BaseDistribution]
+    ) -> None:
+        for param_name, param_distribution in search_space.items():
+            if isinstance(param_distribution, optuna.distributions.IntDistribution):
+                problem.search_space.root.add_int_param(
+                    param_name, param_distribution.low, param_distribution.high
+                )
+            elif isinstance(param_distribution, optuna.distributions.FloatDistribution):
+                problem.search_space.root.add_float_param(
+                    param_name, param_distribution.low, param_distribution.high
+                )
+            elif isinstance(param_distribution, optuna.distributions.CategoricalDistribution):
+                if all(isinstance(choice, (int, float)) for choice in param_distribution.choices):
+                    problem.search_space.root.add_discrete_param(
+                        param_name,
+                        feasible_values=cast(list[int | float], param_distribution.choices),
+                    )
+                    continue
+                if all(isinstance(choice, str) for choice in param_distribution.choices):
+                    problem.search_space.root.add_categorical_param(
+                        param_name, feasible_values=cast(list[str], param_distribution.choices)
+                    )
+                    continue
+                raise ValueError(
+                    f"Vizier only supports int, float, or str choices in CategoricalDistribution. "
+                    f"Got {param_distribution.choices}."
+                )
+            else:
+                raise ValueError(f"Vizier sampler does not support {param_distribution}.")
