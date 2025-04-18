@@ -41,3 +41,11 @@ plot_hypervolume_history(study, reference_point=[0.5, 0.5])
 ```
 
 ## Benchmarks
+
+Following images are the benchmark of Vizier and other samplers.
+
+![Rosenbrock Function](./images/multiple_sampler_bbob_fn8.png)
+![Gallagher's Gaussian 101-me Peaks Function](./images/multiple_sampler_bbob_fn21.png)
+![HPOLib](./images/multiple_sampler_hpolib.png)
+![WFG 4](./images/multiple_wfg4_bench.png)
+![WFG 8](./images/multiple_wfg8_bench.png)
