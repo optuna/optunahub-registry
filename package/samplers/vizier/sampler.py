@@ -49,12 +49,14 @@ class VizierSampler(optunahub.samplers.SimpleBaseSampler):
 
         ret = {}
 
-        for search_space_item, vz_param in zip(search_space, self.suggestions[0].parameters):
+        for search_space_item, suggested_param_item in zip(
+            search_space.items(), self.suggestions[0].parameters.items()
+        ):
             # Since the Vizier API returns a float on int distribution, we need to cast it to the correct type.
             if isinstance(search_space_item[1], optuna.distributions.IntDistribution):
-                ret[search_space_item[0]] = int(vz_param[1])
+                ret[search_space_item[0]] = int(suggested_param_item[1])
             else:
-                ret[search_space_item[0]] = vz_param[1]
+                ret[search_space_item[0]] = suggested_param_item[1]
         return ret
 
     def after_trial(
