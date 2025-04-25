@@ -10,14 +10,14 @@ import scipy.linalg as linalg
 class HPADesigner:
     def __init__(
         self,
-        n_div=4,
-        max_plys=10,
-        level=0,
-        AIRFOIL=False,
-        WIRE=True,
-        DIHEDRAL=False,
-        PAYLOAD=False,
-        FINE_MODE=False,
+        n_div: int = 4,
+        max_plys: int = 10,
+        level: int = 0,
+        AIRFOIL: bool = False,
+        WIRE: bool = True,
+        DIHEDRAL: bool = False,
+        PAYLOAD: bool = False,
+        FINE_MODE: bool = False,
     ):
         self.n_div = n_div  # division number of wing span
         self.max_plys = max_plys
@@ -209,8 +209,8 @@ class HPADesigner:
             self.airfoil_baseline[2] = np.argmax(self.airfoils == "DAE21")
             self.airfoil_baseline[-1] = np.argmax(self.airfoils == "DAE41")
 
-    def _x2param(self, x, NORMALIZED=False):
-        def sigmoid(x, a=50.0, b=0.5):
+    def _x2param(self, x: np.ndarray, NORMALIZED: bool = False) -> np.ndarray:
+        def sigmoid(x: np.ndarray, a: float = 50.0, b: float = 0.5) -> np.ndarray:
             # Exact 0 and 1 are needed at wing root and tip in structural analysis
             # 4-digit means that machining accuracy of CFRP pipes will be "beam length"*1e-4 [m]
             return np.round(1.0 / (1.0 + np.exp(-a * (x - b))), 4)
@@ -388,20 +388,22 @@ class HPADesigner:
 
     def _param2x(
         self,
-        span,
-        y_div,
-        y_chord,
-        y_aoa,
-        y_diameter,
-        y_airfoil,
-        y_wire=0,
-        wire_tension=0,
-        dihedral_angle_at_root=4.0,
-        payload=0,
-        ply_wing=[],
-        strain_ratios=[],
-    ):
-        def logit(x, a=50.0, b=0.5):
+        span: int,
+        y_div: np.ndarray,
+        y_chord: np.ndarray,
+        y_aoa: np.ndarray,
+        y_diameter: np.ndarray,
+        y_airfoil: np.ndarray,
+        y_wire: int = 0,
+        wire_tension: float = 0,
+        dihedral_angle_at_root: float = 4.0,
+        payload: float = 0,
+        ply_wing: list[np.ndarray] = [],
+        strain_ratios: np.ndarray | None = None,
+    ) -> np.ndarray:
+        strain_ratios = np.array([]) if strain_ratios is None else strain_ratios
+
+        def logit(x: float, a: float = 50.0, b: float = 0.5) -> float:
             if x <= 0.0:
                 y = 0.0
             elif x >= 1.0:
@@ -484,7 +486,7 @@ class HPADesigner:
                     x[self.n_div * (4 + self.max_plys * 2) + 2 + i] = logit(fixed)
         return x
 
-    def baseline(self):
+    def baseline(self) -> np.ndarray:
         span = 32  # [m]
         y_div = np.array([0, 4.6, 8.6, 12.8, 16.0]) / (32 * 0.5)
         y_chord = np.array([1.05, 1.05, 0.903, 0.7455, 0.462])  # [m]
@@ -507,7 +509,6 @@ class HPADesigner:
         wire_tension = 135 * self.gravity
         dihedral_angle_at_root = 4.0  # [deg]
         payload = 0.0  # [kg]
-        n_plys_partial = np.array([8, 8, 8, 6])
         plys1 = np.array(
             [
                 [90, 180, 0, 1, self.t_ply],
@@ -590,7 +591,7 @@ class HPADesigner:
             strain_ratios,
         )
 
-    def _evaluate(self):
+    def _evaluate(self) -> None:
         self.UPDATED_TABLE = False
         # make data table
         self.aero = self._interpolate()
@@ -623,105 +624,7 @@ class HPADesigner:
         else:
             self._compute_power_aero()
 
-    def evaluate_performance(
-        self,
-        span,
-        y_div,
-        y_chord,
-        y_aoa,
-        y_diameter,
-        y_airfoil,
-        y_wire,
-        wire_tension,
-        dihedral_angle_at_root,
-        payload,
-        n_plys_partial=[],
-        strain_ratios=[],
-        ply_wing=[],
-    ):
-        if len(y_airfoil) == self.n_div:
-            y_airfoil = np.hstack([y_airfoil, y_airfoil[-1]])
-        if len(y_diameter) == self.n_div:
-            y_diameter = np.hstack([y_diameter[0], y_diameter])
-        self.x = self._param2x(
-            span,
-            y_div,
-            y_chord,
-            y_aoa,
-            y_diameter,
-            y_airfoil,
-            y_wire,
-            wire_tension,
-            dihedral_angle_at_root,
-            payload,
-            ply_wing,
-            strain_ratios,
-        )
-        (
-            self.span,
-            self.y_div,
-            self.y_chord,
-            self.y_aoa,
-            self.y_diameter,
-            self.y_airfoil,
-            self.y_wire,
-            self.wire_tension,
-            self.dihedral_angle_at_root,
-            self.payload,
-        ) = (
-            span,
-            y_div,
-            y_chord,
-            y_aoa,
-            y_diameter,
-            y_airfoil,
-            y_wire,
-            wire_tension,
-            dihedral_angle_at_root,
-            payload,
-        )
-
-        if len(ply_wing) > 0:
-            self.ply_wing = ply_wing
-        else:
-            if len(n_plys_partial) == 0:
-                n_plys_partial = np.full(self.n_div, self.max_plys)
-            phis = 30 + np.rad2deg(
-                np.tile(self.delta_width * np.arange(self.max_plys), [self.n_div, 1])
-                / (0.5 * np.tile(self.y_diameter[1:], [self.max_plys, 1]).T)
-            )
-            phis = np.clip(phis, 0, 179)
-            self.ply_wing = []
-            for i in range(self.n_div):
-                n_ply = int(np.round(n_plys_partial[i]))
-                if i == int(self.n_div / 2):
-                    plys = np.array(
-                        [
-                            [90, 180, 0, 1, self.t_ply],
-                            [30, 180, 0, 1, self.t_ply],
-                            [-30, 180, 0, 1, self.t_ply],
-                            [90, 180, 0, 1, self.t_ply],
-                        ]
-                    )
-                else:
-                    plys = np.array(
-                        [
-                            [90, 180, 0, 1, self.t_ply],
-                            [45, 180, 0, 1, self.t_ply],
-                            [-45, 180, 0, 1, self.t_ply],
-                            [90, 180, 0, 1, self.t_ply],
-                        ]
-                    )
-                for j in range(n_ply):
-                    plys = np.vstack([plys, [0, phis[i, j], 0, 1, self.t_ply]])
-                self.ply_wing.append(plys)
-        if len(strain_ratios) > 0:
-            self.strain_ratios = strain_ratios
-        else:
-            self.strain_ratios = np.ones(self.n_div)
-        self._evaluate()
-
-    def evaluate_performance_from_x(self, x, NORMALIZED=False):
+    def evaluate_performance_from_x(self, x: np.ndarray, NORMALIZED: bool = False) -> None:
         (
             self.span,
             self.y_div,
@@ -742,7 +645,7 @@ class HPADesigner:
             self.x = x
         self._evaluate()
 
-    def _interpolate(self):
+    def _interpolate(self) -> pd.DataFrame:
         section = pd.DataFrame(
             np.vstack(
                 [np.arccos(self.y_div), self.y_chord, self.y_aoa, self.y_diameter, self.y_airfoil]
@@ -765,7 +668,7 @@ class HPADesigner:
         aero = aero[aero["source"] == 1].drop(columns="source")
         return aero
 
-    def _lifting_line(self):
+    def _lifting_line(self) -> None:
         self.y0_aero = self.aero.index.values
         self.chord_aero = self.aero["chord"].values
         self.aoa_aero = self.aero["aoa"].values
@@ -798,7 +701,7 @@ class HPADesigner:
         self.aero["induced aoa"] = np.rad2deg(induced_aoa)
         self.aero["local cl"] = cl_slope * (absolute_aoa - induced_aoa)
 
-    def _refine_grid(self, aero):
+    def _refine_grid(self, aero: pd.DataFrame) -> pd.DataFrame:
         y = np.linspace(0, 1, self.n_struc)
         fine_grid = pd.DataFrame(
             np.full([len(y), len(aero.columns)], np.nan), columns=aero.columns, index=y
@@ -824,7 +727,7 @@ class HPADesigner:
         )
         return wing
 
-    def _compute_wing_weight(self):
+    def _compute_wing_weight(self) -> None:
         # beam
         self.beam_weight = np.zeros(len(self.ply_wing))
         self.wing_weight = np.zeros(self.n_struc)
@@ -897,7 +800,7 @@ class HPADesigner:
         )
         self.wing_weight[i_wire] += wire_weight
 
-    def _compute_local_lift(self):
+    def _compute_local_lift(self) -> None:
         # weight & velocity
         self.body_tail_weight = (
             0.007 * (self.span - 15.0) ** 2.0 + 14.0 if self.span > 15.0 else 14.0
@@ -919,7 +822,7 @@ class HPADesigner:
             ]
         )  # [N]
 
-    def _compute_power_aero(self):
+    def _compute_power_aero(self) -> None:
         # computation with aerodynamic (coarse) mesh points
         # drag & power
         # wing
@@ -986,7 +889,7 @@ class HPADesigner:
         self.aero["cd0"] = self.cd0_aero
         self.power_constraint = self.power - self.max_power
 
-    def _compute_power(self):
+    def _compute_power(self) -> None:
         # computation with structural (fine) mesh points
         # drag & power
         # wing
@@ -1048,7 +951,7 @@ class HPADesigner:
         self.power = self.drag * self.v_inf / self.drivetrain_efficiency
         self.power_constraint = self.power - self.max_power
 
-    def _stiffness(self):
+    def _stiffness(self) -> None:
         self.Ex_ply = np.zeros([self.n_div, self.max_plys])
         self.EI_ply = np.zeros([self.n_struc, self.max_plys])
         self.EA_ply = np.zeros([self.n_struc, self.max_plys])
@@ -1160,13 +1063,15 @@ class HPADesigner:
         self.EA[-1] = self.EA[-2]
         self.GIp[-1] = self.GIp[-2]
 
-    def _compute_moment(self, y, F):
+    def _compute_moment(self, y: np.ndarray, F: np.ndarray) -> np.ndarray:
         y, F = y[::-1], F[::-1]
         return np.hstack([0.0, np.cumsum((np.cumsum(F)[:-1] + 0.5 * F[1:]) * np.abs(np.diff(y)))])[
             ::-1
         ]
 
-    def _compute_moment_with_axial_force(self, y, F, T, EI):
+    def _compute_moment_with_axial_force(
+        self, y: np.ndarray, F: np.ndarray, T: np.ndarray, EI: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         # beam-column theory
         n = len(y)
         M, S = np.zeros(n), np.zeros(n)
@@ -1177,7 +1082,7 @@ class HPADesigner:
             M[i] = (0.5 * L[i] * F[i] + (1 - TL_EI) * M[i + 1] + L[i] * S[i + 1]) / (1 + TL_EI)
         return M, S
 
-    def _evaluate_zerolift_deflection(self):
+    def _evaluate_zerolift_deflection(self) -> None:
         self.moment_zerolift = self._compute_moment(
             y=self.y0 * self.span * 0.5, F=-self.wing_weight * self.gravity
         )
@@ -1205,7 +1110,7 @@ class HPADesigner:
         self.total_deflection_zerolift = self.dihedral_position + self.deflection_zerolift
         self.strain_zerolift = self.M_EI_zerolift * self.diameter * 0.5
 
-    def _evaluate_flight_deflection(self):
+    def _evaluate_flight_deflection(self) -> None:
         i_wire = np.argmin(np.abs(self.y0 - self.y_wire))
         z_wire_deflection = 0.0
         iter_max = self.wire_iteration if self.wire_tension > 0 else 1
@@ -1283,7 +1188,7 @@ class HPADesigner:
             self.total_deflection = self.dihedral_position + self.deflection
         self.strain = self.M_EI * self.diameter * 0.5 + self.axial_force / self.EA
 
-    def _evaluate_twist(self):
+    def _evaluate_twist(self) -> None:
         # simple (not practical) estimation
         # this should be computed from Cm, Cl, and change in AoA; center of pressure = 0.25 - Cm/Cl(AoA)
         delta_center_of_pressure = 0.01  # ~1%/1deg
@@ -1300,8 +1205,16 @@ class HPADesigner:
             ).cumsum()
         )
 
-    def _optimize_ply(self):
-        def update_ply(j, y0_j, strain_const, y0_start, y0_end, root_limit, tip_limit):
+    def _optimize_ply(self) -> None:
+        def update_ply(
+            j: int,
+            y0_j: np.ndarray,
+            strain_const: float,
+            y0_start: float,
+            y0_end: float,
+            root_limit: float,
+            tip_limit: float,
+        ) -> tuple[float, float, float, float]:
             strain = np.abs(
                 self.moment / (self.EI - self.EI_ply[:, j - 4]) * 0.5 * self.diameter
             ) + self.axial_force / (self.EA - self.EA_ply[:, j - 4])
@@ -1345,7 +1258,7 @@ class HPADesigner:
                     tip_limit = tip
             return root, tip, root_limit, tip_limit
 
-        def update(STIFFNESS=False):
+        def update(STIFFNESS: bool = False) -> None:
             self._compute_wing_weight()
             self._compute_local_lift()
             if STIFFNESS:
@@ -1464,7 +1377,7 @@ class HPADesigner:
             if not self.FINE_MODE:
                 update(STIFFNESS=False)
 
-    def _compute_constraints(self):
+    def _compute_constraints(self) -> None:
         self.max_strain = max(np.abs(self.strain).max(), np.abs(self.strain_zerolift).max())
         self.wing_tip_deflection = self.total_deflection[-1]
         self.zerolift_deflection = self.total_deflection_zerolift[-1]
@@ -1476,7 +1389,7 @@ class HPADesigner:
         self.max_twist = np.abs(self.twist).max()
         self.speed_constraint = 1 - (self.v_inf / self.v_min) ** 3
 
-    def _update_wing_table(self):
+    def _update_wing_table(self) -> None:
         # for outputing design data
         if self.FINE_MODE:
             self.wing["re"] = self.re

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 from .designer import HPADesigner
@@ -5,7 +7,7 @@ from .designer import HPADesigner
 
 ### Unconstrained problems ########################################################
 class HPA101(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True) -> None:
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -23,7 +25,7 @@ class HPA101(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -35,7 +37,7 @@ class HPA101(HPADesigner):
 
 
 class HPA102(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -53,7 +55,7 @@ class HPA102(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -66,7 +68,7 @@ class HPA102(HPADesigner):
 
 
 class HPA103(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -84,7 +86,7 @@ class HPA103(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -97,7 +99,7 @@ class HPA103(HPADesigner):
 
 
 class HPA201(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -115,7 +117,7 @@ class HPA201(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -128,7 +130,7 @@ class HPA201(HPADesigner):
 
 
 class HPA202(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -147,7 +149,7 @@ class HPA202(HPADesigner):
         self.NORMALIZED = NORMALIZED
         self.max_dihedral_angle_at_root = 0.0  # [deg]
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -163,7 +165,7 @@ class HPA202(HPADesigner):
 
 
 class HPA203(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -181,7 +183,7 @@ class HPA203(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -193,7 +195,7 @@ class HPA203(HPADesigner):
 
 
 class HPA204(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -211,7 +213,7 @@ class HPA204(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -224,7 +226,7 @@ class HPA204(HPADesigner):
 
 
 class HPA205(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -242,7 +244,7 @@ class HPA205(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -255,7 +257,7 @@ class HPA205(HPADesigner):
 
 
 class HPA301(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -273,7 +275,7 @@ class HPA301(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -286,7 +288,7 @@ class HPA301(HPADesigner):
 
 
 class HPA302(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -305,7 +307,7 @@ class HPA302(HPADesigner):
         self.NORMALIZED = NORMALIZED
         self.max_dihedral_angle_at_root = 0.0  # [deg]
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -322,7 +324,7 @@ class HPA302(HPADesigner):
 
 
 class HPA303(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -340,7 +342,7 @@ class HPA303(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -352,7 +354,7 @@ class HPA303(HPADesigner):
 
 
 class HPA304(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -370,7 +372,7 @@ class HPA304(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -383,7 +385,7 @@ class HPA304(HPADesigner):
 
 
 class HPA305(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -401,7 +403,7 @@ class HPA305(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -414,7 +416,7 @@ class HPA305(HPADesigner):
 
 
 class HPA401(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -432,7 +434,7 @@ class HPA401(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -447,7 +449,7 @@ class HPA401(HPADesigner):
 
 
 class HPA402(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -466,7 +468,7 @@ class HPA402(HPADesigner):
         self.NORMALIZED = NORMALIZED
         self.max_dihedral_angle_at_root = 0.0  # [deg]
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -484,7 +486,7 @@ class HPA402(HPADesigner):
 
 
 class HPA403(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -502,7 +504,7 @@ class HPA403(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -522,7 +524,7 @@ class HPA403(HPADesigner):
 
 
 class HPA501(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -540,7 +542,7 @@ class HPA501(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -561,7 +563,7 @@ class HPA501(HPADesigner):
 
 
 class HPA502(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -579,7 +581,7 @@ class HPA502(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -600,7 +602,7 @@ class HPA502(HPADesigner):
 
 
 class HPA601(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -618,7 +620,7 @@ class HPA601(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -640,7 +642,7 @@ class HPA601(HPADesigner):
 
 
 class HPA901(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -658,7 +660,7 @@ class HPA901(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         penalty1 = max(0.0, self.strain_constraint)
@@ -684,7 +686,7 @@ class HPA901(HPADesigner):
 
 ### Constrained problems ########################################################
 class HPA131(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -702,7 +704,7 @@ class HPA131(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.drag])
@@ -713,7 +715,7 @@ class HPA131(HPADesigner):
 
 
 class HPA142(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -731,7 +733,7 @@ class HPA142(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.power])
@@ -747,7 +749,7 @@ class HPA142(HPADesigner):
 
 
 class HPA143(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -765,7 +767,7 @@ class HPA143(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([-self.v_inf])
@@ -781,7 +783,7 @@ class HPA143(HPADesigner):
 
 
 class HPA241(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -799,7 +801,7 @@ class HPA241(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.power, -self.v_inf])
@@ -815,7 +817,7 @@ class HPA241(HPADesigner):
 
 
 class HPA222(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -834,7 +836,7 @@ class HPA222(HPADesigner):
         self.NORMALIZED = NORMALIZED
         self.max_dihedral_angle_at_root = 0.0  # [deg]
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array(
@@ -847,7 +849,7 @@ class HPA222(HPADesigner):
 
 
 class HPA233(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -865,7 +867,7 @@ class HPA233(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.drag, -self.payload])
@@ -876,7 +878,7 @@ class HPA233(HPADesigner):
 
 
 class HPA244(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -894,7 +896,7 @@ class HPA244(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([-self.v_inf, self.max_twist])
@@ -910,7 +912,7 @@ class HPA244(HPADesigner):
 
 
 class HPA245(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -928,7 +930,7 @@ class HPA245(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([-self.v_inf, self.wire_tension])
@@ -944,7 +946,7 @@ class HPA245(HPADesigner):
 
 
 class HPA341(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -962,7 +964,7 @@ class HPA341(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.power, -self.v_inf, -self.wing_efficiency])
@@ -978,7 +980,7 @@ class HPA341(HPADesigner):
 
 
 class HPA322(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -997,7 +999,7 @@ class HPA322(HPADesigner):
         self.NORMALIZED = NORMALIZED
         self.max_dihedral_angle_at_root = 0.0  # [deg]
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array(
@@ -1014,7 +1016,7 @@ class HPA322(HPADesigner):
 
 
 class HPA333(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1032,7 +1034,7 @@ class HPA333(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.drag, self.y_aoa[0], -self.payload])
@@ -1043,7 +1045,7 @@ class HPA333(HPADesigner):
 
 
 class HPA344(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1061,7 +1063,7 @@ class HPA344(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.drag, -self.v_inf, self.max_twist])
@@ -1077,7 +1079,7 @@ class HPA344(HPADesigner):
 
 
 class HPA345(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1095,7 +1097,7 @@ class HPA345(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.power, -self.v_inf, self.wire_tension])
@@ -1111,7 +1113,7 @@ class HPA345(HPADesigner):
 
 
 class HPA441(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1129,7 +1131,7 @@ class HPA441(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.drag, -self.v_inf, self.max_twist, self.empty_weight])
@@ -1145,7 +1147,7 @@ class HPA441(HPADesigner):
 
 
 class HPA422(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1164,7 +1166,7 @@ class HPA422(HPADesigner):
         self.NORMALIZED = NORMALIZED
         self.max_dihedral_angle_at_root = 0.0  # [deg]
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array(
@@ -1182,7 +1184,7 @@ class HPA422(HPADesigner):
 
 
 class HPA443(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1200,7 +1202,7 @@ class HPA443(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([-self.v_inf, -self.wing_efficiency, self.empty_weight, self.wire_tension])
@@ -1216,7 +1218,7 @@ class HPA443(HPADesigner):
 
 
 class HPA541(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1234,7 +1236,7 @@ class HPA541(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array(
@@ -1252,7 +1254,7 @@ class HPA541(HPADesigner):
 
 
 class HPA542(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1270,7 +1272,7 @@ class HPA542(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array([self.power, -self.v_inf, self.y_aoa[0], self.wire_tension, -self.payload])
@@ -1286,7 +1288,7 @@ class HPA542(HPADesigner):
 
 
 class HPA641(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1304,7 +1306,7 @@ class HPA641(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array(
@@ -1329,7 +1331,7 @@ class HPA641(HPADesigner):
 
 
 class HPA941(HPADesigner):
-    def __init__(self, n_div=4, level=0, NORMALIZED=True):
+    def __init__(self, n_div: int = 4, level: int = 0, NORMALIZED: bool = True):
         assert n_div > 0 and isinstance(n_div, int)
         assert 0 <= level <= 2 and isinstance(level, int)
         AIRFOIL = False if level == 0 else True
@@ -1347,7 +1349,7 @@ class HPA941(HPADesigner):
         self.nx = self.n_x
         self.NORMALIZED = NORMALIZED
 
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         x = np.array(x)
         self.evaluate_performance_from_x(x, self.NORMALIZED)
         f = np.array(
