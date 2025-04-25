@@ -41,6 +41,7 @@ Note that `Problem` also receives the same set of arguments.
 The properties and functions of classes in [`hpa.problem`](https://hub.optuna.org/benchmarks/hpa/hpa_original) are also available such as `nx`.
 
 ## Installation
+
 The dependencies can be installed via:
 
 ```shell
