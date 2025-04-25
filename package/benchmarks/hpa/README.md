@@ -1,5 +1,5 @@
 ---
-author: Optuna team
+author: Optuna Team
 title: Single and Multi-objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design
 description: The benchmark problem for human-powered aircraft design introduced in the paper `Single and Multi-Objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design`
 tags: [benchmark, HPA, multi-objective, human-powered aircraft]
@@ -15,18 +15,19 @@ This package serves as a wrapper for the original benchmark.
 
 ## APIs
 
-### class `ConstrainedProblem(problem_name: str, n_div: int = 4, level: int = 0, NORMALIZED: bool = True )`
+### class `ConstrainedProblem(problem_name: str, n_div: int = 4, level: int = 0 )`
 
 - `problem_name`: The name of a benchmark problem. All problem names and their explanations are provided [here](https://github.com/Nobuo-Namura/hpa?tab=readme-ov-file#benchmark-problem-definition).
 - `n_div`: The wing segmentation number and alters the problem's dimension. It must be an integer greater than 0.
-- `level`: The difficulty level of the problem. It must be in `[0, 1, 2]`.
-- `NORMALIZED`: Whether to use normalized design variables or not.
+- `level`: The difficulty level of the problem. It must be in `[0, 1, 2]`
+
+Note that `Problem` also receives the same set of arguments.
 
 #### Method and Properties
 
 - `search_space`: Return the search space.
   - Returns: `dict[str, optuna.distributions.BaseDistribution]`
-- `directions`: Return the optimization directions. For now, only `optuna.study.StudyDirection.MINIMIZE` is supported.
+- `directions`: Return the optimization directions.
   - Returns: `list[optuna.study.StudyDirection]`
 - `evaluate(params: dict[str, float])`: Evaluate the objective function given a dictionary of parameters.
   - Args:
@@ -37,25 +38,16 @@ This package serves as a wrapper for the original benchmark.
     - `params`: A dictionary representing the decision variables, with the same format and value range as in evaluate.
   - Returns: List of length `self.ng`. If `self.ng == 0` (means that this is not a constrained problem), this function raises `TypeError`.
 
-The properties and functions of classes in [`hpa.problem`](https://github.com/Nobuo-Namura/hpa/blob/main/hpa/problem.py) are also available such as `nx`, `plot_wing3d`.
+The properties and functions of classes in [`hpa.problem`](https://hub.optuna.org/benchmarks/hpa/hpa_original) are also available such as `nx`.
 
 ## Installation
-
-Please install [hpa repository](https://github.com/Nobuo-Namura/hpa) in your python environment.
-
-```shell
-pip install git+https://github.com/Nobuo-Namura/hpa
-```
-
-or clone the repository and get into it, and run
+The dependencies can be installed via:
 
 ```shell
-pip install .
+pip install pandas scipy optunahub
 ```
 
-See the installation details by visiting [here](https://github.com/Nobuo-Namura/hpa?tab=readme-ov-file#installation).
-
-Or you can install the required packages from optunahub.
+Or you can install the required packages from optunahub as well.
 
 ```shell
 pip install -r https://hub.optuna.org/benchmarks/hpa/requirements.txt
@@ -84,4 +76,13 @@ else:
 
 ## Reference
 
-Namura, N. [Single and Multi-objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design](https://link.springer.com/chapter/10.1007/978-981-96-3506-1_14).
+```bibtex
+@inproceedings{namura2025single,
+  title={Single and multi-objective optimization benchmark problems focusing on human-powered aircraft design},
+  author={Namura, Nobuo},
+  booktitle={International Conference on Evolutionary Multi-Criterion Optimization},
+  pages={195--210},
+  year={2025},
+  organization={Springer}
+}
+```

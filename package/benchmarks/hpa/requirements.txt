@@ -1,1 +1,3 @@
-git+https://github.com/Nobuo-Namura/hpa
+pandas
+scipy
+optunahub
