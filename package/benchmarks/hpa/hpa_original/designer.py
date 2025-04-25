@@ -16,6 +16,7 @@ NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS 
 """  # NOQA
 
 from __future__ import annotations
+
 import os
 
 import numpy as np
