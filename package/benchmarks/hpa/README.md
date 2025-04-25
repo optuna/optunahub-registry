@@ -18,7 +18,7 @@ This package serves as a wrapper for the original benchmark.
 ### class `ConstrainedProblem(problem_name: str, n_div: int = 4, level: int = 0 )`
 
 - `problem_name`: The name of a benchmark problem. All problem names and their explanations are provided [here](https://github.com/Nobuo-Namura/hpa?tab=readme-ov-file#benchmark-problem-definition).
-- `n_div`: The wing segmentation number and alters the problem's dimension. It must be an integer greater than 0.
+- `n_div`: The wing segmentation number and alters the problem's dimension. It must be an integer greater than 0. Concretely, the number of sections in [this figure](https://github.com/Nobuo-Namura/hpa/blob/main/img/variables.jpg). The default value used in the paper is 4.
 - `level`: The difficulty level of the problem. It must be in `[0, 1, 2]`
 
 Note that `Problem` also receives the same set of arguments.
