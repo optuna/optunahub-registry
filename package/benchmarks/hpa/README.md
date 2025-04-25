@@ -33,10 +33,10 @@ Note that `Problem` also receives the same set of arguments.
   - Args:
     - `params`: A dictionary representing decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `self.nx`. `xn_value` must be a `float` in `[0, 1]`.
   - Returns: List of length `self.nf`.
-- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the list of constraint functions values.
+- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the list of constraint functions values. This method is only available in `ConstrainedProblem`.
   - Args:
     - `params`: A dictionary representing the decision variables, with the same format and value range as in evaluate.
-  - Returns: List of length `self.ng`. If `self.ng == 0` (means that this is not a constrained problem), this function raises `TypeError`.
+  - Returns: List of length `self.ng`.
 
 The properties and functions of classes in [`hpa.problem`](https://hub.optuna.org/benchmarks/hpa/hpa_original) are also available such as `nx`.
 
