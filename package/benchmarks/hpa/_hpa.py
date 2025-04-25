@@ -140,11 +140,17 @@ class ConstrainedProblem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchm
         Please refer to the hpa repository for the details.
         https://github.com/Nobuo-Namura/hpa
         """
-        assert (
-            problem_name in constrained_problems
-        ), f"problem_name must be in {list(constrained_problems.keys())}"
-        assert n_div > 0 and isinstance(n_div, int), "n_div must be an integer greater than 0"
-        assert level in [0, 1, 2], "level must be in [0, 1, 2]"
+        if problem_name not in constrained_problems:
+            raise ValueError(
+                f"problem_name must be in {list(constrained_problems.keys())}, "
+                f"but got {problem_name}."
+            )
+
+        if n_div <= 0 or not isinstance(n_div, int):
+            raise ValueError(f"n_div must be an positive integer, but got {n_div}.")
+
+        if level not in [0, 1, 2]:
+            raise ValueError(f"level must be in [0, 1, 2], but got {level}")
 
         self.problem_name = problem_name
 
