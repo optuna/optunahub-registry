@@ -4,12 +4,14 @@ from collections.abc import Callable
 from typing import NamedTuple
 
 import numpy as np
+from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
 from optuna.samplers._tpe.probability_distributions import _BatchedCategoricalDistributions
 from optuna.samplers._tpe.probability_distributions import _BatchedDiscreteTruncNormDistributions
 from optuna.samplers._tpe.probability_distributions import _BatchedDistributions
 from optuna.samplers._tpe.probability_distributions import _BatchedTruncNormDistributions
+from optuna.samplers._tpe.probability_distributions import _MixtureOfProductDistribution
 
 
 class _CustomizableParzenEstimatorParameters(NamedTuple):
@@ -87,6 +89,50 @@ def _clip_bandwidth(
 
 
 class _CustomizableParzenEstimator(_ParzenEstimator):
+    def __init__(
+        self,
+        observations: dict[str, np.ndarray],
+        search_space: dict[str, BaseDistribution],
+        parameters: _CustomizableParzenEstimatorParameters,
+        predetermined_weights: np.ndarray | None = None,
+    ) -> None:
+        # NOTE(nabenabe): consider_prior has been removed at Optuna v4.4.
+        # cf. https://github.com/optuna/optuna/pull/6007
+        if parameters.consider_prior:
+            if parameters.prior_weight is None:
+                raise ValueError("Prior weight must be specified when consider_prior==True.")
+            elif parameters.prior_weight <= 0:
+                raise ValueError("Prior weight must be positive.")
+
+        self._search_space = search_space
+
+        transformed_observations = self._transform(observations)
+
+        assert predetermined_weights is None or len(transformed_observations) == len(
+            predetermined_weights
+        )
+        weights = (
+            predetermined_weights
+            if predetermined_weights is not None
+            else self._call_weights_func(parameters.weights, len(transformed_observations))
+        )
+
+        if len(transformed_observations) == 0:
+            weights = np.array([1.0])
+        elif parameters.consider_prior:
+            assert parameters.prior_weight is not None
+            weights = np.append(weights, [parameters.prior_weight])
+        weights /= weights.sum()
+        self._mixture_distribution = _MixtureOfProductDistribution(
+            weights=weights,
+            distributions=[
+                self._calculate_distributions(
+                    transformed_observations[:, i], param, search_space[param], parameters
+                )
+                for i, param in enumerate(search_space)
+            ],
+        )
+
     def _calculate_numerical_distributions(
         self,
         observations: np.ndarray,
