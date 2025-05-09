@@ -2,8 +2,8 @@
 author: gen740
 title: Vizier Sampler
 description: Vizier Sampler of OptunaHub
-tags: [sampler]
-optuna_versions: [3.6.1]
+tags: [sampler, vizier, Gaussian process]
+optuna_versions: [4.3.0]
 license: MIT License
 ---
 
