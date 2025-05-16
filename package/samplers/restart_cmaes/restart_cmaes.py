@@ -57,6 +57,7 @@ class RestartCmaEsSampler(BaseSampler):
         restart_strategy: str | None = None,
         popsize: int | None = None,
         inc_popsize: int = 2,
+        store_optimizer_state_in_storage: bool = False,
     ) -> None:
         self._x0 = x0
         self._sigma0 = sigma0
@@ -68,6 +69,9 @@ class RestartCmaEsSampler(BaseSampler):
         self._restart_strategy = restart_strategy
         self._initial_popsize = popsize
         self._inc_popsize = inc_popsize
+        self._store_optimizer_state_in_storage = store_optimizer_state_in_storage
+        if not self._store_optimizer_state_in_storage:
+            self._optimizer_metadata_by_trial: dict[int, dict[str, Any]] = {}
 
         if restart_strategy not in (
             "ipop",
@@ -141,20 +145,28 @@ class RestartCmaEsSampler(BaseSampler):
         if len(completed_trials) != 0:
             latest_trial = completed_trials[-1]
 
-            popsize_attr_key = self._attr_keys.popsize()
-            if popsize_attr_key in latest_trial.system_attrs:
-                popsize = latest_trial.system_attrs[popsize_attr_key]
+            if self._store_optimizer_state_in_storage:
+                popsize = latest_trial.system_attrs.get(
+                    self._attr_keys.popsize(), self._initial_popsize
+                )
+                n_restarts = latest_trial.system_attrs.get(self._attr_keys.n_restarts(), 0)
+                n_restarts_with_large = latest_trial.system_attrs.get(
+                    self._attr_keys.n_restarts_with_large, 0
+                )
+                poptype = latest_trial.system_attrs.get(self._attr_keys.poptype, "small")
+                small_n_eval = latest_trial.system_attrs.get(self._attr_keys.small_n_eval, 0)
+                large_n_eval = latest_trial.system_attrs.get(self._attr_keys.large_n_eval, 0)
             else:
-                popsize = self._initial_popsize
-
-            n_restarts_attr_key = self._attr_keys.n_restarts()
-            n_restarts = latest_trial.system_attrs.get(n_restarts_attr_key, 0)
-            n_restarts_with_large = latest_trial.system_attrs.get(
-                self._attr_keys.n_restarts_with_large, 0
-            )
-            poptype = latest_trial.system_attrs.get(self._attr_keys.poptype, "small")
-            small_n_eval = latest_trial.system_attrs.get(self._attr_keys.small_n_eval, 0)
-            large_n_eval = latest_trial.system_attrs.get(self._attr_keys.large_n_eval, 0)
+                latest_trial_id = latest_trial._trial_id
+                latest_trial_attr = self._optimizer_metadata_by_trial.get(latest_trial_id, {})
+                popsize = latest_trial_attr.get(self._attr_keys.popsize(), self._initial_popsize)
+                n_restarts = latest_trial_attr.get(self._attr_keys.n_restarts(), 0)
+                n_restarts_with_large = latest_trial_attr.get(
+                    self._attr_keys.n_restarts_with_large, 0
+                )
+                poptype = latest_trial_attr.get(self._attr_keys.poptype, "small")
+                small_n_eval = latest_trial_attr.get(self._attr_keys.small_n_eval, 0)
+                large_n_eval = latest_trial_attr.get(self._attr_keys.large_n_eval, 0)
 
         optimizer = self._restore_optimizer(completed_trials, n_restarts)
         if optimizer is None:
@@ -178,6 +190,8 @@ class RestartCmaEsSampler(BaseSampler):
         solution_trials = self._get_solution_trials(
             completed_trials, optimizer.generation, n_restarts
         )
+
+        optimizer_metadata: dict[str, Any] = {}
 
         if len(solution_trials) >= popsize:
             solutions: list[tuple[np.ndarray, float]] = []
@@ -228,37 +242,55 @@ class RestartCmaEsSampler(BaseSampler):
             optimizer_str = pickle.dumps(optimizer).hex()
             optimizer_attrs = self._split_optimizer_str(optimizer_str, n_restarts)
             for key in optimizer_attrs:
-                study._storage.set_trial_system_attr(trial._trial_id, key, optimizer_attrs[key])
+                if self._store_optimizer_state_in_storage:
+                    study._storage.set_trial_system_attr(
+                        trial._trial_id, key, optimizer_attrs[key]
+                    )
+                else:
+                    optimizer_metadata[key] = optimizer_attrs[key]
 
         # Caution: optimizer should update its seed value.
         seed = self._cma_rng.rng.randint(1, 2**16) + trial.number
         optimizer._rng.seed(seed)
         if isinstance(optimizer, cmaes.CMAwM):
             params, x_for_tell = optimizer.ask()
-            study._storage.set_trial_system_attr(
-                trial._trial_id, "x_for_tell", x_for_tell.tolist()
-            )
+            if self._store_optimizer_state_in_storage:
+                study._storage.set_trial_system_attr(
+                    trial._trial_id, "x_for_tell", x_for_tell.tolist()
+                )
+            else:
+                optimizer_metadata["x_for_tell"] = x_for_tell.tolist()
         else:
             params = optimizer.ask()
 
-        generation_attr_key = self._attr_keys.generation(n_restarts)
-        study._storage.set_trial_system_attr(
-            trial._trial_id, generation_attr_key, optimizer.generation
-        )
-        popsize_attr_key = self._attr_keys.popsize()
-        study._storage.set_trial_system_attr(trial._trial_id, popsize_attr_key, popsize)
-        n_restarts_attr_key = self._attr_keys.n_restarts()
-        study._storage.set_trial_system_attr(trial._trial_id, n_restarts_attr_key, n_restarts)
-        study._storage.set_trial_system_attr(
-            trial._trial_id, self._attr_keys.n_restarts_with_large, n_restarts_with_large
-        )
-        study._storage.set_trial_system_attr(trial._trial_id, self._attr_keys.poptype, poptype)
-        study._storage.set_trial_system_attr(
-            trial._trial_id, self._attr_keys.small_n_eval, small_n_eval
-        )
-        study._storage.set_trial_system_attr(
-            trial._trial_id, self._attr_keys.large_n_eval, large_n_eval
-        )
+        if self._store_optimizer_state_in_storage:
+            generation_attr_key = self._attr_keys.generation(n_restarts)
+            study._storage.set_trial_system_attr(
+                trial._trial_id, generation_attr_key, optimizer.generation
+            )
+            popsize_attr_key = self._attr_keys.popsize()
+            study._storage.set_trial_system_attr(trial._trial_id, popsize_attr_key, popsize)
+            n_restarts_attr_key = self._attr_keys.n_restarts()
+            study._storage.set_trial_system_attr(trial._trial_id, n_restarts_attr_key, n_restarts)
+            study._storage.set_trial_system_attr(trial._trial_id, self._attr_keys.poptype, poptype)
+            study._storage.set_trial_system_attr(
+                trial._trial_id, self._attr_keys.small_n_eval, small_n_eval
+            )
+            study._storage.set_trial_system_attr(
+                trial._trial_id, self._attr_keys.large_n_eval, large_n_eval
+            )
+        else:
+            generation_attr_key = self._attr_keys.generation(n_restarts)
+            optimizer_metadata[generation_attr_key] = optimizer.generation
+            popsize_attr_key = self._attr_keys.popsize()
+            optimizer_metadata[popsize_attr_key] = popsize
+            n_restarts_attr_key = self._attr_keys.n_restarts()
+            optimizer_metadata[n_restarts_attr_key] = n_restarts
+            optimizer_metadata[self._attr_keys.n_restarts_with_large] = n_restarts_with_large
+            optimizer_metadata[self._attr_keys.poptype] = poptype
+            optimizer_metadata[self._attr_keys.small_n_eval] = small_n_eval
+            optimizer_metadata[self._attr_keys.large_n_eval] = large_n_eval
+            self._optimizer_metadata_by_trial[trial._trial_id] = optimizer_metadata
 
         external_values = trans.untransform(params)
 
@@ -325,9 +357,14 @@ class RestartCmaEsSampler(BaseSampler):
     ) -> "CmaClass" | None:
         # Restore a previous CMA object.
         for trial in reversed(completed_trials):
+            items = (
+                trial.system_attrs.items()
+                if self._store_optimizer_state_in_storage
+                else self._optimizer_metadata_by_trial.get(trial._trial_id, {}).items()
+            )
             optimizer_attrs = {
                 key: value
-                for key, value in trial.system_attrs.items()
+                for key, value in items
                 if key.startswith(self._attr_keys.optimizer(n_restarts))
             }
             if len(optimizer_attrs) == 0:
@@ -420,7 +457,18 @@ class RestartCmaEsSampler(BaseSampler):
         self, trials: list[FrozenTrial], generation: int, n_restarts: int
     ) -> list[FrozenTrial]:
         generation_attr_key = self._attr_keys.generation(n_restarts)
-        return [t for t in trials if generation == t.system_attrs.get(generation_attr_key, -1)]
+        solution_trials = []
+        for t in trials:
+            generation_of_trial = (
+                t.system_attrs.get(generation_attr_key, -1)
+                if self._store_optimizer_state_in_storage
+                else self._optimizer_metadata_by_trial.get(t._trial_id, {}).get(
+                    generation_attr_key, -1
+                )
+            )
+            if generation_of_trial == generation:
+                solution_trials.append(t)
+        return solution_trials
 
     def before_trial(self, study: optuna.Study, trial: FrozenTrial) -> None:
         self._independent_sampler.before_trial(study, trial)
