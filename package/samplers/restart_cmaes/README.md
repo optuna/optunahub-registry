@@ -19,7 +19,7 @@ This sampler uses [`cmaes`](https://github.com/CyberAgentAILab/cmaes) as the bac
 
 ## APIs
 
-- `RestartCmaEsSampler(x0: dict[str, Any] | None = None, sigma0: float | None = None, n_startup_trials: int = 1, independent_sampler: BaseSampler | None = None, warn_independent_sampling: bool = True, seed: int | None = None, *, consider_pruned_trials: bool = False, restart_strategy: str | None = None, popsize: int | None = None, inc_popsize: int = 2, use_separable_cma: bool = False, with_margin: bool = False, lr_adapt: bool = False, source_trials: list[FrozenTrial] | None = None,)`
+- `RestartCmaEsSampler(x0: dict[str, Any] | None = None, sigma0: float | None = None, n_startup_trials: int = 1, independent_sampler: BaseSampler | None = None, warn_independent_sampling: bool = True, seed: int | None = None, *, restart_strategy: str | None = None, popsize: int | None = None, inc_popsize: int = 2,)`
   - `x0`: A dictionary of an initial parameter values for CMA-ES. By default, the mean of `low` and `high` for each distribution is used. Note that `x0` is sampled uniformly within the search space domain for each restart if you specify `restart_strategy` argument.
 
   - `sigma0`: Initial standard deviation of CMA-ES. By default, `sigma0` is set to `min_range / 6`, where `min_range` denotes the minimum range of the distributions in the search space.
@@ -37,16 +37,6 @@ This sampler uses [`cmaes`](https://github.com/CyberAgentAILab/cmaes) as the bac
   - `popsize`: A population size of CMA-ES. When `restart_strategy = 'ipop'` or `restart_strategy = 'bipop'` is specified, this is used as the initial population size.
 
   - `inc_popsize`: Multiplier for increasing population size before each restart. This argument will be used when `restart_strategy = 'ipop'` or `restart_strategy = 'bipop'` is specified.
-
-  - `consider_pruned_trials`: If this is `True`, the PRUNED trials are considered for sampling. Note that it is suggested to set this flag `False` when the `optuna.pruners.MedianPruner` is used. On the other hand, it is suggested to set this flag `True` when the `optuna.pruners.HyperbandPruner` is used. Please see [the benchmark result](https://github.com/optuna/optuna/pull/1229) for the details.
-
-  - `use_separable_cma`: If this is `True`, the covariance matrix is constrained to be diagonal. Due to reduce the model complexity, the learning rate for the covariance matrix is increased. Consequently, this algorithm outperforms CMA-ES on separable functions.
-
-  - `with_margin`: If this is `True`, CMA-ES with margin is used. This algorithm prevents samples in each discrete distribution (`optuna.distributions.FloatDistribution` with `step` and `optuna.distributions.IntDistribution`) from being fixed to a single point. Currently, this option cannot be used with `use_separable_cma=True`.
-
-  - `lr_adapt`: If this is `True`, CMA-ES with learning rate adaptation is used. This algorithm focuses on working well on multimodal and/or noisy problems with default settings. Currently, this option cannot be used with `use_separable_cma=True` or `with_margin=True`.
-
-  - `source_trials`: This option is for Warm Starting CMA-ES, a method to transfer prior knowledge on similar HPO tasks through the initialization of CMA-ES. This method estimates a promising distribution from `source_trials` and generates the parameter of multivariate gaussian distribution. Please note that it is prohibited to use `x0`, `sigma0`, or `use_separable_cma` argument together.
 
 ## Example
 

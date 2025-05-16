@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from collections.abc import Sequence
-import copy
 import math
 import pickle
 from typing import Any
-from typing import cast
 from typing import NamedTuple
 from typing import Union
 
@@ -14,7 +12,6 @@ import cmaes
 import numpy as np
 import optuna
 from optuna import logging
-from optuna._experimental import warn_experimental_argument
 from optuna._transform import _SearchSpaceTransform
 from optuna.distributions import BaseDistribution
 from optuna.distributions import FloatDistribution
@@ -57,14 +54,9 @@ class RestartCmaEsSampler(BaseSampler):
         warn_independent_sampling: bool = True,
         seed: int | None = None,
         *,
-        consider_pruned_trials: bool = False,
         restart_strategy: str | None = None,
         popsize: int | None = None,
         inc_popsize: int = 2,
-        use_separable_cma: bool = False,
-        with_margin: bool = False,
-        lr_adapt: bool = False,
-        source_trials: list[FrozenTrial] | None = None,
     ) -> None:
         self._x0 = x0
         self._sigma0 = sigma0
@@ -73,50 +65,9 @@ class RestartCmaEsSampler(BaseSampler):
         self._warn_independent_sampling = warn_independent_sampling
         self._cma_rng = LazyRandomState(seed)
         self._search_space = IntersectionSearchSpace()
-        self._consider_pruned_trials = consider_pruned_trials
         self._restart_strategy = restart_strategy
         self._initial_popsize = popsize
         self._inc_popsize = inc_popsize
-        self._use_separable_cma = use_separable_cma
-        self._with_margin = with_margin
-        self._lr_adapt = lr_adapt
-        self._source_trials = source_trials
-
-        if self._restart_strategy:
-            warn_experimental_argument("restart_strategy")
-
-        if self._consider_pruned_trials:
-            warn_experimental_argument("consider_pruned_trials")
-
-        if self._use_separable_cma:
-            warn_experimental_argument("use_separable_cma")
-
-        if self._source_trials is not None:
-            warn_experimental_argument("source_trials")
-
-        if self._with_margin:
-            warn_experimental_argument("with_margin")
-
-        if self._lr_adapt:
-            warn_experimental_argument("lr_adapt")
-
-        if source_trials is not None and (x0 is not None or sigma0 is not None):
-            raise ValueError(
-                "It is prohibited to pass `source_trials` argument when "
-                "x0 or sigma0 is specified."
-            )
-
-        # TODO(c-bata): Support WS-sep-CMA-ES.
-        if source_trials is not None and use_separable_cma:
-            raise ValueError(
-                "It is prohibited to pass `source_trials` argument when using separable CMA-ES."
-            )
-
-        if lr_adapt and (use_separable_cma or with_margin):
-            raise ValueError(
-                "It is prohibited to pass `use_separable_cma` or `with_margin` argument when "
-                "using `lr_adapt`."
-            )
 
         if restart_strategy not in (
             "ipop",
@@ -126,12 +77,6 @@ class RestartCmaEsSampler(BaseSampler):
             raise ValueError(
                 "restart_strategy={} is unsupported. "
                 "Please specify: 'ipop', 'bipop', or None.".format(restart_strategy)
-            )
-
-        # TODO(knshnb): Support sep-CMA-ES with margin.
-        if self._use_separable_cma and self._with_margin:
-            raise ValueError(
-                "Currently, we do not support `use_separable_cma=True` and `with_margin=True`."
             )
 
     def reseed_rng(self) -> None:
@@ -182,10 +127,7 @@ class RestartCmaEsSampler(BaseSampler):
                 self._warn_independent_sampling = False
             return {}
 
-        # When `with_margin=True`, bounds in discrete dimensions are handled inside `CMAwM`.
-        trans = _SearchSpaceTransform(
-            search_space, transform_step=not self._with_margin, transform_0_1=True
-        )
+        trans = _SearchSpaceTransform(search_space, transform_0_1=True)
 
         if self._initial_popsize is None:
             self._initial_popsize = 4 + math.floor(3 * math.log(len(trans.bounds)))
@@ -324,50 +266,39 @@ class RestartCmaEsSampler(BaseSampler):
 
     @property
     def _attr_keys(self) -> _CmaEsAttrKeys:
-        if self._use_separable_cma:
-            attr_prefix = "sepcma:"
-        elif self._with_margin:
-            attr_prefix = "cmawm:"
-        else:
-            attr_prefix = "cma:"
-
         def optimizer_key_template(restart: int) -> str:
             if self._restart_strategy is None:
-                return attr_prefix + "optimizer"
+                return "optimizer"
             else:
-                return attr_prefix + "{}:restart_{}:optimizer".format(
-                    self._restart_strategy, restart
-                )
+                return "{}:restart_{}:optimizer".format(self._restart_strategy, restart)
 
         def generation_attr_key_template(restart: int) -> str:
             if self._restart_strategy is None:
-                return attr_prefix + "generation"
+                return "generation"
             else:
-                return attr_prefix + "{}:restart_{}:generation".format(
-                    self._restart_strategy, restart
-                )
+                return "{}:restart_{}:generation".format(self._restart_strategy, restart)
 
         def popsize_attr_key_template() -> str:
             if self._restart_strategy is None:
-                return attr_prefix + "popsize"
+                return "popsize"
             else:
-                return attr_prefix + "{}:popsize".format(self._restart_strategy)
+                return "{}:popsize".format(self._restart_strategy)
 
         def n_restarts_attr_key_template() -> str:
             if self._restart_strategy is None:
-                return attr_prefix + "n_restarts"
+                return "n_restarts"
             else:
-                return attr_prefix + "{}:n_restarts".format(self._restart_strategy)
+                return "{}:n_restarts".format(self._restart_strategy)
 
         return _CmaEsAttrKeys(
             optimizer_key_template,
             generation_attr_key_template,
             popsize_attr_key_template,
             n_restarts_attr_key_template,
-            attr_prefix + "n_restarts_with_large",
-            attr_prefix + "poptype",
-            attr_prefix + "small_n_eval",
-            attr_prefix + "large_n_eval",
+            "n_restarts_with_large",
+            "poptype",
+            "small_n_eval",
+            "large_n_eval",
         )
 
     def _concat_optimizer_attrs(self, optimizer_attrs: dict[str, str], n_restarts: int = 0) -> str:
@@ -417,77 +348,25 @@ class RestartCmaEsSampler(BaseSampler):
         upper_bounds = trans.bounds[:, 1]
         n_dimension = len(trans.bounds)
 
-        if self._source_trials is None:
-            if randomize_start_point:
-                mean = lower_bounds + (upper_bounds - lower_bounds) * self._cma_rng.rng.rand(
-                    n_dimension
-                )
-            elif self._x0 is None:
-                mean = lower_bounds + (upper_bounds - lower_bounds) / 2
-            else:
-                # `self._x0` is external representations.
-                mean = trans.transform(self._x0)
-
-            if self._sigma0 is None:
-                sigma0 = np.min((upper_bounds - lower_bounds) / 6)
-            else:
-                sigma0 = self._sigma0
-
-            cov = None
+        if randomize_start_point:
+            mean = lower_bounds + (upper_bounds - lower_bounds) * self._cma_rng.rng.rand(
+                n_dimension
+            )
+        elif self._x0 is None:
+            mean = lower_bounds + (upper_bounds - lower_bounds) / 2
         else:
-            expected_states = [TrialState.COMPLETE]
-            if self._consider_pruned_trials:
-                expected_states.append(TrialState.PRUNED)
+            # `self._x0` is external representations.
+            mean = trans.transform(self._x0)
 
-            # TODO(c-bata): Filter parameters by their values instead of checking search space.
-            sign = 1 if direction == StudyDirection.MINIMIZE else -1
-            source_solutions = [
-                (trans.transform(t.params), sign * cast(float, t.value))
-                for t in self._source_trials
-                if t.state in expected_states
-                and _is_compatible_search_space(trans, t.distributions)
-            ]
-            if len(source_solutions) == 0:
-                raise ValueError("No compatible source_trials")
+        if self._sigma0 is None:
+            sigma0 = np.min((upper_bounds - lower_bounds) / 6)
+        else:
+            sigma0 = self._sigma0
 
-            # TODO(c-bata): Add options to change prior parameters (alpha and gamma).
-            mean, sigma0, cov = cmaes.get_warm_start_mgd(source_solutions)
+        cov = None
 
         # Avoid ZeroDivisionError in cmaes.
         sigma0 = max(sigma0, _EPS)
-
-        if self._use_separable_cma:
-            return cmaes.SepCMA(
-                mean=mean,
-                sigma=sigma0,
-                bounds=trans.bounds,
-                seed=self._cma_rng.rng.randint(1, 2**31 - 2),
-                n_max_resampling=10 * n_dimension,
-                population_size=population_size,
-            )
-
-        if self._with_margin:
-            steps = np.empty(len(trans._search_space), dtype=float)
-            for i, dist in enumerate(trans._search_space.values()):
-                assert isinstance(dist, (IntDistribution, FloatDistribution))
-                # Set step 0.0 for continuous search space.
-                if dist.step is None or dist.log:
-                    steps[i] = 0.0
-                elif dist.low == dist.high:
-                    steps[i] = 1.0
-                else:
-                    steps[i] = dist.step / (dist.high - dist.low)
-
-            return cmaes.CMAwM(
-                mean=mean,
-                sigma=sigma0,
-                bounds=trans.bounds,
-                steps=steps,
-                cov=cov,
-                seed=self._cma_rng.rng.randint(1, 2**31 - 2),
-                n_max_resampling=10 * n_dimension,
-                population_size=population_size,
-            )
 
         return cmaes.CMA(
             mean=mean,
@@ -497,7 +376,6 @@ class RestartCmaEsSampler(BaseSampler):
             seed=self._cma_rng.rng.randint(1, 2**31 - 2),
             n_max_resampling=10 * n_dimension,
             population_size=population_size,
-            lr_adapt=self._lr_adapt,
         )
 
     def sample_independent(
@@ -536,18 +414,6 @@ class RestartCmaEsSampler(BaseSampler):
         for t in study._get_trials(deepcopy=False, use_cache=True):
             if t.state == TrialState.COMPLETE:
                 complete_trials.append(t)
-            elif (
-                t.state == TrialState.PRUNED
-                and len(t.intermediate_values) > 0
-                and self._consider_pruned_trials
-            ):
-                _, value = max(t.intermediate_values.items())
-                if value is None:
-                    continue
-                # We rewrite the value of the trial `t` for sampling, so we need a deepcopy.
-                copied_t = copy.deepcopy(t)
-                copied_t.value = value
-                complete_trials.append(copied_t)
         return complete_trials
 
     def _get_solution_trials(
