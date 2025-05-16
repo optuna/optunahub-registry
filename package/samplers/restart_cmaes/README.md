@@ -19,7 +19,7 @@ This sampler uses [`cmaes`](https://github.com/CyberAgentAILab/cmaes) as the bac
 
 ## APIs
 
-- `RestartCmaEsSampler(x0: dict[str, Any] | None = None, sigma0: float | None = None, n_startup_trials: int = 1, independent_sampler: BaseSampler | None = None, warn_independent_sampling: bool = True, seed: int | None = None, *, restart_strategy: str | None = None, popsize: int | None = None, inc_popsize: int = 2,)`
+- `RestartCmaEsSampler(x0: dict[str, Any] | None = None, sigma0: float | None = None, n_startup_trials: int = 1, independent_sampler: BaseSampler | None = None, warn_independent_sampling: bool = True, seed: int | None = None, *, restart_strategy: str | None = None, popsize: int | None = None, inc_popsize: int = 2, store_optimizer_state_in_storage: bool = False,)`
   - `x0`: A dictionary of an initial parameter values for CMA-ES. By default, the mean of `low` and `high` for each distribution is used. Note that `x0` is sampled uniformly within the search space domain for each restart if you specify `restart_strategy` argument.
 
   - `sigma0`: Initial standard deviation of CMA-ES. By default, `sigma0` is set to `min_range / 6`, where `min_range` denotes the minimum range of the distributions in the search space.
@@ -37,6 +37,8 @@ This sampler uses [`cmaes`](https://github.com/CyberAgentAILab/cmaes) as the bac
   - `popsize`: A population size of CMA-ES. When `restart_strategy = 'ipop'` or `restart_strategy = 'bipop'` is specified, this is used as the initial population size.
 
   - `inc_popsize`: Multiplier for increasing population size before each restart. This argument will be used when `restart_strategy = 'ipop'` or `restart_strategy = 'bipop'` is specified.
+
+  - `store_optimizer_state_in_storage`: If `True`, the internal state of the CMA-ES optimizer is saved in the `system_attrs` of each trial, enabling persistent experiments and distributed optimization. If `False`, the state is stored in-memory for faster execution but cannot be shared across processes or recovered after interruptions. The default is `False` for better performance in single-process optimizations.
 
 ## Example
 
