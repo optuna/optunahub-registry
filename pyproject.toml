@@ -27,16 +27,6 @@ checking = [
   "types-PyYAML",
 ]
 
-docs = [
-  "plotly",
-  "sphinx",
-  "sphinx_rtd_theme",
-  "sphinx-gallery",
-  "matplotlib",
-  "optuna",
-  "optunahub",
-]
-
 [project.urls]
 homepage = "https://hub.optuna.org/"
 repository = "https://github.com/optuna/optunahub-registry"
