@@ -40,6 +40,7 @@ class BisectSampler(optuna.samplers.BaseSampler):
         self._atol = atol
         self._rtol = rtol
         self._search_space: dict[str, IntDistribution | FloatDistribution] = {}
+        self._stop_flag = False
 
     def infer_relative_search_space(
         self, study: optuna.Study, trial: optuna.trial.FrozenTrial
@@ -138,10 +139,29 @@ class BisectSampler(optuna.samplers.BaseSampler):
         score = 0.0
         for k, param_value in trial.params.items():
             low = trial.distributions[k].low
+            high = trial.distributions[k].high
             is_too_high = trial.user_attrs[f"{k}_is_too_high"]
-            score += (2 * is_too_high - 1) * (param_value - low + 1)
+            score += (2 * is_too_high - 1) * (param_value - low) / (high - low)
 
         return score
+
+    @staticmethod
+    def get_best_param(study: Study) -> dict[str, Any]:
+        best_param: dict[str, Any] = {}
+        for t in study.trials:
+            params = t.params
+            user_attrs = t.user_attrs
+            for k, v in params.items():
+                if user_attrs[f"{k}_is_too_high"]:
+                    continue
+
+                best_param[k] = max(v, best_param[k]) if k in best_param else v
+
+        return best_param
+
+    def _enqueue_best_param(self, study: Study) -> None:
+        study.enqueue_trial(self.get_best_param(study))
+        self._stop_flag = True
 
     def after_trial(
         self, study: Study, trial: FrozenTrial, state: TrialState, values: Sequence[float] | None
@@ -165,8 +185,10 @@ class BisectSampler(optuna.samplers.BaseSampler):
                 self._set_left_and_right(study, param_name, left=param_value)
             converged &= self._is_param_converged(study, param_name)
 
-        if converged:
+        if self._stop_flag:
             study.stop()
+        if converged and not self._stop_flag:
+            self._enqueue_best_param(study)
 
         if not math.isclose(self.score_func(trial), values[0]):
             expected_value = self.score_func(trial)

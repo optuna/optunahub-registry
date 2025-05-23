@@ -19,4 +19,4 @@ def objective(trial: optuna.Trial, score_func: Callable[[optuna.Trial], float]) 
 
 sampler = BisectSampler()
 study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=20)
+study.optimize(lambda t: objective(t, BisectSampler.score_func), n_trials=20)

@@ -11,12 +11,15 @@ license: MIT License
 
 This sampler allows users to apply binary search to each parameter.
 Please see the example for the usage.
+Note that this sampler is not supposed to be used in the distributed optimization setup.
 
 ## APIs
 
 - `BisectSampler(*, rtol: float = 1e-5, atol: float = 1e-8)`
   - `rtol`: The relative tolerance parameter to be used to judge whether all the parameters are converged. Default to that in `np.isclose`, i.e., `1e-5`.
   - `atol`: The absolute tolerance parameter to be used to judge whether all the parameters are converged. Default to that in `np.isclose`, i.e., `1e-8`.
+
+By calling `BisectSampler.get_best_param(study)`, we can obtain the best parameter of the study.
 
 ## Installation
 
