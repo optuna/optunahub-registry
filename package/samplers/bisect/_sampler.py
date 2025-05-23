@@ -36,7 +36,7 @@ class BisectSampler(optuna.samplers.BaseSampler):
             converged. Default to that in `np.isclose`, i.e., 1e-8.
     """
 
-    def __init__(self, rtol: float = 1e-5, atol: float = 1e-8) -> None:
+    def __init__(self, *, rtol: float = 1e-5, atol: float = 1e-8) -> None:
         self._atol = atol
         self._rtol = rtol
         self._search_space: dict[str, IntDistribution | FloatDistribution] = {}
