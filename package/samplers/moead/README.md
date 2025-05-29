@@ -15,9 +15,26 @@ This sampler is specialized for multiobjective optimization. The objective funct
 
 It may not work well with multi-threading. Check results carefully.
 
-## Class or Function Names
+## APIs
 
-- MOEADSampler
+- `MOEADSampler(*, population_size = 100, n_neighbors = None, scalar_aggregation_func = "tchebycheff", mutation = None, mutation_prob = None, crossover = None, crossover_prob = 0.9, seed = None`
+  - `n_neighbors`: The number of the weight vectors in the neighborhood of each weight vector. The larger this value, the more weight is applied to the exploration.
+    - If None, `population_size // 10` is used
+  - `scalar_aggregation_func`: The scalar aggregation function to use. The default is `tchebycheff`. Other options is `weight_sum`.
+  - `mutation`: Mutation to be applied when creating child individual.
+    - If None, `UniformMutation` is selected. For categorical variables, it is always `UniformMutation`.
+  - `crossover`: Crossover to be applied when creating child individual.
+    - If None, `UniformCrossover(swapping_prob=0.5)` is selected.
+- The other arguments are the same as for Optuna's NSGA-II.
+- Supported mutation methods are listed below
+  - `UniformMutation()`
+    - This is a mutation method that uses a Uniform distribution for the distribution of the generated individuals.
+  - `PolynomialMutation(eta=20)`
+    - This is a mutation method that uses a Polynomial distribution for the distribution of the generated individuals.
+    - `eta`: Argument for the width of the distribution. The larger the value, the narrower the distribution. A value `eta ∈ [20, 100]` is adequate in most problems
+  - `GaussianMutation(sigma_factor=1/30)`
+    - This is a mutation method that uses a Gaussian distribution for the distribution of the generated individuals.
+    - `sigma_factor`: It is a factor that is multiplied by the sigma of the Gaussian distribution. When the `sigma_factor` is `1.0`, the sigma is the difference between the maximum and minimum of the search range for the target variable.
 
 ## Installation
 
@@ -46,33 +63,20 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
     return v0, v1
 
 
-population_size = 100
-n_trials = 1000
-
 mod = optunahub.load_module("samplers/moead")
 sampler = mod.MOEADSampler(
-    population_size=population_size,
+    population_size=100,
     scalar_aggregation_func="tchebycheff",
-    n_neighbors=population_size // 10,
+    n_neighbors=20,
+    mutation=mod.PolynomialMutation(eta=20)
 )
 study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=n_trials)
+study.optimize(objective, n_trials=1000)
 ```
 
 ## Others
 
-Comparison between Random, NSGAII and MOEA/D with ZDT1 as the objective function.
-See `compare_2objective.py` in moead directory for details.
-
-### Pareto Front Plot
-
-| MOEA/D                      | NSGAII                       | Random                       |
-| --------------------------- | ---------------------------- | ---------------------------- |
-| ![MOEA/D](images/moead.png) | ![NSGAII](images/nsgaii.png) | ![Random](images/random.png) |
-
-### Compare
-
-![Compare](images/compare_pareto_front.png)
+For more information, check out [Optuna's Medium article](https://medium.com/optuna/an-introduction-to-moea-d-and-examples-of-multi-objective-optimization-comparisons-8630565a4e89)
 
 ### Reference
 
