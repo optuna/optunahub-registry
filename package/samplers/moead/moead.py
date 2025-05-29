@@ -19,6 +19,7 @@ from optuna.trial import FrozenTrial
 
 from ._child_generation_strategy import MOEAdChildGenerationStrategy
 from ._elite_population_selection_strategy import MOEAdElitePopulationSelectionStrategy
+from ._mutations._base import BaseMutation
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class MOEADSampler(BaseSampler):
         population_size: int = 100,
         n_neighbors: int | None = None,
         scalar_aggregation_func: Literal["weighted_sum", "tchebycheff"] = "tchebycheff",
+        mutation: BaseMutation | None = None,
         mutation_prob: float | None = None,
         crossover: BaseCrossover | None = None,
         crossover_prob: float = 0.9,
@@ -117,6 +119,7 @@ class MOEADSampler(BaseSampler):
             crossover_prob=crossover_prob,
             mutation_prob=mutation_prob,
             swapping_prob=swapping_prob,
+            mutation=mutation,
             crossover=crossover,
             rng=self._rng,
         )
