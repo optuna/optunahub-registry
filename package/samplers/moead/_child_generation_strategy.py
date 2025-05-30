@@ -18,6 +18,9 @@ from optuna.samplers.nsgaii._crossover import _try_crossover
 from optuna.samplers.nsgaii._crossovers._base import BaseCrossover
 from optuna.trial import FrozenTrial
 
+from ._mutation import perform_mutation
+from ._mutations._base import BaseMutation
+
 
 _NUMERICAL_DISTRIBUTIONS = (
     FloatDistribution,
@@ -41,6 +44,7 @@ class MOEAdChildGenerationStrategy:
     def __init__(
         self,
         *,
+        mutation: BaseMutation | None = None,
         mutation_prob: float | None = None,
         crossover: BaseCrossover,
         crossover_prob: float,
@@ -68,6 +72,7 @@ class MOEAdChildGenerationStrategy:
         self._crossover_prob = crossover_prob
         self._mutation_prob = mutation_prob
         self._swapping_prob = swapping_prob
+        self._mutation = mutation
         self._crossover = crossover
         self._rng = rng
         self._subproblem_id = 0
@@ -122,6 +127,15 @@ class MOEAdChildGenerationStrategy:
         for param_name in child_params.keys():
             if self._rng.rng.rand() >= mutation_prob:
                 params[param_name] = child_params[param_name]
+            elif self._mutation is not None:
+                mutation_value = perform_mutation(
+                    self._mutation,
+                    self._rng.rng,
+                    search_space[param_name],
+                    child_params[param_name],
+                )
+                if mutation_value is not None:
+                    params[param_name] = mutation_value
 
         self._subproblem_id += 1
         if self._subproblem_id >= len(neighbors):

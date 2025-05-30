@@ -19,6 +19,8 @@ from optuna.trial import FrozenTrial
 
 from ._child_generation_strategy import MOEAdChildGenerationStrategy
 from ._elite_population_selection_strategy import MOEAdElitePopulationSelectionStrategy
+from ._mutations._base import BaseMutation
+from ._mutations._uniform import UniformMutation
 
 
 if TYPE_CHECKING:
@@ -36,6 +38,7 @@ class MOEADSampler(BaseSampler):
         population_size: int = 100,
         n_neighbors: int | None = None,
         scalar_aggregation_func: Literal["weighted_sum", "tchebycheff"] = "tchebycheff",
+        mutation: BaseMutation | None = None,
         mutation_prob: float | None = None,
         crossover: BaseCrossover | None = None,
         crossover_prob: float = 0.9,
@@ -68,6 +71,9 @@ class MOEADSampler(BaseSampler):
                 :class:`~optuna.samplers.nsgaii.SPXCrossover`, ``n_parents=3``, and for the other
                 algorithms, ``n_parents=2``.
 
+            mutation:
+                Mutation to be applied when creating child individuals.
+
             mutation_prob:
                 Probability of mutating each parameter when creating a new individual.
                 If :obj:`None` is specified, the value ``1.0 / len(parent_trial.params)`` is used
@@ -98,6 +104,8 @@ class MOEADSampler(BaseSampler):
                 "`scalar_aggregation_function` must be one of 'weighted_sum', 'tchebycheff', 'PBI'."
             )
 
+        if mutation is None:
+            mutation = UniformMutation()
         if crossover is None:
             crossover = UniformCrossover(swapping_prob)
         self._population_size = population_size
@@ -117,6 +125,7 @@ class MOEADSampler(BaseSampler):
             crossover_prob=crossover_prob,
             mutation_prob=mutation_prob,
             swapping_prob=swapping_prob,
+            mutation=mutation,
             crossover=crossover,
             rng=self._rng,
         )
