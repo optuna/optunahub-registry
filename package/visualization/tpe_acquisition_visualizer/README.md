@@ -2,7 +2,7 @@
 author: Shuji Suzuki
 title: TPE Acquisition Visualizer
 description: Plots the TPE acquisition for a given trial and parameter.
-tags: [vizualization, TPE]
+tags: [visualization, TPE]
 optuna_versions: [4.3.0]
 license: MIT License
 ---
