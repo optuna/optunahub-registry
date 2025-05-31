@@ -65,7 +65,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 
 seed = 42
-tpe_acquition_visualizer = module.TPEAcquisitionVisualizer()
+tpe_acquisition_visualizer = module.TPEAcquisitionVisualizer()
 
 n_startup_trials = 10
 study = optuna.create_study(
@@ -84,13 +84,13 @@ study = optuna.create_study(
     direction="minimize",
 )
 
-study.optimize(objective, n_trials=100, callbacks=[tpe_acquition_visualizer])
+study.optimize(objective, n_trials=100, callbacks=[tpe_acquisition_visualizer])
 
 param_name = "x"
 for trial in study.trials:
     if trial.number < n_startup_trials:
         continue
-    fig = tpe_acquition_visualizer.plot(study, trial.number, param_name)
+    fig = tpe_acquisition_visualizer.plot(study, trial.number, param_name)
     fig.savefig(f"{param_name}_{trial.number}.png")
     plt.close(fig)
 ```
