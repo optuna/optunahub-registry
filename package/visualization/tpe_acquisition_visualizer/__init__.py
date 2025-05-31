@@ -28,6 +28,8 @@ class TPEAcquisitionVisualizer:
             None
         """
         sampler = study.sampler
+        if not isinstance(sampler, optuna.samplers.TPESampler):
+            raise ValueError("This callback is only compatible with optuna.samplers.TPESampler.")
         if sampler._multivariate:
             raise ValueError("This callback is not compatible with multivariate TPE sampler.")
 
@@ -83,6 +85,8 @@ class TPEAcquisitionVisualizer:
         """
 
         trials = study.get_trials(deepcopy=False)
+        values = [trial.value for trial in trials]
+        value_range = (min(values), max(values))
         trial_number2trial = {trial.number: trial for trial in trials}
         if trial_number not in self.log_objects:
             raise ValueError(f"Trial number {trial_number} not found in log objects.")
@@ -125,6 +129,7 @@ class TPEAcquisitionVisualizer:
         ax.set_xlabel("Parameter")
         ax.set_ylabel("Value")
         ax.set_xlim(*bounds)
+        ax.set_ylim(*value_range)
 
         ax.plot(
             values_above,
