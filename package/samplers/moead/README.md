@@ -70,7 +70,7 @@ sampler = mod.MOEADSampler(
     n_neighbors=20,
     mutation=mod.PolynomialMutation(eta=20)
 )
-study = optuna.create_study(sampler=sampler)
+study = optuna.create_study(sampler=sampler, directions=["minimize", "minimize"])
 study.optimize(objective, n_trials=1000)
 ```
 
