@@ -39,7 +39,7 @@ Finally, read [`contributor agreements`](#contributor-agreements) and if you agr
 
 ## Tutorial
 
-You can find tutorials to implement a package for the OptunaHub registry in [the OptunaHub registry documentation](https://optuna.github.io/optunahub-registry/).
+You can find tutorials to implement a package for the OptunaHub registry in [Tutorials for Contributors](https://optuna.github.io/optunahub/tutorials_for_contributors.html).
 
 ## Contributor Agreements
 

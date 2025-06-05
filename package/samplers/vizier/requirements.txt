@@ -1,0 +1,1 @@
+google-vizier[jax] # Google Vizier (at least v0.1.24) is broken with the current version of JAX. You need to pin JAX to jax==0.5.3 to ensure compatibility.

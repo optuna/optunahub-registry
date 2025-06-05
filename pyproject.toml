@@ -40,7 +40,7 @@ docs = [
 [project.urls]
 homepage = "https://hub.optuna.org/"
 repository = "https://github.com/optuna/optunahub-registry"
-documentation = "https://optuna.github.io/optunahub-registry/"
+documentation = "https://optuna.github.io/optunahub/"
 bugtracker = "https://github.com/optuna/optunahub-registry/issues"
 
 [tool.setuptools.packages.find]

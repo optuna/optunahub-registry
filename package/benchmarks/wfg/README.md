@@ -40,10 +40,10 @@ The properties defined by [optproblems](https://www.simonwessing.de/optproblems/
 
 ## Installation
 
-Please install the [optproblems](https://pypi.org/project/optproblems/) package.
+Please install the [optproblems](https://pypi.org/project/optproblems/) package and [diversipy](https://pypi.org/project/diversipy/).
 
 ```shell
-pip install -U optproblems
+pip install -U optproblems diversipy
 ```
 
 ## Example
