@@ -25,7 +25,7 @@ pip install google-vizier[jax] # with JAX
 or
 
 ```bash
-pip install google-vizier[jax] # with All algorithm
+pip install google-vizier[all] # with All algorithm
 ```
 
 ## Example
