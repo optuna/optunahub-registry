@@ -16,6 +16,18 @@ It is a simple wrapper around Vizier's Python client, enabling its optimization 
 
 - VizierSampler
 
+## Installation
+
+```bash
+pip install google-vizier[jax] # with JAX
+```
+
+or
+
+```bash
+pip install google-vizier[jax] # with All algorithm
+```
+
 ## Example
 
 ```python
@@ -49,3 +61,8 @@ Following images are the benchmark of Vizier and other samplers.
 ![HPOLib](images/multiple_sampler_hpolib.png)
 ![WFG 4](images/multiple_wfg4_bench.png)
 ![WFG 8](images/multiple_wfg8_bench.png)
+
+## Others
+
+This sampler is a wrapper for Google Vizier.
+See the [official Google Vizier documentation](https://oss-vizier.readthedocs.io/en/latest/) for more details.
