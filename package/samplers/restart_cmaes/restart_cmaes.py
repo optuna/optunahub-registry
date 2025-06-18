@@ -442,17 +442,16 @@ class RestartCmaEsSampler(BaseSampler):
     ) -> list[FrozenTrial]:
         generation_attr_key = self._attr_keys.generation(n_restarts)
         if self._store_optimizer_state_in_storage:
-
-            def get_generation(t: FrozenTrial) -> int:
-                return t.system_attrs.get(generation_attr_key, -1)
+            return [t for t in trials if generation == t.system_attrs.get(generation_attr_key, -1)]
         else:
-
-            def get_generation(t: FrozenTrial) -> int:
-                return self._optimizer_states_by_trial.get(t._trial_id, {}).get(
+            return [
+                t
+                for t in trials
+                if generation
+                == self._optimizer_states_by_trial.get(t._trial_id, {}).get(
                     generation_attr_key, -1
                 )
-
-        return [t for t in trials if generation == get_generation(t)]
+            ]
 
     def before_trial(self, study: optuna.Study, trial: FrozenTrial) -> None:
         self._independent_sampler.before_trial(study, trial)
