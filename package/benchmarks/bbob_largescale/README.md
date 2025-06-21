@@ -51,7 +51,7 @@ import optuna
 import optunahub
 
 
-bbob = optunahub.load_module("benchmarks/bbob-largescale")
+bbob = optunahub.load_module("benchmarks/bbob_largescale")
 sphere640d = bbob.Problem(function_id=1, dimension=640, instance_id=1)
 
 study = optuna.create_study(directions=sphere640d.directions)

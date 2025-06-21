@@ -1,0 +1,34 @@
+name: Test OptunaHub Web Build
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+jobs:
+  test-optunahub-web-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Clone optunahub-web
+        run: git clone https://github.com/optuna/optunahub-web.git
+      - name: Create optuna-registry under optunahub-web
+        run: mkdir optunahub-web/optunahub-registry
+      - name: Clone optuna-registry under optunahub-web
+        uses: actions/checkout@v4
+        with:
+          path: optunahub-web/optunahub-registry
+      - name: Install dependencies of optunahub-web
+        working-directory: ./optunahub-web
+        run: pip install -r requirements.txt
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.124.1'
+      - name: Build optunahub-web
+        working-directory: ./optunahub-web
+        run: make build
+      - name: Clean up
+        run: rm -rf optunahub-web
