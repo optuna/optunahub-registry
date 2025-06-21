@@ -1,6 +1,6 @@
 ---
-author: Luca Thale-Bombien, Aaron Klein
-title: SyneTune
+author: Syne Tune
+title: 'Syne Tune: Large-Scale and Reproducible Hyperparameter Optimization'
 description: Syne Tune provides state-of-the-art algorithms for hyperparameter optimization (HPO).
 tags: [sampler, Bayesian optimization, CQR, Bore]
 optuna_versions: [4.2.1]
@@ -9,7 +9,7 @@ license: MIT License
 
 ## APIs
 
-A sampler that uses SyneTune v0.13.0 that can be run by the following:
+A sampler that uses Syne Tune v0.14.1 that can be run by the following:
 
 ```shell
 $ pip install optunahub syne-tune
@@ -19,10 +19,10 @@ Please check the API reference for more details:
 
 - https://syne-tune.readthedocs.io/en/latest/\_apidoc/modules.html
 
-### `SyneTuneSampler(search_space: dict[str, BaseDistribution],direction: str = "min",metric: str = "mean_loss",searcher_method: str = "random_search",searcher_kwargs: dict = None)`
+### `SyneTuneSampler(metric: str, search_space: dict[str, BaseDistribution], direction: str = "min", searcher_method: str = "CQR", searcher_kwargs: dict = None)`
 
 - `search_space`: A dictionary of Optuna distributions.
-- `direction`: Defines direction of optimization. Must be one of the following: `[min, max]`.
+- `direction`: Defines direction of optimization. Must be one of the following: `[minimize, maximize]`.
 - `metric`: The metric to be optimized.
 - `searcher_method`: The optimization method to be run on the objective. Currently supported searcher methods: `[CQR, KDE, REA, BORE, RandomSearch]`.
   - **RandomSearch**: Selects hyperparameters randomly from the search space, providing a simple baseline method that requires no prior knowledge.
@@ -72,8 +72,10 @@ See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/packag
 
 ## Others
 
-SyneTune is maintained by the SyneTune team. If you have trouble using SyneTune, a concrete question or found a bug, please create an issue under the [Synetune](https://github.com/syne-tune/syne-tune) repository.
+Syne Tune is maintained by the Syne Tune team. If you have trouble using Syne Tune, a concrete question or found a bug, please create an issue under the [Syne Tune](https://github.com/syne-tune/syne-tune) repository.
 
 ### Reference
 
+```bibtex
 Salinas, D., Seeger, M., Klein, A., Perrone, V., Wistuba, M., & Archambeau, C. (2022, September). Syne tune: A library for large scale hyperparameter tuning and reproducible research. In International Conference on Automated Machine Learning (pp. 16-1). PMLR.
+```

@@ -4,7 +4,6 @@ import optunahub
 
 SyneTuneSampler = optunahub.load_module("samplers/synetune_sampler").SyneTuneSampler
 
-
 if __name__ == "__main__":
     n_trials = 100
 

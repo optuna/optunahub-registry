@@ -21,17 +21,15 @@ from syne_tune.config_space import randint
 from syne_tune.config_space import uniform
 from syne_tune.optimizer.baselines import BORE
 from syne_tune.optimizer.baselines import CQR
-from syne_tune.optimizer.baselines import KDE
 from syne_tune.optimizer.baselines import RandomSearch
 from syne_tune.optimizer.baselines import REA
-from syne_tune.optimizer.scheduler import AskTellScheduler
+from syne_tune.optimizer.schedulers.ask_tell_scheduler import AskTellScheduler
 
 
 # Currently supported methods
 searcher_cls_dict = {
     "RandomSearch": RandomSearch,
     "BORE": BORE,
-    "KDE": KDE,
     "REA": REA,
     "CQR": CQR,
 }
@@ -42,7 +40,7 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         self,
         metric: str,
         search_space: dict[str, BaseDistribution],
-        direction: str = "min",
+        direction: str = "minimize",
         searcher_method: str = "CQR",
         searcher_kwargs: Optional[dict] = None,
     ) -> None:
@@ -60,15 +58,18 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
             searcher_method:
                 The search method to be run. Currently supported searcher methods are: BORE, CQR, KDE, REA, RandomSearch.
             direction:
-                Direction of optimization, either "min" or "max". Defaults to "min".
+                Direction of optimization, either "minimize" or "maximize". Defaults to "minimize".
             searcher_kwargs: Additional keyword arguments for the searcher. Defaults to None.
         """
         super().__init__(search_space)
         if searcher_kwargs is None:
             searcher_kwargs = {}
-        assert direction in ["min", "max"]
+        assert direction in ["minimize", "maximize"]
+        if direction == "minimize":
+            self.direction = "min"
+        else:
+            self.direction = "max"
         self.metric = metric
-        self.direction = direction
         self.trial_mapping: dict[str, Trial] = {}
         self._syne_tune_space = self._convert_optuna_to_syne_tune(search_space)
         self.scheduler = AskTellScheduler(
@@ -140,6 +141,7 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
     def after_trial(
         self, study: Study, trial: FrozenTrial, state: TrialState, values: Sequence[float]
     ) -> None:
+        print(values)
         self.scheduler.tell(
             trial=self.trial_mapping[trial.number], experiment_result={self.metric: values[0]}
         )
