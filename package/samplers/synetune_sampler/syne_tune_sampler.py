@@ -62,21 +62,30 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
             searcher_kwargs: Additional keyword arguments for the searcher. Defaults to None.
         """
         super().__init__(search_space)
-        if searcher_kwargs is None:
-            searcher_kwargs = {}
         assert direction in ["minimize", "maximize"]
-        if direction == "minimize":
-            self.direction = "min"
-        else:
-            self.direction = "max"
+        self.direction = direction
         self.metric = metric
         self.trial_mapping: dict[str, Trial] = {}
         self._syne_tune_space = self._convert_optuna_to_syne_tune(search_space)
-        self.scheduler = AskTellScheduler(
-            base_scheduler=searcher_cls_dict[searcher_method](
-                self._syne_tune_space, metric=self.metric, mode=self.direction, **searcher_kwargs
+
+        searcher_kwargs = searcher_kwargs or {}
+
+        if searcher_method == "RandomSearch":
+            base_searcher = searcher_cls_dict[searcher_method](
+                config_space=self._syne_tune_space,
+                metrics=[self.metric],
+                do_minimize=(self.direction == "minimize"),
+                **searcher_kwargs,
             )
-        )
+        else:
+            base_searcher = searcher_cls_dict[searcher_method](
+                config_space=self._syne_tune_space,
+                metric=self.metric,
+                do_minimize=(self.direction == "minimize"),
+                **searcher_kwargs,
+            )
+
+        self.scheduler = AskTellScheduler(base_scheduler=base_searcher)
 
     def _convert_optuna_to_syne_tune(
         self, search_space: dict[str, BaseDistribution]
