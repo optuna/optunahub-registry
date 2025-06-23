@@ -19,15 +19,14 @@ Please check the API reference for more details:
 
 - https://syne-tune.readthedocs.io/en/latest/\_apidoc/modules.html
 
-### `SyneTuneSampler(metric: str, search_space: dict[str, BaseDistribution], direction: str = "min", searcher_method: str = "CQR", searcher_kwargs: dict = None)`
+### `SyneTuneSampler(metric: str, search_space: dict[str, BaseDistribution], direction: str = "minimize", searcher_method: str = "CQR", searcher_kwargs: dict = None)`
 
 - `search_space`: A dictionary of Optuna distributions.
 - `direction`: Defines direction of optimization. Must be one of the following: `[minimize, maximize]`.
 - `metric`: The metric to be optimized.
-- `searcher_method`: The optimization method to be run on the objective. Currently supported searcher methods: `[CQR, KDE, REA, BORE, RandomSearch]`.
+- `searcher_method`: The optimization method to be run on the objective. Currently supported searcher methods: `[CQR, REA, BORE, RandomSearch]`.
   - **RandomSearch**: Selects hyperparameters randomly from the search space, providing a simple baseline method that requires no prior knowledge.
   - **BORE**: Bayesian Optimization with Density-Ratio Estimation, an adaptive method that models the probability of improvement using density estimation.
-  - **KDE**: Kernel Density Estimation, which builds a probabilistic model of promising hyperparameters based on past evaluations.
   - **REA**: Regularized Evolution Algorithm, a population-based evolutionary approach that mutates and selects the best-performing hyperparameter sets over time.
   - **CQR**: Conformal Quantile Regression, a robust uncertainty-aware optimization method that uses quantile regression for reliable performance estimation.
 - `searcher_kwargs`: Optional. Additional arguments for the searcher_method. More details can be found in the API documentation
