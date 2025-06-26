@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import datetime
 from typing import Any
 from typing import Optional
 
@@ -23,11 +24,10 @@ from syne_tune.optimizer.baselines import BORE
 from syne_tune.optimizer.baselines import CQR
 from syne_tune.optimizer.baselines import RandomSearch
 from syne_tune.optimizer.baselines import REA
-from syne_tune.optimizer.schedulers.ask_tell_scheduler import AskTellScheduler
 
 
 # Currently supported methods
-searcher_cls_dict = {
+scheduler_cls_dict = {
     "RandomSearch": RandomSearch,
     "BORE": BORE,
     "REA": REA,
@@ -65,27 +65,26 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         assert direction in ["minimize", "maximize"]
         self.direction = direction
         self.metric = metric
-        self.trial_mapping: dict[str, Trial] = {}
+        self.trial_mapping: dict[int, Any] = {}
         self._syne_tune_space = self._convert_optuna_to_syne_tune(search_space)
 
         searcher_kwargs = searcher_kwargs or {}
 
         if searcher_method == "RandomSearch":
-            base_searcher = searcher_cls_dict[searcher_method](
+            scheduler = scheduler_cls_dict[searcher_method](
                 config_space=self._syne_tune_space,
                 metrics=[self.metric],
                 do_minimize=(self.direction == "minimize"),
                 **searcher_kwargs,
             )
         else:
-            base_searcher = searcher_cls_dict[searcher_method](
+            scheduler = scheduler_cls_dict[searcher_method](
                 config_space=self._syne_tune_space,
                 metric=self.metric,
                 do_minimize=(self.direction == "minimize"),
                 **searcher_kwargs,
             )
-
-        self.scheduler = AskTellScheduler(base_scheduler=base_searcher)
+        self.scheduler = scheduler
 
     def _convert_optuna_to_syne_tune(
         self, search_space: dict[str, BaseDistribution]
@@ -137,20 +136,25 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
         trial: FrozenTrial,
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
-        if (self.direction == "min" and study.direction.name != "MINIMIZE") or (
-            self.direction == "max" and study.direction.name != "MAXIMIZE"
+        if (self.direction == "minimize" and study.direction.name != "MINIMIZE") or (
+            self.direction == "maximize" and study.direction.name != "MAXIMIZE"
         ):
             raise ValueError(
                 f"The direction mismatch in {self.__class__.__name__} and `create_study`."
             )
-        trial_suggestion: Trial = self.scheduler.ask()
+
+        trial_suggestion = self.scheduler.suggest()
+        trial_suggestion = Trial(
+            trial_id=trial.number,
+            config=trial_suggestion.config,
+            creation_time=datetime.datetime.now(),
+        )
         self.trial_mapping[trial.number] = trial_suggestion
         return trial_suggestion.config
 
     def after_trial(
         self, study: Study, trial: FrozenTrial, state: TrialState, values: Sequence[float]
     ) -> None:
-        print(values)
-        self.scheduler.tell(
-            trial=self.trial_mapping[trial.number], experiment_result={self.metric: values[0]}
+        self.scheduler.on_trial_complete(
+            self.trial_mapping[trial.number], result={self.metric: values[0]}
         )
