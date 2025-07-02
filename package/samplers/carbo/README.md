@@ -96,22 +96,16 @@ In this section, we use the following notations:
 - $\\text{UCB}\_{h}: \[0,1\]^D \\rightarrow \\mathbb{R}$, the upper confidence bound of a function $h$.
 
 Suppose we would like to solve the following max-min problem:
-$
-\\max\_{x \\in \[0,1\]^D} \\min\_{\\xi \\in B\_\\epsilon} f(x + \\xi) \\text{~subject~to~} g_c(x + \\xi) \\geq 0~(\\text{for~}c \\in {1,2,\\dots,C}).
-$
+$\\max\_{x \\in \[0,1\]^D} \\min\_{\\xi \\in B\_\\epsilon} f(x + \\xi) \\text{\\ subject \\ to \\ } g_c(x + \\xi) \\geq 0~(\\text{for~}c \\in {1,2,\\dots,C}).$
 where the actual input noise $\\xi$ is assumed to be drawn from $B\_\\epsilon$ uniformly.
 
 ### Algorithm Details
 
 1. Train Gaussian process regressors for each function $f, g_1, \\dots, g_C$ using the past observations.
 1. Solve the following max-min problem:
-   $
-   x\_{\\star} \\in \\text{arg}\\max\_{x \\in \[0,1\]^D}\\min\_{\\xi \\in B\_\\epsilon}\\text{UCB}_{f}(x+\\xi) + \\rho\\sum_{c=1}^C\[\\text{UCB}\_{g_c}(x+\\xi)\]^{-}
-   $ where $\[a\]^{-} \\coloneqq \\min(0, a)$.
+   $x\_{\\star} \\in \\text{arg}\\max\_{x \\in \[0,1\]^D}\\min\_{\\xi \\in B\_\\epsilon} \\text{UCB}\_{f}(x+\\xi) + \\rho \\sum\_{c=1}^C \[\\text{UCB}\_{g_c}(x+\\xi)\]^{-}$ where $\[a\]^{-} \\coloneqq \\min(0, a)$.
 1. Solve the following minimization problem:
-   $
-   \\xi\_{\\star} \\in \\text{arg}\\min\_{\\xi \\in B\_\\epsilon} \\text{LCB}_{f}(x_\\star+\\xi) + \\rho\\sum\_{c=1}^C \\text{LCB}_{g_c}(x_\\star+\\xi)
-   $
+   $\\xi\_{\\star} \\in \\text{arg}\\min\_{\\xi \\in B\_\\epsilon} \\text{LCB}\_{f}(x\_\\star+\\xi) + \\rho\\sum\_{c=1}^C \\text{LCB}\_{g_c}(x\_\\star+\\xi)$
 1. Evaluate each function at $x = x\_{\\star} + \\xi\_{\\star}$.
 1. Go back to 1.
 
