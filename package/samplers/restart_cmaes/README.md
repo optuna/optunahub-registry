@@ -38,7 +38,7 @@ This sampler uses [`cmaes`](https://github.com/CyberAgentAILab/cmaes) as the bac
 
   - `inc_popsize`: Multiplier for increasing population size before each restart. This argument will be used when `restart_strategy = 'ipop'` or `restart_strategy = 'bipop'` is specified.
 
-  - `store_optimizer_state_in_storage`: If `True`, the internal state of the CMA-ES optimizer is saved in the `system_attrs` of each trial, enabling persistent experiments and distributed optimization. If `False`, the state is stored in-memory for faster execution but cannot be shared across processes or recovered after interruptions. The default is `False` for better performance in single-process optimizations.
+  - `store_optimizer_state_in_storage`: If `True`, the internal state of the CMA-ES optimizer is saved in the `system_attrs` of each trial, enabling persistent experiments and distributed optimization. If `False`, the state is stored in-memory for faster execution but cannot be shared across processes or recovered after interruptions. The default is `False` for better performance in single-process optimizations. This option should be set to `True` when using multi-process optimization to ensure consistency and proper synchronization across processes.
 
 ## Example
 
