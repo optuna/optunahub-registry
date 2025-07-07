@@ -8,6 +8,7 @@ import optuna
 from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._base import BaseSampler
+from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
@@ -114,7 +115,7 @@ class CARBOSampler(BaseSampler):
         local_ratio: float = 0.1,
         n_local_search: int = 10,
     ) -> None:
-        self._rng = np.random.RandomState(seed)
+        self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._intersection_search_space = optuna.search_space.IntersectionSearchSpace()
         self._n_startup_trials = n_startup_trials
@@ -152,7 +153,8 @@ class CARBOSampler(BaseSampler):
         self, X_train: torch.Tensor, y_train: torch.Tensor, constraint_vals: np.ndarray | None
     ) -> int | None:
         if constraint_vals is None:
-            return int(y_train[:, 0].argmax().item())
+            assert len(y_train.shape) == 1
+            return int(y_train.argmax().item())
         is_feasible = np.all(constraint_vals <= 0, axis=1)
         if not any(is_feasible):
             return None
@@ -200,13 +202,13 @@ class CARBOSampler(BaseSampler):
                 for cache, c_train in zip(_cache_list, C_train.T)
             ]
 
-        best_params = None if warmstart_index is None else X_train[warmstart_index, None].numpy()
+        best_params = None if warmstart_index is None else X_train[warmstart_index].numpy()
         found_best_params = suggest_by_carbo(
             gpr=gpr,
             constraints_gpr_list=constraints_gpr_list,
             constraints_threshold_list=constraints_threshold_list,
-            best_params=best_params[None] if best_params is not None else best_params,
-            rng=self._rng,
+            best_params=best_params,
+            rng=self._rng.rng,
             rho=self._rho,
             beta=self._beta,
             n_local_search=self._n_local_search,
@@ -214,14 +216,14 @@ class CARBOSampler(BaseSampler):
         )
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
         return {
-            name: param_value
+            name: float(param_value)
             for name, param_value in zip(
                 search_space, unnormalize_params(found_best_params[None], is_log, lows, highs)[0]
             )
         }
 
     def reseed_rng(self) -> None:
-        self._rng.seed()
+        self._rng.rng.seed()
         self._independent_sampler.reseed_rng()
 
     def infer_relative_search_space(

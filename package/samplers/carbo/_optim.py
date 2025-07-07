@@ -70,7 +70,7 @@ def suggest_by_carbo(
     local_radius: float,
     tol: float = 1e-4,
 ) -> np.ndarray:
-    assert best_params is None or len(best_params.shape) == 1
+    assert best_params is None or len(best_params.shape) == 1, best_params
     dim = len(gpr.length_scales)
     if best_params is not None:
         local_params = np.vstack(
