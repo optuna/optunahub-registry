@@ -160,7 +160,7 @@ class CARBOSampler(BaseSampler):
         if not any(is_feasible):
             return None
 
-        y_train_with_neginf = np.where(is_feasible, y_train[:, 0].numpy(), -np.inf)
+        y_train_with_neginf = np.where(is_feasible, y_train.numpy(), -np.inf)
         return int(y_train_with_neginf.argmax().item())
 
     def sample_relative(
