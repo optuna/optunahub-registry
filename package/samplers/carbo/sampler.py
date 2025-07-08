@@ -113,7 +113,8 @@ class CARBOSampler(BaseSampler):
         rho: float = 1e3,
         beta: float = 4.0,
         local_ratio: float = 0.1,
-        n_local_search: int = 10,
+        # n_local_search is a power of 2 to suppress the warning in Sobol.
+        n_local_search: int = 16,
     ) -> None:
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)

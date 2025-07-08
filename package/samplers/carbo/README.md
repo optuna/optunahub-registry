@@ -15,21 +15,6 @@ The algorithm details are described in the `Others` section.
 
 ## APIs
 
-class CARBOSampler(BaseSampler):
-def __init__(
-self,
-\*,
-seed: int | None = None,
-independent_sampler: BaseSampler | None = None,
-n_startup_trials: int = 10,
-deterministic_objective: bool = False,
-constraints_func: Callable\[\[FrozenTrial\], Sequence\[float\]\] | None = None,
-rho: float = 1e3,
-beta: float = 4.0,
-local_ratio: float = 0.1,
-n_local_search: int = 10,
-) -> None:
-
 - `CARBOSampler(*, seed: int | None = None, independent_sampler: BaseSampler | None = None, n_startup_trials: int = 10, deterministic_objective: bool = False, constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None, rho: float = 1e3, beta: float = 4.0, local_ratio: float = 0.1, n_local_search: int = 10)`
   - `seed`: Seed for random number generator.
   - `independent_sampler`: Sampler used for initial sampling (for the first `n_startup_trials` trials) and for conditional parameters. (a random sampler with the same `seed` is used).
