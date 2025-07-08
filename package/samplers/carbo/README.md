@@ -54,8 +54,6 @@ $ pip install scipy
 ## Example
 
 ```python
-from carbo import CARBOSampler
-
 import numpy as np
 import optuna
 import optunahub
