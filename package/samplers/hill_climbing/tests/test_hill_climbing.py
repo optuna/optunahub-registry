@@ -1,21 +1,24 @@
 """Tests for the Hill Climbing Sampler."""
 
-import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
 
-import pytest
-import optuna
-from optuna.distributions import IntDistribution, CategoricalDistribution, FloatDistribution
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import directly from the parent directory
 from _sampler import HillClimbingSampler
+import optuna
+from optuna.distributions import CategoricalDistribution
+from optuna.distributions import FloatDistribution
+from optuna.distributions import IntDistribution
+import pytest
 
 
 class TestHillClimbingSampler:
     """Test cases for HillClimbingSampler."""
-    
-    def test_initialization(self):
+
+    def test_initialization(self) -> None:
         """Test sampler initialization with different parameters."""
         # Test default initialization
         sampler = HillClimbingSampler()
@@ -23,50 +26,49 @@ class TestHillClimbingSampler:
         assert sampler._max_restarts == 10
         assert sampler._restart_count == 0
         assert not sampler._is_initialized
-        
+
         # Test custom initialization
-        sampler_custom = HillClimbingSampler(
-            neighbor_size=10,
-            max_restarts=20,
-            seed=42
-        )
+        sampler_custom = HillClimbingSampler(neighbor_size=10, max_restarts=20, seed=42)
         assert sampler_custom._neighbor_size == 10
         assert sampler_custom._max_restarts == 20
-    
-    def test_supported_distributions(self):
+
+    def test_supported_distributions(self) -> None:
         """Test that only supported distributions are accepted."""
         # Supported distributions
         search_space_valid = {
             "x": IntDistribution(0, 10),
-            "y": CategoricalDistribution(["A", "B", "C"])
+            "y": CategoricalDistribution(["A", "B", "C"]),
         }
-        
+
         sampler = HillClimbingSampler()
-        
+
         # This should not raise an error
         sampler._validate_search_space(search_space_valid)
-        
+
         # Unsupported distribution should raise ValueError
         search_space_invalid = {
             "x": IntDistribution(0, 10),
-            "z": FloatDistribution(0.0, 1.0)  # Not supported
+            "z": FloatDistribution(0.0, 1.0),  # Not supported
         }
-        
-        with pytest.raises(ValueError, match="only supports IntDistribution and CategoricalDistribution"):
+
+        with pytest.raises(
+            ValueError, match="only supports IntDistribution and CategoricalDistribution"
+        ):
             sampler._validate_search_space(search_space_invalid)
-    
-    def test_basic_optimization(self):
+
+    def test_basic_optimization(self) -> None:
         """Test basic optimization with hill climbing sampler."""
-        def objective(trial):
+
+        def objective(trial: optuna.Trial) -> float:
             x = trial.suggest_int("x", -10, 10)
             y = trial.suggest_categorical("y", ["A", "B", "C"])
             penalty = {"A": 0, "B": 1, "C": 4}[y]
             return x**2 + penalty
-        
+
         sampler = HillClimbingSampler(neighbor_size=3, max_restarts=2, seed=42)
         study = optuna.create_study(sampler=sampler, direction="minimize")
         study.optimize(objective, n_trials=30)
-        
+
         # Should find a reasonable solution
         assert study.best_value is not None
         assert study.best_value < 20  # Should be much better than random

@@ -88,21 +88,28 @@ print(f"Best params: {study.best_params}")
 ## Algorithm Details
 
 ### Initialization
+
 The algorithm starts with a random point in the parameter space using Optuna's `RandomSampler`.
 
 ### Neighbor Generation
+
 For each iteration, the algorithm generates neighboring solutions by:
+
 - **Integer parameters**: Adding or subtracting a small step size (based on the parameter range)
 - **Categorical parameters**: Randomly selecting a different category from the available choices
 
 ### Movement Strategy
+
 The algorithm evaluates all generated neighbors and moves to the best improvement found. If no improvement is discovered, it continues searching or restarts from a new random position.
 
 ### Restart Mechanism
+
 When the algorithm gets stuck in a local optimum (no improvements found in recent iterations), it restarts from a new random position up to `max_restarts` times.
 
 ### State Management
+
 The sampler maintains:
+
 - Current best position and value
 - List of neighbors to evaluate
 - Set of already evaluated neighbors (to avoid re-evaluation)
@@ -111,12 +118,14 @@ The sampler maintains:
 ## Performance Characteristics
 
 ### Strengths
+
 - **Simple and interpretable**: Easy to understand and debug
 - **Good for discrete problems**: Well-suited for combinatorial optimization
 - **Local exploitation**: Effective at refining solutions in promising regions
 - **Memory efficient**: Low memory footprint compared to population-based algorithms
 
 ### Limitations
+
 - **Local optima**: May get trapped in local optima without sufficient restarts
 - **No global view**: Lacks global search capability of more sophisticated algorithms
 - **Parameter sensitivity**: Performance depends on `neighbor_size` and `max_restarts` settings
@@ -125,6 +134,7 @@ The sampler maintains:
 ## When to Use
 
 This sampler is most effective for:
+
 - Discrete/combinatorial optimization problems
 - Problems with relatively small search spaces
 - Situations where interpretability is important
