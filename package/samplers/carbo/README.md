@@ -92,6 +92,6 @@ where the actual input noise $\\xi$ is assumed to be drawn from $B\_\\epsilon$ u
 1. Evaluate each function at $x = x\_{\\star} + \\xi\_{\\star}$.
 1. Go back to 1.
 
-In principle, $\[\\text{UCB}\_{g_c}(x+\\xi)\]^{-1}$ and $\[\\text{LCB}\_{g_c}(x+\\xi)\]^{-1}$ quantify the upper and lower confidence bounds of the violation amount.
+In principle, $\[\\text{UCB}\_{g_c}(x+\\xi)\]^{-}$ and $\[\\text{LCB}\_{g_c}(x+\\xi)\]^{-}$ quantify the upper and lower confidence bounds of the violation amount.
 Please note that Processes 2 and 3 are modified because our setup assumes that the same input noise $\\xi$ is used for each constraint and the objective evaluations.
 Namely, the order of the min or max operation and the summation is flipped in our implementation.
