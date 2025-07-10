@@ -76,11 +76,12 @@ class CombinedUCB(BaseAcquisitionFunc):
             return fvals
 
         assert self._constraints_threshold_list is not None
-        _zero = torch.tensor(0.0, dtype=torch.float64)
         for threshold, constraint_acqf in zip(
             self._constraints_threshold_list, self._constraints_acqf_list
         ):
-            fvals += self._rho * torch.minimum(_zero, constraint_acqf.eval_acqf(x))
+            # c >= threshold means to be feasible. constraint_acqf.eval_acqf(x) - threshold is
+            # upper confidence bound of the violation amount.
+            fvals -= self._rho * torch.maximum(0.0, threshold - constraint_acqf.eval_acqf(x))
 
         return fvals
 
@@ -110,10 +111,11 @@ class CombinedLCB(BaseAcquisitionFunc):
             return fvals
 
         assert self._constraints_threshold_list is not None
-        _zero = torch.tensor(0.0, dtype=torch.float64)
         for threshold, constraint_acqf in zip(
             self._constraints_threshold_list, self._constraints_acqf_list
         ):
-            fvals += self._rho * torch.minimum(_zero, constraint_acqf.eval_acqf(x))
+            # c >= threshold means to be feasible. constraint_acqf.eval_acqf(x) - threshold is
+            # lower confidence bound of the violation amount.
+            fvals -= self._rho * torch.maximum(0.0, threshold - constraint_acqf.eval_acqf(x))
 
         return fvals
