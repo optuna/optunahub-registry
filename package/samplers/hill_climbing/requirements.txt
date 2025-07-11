@@ -1,0 +1,4 @@
+# Development requirements for Hill Climbing Sampler
+optuna>=4.0.0
+optunahub>=0.2.0
+pytest>=7.0.0
