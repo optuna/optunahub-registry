@@ -1,5 +1,4 @@
-"""Hill Climbing Sampler for Optuna.
-
+"""Hill Climbing Sampler for Optuna - Updated with Review Fixes.
 This module implements a hill-climbing algorithm as an Optuna sampler.
 The sampler is designed for discrete optimization problems (integers and categorical values).
 """
@@ -21,17 +20,14 @@ from optunahub.samplers import SimpleBaseSampler
 
 class HillClimbingSampler(SimpleBaseSampler):
     """Hill Climbing sampler for discrete optimization problems.
-
     This sampler implements a hill-climbing algorithm that iteratively improves
     solutions by evaluating neighboring solutions. It supports integer and categorical
     parameters only.
-
     The algorithm:
     1. Starts from a random point using RandomSampler
     2. Generates neighboring points by modifying current parameters
     3. Moves to the best improvement among neighbors
     4. Restarts when no improvements are found
-
     Args:
         search_space: A dictionary containing the parameter names and their distributions.
         seed: Seed for random number generator.
@@ -105,15 +101,26 @@ class HillClimbingSampler(SimpleBaseSampler):
         # Check if we haven't improved in the last few trials
         recent_trials = completed_trials[-min(5, len(completed_trials)) :]
         if self._current_value is not None:
-            recent_improvements = [
-                trial.value
-                for trial in recent_trials
-                if trial.value is not None and trial.value < self._current_value
-            ]
+            recent_improvements = []
+            for trial in recent_trials:
+                if trial.value is not None:
+                    # Check for improvement based on study direction
+                    if self._is_improvement(trial.value, self._current_value, study.direction):
+                        recent_improvements.append(trial.value)
+
             # Restart if no improvements in recent trials and we still have restarts left
             return len(recent_improvements) == 0
 
         return False
+
+    def _is_improvement(
+        self, new_value: float, current_value: float, direction: optuna.study.StudyDirection
+    ) -> bool:
+        """Check if new_value is an improvement over current_value based on study direction."""
+        if direction == optuna.study.StudyDirection.MINIMIZE:
+            return new_value < current_value
+        else:  # MAXIMIZE
+            return new_value > current_value
 
     def _initialize_or_restart(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -170,10 +177,16 @@ class HillClimbingSampler(SimpleBaseSampler):
         if not completed_trials:
             return
 
-        # Find the best trial
-        best_trial = min(
-            completed_trials, key=lambda t: t.value if t.value is not None else float("inf")
-        )
+        # Find the best trial based on study direction
+        if study.direction == optuna.study.StudyDirection.MINIMIZE:
+            best_trial = min(
+                completed_trials, key=lambda t: t.value if t.value is not None else float("inf")
+            )
+        else:  # MAXIMIZE
+            best_trial = max(
+                completed_trials, key=lambda t: t.value if t.value is not None else float("-inf")
+            )
+
         if best_trial.value is not None:
             self._current_params = best_trial.params.copy()
             self._current_value = best_trial.value
