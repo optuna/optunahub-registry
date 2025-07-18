@@ -4,7 +4,7 @@ title: Hill Climbing Sampler
 description: Hill climbing algorithm for discrete optimization problems
 tags: [sampler, hill-climbing, discrete-optimization, local-search]
 optuna_versions: [4.0.0]
-license: MIT
+license: MIT License
 ---
 
 ## Abstract
