@@ -1,0 +1,3 @@
+optuna
+optunahub
+syne-tune[extra]>=0.14.2
