@@ -108,10 +108,14 @@ class SyneTuneSampler(optunahub.samplers.SimpleBaseSampler):
             if isinstance(distribution, CategoricalDistribution):
                 syne_tune_space[name] = choice(distribution.choices)
             elif isinstance(distribution, IntDistribution):
+                low, high = distribution.low, distribution.high
                 if distribution.log:
-                    syne_tune_space[name] = lograndint(distribution.low, distribution.high)
+                    syne_tune_space[name] = lograndint(low, high)
+                elif distribution.step == 1:
+                    syne_tune_space[name] = randint(low, high)
                 else:
-                    syne_tune_space[name] = randint(distribution.low, distribution.high)
+                    size = (high - low) // distribution.step + 1
+                    syne_tune_space[name] = finrange(low, high, size=size, cast_int=True)
             elif isinstance(distribution, FloatDistribution):
                 low, high = distribution.low, distribution.high
                 if not distribution.log:
