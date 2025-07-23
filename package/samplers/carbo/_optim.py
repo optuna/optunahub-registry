@@ -11,6 +11,7 @@ from ._acqf import BaseAcquisitionFunc
 from ._acqf import CombinedLCB
 from ._acqf import CombinedUCB
 from ._gp import GPRegressor
+from ._scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 
 
 _threading_lock = threading.Lock()
@@ -35,13 +36,14 @@ def _gradient_ascent(
         (fval, grad) = acqf.eval_acqf_with_grad(normalized_params)
         return -fval, -grad * lengthscales
 
-    scaled_x_opt, neg_fval_opt, info = so.fmin_l_bfgs_b(
-        func=negative_acqf_with_grad,
-        x0=normalized_params / lengthscales,
-        bounds=bounds / lengthscales[:, np.newaxis],
-        pgtol=math.sqrt(tol),
-        maxiter=200,
-    )
+    with single_blas_thread_if_scipy_v1_15_or_newer():
+        scaled_x_opt, neg_fval_opt, info = so.fmin_l_bfgs_b(
+            func=negative_acqf_with_grad,
+            x0=normalized_params / lengthscales,
+            bounds=bounds / lengthscales[:, np.newaxis],
+            pgtol=math.sqrt(tol),
+            maxiter=200,
+        )
 
     if -neg_fval_opt > initial_fval and info["nit"] > 0:  # Improved.
         normalized_params = scaled_x_opt * lengthscales

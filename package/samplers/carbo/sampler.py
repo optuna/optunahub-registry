@@ -193,7 +193,7 @@ class CARBOSampler(BaseSampler):
                 if self._constraints_kernel_params_cache_list is not None
                 else [None] * constraint_vals.shape[-1]  # type: ignore[list-item]
             )
-            stded_c_vals, means, stdevs = _standardize_values(constraint_vals)
+            stded_c_vals, means, stdevs = _standardize_values(-constraint_vals)
             constraints_threshold_list = (-means / np.maximum(EPS, stdevs)).tolist()
             C_train = torch.from_numpy(stded_c_vals)
             constraints_gpr_list = [

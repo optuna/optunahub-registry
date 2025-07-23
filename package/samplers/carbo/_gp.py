@@ -8,6 +8,8 @@ import numpy as np
 import scipy.optimize as so
 import torch
 
+from ._scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -160,13 +162,14 @@ class GPRegressor:
                 assert not deterministic_objective or raw_noise_var_grad == 0
             return loss.item(), raw_params_tensor.grad.detach().numpy()  # type: ignore
 
-        res = so.minimize(
-            loss_func,
-            x0=self.kernel_params.to_raw_params(minimum_noise),
-            jac=True,
-            method="l-bfgs-b",
-            options={"gtol": gtol},
-        )
+        with single_blas_thread_if_scipy_v1_15_or_newer():
+            res = so.minimize(
+                loss_func,
+                x0=self.kernel_params.to_raw_params(minimum_noise),
+                jac=True,
+                method="l-bfgs-b",
+                options={"gtol": gtol},
+            )
         if not res.success:
             raise RuntimeError(f"Optimization failed: {res.message}")
 
