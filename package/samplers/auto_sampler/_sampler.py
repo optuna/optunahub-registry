@@ -56,9 +56,8 @@ class ThreadLocalSampler(threading.local):
 
 
 class AutoSampler(BaseSampler):
-    _N_COMPLETE_TRIALS_FOR_CMAES = 250
-    _N_COMPLETE_TRIALS_FOR_GP = 250
-    _N_COMPLETE_TRIALS_FOR_NSGA = 1000
+    _MAX_BUDGET_FOR_SINGLE = {"gp": 250}
+    _MAX_BUDGET_FOR_MULTI = {"gp": 250, "tpe": 1000}
 
     """Sampler automatically choosing an appropriate sampler based on search space.
 
@@ -172,7 +171,7 @@ class AutoSampler(BaseSampler):
         )
         n_complete_trials = len(complete_trials)
         n_objectives = len(study.directions)
-        if n_complete_trials < self._N_COMPLETE_TRIALS_FOR_GP:
+        if n_complete_trials < self._MAX_BUDGET_FOR_MULTI["gp"]:
             if (
                 # TODO: Remove the _constraints_func option once constraints are supported.
                 self._constraints_func is not None
@@ -185,7 +184,7 @@ class AutoSampler(BaseSampler):
             else:
                 if not isinstance(self._sampler, GPSampler):
                     return GPSampler(seed=seed, constraints_func=self._constraints_func)
-        elif n_complete_trials < self._N_COMPLETE_TRIALS_FOR_NSGA:
+        elif n_complete_trials < self._MAX_BUDGET_FOR_MULTI["tpe"]:
             if not isinstance(self._sampler, TPESampler):
                 return self._get_tpe_sampler(seed)
         else:
@@ -213,18 +212,18 @@ class AutoSampler(BaseSampler):
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
         )
-        if len(complete_trials) < self._N_COMPLETE_TRIALS_FOR_CMAES:
+        if len(complete_trials) < self._MAX_BUDGET_FOR_SINGLE["gp"]:
             # Use ``GPSampler`` if search space is numerical and
-            # len(complete_trials) < _N_COMPLETE_TRIALS_FOR_CMAES.
+            # len(complete_trials) < _MAX_BUDGET_FOR_SINGLE["gp"].
             if not isinstance(self._sampler, GPSampler):
                 return GPSampler(seed=seed)
         elif len(search_space) > 1:
             if not isinstance(self._sampler, CmaEsSampler):
                 # Use ``CmaEsSampler`` if search space is numerical and
-                # len(complete_trials) > _N_COMPLETE_TRIALS_FOR_CMAES.
-                # Warm start CMA-ES with the first _N_COMPLETE_TRIALS_FOR_CMAES complete trials.
+                # len(complete_trials) > _MAX_BUDGET_FOR_SINGLE["gp"].
+                # Warm start CMA-ES with the first _MAX_BUDGET_FOR_SINGLE["gp"] complete trials.
                 complete_trials.sort(key=lambda trial: trial.datetime_complete)
-                warm_start_trials = complete_trials[: self._N_COMPLETE_TRIALS_FOR_CMAES]
+                warm_start_trials = complete_trials[: self._MAX_BUDGET_FOR_SINGLE["gp"]]
                 return CmaEsSampler(
                     seed=seed, source_trials=warm_start_trials, warn_independent_sampling=True
                 )
