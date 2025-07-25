@@ -9,7 +9,7 @@ license: MIT License
 
 ## APIs
 
-A sampler that uses Syne Tune v0.14.1 that can be run by the following:
+A sampler that uses Syne Tune v0.14.2 that can be run by the following:
 
 ```shell
 $ pip install optunahub syne-tune
@@ -53,7 +53,6 @@ def objective(trial: optuna.trial.Trial) -> float:
     return x**2 + y**2
 
 
-n_trials = 100
 sampler = SyneTuneSampler(
     search_space={
         "x": optuna.distributions.FloatDistribution(-10, 10),
@@ -63,7 +62,7 @@ sampler = SyneTuneSampler(
     metric="mean_loss",
 )
 study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=n_trials)
+study.optimize(objective, n_trials=100)
 print(study.best_trial.params)
 ```
 
@@ -76,5 +75,12 @@ Syne Tune is maintained by the Syne Tune team. If you have trouble using Syne Tu
 ### Reference
 
 ```bibtex
-Salinas, D., Seeger, M., Klein, A., Perrone, V., Wistuba, M., & Archambeau, C. (2022, September). Syne tune: A library for large scale hyperparameter tuning and reproducible research. In International Conference on Automated Machine Learning (pp. 16-1). PMLR.
+@inproceedings{salinas2022syne,
+  title={{S}yne {T}une: A library for large scale hyperparameter tuning and reproducible research},
+  author={Salinas, D. and Seeger, M. and Klein, A. and Perrone, V. and Wistuba, M. and Archambeau, C.},
+  booktitle={International Conference on Automated Machine Learning},
+  pages={16--1},
+  year={2022},
+  organization={PMLR}
+}
 ```
