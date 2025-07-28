@@ -63,6 +63,11 @@ class Problem(optunahub.benchmarks.BaseProblem):
         )
         return [direction] * self._problem.num_objectives
 
+    @property
+    def reference_point(self) -> list[float]:
+        """Return the commonly-used reference point for the problem."""
+        return [float(3 + 2 * i) for i in range(self._problem.num_objectives)]
+
     def evaluate(self, params: dict[str, float]) -> float:
         """Evaluate the objective function.
         Args:
