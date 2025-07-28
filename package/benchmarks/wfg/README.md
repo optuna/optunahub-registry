@@ -27,7 +27,7 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
   - Returns: `dict[str, optuna.distributions.BaseDistribution]`
 - `directions`: Return the optimization directions.
   - Returns: `list[optuna.study.StudyDirection]`
-- `reference_point`: Return the commonly-used reference point for the problem. In this implementation, it is \[3, 5, 7, 9, ...\].
+- `reference_point`: Return the commonly-used reference point for the problem. In this implementation, it is `[float(3 + 2 * i) for i in range(num_objectives)]`.
   - Returns: `list[float]`
 - `__call__(trial: optuna.Trial)`: Evaluate the objective functions and return the objective values.
   - Args:
