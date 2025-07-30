@@ -15,7 +15,7 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
 
 ### class `Problem(function_id: int, n_objectives: int, dimension: int, k: int, **kwargs: Any)`
 
-- `function_id`: Function ID of the WFG problem in \[1, 9\].
+- `function_id`: Function ID of the DTLZ problem in \[1, 9\].
 - `n_objectives`: Number of objectives.
 - `dimension`: Number of variables.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/dtlz.html) for more details.
