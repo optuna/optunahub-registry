@@ -42,7 +42,7 @@ The properties defined by [optproblems](https://www.simonwessing.de/optproblems/
 Please install the [optproblems](https://pypi.org/project/optproblems/) package.
 
 ```shell
-pip install -U optproblems
+pip install -U optproblems diversipy
 ```
 
 ## Example
