@@ -51,7 +51,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         )
         return [direction] * self._problem.num_objectives
 
-    def evaluate(self, params: dict[str, float]) -> float:
+    def evaluate(self, params: dict[str, float]) -> list[float]:
         """Evaluate the objective functions.
         Args:
             params:
