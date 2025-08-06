@@ -97,17 +97,17 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
             m = len(objective_values)
             r = 0.3 if m == 3 else 0.5
             return [
-                max(
+                -max(
                     sum_squares - r ** 2 + 1.0 - 2.0 * max(objective_values),
                     sum((v - 1 / math.sqrt(m)) ** 2 for v in objective_values) - r ** 2,
                 )
             ]
         elif self._dtlz_type == {"constraint_type": 3, "function_id": 1}:
             sum_values = sum(objective_values)
-            return [sum_values + v - 1.0 for v in objective_values]
+            return [-sum_values - v + 1.0 for v in objective_values]
         elif self._dtlz_type == {"constraint_type": 3, "function_id": 4}:
             squares = [x ** 2 for x in objective_values]
-            return [sum(squares) - v * 0.75 - 1.0 for v in objective_values]
+            return [-sum(squares) + v * 0.75 + 1.0 for v in objective_values]
         else:
             raise ValueError(f"Unsupported DTLZ type: {self._dtlz_type}")
 
