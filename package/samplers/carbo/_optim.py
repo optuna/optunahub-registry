@@ -71,7 +71,7 @@ def suggest_by_carbo(
     n_local_search: int,
     local_radius: float,
     tol: float = 1e-4,
-) -> np.ndarray:
+) -> tuple[np.ndarray, float]:
     assert best_params is None or len(best_params.shape) == 1, best_params
     dim = len(gpr.length_scales)
     if best_params is not None:
@@ -106,5 +106,5 @@ def suggest_by_carbo(
     )
     assert isinstance(best_x_local, np.ndarray)
     bounds = _create_bounds(best_x_local, local_radius)
-    best_x, _ = _gradient_ascent(lcb_acqf, best_x_local, bounds, tol=tol)
-    return best_x
+    best_x, best_f = _gradient_ascent(lcb_acqf, best_x_local, bounds, tol=tol)
+    return best_x, best_f

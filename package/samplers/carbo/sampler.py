@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 EPS = 1e-10
 DEFAULT_MINIMUM_NOISE_VAR = 1e-6
+_BEST_ACQF_KEY = "best_acqf_val"
 
 
 def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -204,7 +205,7 @@ class CARBOSampler(BaseSampler):
             ]
 
         best_params = None if warmstart_index is None else X_train[warmstart_index].numpy()
-        found_best_params = suggest_by_carbo(
+        found_best_params, best_acqf_val = suggest_by_carbo(
             gpr=gpr,
             constraints_gpr_list=constraints_gpr_list,
             constraints_threshold_list=constraints_threshold_list,
@@ -215,6 +216,7 @@ class CARBOSampler(BaseSampler):
             n_local_search=self._n_local_search,
             local_radius=self._local_ratio / 2,
         )
+        study._storage.set_trial_system_attr(trial._trial_id, _BEST_ACQF_KEY, best_acqf_val)
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
         return {
             name: float(param_value)
@@ -243,6 +245,18 @@ class CARBOSampler(BaseSampler):
                 raise ValueError("step cannot be specified in `suggest_float`.")
 
         return search_space
+
+    def get_best_trial(self, study: Study) -> FrozenTrial:
+        complete_trials = study._get_trials(
+            deepcopy=False, states=(TrialState.COMPLETE,), use_cache=False
+        )
+        if len(complete_trials) == 0:
+            raise ValueError("No complete trials found in the study.")
+
+        best_idx = np.argmax(
+            [t.system_attrs.get(_BEST_ACQF_KEY, -np.inf) for t in complete_trials]
+        )
+        return complete_trials[best_idx]
 
     def sample_independent(
         self,
