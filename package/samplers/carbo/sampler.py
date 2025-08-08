@@ -151,19 +151,6 @@ class CARBOSampler(BaseSampler):
 
         return X_train, y_train
 
-    def _get_warmstart_index(
-        self, X_train: torch.Tensor, y_train: torch.Tensor, constraint_vals: np.ndarray | None
-    ) -> int | None:
-        if constraint_vals is None:
-            assert len(y_train.shape) == 1
-            return int(y_train.argmax().item())
-        is_feasible = np.all(constraint_vals <= 0, axis=1)
-        if not any(is_feasible):
-            return None
-
-        y_train_with_neginf = np.where(is_feasible, y_train.numpy(), -np.inf)
-        return int(y_train_with_neginf.argmax().item())
-
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
@@ -184,7 +171,6 @@ class CARBOSampler(BaseSampler):
         constraint_vals = (
             None if self._constraints_func is None else _get_constraint_vals(study, trials)
         )
-        warmstart_index = self._get_warmstart_index(X_train, y_train, constraint_vals)
         if constraint_vals is None:
             constraints_gpr_list = None
             constraints_threshold_list = None
@@ -203,7 +189,10 @@ class CARBOSampler(BaseSampler):
                 )
                 for cache, c_train in zip(_cache_list, C_train.T)
             ]
-
+        if len(trials):
+            warmstart_index = [t.number for t in trials].index(self.get_best_trial(study).number)
+        else:
+            warmstart_index = None
         best_params = None if warmstart_index is None else X_train[warmstart_index].numpy()
         found_best_params, best_acqf_val = suggest_by_carbo(
             gpr=gpr,
