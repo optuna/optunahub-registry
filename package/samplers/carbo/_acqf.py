@@ -82,7 +82,7 @@ class CombinedUCB(BaseAcquisitionFunc):
         ):
             # c >= threshold means to be feasible. constraint_acqf.eval_acqf(x) - threshold is
             # upper confidence bound of the violation amount.
-            fvals -= self._rho * torch.maximum(_zero, threshold - constraint_acqf.eval_acqf(x))
+            fvals += self._rho * torch.minimum(_zero, constraint_acqf.eval_acqf(x) - threshold)
 
         return fvals
 
@@ -118,6 +118,6 @@ class CombinedLCB(BaseAcquisitionFunc):
         ):
             # c >= threshold means to be feasible. constraint_acqf.eval_acqf(x) - threshold is
             # lower confidence bound of the violation amount.
-            fvals -= self._rho * torch.maximum(_zero, threshold - constraint_acqf.eval_acqf(x))
+            fvals += self._rho * torch.minimum(_zero, constraint_acqf.eval_acqf(x) - threshold)
 
         return fvals
