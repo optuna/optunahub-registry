@@ -38,7 +38,7 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
         assert 1 <= function_id <= 4, "function_id must be in [1, 4]"
         self._dtlz_type = {"constraint_type": constraint_type, "function_id": function_id}
 
-        assert self._dtlz_type in self.available_combinations, f"Invalid combination of constraint_type and function_id: {self._dtlz_type}. Available combinations are: {available_combinations}"
+        assert self._dtlz_type in self.available_combinations, f"Invalid combination of constraint_type and function_id: {self._dtlz_type}. Available combinations are: {self.available_combinations}"
         self._problem = optproblems.dtlz.DTLZ(n_objectives, dimension, **kwargs)[function_id - 1]
 
         self._search_space = {
