@@ -17,7 +17,6 @@ from optuna.samplers import RandomSampler
 from optuna.samplers import TPESampler
 from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.samplers._nsgaiii._sampler import _GENERATION_KEY as NSGAIII_GENERATION_KEY
 from optuna.search_space import IntersectionSearchSpace
 from optuna.trial import TrialState
 
@@ -47,8 +46,7 @@ _SAMPLER_KEY = "auto:sampler"
 # NOTE(nabenabe): The prefix `optuna.` enables us to use the optuna logger externally.
 _logger = get_logger(f"optuna.{__name__}")
 NSGAII_GENERATION_KEY = NSGAIISampler._get_generation_key()
-# TODO: Wait for the base GA support of NSGAIII.
-# NSGAIII_GENERATION_KEY = NSGAIIISampler._get_generation_key()
+NSGAIII_GENERATION_KEY = NSGAIIISampler._get_generation_key()
 
 
 class ThreadLocalSampler(threading.local):
@@ -57,7 +55,7 @@ class ThreadLocalSampler(threading.local):
 
 class AutoSampler(BaseSampler):
     _MAX_BUDGET_FOR_SINGLE = {"gp": 250}
-    _MAX_BUDGET_FOR_MULTI = {"gp": 250, "tpe": 1000}
+    _MAX_BUDGET_FOR_MULTI = {"gp_and_tpe": 250}
 
     """Sampler automatically choosing an appropriate sampler based on search space.
 
@@ -171,11 +169,9 @@ class AutoSampler(BaseSampler):
         )
         n_complete_trials = len(complete_trials)
         n_objectives = len(study.directions)
-        if n_complete_trials < self._MAX_BUDGET_FOR_MULTI["gp"]:
+        if n_complete_trials < self._MAX_BUDGET_FOR_MULTI["gp_and_tpe"]:
             if (
-                # TODO: Remove the _constraints_func option once constraints are supported.
-                self._constraints_func is not None
-                or n_objectives >= 4
+                n_objectives >= 4
                 or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
                 or self._include_conditional_param(study)
             ):
@@ -184,9 +180,6 @@ class AutoSampler(BaseSampler):
             else:
                 if not isinstance(self._sampler, GPSampler):
                     return GPSampler(seed=seed, constraints_func=self._constraints_func)
-        elif n_complete_trials < self._MAX_BUDGET_FOR_MULTI["tpe"]:
-            if not isinstance(self._sampler, TPESampler):
-                return self._get_tpe_sampler(seed)
         else:
             if n_objectives < 4:
                 return NSGAIISampler(seed=seed, constraints_func=self._constraints_func)
