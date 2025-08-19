@@ -233,11 +233,29 @@ def test_choose_tpe_with_conditional_params() -> None:
 
 
 def test_choose_for_multi_objective_with_conditional() -> None:
-    pass
+    n_trials = 30
+    auto_sampler = AutoSampler()
+    study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 2)
+    study.optimize(multi_objective_with_conditional, n_trials=n_trials)
+    sampler_names = _get_used_sampler_names(study)
+    # NOTE(nabenabe): When the conditional parameter is detected for the first time, GPSampler
+    # simply falls back to sample_independent, so sample_relative of GPSampler is called 15 times.
+    print(sampler_names)
+    assert ["RandomSampler"] + ["GPSampler"] * 15 + ["TPESampler"] * (
+        n_trials - 16
+    ) == sampler_names
 
 
 def test_choose_for_many_objective_with_conditional() -> None:
-    pass
+    n_trials = 30
+    auto_sampler = AutoSampler()
+    study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 4)
+    study.optimize(many_objective_with_conditional, n_trials=n_trials)
+    sampler_names = _get_used_sampler_names(study)
+    # NOTE(nabenabe): When the conditional parameter is detected for the first time, GPSampler
+    # simply falls back to sample_independent, so sample_relative of GPSampler is called 15 times.
+    print(sampler_names)
+    assert ["RandomSampler"] + ["TPESampler"] * (n_trials - 1) == sampler_names
 
 
 def test_multi_thread() -> None:

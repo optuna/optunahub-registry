@@ -160,10 +160,12 @@ class AutoSampler(BaseSampler):
     def _determine_multi_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> BaseSampler:
-        if isinstance(self._sampler, (NSGAIISampler, NSGAIIISampler)):
-            return self._sampler
-
+        # TODO(nabenabe): Consider any better way to early-return for runtime performance.
         seed = self._rng.rng.randint(_MAXINT32)
+        if self._include_conditional_param(study):
+            if not isinstance(self._sampler, TPESampler):
+                return self._get_tpe_sampler(seed)
+
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
         )
