@@ -1,6 +1,6 @@
 ---
 author: Optuna team
-title: The DTLZ Problem Collection
+title: The C-DTLZ Problem Collection
 description: The DTLZ Problem Collection (Deb et al. 2001) is a widely-used benchmark suite for multi-objective optimization. This package is a wrapper of the optproblems library.
 tags: [benchmark, continuous optimization, multi-objective, DTLZ, optproblems]
 optuna_versions: [4.1.0]
@@ -19,9 +19,8 @@ The objective functions are wrapped from the DTLZ test suite in [optproblems](ht
 There are three types of constraints in the C-DTLZ problems:
 
 1. **Type-1 Constraints**: In these problems, the Pareto-optimal front of the original problem remains unchanged, but infeasible barriers are introduced along the path to the Pareto-optimal front, enabling the evaluation of an algorithm's ability to overcome these infeasible regions. This type supports DTLZ1 and DTLZ3, referred to as C1-DTLZ1 and C1-DTLZ3, respectively.
-2. **Type-2 Constraints**: In these problems, infeasible regions are introduced directly on the Pareto-optimal front, enabling the evaluation of an algorithm's ability to handle disconnected Pareto-optimal fronts. This type supports only DTLZ2, referred to as C2-DTLZ2.
-3. **Type-3 Constraints**: In these problems, multiple constraints are introduced so that the Pareto-optimal front of the corresponding unconstrained problem is no longer entirely optimal; instead, portions of the added constraint surfaces themselves constitute segments of the Pareto-optimal front. This type supports DTLZ1 and DTLZ4, referred to as C3-DTLZ1 and C3-DTLZ4, respectively.
-
+1. **Type-2 Constraints**: In these problems, infeasible regions are introduced directly on the Pareto-optimal front, enabling the evaluation of an algorithm's ability to handle disconnected Pareto-optimal fronts. This type supports only DTLZ2, referred to as C2-DTLZ2.
+1. **Type-3 Constraints**: In these problems, multiple constraints are introduced so that the Pareto-optimal front of the corresponding unconstrained problem is no longer entirely optimal; instead, portions of the added constraint surfaces themselves constitute segments of the Pareto-optimal front. This type supports DTLZ1 and DTLZ4, referred to as C3-DTLZ1 and C3-DTLZ4, respectively.
 
 ## APIs
 
