@@ -24,13 +24,21 @@ There are three types of constraints in the C-DTLZ problems:
 
 ## APIs
 
-### class `Problem(function_id: int, n_objectives: int, dimension: int, k: int, **kwargs: Any)`
+### class `Problem(function_id: int, n_objectives: int, constraint_type: int, dimension: int | None = None, **kwargs: Any)`
 
 - `function_id`: Function ID of the DTLZ problem in \[1, 4\].
 - `n_objectives`: Number of objectives.
-- `constraint_type`: Type of constraints.
-- `dimension`: Number of variables.
+- `constraint_type`: Type of constraints in \[1, 3\].
+- `dimension`: Number of variables. If not provided, defaults to `n_objectives + 4` for DTLZ1 and DTLZ4, or `n_objectives + 9` for DTLZ2 and DTLZ3.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/dtlz.html) for more details.
+
+Note: Only specific combinations of `constraint_type` and `function_id` are supported:
+
+- C1-DTLZ1: `constraint_type=1, function_id=1`
+- C1-DTLZ3: `constraint_type=1, function_id=3`
+- C2-DTLZ2: `constraint_type=2, function_id=2`
+- C3-DTLZ1: `constraint_type=3, function_id=1`
+- C3-DTLZ4: `constraint_type=3, function_id=4`
 
 #### Methods and Properties
 
@@ -44,8 +52,12 @@ There are three types of constraints in the C-DTLZ problems:
   - Returns: `float`
 - `evaluate(params: dict[str, float])`: Evaluate the objective functions and return the objective values.
   - Args:
-    - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
-  - Returns: `float`
+    - `params`: Decision variable like `{"x0": x0_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
+  - Returns: `list[float]`
+- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the constraint values.
+  - Args:
+    - `params`: Decision variable like `{"x0": x0_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
+  - Returns: `list[float]`
 
 The properties defined by [optproblems](https://www.simonwessing.de/optproblems/doc/dtlz.html) are also available such as `get_optimal_solutions`.
 
@@ -64,17 +76,20 @@ import optuna
 import optunahub
 
 
-dtlz = optunahub.load_module("benchmarks/dtlz")
-dtlz2 = dtlz.Problem(function_id=2, n_objectives=2, dimension=3)
+cdtlz = optunahub.load_module("benchmarks/dtlz_constrained")
+c2dtlz2 = cdtlz.Problem(function_id=2, n_objectives=2, constraint_type=2, dimension=3)
 
-study_tpe = optuna.create_study(
-    study_name="TPESampler",
-    sampler=optuna.samplers.TPESampler(seed=42),
-    directions=dtlz2.directions,
+study = optuna.create_study(
+    sampler=optuna.samplers.GPSampler(seed=42, constraints_func=c2dtlz2.constraints_func, deterministic_objective=True),
+    directions=c2dtlz2.directions,
 )
-study_tpe.optimize(dtlz2, n_trials=1000)
-optuna.visualization.plot_pareto_front(study_tpe).show()
+study.optimize(c2dtlz2, n_trials=300)
+optuna.visualization.plot_pareto_front(study).show()
 ```
+
+The Pareto front obtained from the above code is illustrated as follows:
+
+![C2-DTLZ2](images/cdtlz_C2-DTLZ2_n_objectives2_dim3_trial300_gp_seed42_pareto_front_sf.png)
 
 ## Reference
 
