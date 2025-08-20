@@ -24,7 +24,7 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
         {"constraint_type": 3, "function_id": 4}, # C3-DTLZ4
     ]
 
-    def __init__(self, function_id: int, n_objectives: int, dimension: int, constraint_type: int, **kwargs: Any) -> None:
+    def __init__(self, function_id: int, n_objectives: int, constraint_type: int, dimension: int | None = None, **kwargs: Any) -> None:
         """Initialize the problem.
         Args:
             function_id: Function ID of the DTLZ problem in [1, 4].
@@ -36,6 +36,8 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
         https://www.simonwessing.de/optproblems/doc/dtlz.html
         """
         assert 1 <= function_id <= 4, "function_id must be in [1, 4]"
+        if dimension is None:
+            dimension = n_objectives + (4 if function_id in [1, 4] else 9)
         self._dtlz_type = {"constraint_type": constraint_type, "function_id": function_id}
 
         assert self._dtlz_type in self.available_combinations, f"Invalid combination of constraint_type and function_id: {self._dtlz_type}. Available combinations are: {self.available_combinations}"
