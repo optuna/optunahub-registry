@@ -9,7 +9,19 @@ license: MIT License
 
 ## Abstract
 
-This package provides a wrapper of the [optproblems](https://www.simonwessing.de/optproblems/doc/index.html) library's DTLZ test suite, which consists of 7 kinds of continuous problems with variadic objectives and variables. For the details of the benchmark problems, please take a look at the original paper (Deb et al., 2001) in the reference section.
+This package provides test suites for the C-DTLZ problems (Jain & Deb, 2014), a constrained version of the DTLZ problems (Deb et al., 2001).
+The DTLZ problems are a set of continuous multi-objective optimization problems consisting of seven types, each supporting a variable number of objectives and variables.
+The C-DTLZ problems extend the DTLZ problems by adding various types of constraints to some of them.
+The objective functions are wrapped from the DTLZ test suite in [optproblems](https://www.simonwessing.de/optproblems/doc/index.html), while the constraint components are implemented separately according to the original paper (Jain & Deb, 2014).
+
+## Constraints in C-DTLZ Problems
+
+There are three types of constraints in the C-DTLZ problems:
+
+1. **Type-1 Constraints**: In these problems, the Pareto-optimal front of the original problem remains unchanged, but infeasible barriers are introduced along the path to the Pareto-optimal front, enabling the evaluation of an algorithm's ability to overcome these infeasible regions. This type supports DTLZ1 and DTLZ3, referred to as C1-DTLZ1 and C1-DTLZ3, respectively.
+2. **Type-2 Constraints**: In these problems, infeasible regions are introduced directly on the Pareto-optimal front, enabling the evaluation of an algorithm's ability to handle disconnected Pareto-optimal fronts. This type supports only DTLZ2, referred to as C2-DTLZ2.
+3. **Type-3 Constraints**: In these problems, multiple constraints are introduced so that the Pareto-optimal front of the corresponding unconstrained problem is no longer entirely optimal; instead, portions of the added constraint surfaces themselves constitute segments of the Pareto-optimal front. This type supports DTLZ1 and DTLZ4, referred to as C3-DTLZ1 and C3-DTLZ4, respectively.
+
 
 ## APIs
 
@@ -17,6 +29,7 @@ This package provides a wrapper of the [optproblems](https://www.simonwessing.de
 
 - `function_id`: Function ID of the DTLZ problem in \[1, 4\].
 - `n_objectives`: Number of objectives.
+- `constraint_type`: Type of constraints.
 - `dimension`: Number of variables.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/dtlz.html) for more details.
 
@@ -65,5 +78,7 @@ optuna.visualization.plot_pareto_front(study_tpe).show()
 ```
 
 ## Reference
+
+Jain, H. & Deb, K. (2014). [An Evolutionary Many-Objective Optimization Algorithm Using Reference-Point Based Nondominated Sorting Approach, Part II: Handling Constraints and Extending to an Adaptive Approach](https://ieeexplore.ieee.org/document/6595567), vol. 18, no. 4, pp. 602-622.
 
 Deb, K., Thiele, L., Laumanns, M., & Zitzler, E. (2001). [Scalable Test Problems for Evolutionary Multi-Objective Optimization](https://www.research-collection.ethz.ch/handle/20.500.11850/145762).
