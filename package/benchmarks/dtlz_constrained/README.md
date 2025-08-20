@@ -1,9 +1,9 @@
 ---
 author: Optuna team
 title: The C-DTLZ Problem Collection
-description: The DTLZ Problem Collection (Deb et al. 2001) is a widely-used benchmark suite for multi-objective optimization. This package is a wrapper of the optproblems library.
-tags: [benchmark, continuous optimization, multi-objective, DTLZ, optproblems]
-optuna_versions: [4.1.0]
+description: The C-DTLZ Problem Collection (Jain & Deb, 2014) is a widely-used benchmark suite for constrained multi-objective optimization. This package is a wrapper of the optproblems library, while the constraint components are implemented separately according to the original paper (Jain & Deb, 2014).
+tags: [benchmark, continuous optimization, constrained, multi-objective, C-DTLZ, optproblems]
+optuna_versions: [4.5.0]
 license: MIT License
 ---
 
