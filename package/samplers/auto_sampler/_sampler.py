@@ -165,6 +165,8 @@ class AutoSampler(BaseSampler):
         if self._include_conditional_param(study):
             if not isinstance(self._sampler, TPESampler):
                 return self._get_tpe_sampler(seed)
+            else:
+                return self._sampler
 
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
