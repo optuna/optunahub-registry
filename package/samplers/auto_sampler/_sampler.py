@@ -11,6 +11,7 @@ from optuna.logging import get_logger
 from optuna.samplers import BaseSampler
 from optuna.samplers import CmaEsSampler
 from optuna.samplers import GPSampler
+from optuna.samplers import NSGAIIISampler
 from optuna.samplers import NSGAIISampler
 from optuna.samplers import RandomSampler
 from optuna.samplers import TPESampler
@@ -44,6 +45,8 @@ _MAXINT32 = (1 << 31) - 1
 _SAMPLER_KEY = "auto:sampler"
 # NOTE(nabenabe): The prefix `optuna.` enables us to use the optuna logger externally.
 _logger = get_logger(f"optuna.{__name__}")
+NSGAII_GENERATION_KEY = NSGAIISampler._get_generation_key()
+NSGAIII_GENERATION_KEY = NSGAIIISampler._get_generation_key()
 
 
 class ThreadLocalSampler(threading.local):
@@ -51,7 +54,8 @@ class ThreadLocalSampler(threading.local):
 
 
 class AutoSampler(BaseSampler):
-    _N_COMPLETE_TRIALS_FOR_CMAES = 250
+    _MAX_BUDGET_FOR_SINGLE_GP = 250
+    _MAX_BUDGET_FOR_MULTI_GP_AND_TPE = 250
 
     """Sampler automatically choosing an appropriate sampler based on search space.
 
@@ -128,6 +132,17 @@ class AutoSampler(BaseSampler):
     def _sampler(self, sampler: BaseSampler) -> None:
         self._thread_local_sampler.sampler = sampler
 
+    def _get_tpe_sampler(self, seed: int | None) -> TPESampler:
+        # Use ``TPESampler`` if search space includes conditional or categorical parameters.
+        # TODO(nabenabe): Consider specifying `group=True` once proper benchmarks are available
+        return TPESampler(
+            seed=seed,
+            multivariate=True,
+            warn_independent_sampling=False,
+            constraints_func=self._constraints_func,
+            constant_liar=True,
+        )
+
     def reseed_rng(self) -> None:
         self._rng.rng.seed()
         self._sampler.reseed_rng()
@@ -145,12 +160,37 @@ class AutoSampler(BaseSampler):
     def _determine_multi_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> BaseSampler:
-        # TODO(nabenabe): Add more efficient heuristic for MO.
-        if isinstance(self._sampler, NSGAIISampler):
-            return self._sampler
-
+        # TODO(nabenabe): Consider any better way to early-return for runtime performance.
         seed = self._rng.rng.randint(_MAXINT32)
-        return NSGAIISampler(constraints_func=self._constraints_func, seed=seed)
+        if self._include_conditional_param(study):
+            if not isinstance(self._sampler, TPESampler):
+                return self._get_tpe_sampler(seed)
+            else:
+                return self._sampler
+
+        complete_trials = study._get_trials(
+            deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
+        )
+        n_complete_trials = len(complete_trials)
+        n_objectives = len(study.directions)
+        if n_complete_trials < self._MAX_BUDGET_FOR_MULTI_GP_AND_TPE:
+            if (
+                n_objectives >= 4
+                or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
+                or self._include_conditional_param(study)
+            ):
+                if not isinstance(self._sampler, TPESampler):
+                    return self._get_tpe_sampler(seed)
+            else:
+                if not isinstance(self._sampler, GPSampler):
+                    return GPSampler(seed=seed, constraints_func=self._constraints_func)
+        else:
+            if n_objectives < 4:
+                return NSGAIISampler(seed=seed, constraints_func=self._constraints_func)
+            else:
+                return NSGAIIISampler(seed=seed, constraints_func=self._constraints_func)
+
+        return self._sampler  # No update happens to self._sampler.
 
     def _determine_single_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -164,42 +204,28 @@ class AutoSampler(BaseSampler):
             or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
             or self._include_conditional_param(study)
         ):
-            # Use ``TPESampler`` if search space includes conditional or categorical parameters.
-            # TBD: group=True?
-            return TPESampler(
-                seed=seed,
-                multivariate=True,
-                warn_independent_sampling=False,
-                constraints_func=self._constraints_func,
-                constant_liar=True,
-            )
+            return self._get_tpe_sampler(seed)
 
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
         )
-        if len(complete_trials) < self._N_COMPLETE_TRIALS_FOR_CMAES:
+        if len(complete_trials) < self._MAX_BUDGET_FOR_SINGLE_GP:
             # Use ``GPSampler`` if search space is numerical and
-            # len(complete_trials) < _N_COMPLETE_TRIALS_FOR_CMAES.
+            # len(complete_trials) < _MAX_BUDGET_FOR_SINGLE_GP.
             if not isinstance(self._sampler, GPSampler):
                 return GPSampler(seed=seed)
         elif len(search_space) > 1:
             if not isinstance(self._sampler, CmaEsSampler):
                 # Use ``CmaEsSampler`` if search space is numerical and
-                # len(complete_trials) > _N_COMPLETE_TRIALS_FOR_CMAES.
-                # Warm start CMA-ES with the first _N_COMPLETE_TRIALS_FOR_CMAES complete trials.
+                # len(complete_trials) > _MAX_BUDGET_FOR_SINGLE_GP.
+                # Warm start CMA-ES with the first _MAX_BUDGET_FOR_SINGLE_GP complete trials.
                 complete_trials.sort(key=lambda trial: trial.datetime_complete)
-                warm_start_trials = complete_trials[: self._N_COMPLETE_TRIALS_FOR_CMAES]
+                warm_start_trials = complete_trials[: self._MAX_BUDGET_FOR_SINGLE_GP]
                 return CmaEsSampler(
                     seed=seed, source_trials=warm_start_trials, warn_independent_sampling=True
                 )
         else:
-            return TPESampler(
-                seed=seed,
-                multivariate=True,
-                warn_independent_sampling=False,
-                constraints_func=self._constraints_func,
-                constant_liar=True,
-            )
+            return self._get_tpe_sampler(seed)
 
         return self._sampler  # No update happens to self._sampler.
 
@@ -219,6 +245,14 @@ class AutoSampler(BaseSampler):
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
+        if len(study.directions) > 1 and not isinstance(
+            self._sampler, (NSGAIISampler, NSGAIIISampler)
+        ):
+            # NOTE(nabenabe): Warm-starting for multi-objective optimization.
+            generation_key = (
+                NSGAII_GENERATION_KEY if len(study.directions) < 4 else NSGAIII_GENERATION_KEY
+            )
+            study._storage.set_trial_system_attr(trial._trial_id, generation_key, 0)
         return self._sampler.sample_relative(study, trial, search_space)
 
     def sample_independent(
