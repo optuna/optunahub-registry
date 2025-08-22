@@ -49,7 +49,7 @@ Note: Only specific combinations of `constraint_type` and `function_id` are supp
 - `__call__(trial: optuna.Trial)`: Evaluate the objective functions and return the objective values.
   - Args:
     - `trial`: Optuna trial object.
-  - Returns: `float`
+  - Returns: `list[float]`
 - `evaluate(params: dict[str, float])`: Evaluate the objective functions and return the objective values.
   - Args:
     - `params`: Decision variable like `{"x0": x0_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.

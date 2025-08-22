@@ -14,7 +14,13 @@ except ModuleNotFoundError:
 
 
 class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BaseProblem):
-    """Wrapper class for the DTLZ test suite of optproblems."""
+    """
+    Wrapper class for the C-DTLZ test suite of optproblems,
+    while the constraint components are implemented separately according to the original paper (Jain & Deb, 2014).
+
+    See the original paper for details:
+    - Jain, H. & Deb, K. (2014). [An Evolutionary Many-Objective Optimization Algorithm Using Reference-Point Based Nondominated Sorting Approach, Part II: Handling Constraints and Extending to an Adaptive Approach](https://ieeexplore.ieee.org/document/6595567), vol. 18, no. 4, pp. 602-622.
+    """
 
     available_combinations = [
         {"constraint_type": 1, "function_id": 1},  # C1-DTLZ1
@@ -36,7 +42,14 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
         Args:
             function_id: Function ID of the DTLZ problem in [1, 4].
             n_objectives: Number of objectives.
-            dimension: Number of variables.
+            constraint_type: Type of constraints in [1, 3]. Only specific combinations are supported:
+                - C1-DTLZ1: constraint_type=1, function_id=1
+                - C1-DTLZ3: constraint_type=1, function_id=3
+                - C2-DTLZ2: constraint_type=2, function_id=2
+                - C3-DTLZ1: constraint_type=3, function_id=1
+                - C3-DTLZ4: constraint_type=3, function_id=4
+            dimension: Number of variables. If not provided, defaults to n_objectives + 4
+                for DTLZ1 and DTLZ4, or n_objectives + 9 for DTLZ2 and DTLZ3.
             kwargs: Arbitrary keyword arguments, please refer to the optproblems documentation for more details.
 
         Please refer to the optproblems documentation for the details of the available properties.
