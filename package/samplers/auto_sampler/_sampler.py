@@ -134,7 +134,7 @@ class AutoSampler(BaseSampler):
 
     def _get_tpe_sampler(self, seed: int | None) -> TPESampler:
         # Use ``TPESampler`` if search space includes conditional or categorical parameters.
-        # TBD: group=True?
+        # TODO(nabenabe): Consider specifying `group=True` once proper benchmarks are available
         return TPESampler(
             seed=seed,
             multivariate=True,
