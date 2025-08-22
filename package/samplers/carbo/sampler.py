@@ -250,6 +250,10 @@ class CARBOSampler(BaseSampler):
         return search_space
 
     def get_robust_params(self, study: Study) -> dict[str, Any]:
+        robust_trial = self.get_robust_trial(study)
+        return robust_trial.system_attrs[_ROBUST_PARAMS_KEY]
+
+    def get_robust_trial(self, study: Study) -> FrozenTrial:
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=False
         )
@@ -259,7 +263,7 @@ class CARBOSampler(BaseSampler):
         best_idx = np.argmax(
             [t.system_attrs.get(_WORST_ROBUST_ACQF_KEY, -np.inf) for t in complete_trials]
         )
-        return complete_trials[best_idx].system_attrs[_ROBUST_PARAMS_KEY]
+        return complete_trials[best_idx]
 
     def sample_independent(
         self,
