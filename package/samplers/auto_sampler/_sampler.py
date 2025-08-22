@@ -54,8 +54,8 @@ class ThreadLocalSampler(threading.local):
 
 
 class AutoSampler(BaseSampler):
-    _MAX_BUDGET_FOR_SINGLE = {"gp": 250}
-    _MAX_BUDGET_FOR_MULTI = {"gp_and_tpe": 250}
+    _MAX_BUDGET_FOR_SINGLE_GP = 250
+    _MAX_BUDGET_FOR_MULTI_GP_AND_TPE = 250
 
     """Sampler automatically choosing an appropriate sampler based on search space.
 
@@ -171,7 +171,7 @@ class AutoSampler(BaseSampler):
         )
         n_complete_trials = len(complete_trials)
         n_objectives = len(study.directions)
-        if n_complete_trials < self._MAX_BUDGET_FOR_MULTI["gp_and_tpe"]:
+        if n_complete_trials < self._MAX_BUDGET_FOR_MULTI_GP_AND_TPE:
             if (
                 n_objectives >= 4
                 or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
@@ -207,18 +207,18 @@ class AutoSampler(BaseSampler):
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
         )
-        if len(complete_trials) < self._MAX_BUDGET_FOR_SINGLE["gp"]:
+        if len(complete_trials) < self._MAX_BUDGET_FOR_SINGLE_GP:
             # Use ``GPSampler`` if search space is numerical and
-            # len(complete_trials) < _MAX_BUDGET_FOR_SINGLE["gp"].
+            # len(complete_trials) < _MAX_BUDGET_FOR_SINGLE_GP.
             if not isinstance(self._sampler, GPSampler):
                 return GPSampler(seed=seed)
         elif len(search_space) > 1:
             if not isinstance(self._sampler, CmaEsSampler):
                 # Use ``CmaEsSampler`` if search space is numerical and
-                # len(complete_trials) > _MAX_BUDGET_FOR_SINGLE["gp"].
-                # Warm start CMA-ES with the first _MAX_BUDGET_FOR_SINGLE["gp"] complete trials.
+                # len(complete_trials) > _MAX_BUDGET_FOR_SINGLE_GP.
+                # Warm start CMA-ES with the first _MAX_BUDGET_FOR_SINGLE_GP complete trials.
                 complete_trials.sort(key=lambda trial: trial.datetime_complete)
-                warm_start_trials = complete_trials[: self._MAX_BUDGET_FOR_SINGLE["gp"]]
+                warm_start_trials = complete_trials[: self._MAX_BUDGET_FOR_SINGLE_GP]
                 return CmaEsSampler(
                     seed=seed, source_trials=warm_start_trials, warn_independent_sampling=True
                 )

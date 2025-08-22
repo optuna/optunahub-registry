@@ -112,9 +112,8 @@ def _check_constraints_of_all_trials(study: optuna.Study) -> None:
 def test_choose_for_multi_objective(use_constraint: bool) -> None:
     n_trials_of_nsgaii = 100
     n_trials_before_nsgaii = 15
-    auto_sampler = AutoSampler()
-    auto_sampler._MAX_BUDGET_FOR_MULTI["gp_and_tpe"] = n_trials_before_nsgaii
     auto_sampler = AutoSampler(constraints_func=constraints_func if use_constraint else None)
+    auto_sampler._MAX_BUDGET_FOR_MULTI_GP_AND_TPE = n_trials_before_nsgaii
     study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 2)
     study.optimize(multi_objective, n_trials=n_trials_before_nsgaii + n_trials_of_nsgaii)
     sampler_names = _get_used_sampler_names(study)
@@ -129,9 +128,8 @@ def test_choose_for_multi_objective(use_constraint: bool) -> None:
 def test_choose_for_many_objective(use_constraint: bool) -> None:
     n_trials_of_nsgaiii = 100
     n_trials_before_nsgaiii = 15
-    auto_sampler = AutoSampler()
-    auto_sampler._MAX_BUDGET_FOR_MULTI["gp_and_tpe"] = n_trials_before_nsgaiii
     auto_sampler = AutoSampler(constraints_func=constraints_func if use_constraint else None)
+    auto_sampler._MAX_BUDGET_FOR_MULTI_GP_AND_TPE = n_trials_before_nsgaiii
     study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 4)
     study.optimize(many_objective, n_trials=n_trials_before_nsgaiii + n_trials_of_nsgaiii)
     sampler_names = _get_used_sampler_names(study)
@@ -147,7 +145,7 @@ def test_choose_cmaes() -> None:
     n_trials_of_cmaes = 100
     n_trials_before_cmaes = 20
     auto_sampler = AutoSampler()
-    auto_sampler._MAX_BUDGET_FOR_SINGLE["gp"] = n_trials_before_cmaes
+    auto_sampler._MAX_BUDGET_FOR_SINGLE_GP = n_trials_before_cmaes
     study = optuna.create_study(sampler=auto_sampler)
     study.optimize(objective, n_trials=n_trials_of_cmaes + n_trials_before_cmaes)
     sampler_names = _get_used_sampler_names(study)
@@ -162,7 +160,7 @@ def test_choose_tpe_for_1d() -> None:
     n_trials_of_tpe = 100
     n_trials_before_tpe = 20
     auto_sampler = AutoSampler()
-    auto_sampler._MAX_BUDGET_FOR_SINGLE["gp"] = n_trials_before_tpe
+    auto_sampler._MAX_BUDGET_FOR_SINGLE_GP = n_trials_before_tpe
     study = optuna.create_study(sampler=auto_sampler)
     study.optimize(objective_1d, n_trials=n_trials_of_tpe + n_trials_before_tpe)
     sampler_names = _get_used_sampler_names(study)
@@ -193,7 +191,7 @@ def test_choose_for_multi_objective_with_categorical() -> None:
     n_trials_before_nsgaii = 15
     n_trials_of_nsgaii = 100
     auto_sampler = AutoSampler()
-    auto_sampler._MAX_BUDGET_FOR_MULTI["gp_and_tpe"] = n_trials_before_nsgaii
+    auto_sampler._MAX_BUDGET_FOR_MULTI_GP_AND_TPE = n_trials_before_nsgaii
     study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 2)
     study.optimize(
         multi_objective_with_categorical, n_trials=n_trials_before_nsgaii + n_trials_of_nsgaii
@@ -208,7 +206,7 @@ def test_choose_for_many_objective_with_categorical() -> None:
     n_trials_before_nsgaiii = 15
     n_trials_of_nsgaiii = 100
     auto_sampler = AutoSampler()
-    auto_sampler._MAX_BUDGET_FOR_MULTI["gp_and_tpe"] = n_trials_before_nsgaiii
+    auto_sampler._MAX_BUDGET_FOR_MULTI_GP_AND_TPE = n_trials_before_nsgaiii
     study = optuna.create_study(sampler=auto_sampler, directions=["minimize"] * 4)
     study.optimize(
         many_objective_with_categorical, n_trials=n_trials_before_nsgaiii + n_trials_of_nsgaiii
@@ -261,7 +259,7 @@ def test_choose_for_many_objective_with_conditional() -> None:
 def test_multi_thread() -> None:
     n_trials = 30
     auto_sampler = AutoSampler()
-    auto_sampler._MAX_BUDGET_FOR_SINGLE["gp"] = 10
+    auto_sampler._MAX_BUDGET_FOR_SINGLE_GP = 10
     study = optuna.create_study(sampler=auto_sampler)
     study.optimize(objective, n_trials=n_trials)
     sampler_names = _get_used_sampler_names(study)
