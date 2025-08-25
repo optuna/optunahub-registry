@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 EPS = 1e-10
 DEFAULT_MINIMUM_NOISE_VAR = 1e-6
-_BEST_ACQF_KEY = "best_acqf_val"
+_WORST_ROBUST_ACQF_KEY = "worst_robust_acqf_val"
+_ROBUST_PARAMS_KEY = "robust_params"
 
 
 def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -190,11 +191,13 @@ class CARBOSampler(BaseSampler):
                 for cache, c_train in zip(_cache_list, C_train.T)
             ]
         if len(trials):
-            warmstart_index = [t.number for t in trials].index(self.get_best_trial(study).number)
+            warmstart_index = np.argmax(
+                [t.system_attrs.get(_WORST_ROBUST_ACQF_KEY, -np.inf) for t in trials]
+            )
         else:
             warmstart_index = None
         best_params = None if warmstart_index is None else X_train[warmstart_index].numpy()
-        found_best_params, best_acqf_val = suggest_by_carbo(
+        robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
             constraints_gpr_list=constraints_gpr_list,
             constraints_threshold_list=constraints_threshold_list,
@@ -205,12 +208,23 @@ class CARBOSampler(BaseSampler):
             n_local_search=self._n_local_search,
             local_radius=self._local_ratio / 2,
         )
-        study._storage.set_trial_system_attr(trial._trial_id, _BEST_ACQF_KEY, best_acqf_val)
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+        robust_ext_params = {
+            name: float(param_value)
+            for name, param_value in zip(
+                search_space, unnormalize_params(robust_params[None], is_log, lows, highs)[0]
+            )
+        }
+        study._storage.set_trial_system_attr(
+            trial._trial_id, _WORST_ROBUST_ACQF_KEY, worst_robust_acqf_val
+        )
+        study._storage.set_trial_system_attr(
+            trial._trial_id, _ROBUST_PARAMS_KEY, robust_ext_params
+        )
         return {
             name: float(param_value)
             for name, param_value in zip(
-                search_space, unnormalize_params(found_best_params[None], is_log, lows, highs)[0]
+                search_space, unnormalize_params(worst_robust_params[None], is_log, lows, highs)[0]
             )
         }
 
@@ -235,7 +249,11 @@ class CARBOSampler(BaseSampler):
 
         return search_space
 
-    def get_best_trial(self, study: Study) -> FrozenTrial:
+    def get_robust_params(self, study: Study) -> dict[str, Any]:
+        robust_trial = self.get_robust_trial(study)
+        return robust_trial.system_attrs[_ROBUST_PARAMS_KEY]
+
+    def get_robust_trial(self, study: Study) -> FrozenTrial:
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=False
         )
@@ -243,7 +261,7 @@ class CARBOSampler(BaseSampler):
             raise ValueError("No complete trials found in the study.")
 
         best_idx = np.argmax(
-            [t.system_attrs.get(_BEST_ACQF_KEY, -np.inf) for t in complete_trials]
+            [t.system_attrs.get(_WORST_ROBUST_ACQF_KEY, -np.inf) for t in complete_trials]
         )
         return complete_trials[best_idx]
 
