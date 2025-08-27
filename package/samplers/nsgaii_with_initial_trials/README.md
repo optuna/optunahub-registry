@@ -1,9 +1,9 @@
 ---
 author: Hiroaki Natsume
 title: NSGAII sampler with Initial Trials
-description: Sampler using NSGAII algorithm with initial trials.
-tags: [Sampler, Multi-Objective, Genetic Algorithm]
-optuna_versions: [4.0.0]
+description: Sampler using NSGAII algorithm with initial trials. It also supports the selection of mutation methods.
+tags: [Sampler, Multi-Objective, Nsgaii, Warmstart]
+optuna_versions: [4.5.0]
 license: MIT License
 ---
 
@@ -54,11 +54,12 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
 storage = optuna.storages.InMemoryStorage()
 study_name = "test"
 directions = ["minimize", "minimize"]
+seed = 42
 
 # Sampling 0 generation using enqueueing & qmc sampler
 study = optuna.create_study(
     directions=directions,
-    sampler=optuna.samplers.QMCSampler(seed=42),
+    sampler=optuna.samplers.QMCSampler(seed=seed),
     study_name=study_name,
     storage=storage,
 )
@@ -75,7 +76,7 @@ module = optunahub.load_module(
     "samplers/nsgaii_with_initial_trials",
 )
 mutation = module.PolynomialMutation(eta=20)
-sampler = module.NSGAIIwITSampler(population_size=25, seed=42, mutation=mutation)
+sampler = module.NSGAIIwITSampler(population_size=25, seed=seed, mutation=mutation)
 
 study = optuna.create_study(
     directions=directions,
@@ -91,7 +92,7 @@ optuna.visualization.plot_pareto_front(study).show()
 
 ## Others
 
-The implementation is similar to Optuna's NSGAII except for the handling of initial generations and mutation. The license and documentation are below.
+The implementation is modified Optuna's NSGAII to consider initial trials and mutation. Its license and documentation are below.
 
 - [Documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.NSGAIISampler.html)
 - [License](https://github.com/optuna/optuna/blob/master/LICENSE)
