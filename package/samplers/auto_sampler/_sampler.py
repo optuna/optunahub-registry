@@ -211,7 +211,7 @@ class AutoSampler(BaseSampler):
             # Use ``GPSampler`` if search space is numerical and
             # len(complete_trials) < _MAX_BUDGET_FOR_SINGLE_GP.
             if not isinstance(self._sampler, GPSampler):
-                return GPSampler(seed=seed)
+                return GPSampler(seed=seed, constraints_func=self._constraints_func)
         elif self._constraints_func is None:
             if not isinstance(self._sampler, CmaEsSampler):
                 # Use ``CmaEsSampler`` if search space is numerical and
