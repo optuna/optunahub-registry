@@ -199,11 +199,9 @@ class AutoSampler(BaseSampler):
             return self._sampler
 
         seed = self._rng.rng.randint(_MAXINT32)
-        if (
-            self._constraints_func is not None
-            or any(isinstance(d, CategoricalDistribution) for d in search_space.values())
-            or self._include_conditional_param(study)
-        ):
+        if any(
+            isinstance(d, CategoricalDistribution) for d in search_space.values()
+        ) or self._include_conditional_param(study):
             return self._get_tpe_sampler(seed)
 
         complete_trials = study._get_trials(
@@ -213,8 +211,8 @@ class AutoSampler(BaseSampler):
             # Use ``GPSampler`` if search space is numerical and
             # len(complete_trials) < _MAX_BUDGET_FOR_SINGLE_GP.
             if not isinstance(self._sampler, GPSampler):
-                return GPSampler(seed=seed)
-        elif len(search_space) > 1:
+                return GPSampler(seed=seed, constraints_func=self._constraints_func)
+        elif self._constraints_func is None:
             if not isinstance(self._sampler, CmaEsSampler):
                 # Use ``CmaEsSampler`` if search space is numerical and
                 # len(complete_trials) > _MAX_BUDGET_FOR_SINGLE_GP.

@@ -154,28 +154,32 @@ def test_choose_cmaes() -> None:
     ] * n_trials_of_cmaes == sampler_names
 
 
-def test_choose_tpe_for_1d() -> None:
+def test_choose_cmaes_for_1d() -> None:
     # This test must be performed with a numerical objective function.
     # For 1d problems, TPESampler will be chosen instead of CmaEsSampler.
+    n_trials_of_cmaes = 100
+    n_trials_before_cmaes = 20
+    auto_sampler = AutoSampler()
+    auto_sampler._MAX_BUDGET_FOR_SINGLE_GP = n_trials_before_cmaes
+    study = optuna.create_study(sampler=auto_sampler)
+    study.optimize(objective_1d, n_trials=n_trials_of_cmaes + n_trials_before_cmaes)
+    sampler_names = _get_used_sampler_names(study)
+    assert ["RandomSampler"] + ["GPSampler"] * (n_trials_before_cmaes - 1) + [
+        "CmaEsSampler"
+    ] * n_trials_of_cmaes == sampler_names
+
+
+def test_choose_for_single_objective_with_constraints() -> None:
     n_trials_of_tpe = 100
     n_trials_before_tpe = 20
-    auto_sampler = AutoSampler()
+    auto_sampler = AutoSampler(constraints_func=constraints_func)
     auto_sampler._MAX_BUDGET_FOR_SINGLE_GP = n_trials_before_tpe
     study = optuna.create_study(sampler=auto_sampler)
-    study.optimize(objective_1d, n_trials=n_trials_of_tpe + n_trials_before_tpe)
+    study.optimize(objective, n_trials=n_trials_before_tpe + n_trials_of_tpe)
     sampler_names = _get_used_sampler_names(study)
     assert ["RandomSampler"] + ["GPSampler"] * (n_trials_before_tpe - 1) + [
         "TPESampler"
     ] * n_trials_of_tpe == sampler_names
-
-
-def test_choose_tpe_in_single_with_constraints() -> None:
-    n_trials = 30
-    auto_sampler = AutoSampler(constraints_func=constraints_func)
-    study = optuna.create_study(sampler=auto_sampler)
-    study.optimize(objective, n_trials=n_trials)
-    sampler_names = _get_used_sampler_names(study)
-    assert ["RandomSampler"] + ["TPESampler"] * (n_trials - 1) == sampler_names
 
 
 def test_choose_tpe_with_categorical_params() -> None:
