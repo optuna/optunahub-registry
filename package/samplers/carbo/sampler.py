@@ -249,9 +249,12 @@ class CARBOSampler(BaseSampler):
 
         return search_space
 
+    def get_robust_params_from_trial(self, trial: FrozenTrial) -> dict[str, Any]:
+        return trial.system_attrs[_ROBUST_PARAMS_KEY]
+
     def get_robust_params(self, study: Study) -> dict[str, Any]:
         robust_trial = self.get_robust_trial(study)
-        return robust_trial.system_attrs[_ROBUST_PARAMS_KEY]
+        return self.get_robust_params_from_trial(robust_trial)
 
     def get_robust_trial(self, study: Study) -> FrozenTrial:
         complete_trials = study._get_trials(
