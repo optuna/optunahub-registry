@@ -33,7 +33,7 @@ class CustomizableTPESampler(TPESampler):
         gamma_beta: float = 0.15,
         weight_strategy: str = "EI",
         bandwidth_strategy: str = "hyperopt",
-        group: bool = True,
+        group: bool = False,
     ):
         gamma = GammaFunc(strategy=gamma_strategy, beta=gamma_beta)
         weights = WeightFunc(strategy=weight_strategy)
