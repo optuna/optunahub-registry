@@ -33,6 +33,7 @@ class CustomizableTPESampler(TPESampler):
         gamma_beta: float = 0.15,
         weight_strategy: str = "EI",
         bandwidth_strategy: str = "hyperopt",
+        group: bool = False,
     ):
         gamma = GammaFunc(strategy=gamma_strategy, beta=gamma_beta)
         weights = WeightFunc(strategy=weight_strategy)
@@ -48,6 +49,7 @@ class CustomizableTPESampler(TPESampler):
             weights=weights,
             seed=seed,
             multivariate=multivariate,
+            group=group,
         )
         self._parzen_estimator_cls = _CustomizableParzenEstimator
         self._parzen_estimator_parameters = _CustomizableParzenEstimatorParameters(
