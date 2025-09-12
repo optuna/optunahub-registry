@@ -1,8 +1,8 @@
 ---
 author: Optuna Team
-title: Constrained robust Bayesian optimization of expensive noisyblack-box functions with guaranteed regret bounds
+title: Constrained robust Bayesian optimization of expensive noisyblack-box functions with guaranteed regret bounds (CARBO)
 description: Constrained Bayesian optimization with input uncertainties
-tags: [sampler, bo, bayesian-optimization, constrained-optimization]
+tags: [sampler, bo, bayesian-optimization, constrained-optimization, carbo]
 optuna_versions: [4.4.0]
 license: MIT License
 ---
@@ -65,6 +65,8 @@ study.optimize(objective, n_trials=30)
 ```
 
 ## Others
+
+Please look at [GitHub README.md](https://github.com/optuna/optunahub-registry/tree/main/package/samplers/carbo#others) for the compiled version.
 
 ### Notations
 
