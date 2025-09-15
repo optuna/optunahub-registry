@@ -1,31 +1,11 @@
 ---
-author: Please fill in the author name here. (e.g., John Smith)
-title: Please fill in the title of the feature here. (e.g., Gaussian-Process Expected Improvement Sampler)
-description: Please fill in the description of the feature here. (e.g., This sampler searches for each trial based on expected improvement using Gaussian process.)
-tags: [Please fill in the list of tags here. (e.g., sampler, visualization, pruner)]
-optuna_versions: ['Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1.']
+author: Luca Bernstiel
+title: Particle Swarm Optimization (PSO) Sampler
+description: Particle Swarm Optimization is a population-based stochastic optimization algorithm inspired by flocking behavior, where particles iteratively adjust their positions using personal and global bests to search for optima.
+tags: [sampler]
+optuna_versions: [4.5.0]
 license: MIT License
 ---
-
-<!--
-This is an example of the frontmatters.
-All columns must be string.
-You can omit quotes when value types are not ambiguous.
-For tags, a package placed in
-- package/samplers/ must include the tag "sampler"
-- package/visualilzation/ must include the tag "visualization"
-- package/pruners/ must include the tag "pruner"
-respectively.
-
----
-author: Optuna team
-title: My Sampler
-description: A description for My Sampler.
-tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
-optuna_versions: [3.6.1]
-license: "MIT License"
----
--->
 
 Instruction (Please remove this instruction after you carefully read)
 
@@ -35,12 +15,9 @@ Instruction (Please remove this instruction after you carefully read)
 
 ## Abstract
 
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
+Particle Swarm Optimization (PSO) is a population-based stochastic optimizer inspired by flocking behavior, where particles iteratively adjust their positions using personal and global bests to search for optima. This sampler currently supports single-objective, continuous optimization only. Multi-objective optimization and categorical variables are not supported.
 
-**Example**
-
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+For details on the algorithm, see Kennedy and Eberhart (1995): \[https://doi.org/10.1109/ICNN.1995.488968\](Particle Swarm Optimization) (https://doi.org/10.1109/ICNN.1995.488968).
 
 ## APIs
 
@@ -65,23 +42,6 @@ More users will take advantage of your package by providing detailed and helpful
 
 Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.
 
-## Installation
-
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
-```shell
-$ pip install scipy torch
-```
-
-If your package has `requirements.txt`, it will be automatically uploaded to the OptunaHub, and the package dependencies will be available to install as follows.
-
-```shell
- pip install -r https://hub.optuna.org/{category}/{your_package_name}/requirements.txt
-```
-
 ## Example
 
 Please fill in the code snippet to use the implemented feature here.
@@ -98,7 +58,7 @@ def objective(trial):
   return x**2
 
 
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
+sampler = optunahub.load_module(package="samplers/pso").PSOSampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=100)
 ```

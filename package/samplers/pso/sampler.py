@@ -10,11 +10,12 @@ import optunahub
 
 
 if TYPE_CHECKING:
-    from collections.abc import Any
-    from collections.abc import Dict
-    from collections.abc import List
-    from collections.abc import Optional
     from collections.abc import Sequence
+    from typing import Any
+    from typing import Dict
+    from typing import List
+    from typing import Optional
+    from typing import Union
 
     from optuna.distributions import BaseDistribution
     from optuna.study import Study
@@ -359,6 +360,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
             hi = float(self.upper_bound[i])
             xi = float(np.clip(x[i], lo, hi))
 
+            val: Union[int, float]
             if isinstance(dist, optuna.distributions.IntDistribution):
                 step_attr = getattr(dist, "step", None)
                 step = int(step_attr) if step_attr is not None else 1

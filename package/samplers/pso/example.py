@@ -16,7 +16,7 @@ def objective(trial: optuna.Trial) -> float:
     return x**2 + y**2
 
 
-package_name = "samplers/particle_swarm_optimization"
+package_name = "samplers/pso"
 test_local = True
 
 n_trials = 100
