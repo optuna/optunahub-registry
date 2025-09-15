@@ -96,8 +96,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
     Key behavior:
     - First generation: returns {} from sample_relative so Optuna's RandomSampler initializes the population.
     - After each trial (in after_trial), we accumulate COMPLETE results. When n_particles results
-      are collected, we update the swarm and precompute the next generation candidates.
-    - sample_relative then serves these precomputed candidates one-by-one.
+      are collected, update the swarm and compute the next generation candidates.
     - Supports numeric (Float/Int) distributions. Categorical distributions are not supported.
     """
 
