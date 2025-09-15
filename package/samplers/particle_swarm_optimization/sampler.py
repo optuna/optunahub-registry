@@ -186,6 +186,9 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         - If we have precomputed candidates, serve them in order (one per call).
         - Otherwise, return {} to delegate sampling to Optuna's RandomSampler.
         """
+        # Prevent multi-objective usage early.
+        self._ensure_single_objective(study)
+
         if len(search_space) == 0:
             return {}
 
@@ -215,6 +218,9 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         - When n_particles results are collected, updates/initializes the swarm,
           advances one PSO step, and precomputes the next generation candidates.
         """
+        # Prevent multi-objective usage
+        self._ensure_single_objective(study, values)
+
         # Use only COMPLETE trials to build generations.
         if state is not TrialState.COMPLETE:
             return
@@ -278,6 +284,22 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         self._rng = np.random.RandomState()
 
     # -------------------- Internal helpers --------------------
+
+    def _ensure_single_objective(
+        self,
+        study: Study,
+        values: Sequence[float] | None = None,
+    ) -> None:
+        """
+        Guard against multi-objective usage.
+        - Uses the public Study.directions API: length > 1 means multi-objective.
+        - Also checks the provided `values` (if any) from after_trial; length > 1 means multi-objective.
+        """
+        directions = getattr(study, "directions", None)
+        if directions is not None and len(directions) != 1:
+            raise NotImplementedError("PSOSampler does not support multi-objective studies.")
+        if values is not None and len(values) != 1:
+            raise NotImplementedError("PSOSampler does not support multi-objective studies.")
 
     def _encode_trial_params(self, trial: FrozenTrial) -> np.ndarray:
         """Convert a trial's params to a vector in the fixed param order and clip to bounds."""
