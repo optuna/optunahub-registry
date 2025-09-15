@@ -11,8 +11,8 @@ import optunahub
 
 
 def objective(trial: optuna.Trial) -> float:
-    x = trial.suggest_float("x", -5, 5)
-    y = trial.suggest_float("y", -5, 5)
+    x = trial.suggest_float("x", -10, 10)
+    y = trial.suggest_float("y", -10, 10)
     return x**2 + y**2
 
 
@@ -30,7 +30,7 @@ if test_local:
     ).PSOSampler(
         {
             "x": optuna.distributions.FloatDistribution(-10, 10),
-            "y": optuna.distributions.FloatDistribution(-10, 10, step=0.1),
+            "y": optuna.distributions.FloatDistribution(-10, 10),
         },
         n_particles=int(n_trials / n_generations),
         inertia=0.5,
@@ -40,9 +40,7 @@ if test_local:
 else:
     # This is an example of how to load a sampler from your fork of the optunahub-registry.
     # Please remove repo_owner and ref arguments before submitting a pull request.
-    sampler = optunahub.load_module(
-        package=package_name, repo_owner="Your GitHub Account ID", ref="Your Git Branch Name"
-    ).PSOSampler(
+    sampler = optunahub.load_module(package=package_name).PSOSampler(
         {
             "x": optuna.distributions.FloatDistribution(-10, 10),
             "y": optuna.distributions.FloatDistribution(-10, 10, step=0.1),
