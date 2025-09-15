@@ -1,19 +1,24 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
-from optuna import Study
-from optuna.distributions import BaseDistribution
 from optuna.study._study_direction import StudyDirection
-from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 import optunahub
+
+
+if TYPE_CHECKING:
+    from collections.abc import Any
+    from collections.abc import Dict
+    from collections.abc import List
+    from collections.abc import Optional
+    from collections.abc import Sequence
+
+    from optuna.distributions import BaseDistribution
+    from optuna.study import Study
+    from optuna.trial import FrozenTrial
 
 
 class Particle:
@@ -209,7 +214,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         study: Study,
         trial: FrozenTrial,
         state: TrialState,
-        values: Sequence[float] | None,
+        values: Optional[Sequence[float]],
     ) -> None:
         """
         Observe the trial outcome and update PSO state at generation boundaries.
@@ -288,7 +293,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
     def _ensure_single_objective(
         self,
         study: Study,
-        values: Sequence[float] | None = None,
+        values: Optional[Sequence[float]] = None,
     ) -> None:
         """
         Guard against multi-objective usage.
