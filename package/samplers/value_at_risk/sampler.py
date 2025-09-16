@@ -32,7 +32,7 @@ import logging
 import torch
 
 from ._gp import acqf as acqf_module
-from ._gp import gp as gp
+from ._gp import gp
 
 
 _logger = logging.getLogger(f"optuna.{__name__}")
