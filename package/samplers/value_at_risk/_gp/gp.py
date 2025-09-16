@@ -40,7 +40,7 @@ else:
     so = _LazyImport("scipy.optimize")
     torch = _LazyImport("torch")
 
-logger = get_logger(__name__)
+logger = get_logger(f"optuna.{__name__}")
 
 
 def warn_and_convert_inf(values: np.ndarray) -> np.ndarray:

@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import optuna
 from optuna._experimental import warn_experimental_argument
+from optuna._gp import optim_mixed as optim_mixed
+from optuna._gp import prior as prior
+from optuna._gp import search_space as gp_search_space
 from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
 from optuna.samplers._base import _process_constraints_after_trial
@@ -30,12 +33,9 @@ import torch
 
 from ._gp import acqf as acqf_module
 from ._gp import gp as gp
-from ._gp import optim_mixed as optim_mixed
-from ._gp import prior as prior
-from ._gp import search_space as gp_search_space
 
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(f"optuna.{__name__}")
 
 EPS = 1e-10
 
