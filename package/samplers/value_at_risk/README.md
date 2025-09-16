@@ -73,9 +73,7 @@ def objective(trial: optuna.Trial) -> float:
     return f
 
 
-RobustGPSampler = optunahub.load_local_module(
-    "samplers/value_at_risk", registry_root="./package"
-).RobustGPSampler
+RobustGPSampler = optunahub.load_module("samplers/value_at_risk").RobustGPSampler
 sampler = RobustGPSampler(seed=0, uniform_input_noise_ranges={"x": 0.5, "y": 0.5})
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=50)
