@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
-from optuna._experimental import experimental_class
 from optuna._experimental import warn_experimental_argument
 from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
@@ -49,65 +48,10 @@ def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.
     return standardized_values, means, stds
 
 
-@experimental_class("3.6.0")
-class GPSampler(BaseSampler):
+class RobustGPSampler(BaseSampler):
     """Sampler using Gaussian process-based Bayesian optimization.
 
-    This sampler fits a Gaussian process (GP) to the objective function and optimizes
-    the acquisition function to suggest the next parameters.
-
-    The current implementation uses Matern kernel with nu=2.5 (twice differentiable) with automatic
-    relevance determination (ARD) for the length scale of each parameter.
-    The hyperparameters of the kernel are obtained by maximizing the marginal log-likelihood of the
-    hyperparameters given the past trials.
-    To prevent overfitting, Gamma prior is introduced for kernel scale and noise variance and
-    a hand-crafted prior is introduced for inverse squared lengthscales.
-
-    As an acquisition function, we use:
-
-    - log expected improvement (logEI) for single-objective optimization,
-    - log expected hypervolume improvement (logEHVI) for Multi-objective optimization, and
-    - the summation of logEI and the logarithm of the feasible probability with the independent
-      assumption of each constraint for (black-box inequality) constrained optimization.
-
-    For further information about these acquisition functions, please refer to the following
-    papers:
-
-    - `Unexpected Improvements to Expected Improvement for Bayesian Optimization
-      <https://arxiv.org/abs/2310.20708>`__
-    - `Differentiable Expected Hypervolume Improvement for Parallel Multi-Objective Bayesian
-      Optimization <https://arxiv.org/abs/2006.05078>`__
-    - `Bayesian Optimization with Inequality Constraints
-      <https://proceedings.mlr.press/v32/gardner14.pdf>`__
-
-    The optimization of the acquisition function is performed via:
-
-    1. Collect the best param from the past trials,
-    2. Collect ``n_preliminary_samples`` points using Quasi-Monte Carlo (QMC) sampling,
-    3. Choose the best point from the collected points,
-    4. Choose ``n_local_search - 2`` points from the collected points using the roulette
-       selection,
-    5. Perform a local search for each chosen point as an initial point, and
-    6. Return the point with the best acquisition function value as the next parameter.
-
-    Note that the procedures for non single-objective optimization setups are slightly different
-    from the single-objective version described above, but we omit the descriptions for the others
-    for brevity.
-
-    The local search iteratively optimizes the acquisition function by repeating:
-
-    1. Gradient ascent using l-BFGS-B for continuous parameters, and
-    2. Line search or exhaustive search for each discrete parameter independently.
-
-    The local search is terminated if the routine stops updating the best parameter set or the
-    maximum number of iterations is reached.
-
-    We use line search instead of rounding the results from the continuous optimization since EI
-    typically yields a high value between one grid and its adjacent grid.
-
-    .. note::
-        This sampler requires ``scipy`` and ``torch``.
-        You can install these dependencies with ``pip install scipy torch``.
+    The implementation mostly follows optuna.samplers.GPSampler.
 
     Args:
         seed:
@@ -142,6 +86,14 @@ class GPSampler(BaseSampler):
             meaning that no GP model is used in the sampling.
             Note that the parameters of the first trial in a study are always sampled
             via an independent sampler, so no warning messages are emitted in this case.
+        uniform_input_noise_ranges:
+            The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
+            the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
+            `y`.
+        normal_input_noise_stdevs:
+            The input noise standard deviations for each parameter. For example, when
+            `{"x": 0.1, "y": 0.2}` is given, the sampler assumes that the input noise of `x` and
+            `y` follows `N(0, 0.1**2)` and `N(0, 0.2**2)`, respectively.
     """
 
     def __init__(
