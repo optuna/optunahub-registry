@@ -78,6 +78,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
         n_input_noise_samples: int,
         n_qmc_samples: int,
         qmc_seed: int | None,
+        acqf_type: str,
         uniform_input_noise_ranges: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
     ) -> None:
@@ -92,6 +93,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
         self._fixed_samples = _sample_from_normal_sobol(
             dim=n_input_noise_samples, n_samples=n_qmc_samples, seed=seed
         )
+        self._acqf_type = acqf_type
         super().__init__(length_scales=gpr.length_scales, search_space=search_space)
 
     @staticmethod
@@ -139,4 +141,9 @@ class ValueAtRisk(BaseAcquisitionFunc):
         4. Then compute (mc_value_at_risk - f0).clamp_min(0).mean()
         Appendix B.2 of https://www.robots.ox.ac.uk/~mosb/public/pdf/136/full_thesis.pdf
         """
-        return self._value_at_risk(x).mean(dim=-1)
+        if self._acqf_type == "mean":
+            return self._value_at_risk(x).mean(dim=-1)
+        elif self._acqf_type == "nei":
+            raise NotImplementedError("NEI is not implemented yet.")
+        else:
+            raise ValueError(f"Unknown acqf_type: {self._acqf_type}")

@@ -188,6 +188,7 @@ class RobustGPSampler(GPSampler):
         gpr: gp.GPRegressor,
         internal_search_space: gp_search_space.SearchSpace,
         search_space: dict[str, BaseDistribution],
+        acqf_type: str,
     ) -> acqf_module.ValueAtRisk:
         def _get_scaled_input_noise_params(
             input_noise_params: dict[str, float], noise_param_name: str
@@ -230,6 +231,7 @@ class RobustGPSampler(GPSampler):
                 n_qmc_samples=128,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 uniform_input_noise_ranges=scaled_input_noise_params,
+                acqf_type=acqf_type,
             )
         elif self._normal_input_noise_stdevs is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
@@ -243,6 +245,7 @@ class RobustGPSampler(GPSampler):
                 n_qmc_samples=128,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 normal_input_noise_stdevs=scaled_input_noise_params,
+                acqf_type=acqf_type,
             )
         else:
             assert False, "Should not reach here."
@@ -296,7 +299,13 @@ class RobustGPSampler(GPSampler):
         acqf: acqf_module.BaseAcquisitionFunc
         assert len(gprs_list) == 1
         if self._constraints_func is None:
-            acqf = self._get_value_at_risk(gprs_list[0], internal_search_space, search_space)
+            acqf = self._get_value_at_risk(
+                # TODO: Replace mean with nei once NEI is implemented.
+                gprs_list[0],
+                internal_search_space,
+                search_space,
+                acqf_type="mean",
+            )
             best_params = None
         else:
             assert False, "Not Implemented."
@@ -323,7 +332,34 @@ class RobustGPSampler(GPSampler):
         return internal_search_space.get_unnormalized_param(normalized_param)
 
     def get_robust_trial(self, study: Study) -> FrozenTrial:
-        pass
+        states = (TrialState.COMPLETE,)
+        trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+        search_space = self.infer_relative_search_space(study, trials[0])
+        internal_search_space = gp_search_space.SearchSpace(search_space)
+        X_train = internal_search_space.get_normalized_params(trials)
+        _sign = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
+        y_train, _, _ = _standardize_values(_sign * np.array([trial.values for trial in trials]))
+        is_categorical = internal_search_space.is_categorical
+        gpr = gp.fit_kernel_params(
+            X=X_train,
+            Y=y_train.squeeze(),
+            is_categorical=is_categorical,
+            log_prior=self._log_prior,
+            minimum_noise=self._minimum_noise,
+            gpr_cache=None,
+            deterministic_objective=self._deterministic,
+        )
+
+        acqf: acqf_module.BaseAcquisitionFunc
+        if self._constraints_func is None:
+            acqf = self._get_value_at_risk(
+                gpr, internal_search_space, search_space, acqf_type="mean"
+            )
+        else:
+            assert False, "Not Implemented."
+
+        best_idx = np.argmax(acqf.eval_acqf_no_grad(X_train)).item()
+        return trials[best_idx]
 
 
 def _get_constraint_vals_and_feasibility(
