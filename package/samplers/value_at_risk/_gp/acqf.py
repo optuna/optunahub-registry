@@ -127,6 +127,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
 
     def _value_at_risk(self, x: torch.Tensor) -> torch.Tensor:
         means, covar = self._gpr.joint_posterior(x.unsqueeze(-2) + self._input_noise)
+        # TODO: Think of a better way to avoid numerical issue in the Cholesky decomposition.
         L, _ = torch.linalg.cholesky_ex(covar)
         posterior_samples = means.unsqueeze(-2) + self._fixed_samples @ L
         # If CVaR, use torch.topk instead of torch.quantile.
