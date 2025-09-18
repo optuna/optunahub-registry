@@ -331,23 +331,21 @@ class RobustGPSampler(BaseSampler):
             # Clear cache if the search space changes.
             self._gprs_cache_list = None
 
-        gprs_list = []
         n_objectives = standardized_score_vals.shape[-1]
         is_categorical = internal_search_space.is_categorical
         assert n_objectives == 1, "Value at risk supports only single objective."
-        for i in range(n_objectives):
-            cache = self._gprs_cache_list[i] if self._gprs_cache_list is not None else None
-            gprs_list.append(
-                gp.fit_kernel_params(
-                    X=normalized_params,
-                    Y=standardized_score_vals[:, i],
-                    is_categorical=is_categorical,
-                    log_prior=self._log_prior,
-                    minimum_noise=self._minimum_noise,
-                    gpr_cache=cache,
-                    deterministic_objective=self._deterministic,
-                )
+        cache = self._gprs_cache_list[0] if self._gprs_cache_list is not None else None
+        gprs_list = [
+            gp.fit_kernel_params(
+                X=normalized_params,
+                Y=standardized_score_vals[:, 0],
+                is_categorical=is_categorical,
+                log_prior=self._log_prior,
+                minimum_noise=self._minimum_noise,
+                gpr_cache=cache,
+                deterministic_objective=self._deterministic,
             )
+        ]
         self._gprs_cache_list = gprs_list
 
         best_params: np.ndarray | None
@@ -379,6 +377,9 @@ class RobustGPSampler(BaseSampler):
 
         normalized_param = self._optimize_acqf(acqf, best_params)
         return internal_search_space.get_unnormalized_param(normalized_param)
+
+    def get_robust_trial(self, study: Study) -> FrozenTrial:
+        pass
 
     def sample_independent(
         self,
