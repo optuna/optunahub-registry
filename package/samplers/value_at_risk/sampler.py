@@ -5,17 +5,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
-from optuna._experimental import warn_experimental_argument
-from optuna._gp import optim_mixed as optim_mixed
-from optuna._gp import prior as prior
+from optuna._gp import optim_mixed
 from optuna._gp import search_space as gp_search_space
+from optuna.samplers import GPSampler
 from optuna.samplers._base import _CONSTRAINTS_KEY
-from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
-from optuna.samplers._base import _process_constraints_after_trial
-from optuna.samplers._base import BaseSampler
-from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import StudyDirection
-from optuna.study._multi_objective import _is_pareto_front
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
@@ -25,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from optuna.distributions import BaseDistribution
+    from optuna.samplers._base import BaseSampler
     from optuna.study import Study
 
 import logging
@@ -48,7 +43,7 @@ def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.
     return standardized_values, means, stds
 
 
-class RobustGPSampler(BaseSampler):
+class RobustGPSampler(GPSampler):
     """Sampler using Gaussian process-based Bayesian optimization.
 
     The implementation mostly follows optuna.samplers.GPSampler.
@@ -120,53 +115,16 @@ class RobustGPSampler(BaseSampler):
             )
         self._uniform_input_noise_ranges = uniform_input_noise_ranges
         self._normal_input_noise_stdevs = normal_input_noise_stdevs
-        self._rng = LazyRandomState(seed)
-        self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
-        self._intersection_search_space = optuna.search_space.IntersectionSearchSpace()
-        self._n_startup_trials = n_startup_trials
-        self._log_prior: Callable[[gp.GPRegressor], torch.Tensor] = prior.default_log_prior
-        self._minimum_noise: float = prior.DEFAULT_MINIMUM_NOISE_VAR
-        # We cache the kernel parameters for initial values of fitting the next time.
-        # TODO(nabenabe): Make the cache lists system_attrs to make GPSampler stateless.
+        super().__init__(
+            seed=seed,
+            independent_sampler=independent_sampler,
+            n_startup_trials=n_startup_trials,
+            deterministic_objective=deterministic_objective,
+            constraints_func=constraints_func,
+            warn_independent_sampling=warn_independent_sampling,
+        )
         self._gprs_cache_list: list[gp.GPRegressor] | None = None
         self._constraints_gprs_cache_list: list[gp.GPRegressor] | None = None
-        self._deterministic = deterministic_objective
-        self._constraints_func = constraints_func
-        self._warn_independent_sampling = warn_independent_sampling
-
-        if constraints_func is not None:
-            warn_experimental_argument("constraints_func")
-
-        # Control parameters of the acquisition function optimization.
-        self._n_preliminary_samples: int = 2048
-        # NOTE(nabenabe): ehvi in BoTorchSampler uses 20.
-        self._n_local_search = 10
-        self._tol = 1e-4
-
-    def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
-        msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
-            param_name=param_name,
-            trial_number=trial.number,
-            independent_sampler_name=self._independent_sampler.__class__.__name__,
-            sampler_name=self.__class__.__name__,
-            fallback_reason="dynamic search space is not supported by GPSampler",
-        )
-        _logger.warning(msg)
-
-    def reseed_rng(self) -> None:
-        self._rng.rng.seed()
-        self._independent_sampler.reseed_rng()
-
-    def infer_relative_search_space(
-        self, study: Study, trial: FrozenTrial
-    ) -> dict[str, BaseDistribution]:
-        search_space = {}
-        for name, distribution in self._intersection_search_space.calculate(study).items():
-            if distribution.single():
-                continue
-            search_space[name] = distribution
-
-        return search_space
 
     def _optimize_acqf(
         self, acqf: acqf_module.BaseAcquisitionFunc, best_params: np.ndarray | None
@@ -224,20 +182,6 @@ class RobustGPSampler(BaseSampler):
 
         self._constraints_gprs_cache_list = constraints_gprs
         return constraints_gprs, constraints_threshold_list
-
-    def _get_best_params_for_multi_objective(
-        self,
-        normalized_params: np.ndarray,
-        standardized_score_vals: np.ndarray,
-    ) -> np.ndarray:
-        pareto_params = normalized_params[
-            _is_pareto_front(-standardized_score_vals, assume_unique_lexsorted=False)
-        ]
-        n_pareto_sols = len(pareto_params)
-        # TODO(nabenabe): Verify the validity of this choice.
-        size = min(self._n_local_search // 2, n_pareto_sols)
-        chosen_indices = self._rng.rng.choice(n_pareto_sols, size=size, replace=False)
-        return pareto_params[chosen_indices]
 
     def _get_value_at_risk(
         self,
@@ -380,36 +324,6 @@ class RobustGPSampler(BaseSampler):
 
     def get_robust_trial(self, study: Study) -> FrozenTrial:
         pass
-
-    def sample_independent(
-        self,
-        study: Study,
-        trial: FrozenTrial,
-        param_name: str,
-        param_distribution: BaseDistribution,
-    ) -> Any:
-        if self._warn_independent_sampling:
-            states = (TrialState.COMPLETE,)
-            complete_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
-            if len(complete_trials) >= self._n_startup_trials:
-                self._log_independent_sampling(trial, param_name)
-        return self._independent_sampler.sample_independent(
-            study, trial, param_name, param_distribution
-        )
-
-    def before_trial(self, study: Study, trial: FrozenTrial) -> None:
-        self._independent_sampler.before_trial(study, trial)
-
-    def after_trial(
-        self,
-        study: Study,
-        trial: FrozenTrial,
-        state: TrialState,
-        values: Sequence[float] | None,
-    ) -> None:
-        if self._constraints_func is not None:
-            _process_constraints_after_trial(self._constraints_func, study, trial, state)
-        self._independent_sampler.after_trial(study, trial, state, values)
 
 
 def _get_constraint_vals_and_feasibility(
