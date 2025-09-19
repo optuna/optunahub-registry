@@ -22,6 +22,7 @@ checking = [
   "pre-commit",
   "ruff==0.3.5",
   "mdformat",
+  "mdformat-myst",
   "mdformat-frontmatter",
   "mypy==1.9.0",
   "types-PyYAML",
@@ -53,6 +54,9 @@ lines-after-imports = 2
 force-single-line = true
 force-sort-within-sections = true
 order-by-type = false
+
+[tool.mdformat]
+wrap = 0
 
 [tool.mypy]
 # Options configure mypy's strict mode.
