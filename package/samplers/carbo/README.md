@@ -88,8 +88,6 @@ where the actual input noise $\xi$ is assumed to be drawn from $B_\epsilon$ unif
 
 ### Algorithm Details
 
-a
-
 1. Train Gaussian process regressors for each function $f, g_1, \dots, g_C$ using the past observations.
 1. Solve the following max-min problem:
    $x_{\star} \in \text{arg}\max_{x \in [0, 1]^D}\min_{\xi \in B_\epsilon} \text{UCB}_{f}(x + \xi) + \rho \sum_{c = 1}^C [\text{UCB}_{g_c}(x + \xi)]^{-}$ where $[a]^{-} \coloneqq \min(0, a)$.
