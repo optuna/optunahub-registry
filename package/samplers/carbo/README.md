@@ -72,30 +72,30 @@ Please look at [GitHub README.md](https://github.com/optuna/optunahub-registry/t
 
 In this section, we use the following notations:
 
-- $x \\in \[0, 1\]^D$, an input vector,
-- $B\_\\epsilon \\coloneqq \[-\\frac{\\epsilon}{2}, \\frac{\\epsilon}{2}\]^D$, an $\\epsilon$-bounding box,
-- $\\xi \\in B\_\\epsilon$, an input noise,
-- $f: \[0, 1\]^D \\rightarrow \\mathbb{R}$, an objective function,
-- $g_c: \[0, 1\]^D \\rightarrow \\mathbb{R}$, the $c$-th constraint,
-- $\\text{LCB}\_{h}: \[0, 1\]^D \\rightarrow \\mathbb{R}$, the lower confidence bound of a function $h$,
-- $\\text{UCB}\_{h}: \[0, 1\]^D \\rightarrow \\mathbb{R}$, the upper confidence bound of a function $h$.
+- $x \in [0, 1]^D$, an input vector,
+- $B_\epsilon \coloneqq [-\frac{\epsilon}{2}, \frac{\epsilon}{2}]^D$, an $\epsilon$-bounding box,
+- $\xi \in B_\epsilon$, an input noise,
+- $f: [0, 1]^D \rightarrow \mathbb{R}$, an objective function,
+- $g_c: [0, 1]^D \rightarrow \mathbb{R}$, the $c$-th constraint,
+- $\text{LCB}_{h}: [0, 1]^D \rightarrow \mathbb{R}$, the lower confidence bound of a function $h$,
+- $\text{UCB}_{h}: [0, 1]^D \rightarrow \mathbb{R}$, the upper confidence bound of a function $h$.
 
 Please note that both $g_c$ and $f$ are standardized internally so that their distributions follow the assumption on the prior distribution by the Gaussian process.
 
 Suppose we would like to solve the following max-min problem:
-$\\max\_{x \\in \[0, 1\]^D} \\min\_{\\xi \\in B\_\\epsilon} f(x + \\xi) \\text{ subject to } g_c(x + \\xi) \\geq 0 ; (\\text{for }c \\in {1, 2, \\dots, C}).$
-where the actual input noise $\\xi$ is assumed to be drawn from $B\_\\epsilon$ uniformly.
+$\max_{x \in [0, 1]^D} \min_{\xi \in B_\epsilon} f(x + \xi) \text{ subject to } g_c(x + \xi) \geq 0 \; (\text{for }c \in {1, 2, \dots, C}).$
+where the actual input noise $\xi$ is assumed to be drawn from $B_\epsilon$ uniformly.
 
 ### Algorithm Details
 
-1. Train Gaussian process regressors for each function $f, g_1, \\dots, g_C$ using the past observations.
+1. Train Gaussian process regressors for each function $f, g_1, \dots, g_C$ using the past observations.
 1. Solve the following max-min problem:
-   $x\_{\\star} \\in \\text{arg}\\max\_{x \\in \[0, 1\]^D}\\min\_{\\xi \\in B\_\\epsilon} \\text{UCB}_{f}(x + \\xi) + \\rho \\sum_{c = 1}^C \[\\text{UCB}\_{g_c}(x + \\xi)\]^{-}$ where $\[a\]^{-} \\coloneqq \\min(0, a)$.
+   $x_{\star} \in \text{arg}\max_{x \in [0, 1]^D}\min_{\xi \in B_\epsilon} \text{UCB}_{f}(x + \xi) + \rho \sum_{c = 1}^C [\text{UCB}_{g_c}(x + \xi)]^{-}$ where $[a]^{-} \coloneqq \min(0, a)$.
 1. Solve the following minimization problem:
-   $\\xi\_{\\star} \\in \\text{arg}\\min\_{\\xi \\in B\_\\epsilon} \\text{LCB}_{f}(x_\\star + \\xi) + \\rho\\sum\_{c = 1}^C \[\\text{LCB}_{g_c}(x_\\star + \\xi)\]^{-}$
-1. Evaluate each function at $x = x\_{\\star} + \\xi\_{\\star}$.
+   $\xi_{\star} \in \text{arg}\min_{\xi \in B_\epsilon} \text{LCB}_{f}(x_\star + \xi) + \rho\sum_{c = 1}^C [\text{LCB}_{g_c}(x_\star + \xi)]^{-}$
+1. Evaluate each function at $x = x_{\star} + \xi_{\star}$.
 1. Go back to 1.
 
-In principle, $\[\\text{UCB}_{g_c}(x + \\xi)\]^{-}$ and $\[\\text{LCB}_{g_c}(x + \\xi)\]^{-}$ quantify the upper and lower confidence bounds of the violation amount.
-Please note that Processes 2 and 3 are modified from the original paper because our setup assumes that the same input noise $\\xi$ is used for each constraint and the objective evaluations.
+In principle, $[\text{UCB}_{g_c}(x + \xi)]^{-}$ and $[\text{LCB}_{g_c}(x + \xi)]^{-}$ quantify the upper and lower confidence bounds of the violation amount.
+Please note that Processes 2 and 3 are modified from the original paper because our setup assumes that the same input noise $\xi$ is used for each constraint and the objective evaluations.
 Also, the order of the min or max operation and the summation is flipped in our implementation.
