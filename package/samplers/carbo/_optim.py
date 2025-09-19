@@ -72,15 +72,8 @@ def suggest_by_carbo(
     local_radius: float,
     tol: float = 1e-4,
 ) -> tuple[np.ndarray, np.ndarray, float]:
-    assert best_params is None or len(best_params.shape) == 1, best_params
     dim = len(gpr.length_scales)
-    if best_params is not None:
-        local_params = np.vstack(
-            [best_params, sample_normalized_params(n_local_search - 1, dim, rng=rng)]
-        )
-    else:
-        local_params = sample_normalized_params(n_local_search, dim, rng=rng)
-
+    local_params = sample_normalized_params(n_local_search, dim, rng=rng)
     robust_x_local: np.ndarray | None = None
     robust_f_local = -np.inf
     ucb_acqf = CombinedUCB(
