@@ -55,9 +55,6 @@ force-single-line = true
 force-sort-within-sections = true
 order-by-type = false
 
-[tool.mdformat]
-wrap = 0
-
 [tool.mypy]
 # Options configure mypy's strict mode.
 warn_unused_configs = true
