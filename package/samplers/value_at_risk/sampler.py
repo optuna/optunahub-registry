@@ -5,12 +5,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
+from optuna._experimental import warn_experimental_argument
 from optuna._gp import optim_mixed
+from optuna._gp import prior
 from optuna._gp import search_space as gp_search_space
-from optuna.samplers import GPSampler
 from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
 from optuna.samplers._base import _process_constraints_after_trial
+from optuna.samplers._base import BaseSampler
+from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
@@ -45,7 +48,7 @@ def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.
     return standardized_values, means, stds
 
 
-class RobustGPSampler(GPSampler):
+class RobustGPSampler(BaseSampler):
     """Sampler using Gaussian process-based Bayesian optimization.
 
     The implementation mostly follows optuna.samplers.GPSampler.
@@ -117,16 +120,28 @@ class RobustGPSampler(GPSampler):
             )
         self._uniform_input_noise_ranges = uniform_input_noise_ranges
         self._normal_input_noise_stdevs = normal_input_noise_stdevs
-        super().__init__(
-            seed=seed,
-            independent_sampler=independent_sampler,
-            n_startup_trials=n_startup_trials,
-            deterministic_objective=deterministic_objective,
-            constraints_func=constraints_func,
-            warn_independent_sampling=warn_independent_sampling,
-        )
+        self._rng = LazyRandomState(seed)
+        self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
+        self._intersection_search_space = optuna.search_space.IntersectionSearchSpace()
+        self._n_startup_trials = n_startup_trials
+        self._log_prior: Callable[[gp.GPRegressor], torch.Tensor] = prior.default_log_prior
+        self._minimum_noise: float = prior.DEFAULT_MINIMUM_NOISE_VAR
+        # We cache the kernel parameters for initial values of fitting the next time.
+        # TODO(nabenabe): Make the cache lists system_attrs to make GPSampler stateless.
         self._gprs_cache_list: list[gp.GPRegressor] | None = None
         self._constraints_gprs_cache_list: list[gp.GPRegressor] | None = None
+        self._deterministic = deterministic_objective
+        self._constraints_func = constraints_func
+        self._warn_independent_sampling = warn_independent_sampling
+
+        if constraints_func is not None:
+            warn_experimental_argument("constraints_func")
+
+        # Control parameters of the acquisition function optimization.
+        self._n_preliminary_samples: int = 2048
+        # NOTE(nabenabe): ehvi in BoTorchSampler uses 20.
+        self._n_local_search = 10
+        self._tol = 1e-4
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
