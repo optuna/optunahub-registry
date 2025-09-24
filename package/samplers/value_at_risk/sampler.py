@@ -362,6 +362,22 @@ class RobustGPSampler(GPSampler):
         best_idx = np.argmax(acqf.eval_acqf_no_grad(X_train)).item()
         return trials[best_idx]
 
+    def sample_independent(
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        param_name: str,
+        param_distribution: BaseDistribution,
+    ) -> Any:
+        if self._warn_independent_sampling:
+            states = (TrialState.COMPLETE,)
+            complete_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+            if len(complete_trials) >= self._n_startup_trials:
+                self._log_independent_sampling(trial, param_name)
+        return self._independent_sampler.sample_independent(
+            study, trial, param_name, param_distribution
+        )
+
     def before_trial(self, study: Study, trial: FrozenTrial) -> None:
         self._independent_sampler.before_trial(study, trial)
 
