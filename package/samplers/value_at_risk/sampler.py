@@ -9,6 +9,7 @@ from optuna._gp import optim_mixed
 from optuna._gp import search_space as gp_search_space
 from optuna.samplers import GPSampler
 from optuna.samplers._base import _CONSTRAINTS_KEY
+from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
 from optuna.samplers._base import _process_constraints_after_trial
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
@@ -126,6 +127,31 @@ class RobustGPSampler(GPSampler):
         )
         self._gprs_cache_list: list[gp.GPRegressor] | None = None
         self._constraints_gprs_cache_list: list[gp.GPRegressor] | None = None
+
+    def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
+        msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
+            param_name=param_name,
+            trial_number=trial.number,
+            independent_sampler_name=self._independent_sampler.__class__.__name__,
+            sampler_name=self.__class__.__name__,
+            fallback_reason="dynamic search space is not supported by GPSampler",
+        )
+        _logger.warning(msg)
+
+    def reseed_rng(self) -> None:
+        self._rng.rng.seed()
+        self._independent_sampler.reseed_rng()
+
+    def infer_relative_search_space(
+        self, study: Study, trial: FrozenTrial
+    ) -> dict[str, BaseDistribution]:
+        search_space = {}
+        for name, distribution in self._intersection_search_space.calculate(study).items():
+            if distribution.single():
+                continue
+            search_space[name] = distribution
+
+        return search_space
 
     def _optimize_acqf(
         self, acqf: acqf_module.BaseAcquisitionFunc, best_params: np.ndarray | None
