@@ -362,6 +362,9 @@ class RobustGPSampler(GPSampler):
         best_idx = np.argmax(acqf.eval_acqf_no_grad(X_train)).item()
         return trials[best_idx]
 
+    def before_trial(self, study: Study, trial: FrozenTrial) -> None:
+        self._independent_sampler.before_trial(study, trial)
+
     def after_trial(
         self,
         study: Study,
