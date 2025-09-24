@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from optuna.distributions import BaseDistribution
-    from optuna.samplers._base import BaseSampler
     from optuna.study import Study
 
 import logging
