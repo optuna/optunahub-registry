@@ -9,6 +9,7 @@ from optuna._gp import optim_mixed
 from optuna._gp import search_space as gp_search_space
 from optuna.samplers import GPSampler
 from optuna.samplers._base import _CONSTRAINTS_KEY
+from optuna.samplers._base import _process_constraints_after_trial
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
@@ -360,6 +361,17 @@ class RobustGPSampler(GPSampler):
 
         best_idx = np.argmax(acqf.eval_acqf_no_grad(X_train)).item()
         return trials[best_idx]
+
+    def after_trial(
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        state: TrialState,
+        values: Sequence[float] | None,
+    ) -> None:
+        if self._constraints_func is not None:
+            _process_constraints_after_trial(self._constraints_func, study, trial, state)
+        self._independent_sampler.after_trial(study, trial, state, values)
 
 
 def _get_constraint_vals_and_feasibility(
