@@ -7,7 +7,6 @@ from typing import Any
 from typing import TYPE_CHECKING
 
 import numpy as np
-
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
@@ -15,14 +14,12 @@ from optuna.distributions import IntDistribution
 
 
 if TYPE_CHECKING:
-    import scipy.stats.qmc as qmc
-
     from optuna.trial import FrozenTrial
+    import scipy.stats.qmc as qmc
 else:
     from optuna._imports import _LazyImport
 
     qmc = _LazyImport("scipy.stats.qmc")
-
 
 _threading_lock = threading.Lock()
 
@@ -42,8 +39,12 @@ class SearchSpace:
         self._scale_types = np.empty(len(optuna_search_space), dtype=np.int64)
         self._bounds = np.empty((len(optuna_search_space), 2), dtype=float)
         self._steps = np.empty(len(optuna_search_space), dtype=float)
+        self._trusted_region = np.empty((len(optuna_search_space), 2), dtype=float)
         for i, distribution in enumerate(optuna_search_space.values()):
             if isinstance(distribution, CategoricalDistribution):
+                # Does not support Categorical Distribution
+                # todo(sawa3030): Remove Categorical Distribution support
+                assert False
                 self._scale_types[i] = _ScaleType.CATEGORICAL
                 self._bounds[i, :] = (0.0, len(distribution.choices))
                 self._steps[i] = 1.0
@@ -58,6 +59,9 @@ class SearchSpace:
         # NOTE(nabenabe): MyPy Redefinition for NumPy v2.2.0. (Cast signed int to int)
         self.discrete_indices = np.flatnonzero(self._steps > 0).astype(int)
         self.continuous_indices = np.flatnonzero(self._steps == 0.0).astype(int)
+
+    def set_trusted_region(self, trusted_region: np.ndarray) -> None:
+        self._trusted_region = trusted_region
 
     def get_normalized_params(
         self,
@@ -165,6 +169,7 @@ def _sample_normalized_params(
     scale_types = search_space._scale_types
     bounds = search_space._bounds
     steps = search_space._steps
+    trusted_region = search_space._trusted_region
 
     # Sobol engine likely shares its internal state among threads.
     # Without threading.Lock, ValueError exceptions are raised in Sobol engine as discussed in
@@ -174,7 +179,11 @@ def _sample_normalized_params(
     param_values = qmc_engine.random(n)
 
     for i in range(dim):
+        param_values[:, i] = _unnormalize_one_param(
+            param_values[:, i], scale_types[i], trusted_region[i], 0.0
+        )
         if scale_types[i] == _ScaleType.CATEGORICAL:
+            assert False  # todo: Think a better implementation
             param_values[:, i] = np.floor(param_values[:, i] * bounds[i, 1])
         elif steps[i] != 0.0:
             param_values[:, i] = _round_one_normalized_param(

@@ -4,17 +4,15 @@ import math
 from typing import TYPE_CHECKING
 
 import numpy as np
-
 from optuna._gp.scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 from optuna.logging import get_logger
 
 
 if TYPE_CHECKING:
-    import scipy.optimize as so
-    import torch
-
     from optuna._gp import batched_lbfgsb
     from optuna._gp.acqf import BaseAcquisitionFunc
+    import scipy.optimize as so
+    import torch
 else:
     from optuna import _LazyImport
 
@@ -76,7 +74,11 @@ def _gradient_ascent_batched(
         scaled_cont_xs_opt, neg_fvals_opt, n_iterations = batched_lbfgsb.batched_lbfgsb(
             func_and_grad=negative_acqf_with_grad,
             x0_batched=normalized_params[:, continuous_indices] / lengthscales,
-            bounds=[(0, 1 / s) for s in lengthscales],
+            # note(sawa3030): The original bounds were (0, 1/s)
+            bounds=[
+                (tr[0] / s, tr[1] / s)
+                for tr, s in zip(acqf.search_space._trusted_region, lengthscales)
+            ],
             pgtol=math.sqrt(tol),
             max_iters=200,
         )
@@ -155,8 +157,9 @@ def _discrete_line_search(
             return np.inf
         right = int(np.clip(np.searchsorted(grids, x), 1, len(grids) - 1))
         left = right - 1
-        neg_acqf_left, neg_acqf_right = negative_acqf_with_cache(left), negative_acqf_with_cache(
-            right
+        neg_acqf_left, neg_acqf_right = (
+            negative_acqf_with_cache(left),
+            negative_acqf_with_cache(right),
         )
         w_left = (grids[right] - x) / (grids[right] - grids[left])
         w_right = 1.0 - w_left
@@ -190,7 +193,6 @@ def _local_search_discrete(
     choices: np.ndarray,
     xtol: float,
 ) -> tuple[np.ndarray, float, bool]:
-
     # If the number of possible parameter values is small, we just perform an exhaustive search.
     # This is faster and better than the line search.
     MAX_INT_EXHAUSTIVE_SEARCH_PARAMS = 16
