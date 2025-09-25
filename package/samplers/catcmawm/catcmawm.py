@@ -85,6 +85,7 @@ class CatCmawmSampler(BaseSampler):
     def __init__(
         self,
         search_space: dict[str, BaseDistribution] | None = None,
+        sigma0: Optional[float] = None,
         cat_param: Optional[np.ndarray] = None,
         independent_sampler: Optional[BaseSampler] = None,
         seed: Optional[int] = None,
@@ -93,7 +94,7 @@ class CatCmawmSampler(BaseSampler):
     ) -> None:
         self.search_space = search_space
         self._x0 = None
-        self._sigma0 = None
+        self._sigma0 = sigma0
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._cma_rng = LazyRandomState(seed)
         self._intersection_search_space = IntersectionSearchSpace()
@@ -319,6 +320,7 @@ class CatCmawmSampler(BaseSampler):
             population_size=population_size,
             cat_param=self._cat_param,
             seed=self._cma_rng.rng.randint(1, 2**31 - 2),
+            sigma=self._sigma0,
         )
 
     def sample_independent(
