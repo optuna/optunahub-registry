@@ -4,9 +4,7 @@ from typing import Any
 from typing import TYPE_CHECKING
 
 import numpy as np
-
 import optuna
-from optuna._experimental import experimental_class
 from optuna._experimental import warn_experimental_argument
 from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
@@ -23,15 +21,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Sequence
 
-    import torch
-
-    import optuna._gp.acqf as acqf_module
-    import optuna._gp.gp as gp
-    import optuna._gp.optim_mixed as optim_mixed
-    import optuna._gp.prior as prior
-    import optuna._gp.search_space as gp_search_space
     from optuna.distributions import BaseDistribution
     from optuna.study import Study
+    import torch
 else:
     from optuna._imports import _LazyImport
 
@@ -43,6 +35,13 @@ else:
     prior = _LazyImport("optuna._gp.prior")
 
 import logging
+import warnings  # todo: remove this afterwards
+
+from ._gp import acqf as acqf_module
+from ._gp import gp as gp
+from ._gp import optim_mixed
+from ._gp import prior as prior
+from ._gp import search_space as gp_search_space
 
 
 _logger = logging.getLogger(__name__)
@@ -91,6 +90,8 @@ class TurBOSampler(BaseSampler):
         # NOTE(nabenabe): ehvi in BoTorchSampler uses 20.
         self._n_local_search = 10
         self._tol = 1e-4
+
+        self.length = 0.8
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -310,7 +311,18 @@ class TurBOSampler(BaseSampler):
                     else None
                 )
 
+        length_scale = acqf.length_scales
+        trusted_region_length = (
+            length_scale * self.length / (np.prod(length_scale) ** (1 / len(length_scale)))
+        )
+        trusted_region = np.empty((len(search_space), 2), dtype=float)
+        trusted_region[:, 0] = np.maximum(0.0, best_params - trusted_region_length / 2)
+        trusted_region[:, 1] = np.minimum(1.0, best_params + trusted_region_length / 2)
+        acqf.search_space.set_trusted_region(trusted_region)
+
         normalized_param = self._optimize_acqf(acqf, best_params)
+        warnings.warn(str(trusted_region))
+        warnings.warn(str(normalized_param))
         return internal_search_space.get_unnormalized_param(normalized_param)
 
     def sample_independent(
