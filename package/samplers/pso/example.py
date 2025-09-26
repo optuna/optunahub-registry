@@ -1,9 +1,3 @@
-"""
-This example is only for sampler.
-You can verify your sampler code using this file as well.
-Please feel free to remove this file if necessary.
-"""
-
 from __future__ import annotations
 
 import optuna
@@ -17,7 +11,7 @@ def objective(trial: optuna.Trial) -> float:
 
 
 package_name = "samplers/pso"
-test_local = True
+test_local = False
 
 n_trials = 100
 n_generations = 5
@@ -39,7 +33,6 @@ if test_local:
     )
 else:
     # This is an example of how to load a sampler from your fork of the optunahub-registry.
-    # Please remove repo_owner and ref arguments before submitting a pull request.
     sampler = optunahub.load_module(package=package_name).PSOSampler(
         {
             "x": optuna.distributions.FloatDistribution(-10, 10),
