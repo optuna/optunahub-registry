@@ -15,12 +15,6 @@ For details on the algorithm, see Kennedy and Eberhart (1995): \[https://doi.org
 
 ## APIs
 
-Please provide API documentation describing how to use your package's functionalities.
-The documentation format is arbitrary, but at least the important class/function names that you implemented should be listed here.
-More users will take advantage of your package by providing detailed and helpful documentation.
-
-**Example**
-
 - `PSOSampler(search_space: dict[str, BaseDistribution] | None = None, n_particles: int = 10, inertia: float = 0.5, cognitive: float = 1.5, social: float = 1.5, seed: int | None = None)`
   - `search_space`: A dictionary containing the search space that defines the parameter space. The keys are the parameter names and the values are [the parameter's distribution](https://optuna.readthedocs.io/en/stable/reference/distributions.html). If the search space is not provided, the sampler will infer the search space dynamically.
     Example:
