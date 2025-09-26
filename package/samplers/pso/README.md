@@ -24,7 +24,7 @@ For details on the algorithm, see Kennedy and Eberhart (1995): [Particle Swarm O
     Example:
     ```python
     search_space = {
-        "x": optuna.distributions.FloatDistribution(-510, 10),
+        "x": optuna.distributions.FloatDistribution(-10, 10),
         "y": optuna.distributions.FloatDistribution(-10, 10),
     }
     PSOSampler(search_space=search_space)
@@ -53,7 +53,7 @@ n_generations = 5
 sampler = optunahub.load_module(package="samplers/pso").PSOSampler(
     {
         "x": optuna.distributions.FloatDistribution(-10, 10),
-        "y": optuna.distributions.FloatDistribution(-10, 10, step=0.1),
+        "y": optuna.distributions.FloatDistribution(-10, 10),
     },
     n_particles=int(n_trials / n_generations),
     inertia=0.5,

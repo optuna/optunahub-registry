@@ -36,7 +36,7 @@ else:
     sampler = optunahub.load_module(package=package_name).PSOSampler(
         {
             "x": optuna.distributions.FloatDistribution(-10, 10),
-            "y": optuna.distributions.FloatDistribution(-10, 10, step=0.1),
+            "y": optuna.distributions.FloatDistribution(-10, 10),
         },
         n_particles=int(n_trials / n_generations),
         inertia=0.5,
