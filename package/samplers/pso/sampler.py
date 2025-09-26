@@ -11,7 +11,6 @@ import optunahub
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from typing import Any
     from typing import Dict
     from typing import List
     from typing import Optional
@@ -145,7 +144,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         self._acc_fitness: List[float] = []
 
         # Precomputed candidates for the next generation and the serving pointer.
-        self._next_candidates: List[Dict[str, Any]] = []
+        self._next_candidates: List[Dict[str, Union[int, float]]] = []
         self._next_index: int = 0
 
     def _lazy_init(self, search_space: Dict[str, BaseDistribution]) -> None:
@@ -200,7 +199,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         study: Study,
         _: FrozenTrial,
         search_space: Dict[str, BaseDistribution],
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, Union[int, float]]:
         """
         Provide parameters for the next trial.
         - If we have precomputed candidates, serve them in order (one per call).
@@ -369,12 +368,12 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         ]
         self._next_index = 0
 
-    def _decode_position_to_params(self, x: np.ndarray) -> Dict[str, Any]:
+    def _decode_position_to_params(self, x: np.ndarray) -> Dict[str, Union[int, float]]:
         """
         Convert a numeric position vector into a parameter dict containing only numeric params.
         Categorical params are intentionally omitted so Optuna's RandomSampler will sample them.
         """
-        params: Dict[str, Any] = {}
+        params: Dict[str, Union[int, float]] = {}
         for i, name in enumerate(self.param_names):
             dist = self._numeric_dists[name]
             lo = float(self.lower_bound[i])
