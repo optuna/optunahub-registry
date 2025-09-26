@@ -9,9 +9,13 @@ license: MIT License
 
 ## Abstract
 
-Particle Swarm Optimization (PSO) is a population-based stochastic optimizer inspired by flocking behavior, where particles iteratively adjust their positions using personal and global bests to search for optima. This sampler currently supports single-objective, continuous optimization only. Multi-objective optimization and categorical variables are not supported.
+Particle Swarm Optimization (PSO) is a population-based stochastic optimizer inspired by flocking behavior, where particles iteratively adjust their positions using personal and global bests to search for optima. This sampler supports single-objective, continuous optimization only.
 
-For details on the algorithm, see Kennedy and Eberhart (1995): \[https://doi.org/10.1109/ICNN.1995.488968\](Particle Swarm Optimization) (https://doi.org/10.1109/ICNN.1995.488968).
+> Note: Categorical distributions are suggested by the underlaying RandomSampler.
+
+> Note: Multi-objective optimization is not supported.
+
+For details on the algorithm, see Kennedy and Eberhart (1995): [Particle Swarm Optimization](https://doi.org/10.1109/ICNN.1995.488968).
 
 ## APIs
 

@@ -97,7 +97,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
     - First generation: returns {} from sample_relative so Optuna's RandomSampler initializes the population.
     - After each trial (in after_trial), we accumulate COMPLETE results. When n_particles results
       are collected, update the swarm and compute the next generation candidates.
-    - Supports numeric (Float/Int) distributions. Categorical distributions are not supported.
+    - Supports numeric (Float/Int) distributions. Categorical distributions are suggested through RandomSampler.
     """
 
     def __init__(
@@ -110,7 +110,6 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         seed: Optional[int] = None,
     ) -> None:
         super().__init__(search_space, seed)
-
         if n_particles <= 0:
             raise ValueError("n_particles must be > 0.")
         if inertia < 0.0:
@@ -123,14 +122,15 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         self.cognitive: float = cognitive
         self.social: float = social
 
-        # RNG for PSO internals (independent from Optuna's RandomSampler).
         self._rng: np.random.RandomState = np.random.RandomState(seed)
 
         # Search space metadata (initialized lazily).
         self._initialized: bool = False
         self.dim: int = 0
-        self.param_names: List[str] = []
-        self._dists: Dict[str, BaseDistribution] = {}
+        # Numeric-only names used for PSO vectorization.
+        self.param_names: List[str] = []  # numeric param names
+        self.categorical_param_names: List[str] = []
+        self._numeric_dists: Dict[str, BaseDistribution] = {}
         self.lower_bound: np.ndarray = np.array([], dtype=float)
         self.upper_bound: np.ndarray = np.array([], dtype=float)
         self.v_max: np.ndarray = np.array([], dtype=float)
@@ -149,25 +149,40 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         self._next_index: int = 0
 
     def _lazy_init(self, search_space: Dict[str, BaseDistribution]) -> None:
-        """Initialize internal state based on the current search space."""
-        # Categorical distributions are not supported.
-        if any(
-            isinstance(dist, optuna.distributions.CategoricalDistribution)
-            for dist in search_space.values()
-        ):
-            raise NotImplementedError("CategoricalDistribution is not supported in PSOSampler.")
+        """Initialize internal state based on the current search space (numeric-only for PSO)."""
+        # Split numeric vs. categorical distributions.
+        self.param_names = []
+        self.categorical_param_names = []
+        self._numeric_dists = {}
 
-        # Fix parameter ordering to ensure consistent vectorization.
-        self.param_names = list(search_space.keys())
-        self._dists = dict(search_space)
+        for name, dist in search_space.items():
+            if isinstance(
+                dist,
+                (optuna.distributions.FloatDistribution, optuna.distributions.IntDistribution),
+            ):
+                self.param_names.append(name)  # numeric params used by PSO
+                self._numeric_dists[name] = dist
+            elif isinstance(dist, optuna.distributions.CategoricalDistribution):
+                self.categorical_param_names.append(name)
+            else:
+                # Unknown distribution types are ignored by PSO and will be sampled independently.
+                self.categorical_param_names.append(name)
+
         self.dim = len(self.param_names)
 
-        # Bounds from distributions (Int/Float expected).
-        self.lower_bound = np.array([search_space[n].low for n in self.param_names], dtype=float)
-        self.upper_bound = np.array([search_space[n].high for n in self.param_names], dtype=float)
-
-        # Velocity clamp per dimension: full range by default.
-        self.v_max = (self.upper_bound - self.lower_bound).astype(float)
+        if self.dim > 0:
+            self.lower_bound = np.array(
+                [self._numeric_dists[n].low for n in self.param_names], dtype=float
+            )
+            self.upper_bound = np.array(
+                [self._numeric_dists[n].high for n in self.param_names], dtype=float
+            )
+            self.v_max = (self.upper_bound - self.lower_bound).astype(float)
+        else:
+            # No numeric params -> PSO operates on 0-D; RandomSampler will handle all params.
+            self.lower_bound = np.array([], dtype=float)
+            self.upper_bound = np.array([], dtype=float)
+            self.v_max = np.array([], dtype=float)
 
         # Reset dynamic state.
         self.particles = []
@@ -183,7 +198,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
     def sample_relative(
         self,
         study: Study,
-        trial: FrozenTrial,
+        _: FrozenTrial,
         search_space: Dict[str, BaseDistribution],
     ) -> Dict[str, Any]:
         """
@@ -191,22 +206,30 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         - If we have precomputed candidates, serve them in order (one per call).
         - Otherwise, return {} to delegate sampling to Optuna's RandomSampler.
         """
-        # Prevent multi-objective usage early.
         self._ensure_single_objective(study)
 
         if len(search_space) == 0:
             return {}
 
-        if not self._initialized or self.dim != len(search_space):
+        # Re-init if the count of numeric params changed.
+        numeric_count = sum(
+            isinstance(
+                dist,
+                (optuna.distributions.FloatDistribution, optuna.distributions.IntDistribution),
+            )
+            for dist in search_space.values()
+        )
+        if not self._initialized or self.dim != numeric_count:
             self._lazy_init(search_space)
 
-        # Serve next precomputed candidate if available.
+        # Serve next precomputed numeric candidate if available.
         if self._next_index < len(self._next_candidates):
             params = self._next_candidates[self._next_index]
             self._next_index += 1
+            # Note: Only numeric params are returned; categorical params will be sampled independently.
             return params
 
-        # Otherwise, use RandomSampler for this trial (e.g., initial population or awaiting refill).
+        # No precomputed numeric candidates -> delegate to RandomSampler for all params.
         return {}
 
     def after_trial(
@@ -307,7 +330,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
             raise NotImplementedError("PSOSampler does not support multi-objective studies.")
 
     def _encode_trial_params(self, trial: FrozenTrial) -> np.ndarray:
-        """Convert a trial's params to a vector in the fixed param order and clip to bounds."""
+        """Vectorize numeric params from a trial in the fixed numeric order and clip to bounds."""
         vec = np.empty(self.dim, dtype=float)
         for i, name in enumerate(self.param_names):
             vec[i] = float(trial.params.get(name, self.lower_bound[i]))
@@ -340,7 +363,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         self.gbest_score = float(best.pbest_score)
 
     def _prepare_next_candidates(self) -> None:
-        """Convert current particle positions to parameter dicts and reset the serve pointer."""
+        """Convert current numeric particle positions to parameter dicts and reset the serve pointer."""
         self._next_candidates = [
             self._decode_position_to_params(p.position) for p in self.particles
         ]
@@ -348,13 +371,12 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
 
     def _decode_position_to_params(self, x: np.ndarray) -> Dict[str, Any]:
         """
-        Convert a numeric position vector into a parameter dict compatible with Optuna.
-        - IntDistribution values are snapped to the nearest valid integer (considering step).
-        - FloatDistribution values are returned as floats.
+        Convert a numeric position vector into a parameter dict containing only numeric params.
+        Categorical params are intentionally omitted so Optuna's RandomSampler will sample them.
         """
         params: Dict[str, Any] = {}
         for i, name in enumerate(self.param_names):
-            dist = self._dists[name]
+            dist = self._numeric_dists[name]
             lo = float(self.lower_bound[i])
             hi = float(self.upper_bound[i])
             xi = float(np.clip(x[i], lo, hi))
@@ -369,4 +391,6 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
                 val = float(xi)
 
             params[name] = val
+
+        # Note: No categorical params here. They will be sampled independently by RandomSampler.
         return params
