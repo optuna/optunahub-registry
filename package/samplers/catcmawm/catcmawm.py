@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import math
 import pickle
 from typing import Any
@@ -18,9 +17,9 @@ import numpy as np
 import optuna
 from optuna import logging
 from optuna._imports import _LazyImport
-from optuna._transform import _SearchSpaceTransform
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
+from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 from optuna.samplers import BaseSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -85,6 +84,8 @@ class CatCmawmSampler(BaseSampler):
     def __init__(
         self,
         search_space: dict[str, BaseDistribution] | None = None,
+        mean: Optional[np.ndarray] = None,
+        cov: Optional[np.ndarray] = None,
         sigma0: Optional[float] = None,
         cat_param: Optional[np.ndarray] = None,
         independent_sampler: Optional[BaseSampler] = None,
@@ -93,7 +94,8 @@ class CatCmawmSampler(BaseSampler):
         popsize: Optional[int] = None,
     ) -> None:
         self.search_space = search_space
-        self._x0 = None
+        self._mean = mean
+        self._cov = cov
         self._sigma0 = sigma0
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._cma_rng = LazyRandomState(seed)
@@ -147,15 +149,13 @@ class CatCmawmSampler(BaseSampler):
         # Then, for numerical parameters, we normalize them to [0, 1].
         # For categorical parameters, we convert them to the number of choices, e.g.,
         # c1 = ['a', 'b', 'c'], c2 = ['d', 'e'] -> cat_num = [3, 2].
-        continuous_search_space = {
-            k: v
-            for k, v in search_space.items()
-            if not isinstance(v, CategoricalDistribution) and not isinstance(v, IntDistribution)
+        float_search_space = {
+            k: v for k, v in search_space.items() if isinstance(v, FloatDistribution)
         }
 
-        trans = _SearchSpaceTransform(
-            continuous_search_space, transform_step=True, transform_0_1=True
-        )
+        float_bounds = []
+        for k, v in float_search_space.items():
+            float_bounds.append((v.low, v.high))
 
         integer_search_space = {
             k: v for k, v in search_space.items() if isinstance(v, IntDistribution)
@@ -169,10 +169,18 @@ class CatCmawmSampler(BaseSampler):
             k: v for k, v in search_space.items() if isinstance(v, CategoricalDistribution)
         }
 
-        cat_num = np.asarray([len(v.choices) for v in categorical_search_space.values()])
+        cat_num = [len(v.choices) for v in categorical_search_space.values()]
+
+        num_features = sum(
+            [
+                len(float_search_space),
+                len(integer_search_space),
+                len(categorical_search_space),
+            ]
+        )
 
         if self._initial_popsize is None:
-            self._initial_popsize = 4 + math.floor(3 * math.log(len(trans.bounds)))
+            self._initial_popsize = 4 + math.floor(3 * math.log(num_features))
 
         popsize: int = self._initial_popsize
         if len(completed_trials) != 0:
@@ -189,7 +197,10 @@ class CatCmawmSampler(BaseSampler):
 
         if optimizer is None:
             optimizer = self._init_optimizer(
-                trans, int_values, cat_num, population_size=self._initial_popsize
+                float_bounds,
+                int_values,
+                cat_num,
+                population_size=self._initial_popsize,
             )
 
         solution_trials = self._get_solution_trials(completed_trials, optimizer.generation)
@@ -240,16 +251,17 @@ class CatCmawmSampler(BaseSampler):
         trial.set_user_attr("_v_raw", solution._v_raw)
 
         # Convert cmaes.CatCma's internal representation to Optuna's representation.
-        continuous_values = trans.untransform(solution.x)
+        float_values = {k: v for k, v in zip(solution.x, float_search_space.keys())}
 
         integer_values = {k: v for k, v in zip(solution.z, integer_search_space.keys())}
+
         # cmaes.CatCma returns the categorical choice as one-hot vectors, e.g.,
         # [[True False, False], [False, True]].
         categorical_values = {
             k: categorical_search_space[k].choices[p.argmax()]
             for p, k in zip(solution.c, categorical_search_space.keys())
         }
-        external_values = {**continuous_values, **integer_values, **categorical_values}
+        external_values = {**float_values, **integer_values, **categorical_values}
 
         return external_values
 
@@ -307,19 +319,20 @@ class CatCmawmSampler(BaseSampler):
 
     def _init_optimizer(
         self,
-        trans: _SearchSpaceTransform,
-        int_values: np.ndarray,
-        cat_num: np.ndarray,
+        float_bounds: List,
+        int_values: List,
+        cat_num: List,
         population_size: Optional[int] = None,
-        randomize_start_point: bool = False,
     ) -> "CmaClass":
         return cmaes.CatCMAwM(  # type: ignore
-            x_space=trans.bounds,
+            x_space=float_bounds,
             z_space=int_values,
             c_space=cat_num,
             population_size=population_size,
             cat_param=self._cat_param,
             seed=self._cma_rng.rng.randint(1, 2**31 - 2),
+            mean=self._mean,
+            cov=self._cov,
             sigma=self._sigma0,
         )
 
@@ -341,18 +354,6 @@ class CatCmawmSampler(BaseSampler):
         for t in study._get_trials(deepcopy=False, use_cache=True):
             if t.state == TrialState.COMPLETE:
                 complete_trials.append(t)
-            elif (
-                t.state == TrialState.PRUNED
-                and len(t.intermediate_values) > 0
-                and self._consider_pruned_trials
-            ):
-                _, value = max(t.intermediate_values.items())
-                if value is None:
-                    continue
-                # We rewrite the value of the trial `t` for sampling, so we need a deepcopy.
-                copied_t = copy.deepcopy(t)
-                copied_t.value = value
-                complete_trials.append(copied_t)
         return complete_trials
 
     def _get_solution_trials(

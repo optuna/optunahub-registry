@@ -34,7 +34,7 @@ def objective(trial: optuna.Trial) -> float:
 
 # TODO: Change package_name to test your package.
 package_name = "samplers/catcmawm"
-test_local = False
+test_local = True
 
 if test_local:
     # This is an example of how to load a sampler from your local optunahub-registry.
