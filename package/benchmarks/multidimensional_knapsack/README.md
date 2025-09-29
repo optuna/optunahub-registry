@@ -9,7 +9,7 @@ license: MIT License
 
 ## Abstract
 
-The Multi-dimensional Knapsack Problem (MKP) is a fundamental combinatorial optimization problem that generalizes the classic knapsack problem to multiple dimensions. In this problem, each item has multiple attributes (e.g., weight, volume, size) and the goal is to maximize the total value of selected items while satisfying constraints on each attribute. Despite its conceptual simplicity, the MKP is NP-hard and appears frequently in real-world applications such as resource allocation, capital budgeting, and project selection.
+The Multi-dimensional Knapsack Problem (MKP) is a fundamental combinatorial optimization problem that generalizes the classic knapsack problem to multiple dimensions. In this problem, each item has multiple attributes (e.g., weight, volume, size) and the goal is to maximize the total value of selected items while satisfying constraints on each attribute. Despite its conceptual simplicity, the MKP is NP-hard and appears frequently in real-world applications, such as resource allocation, capital budgeting, and project selection, as remarked in recent surveys e.g.,  [Zamuda et al., 2018](https://doi.org/10.1145/3205651.3208307) and [Skackauskas and Kalganova, 2022](https://doi.org/10.1016/j.sasc.2022.200041).
 
 The mathematical formulation is:
 
