@@ -307,6 +307,13 @@ class RobustGPSampler(BaseSampler):
     ) -> dict[str, Any]:
         if search_space == {}:
             return {}
+        if not any(
+            isinstance(v, optuna.distributions.FloatDistribution) and v.step is None and not v.log
+            for v in search_space.values()
+        ):
+            raise ValueError(
+                "RobustGPSampler does not support search space without noisy parameters."
+            )
 
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
