@@ -194,7 +194,6 @@ class CARBOSampler(BaseSampler):
             gpr=gpr,
             constraints_gpr_list=constraints_gpr_list,
             constraints_threshold_list=constraints_threshold_list,
-            best_params=None,
             rng=self._rng.rng,
             rho=self._rho,
             beta=self._beta,

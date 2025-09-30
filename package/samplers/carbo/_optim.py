@@ -64,7 +64,6 @@ def suggest_by_carbo(
     gpr: GPRegressor,
     constraints_gpr_list: list[GPRegressor] | None,
     constraints_threshold_list: list[float] | None,
-    best_params: np.ndarray | None,
     rng: np.random.RandomState | None,
     rho: float,
     beta: float,
