@@ -306,9 +306,9 @@ class RobustGPSampler(BaseSampler):
         internal_search_space = gp_search_space.SearchSpace(search_space)
         normalized_params = internal_search_space.get_normalized_params(trials)
 
-        _sign = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
+        signs = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
         standardized_score_vals, _, _ = _standardize_values(
-            _sign * np.array([trial.values for trial in trials])
+            signs * np.array([trial.values for trial in trials])
         )
 
         if (
@@ -378,8 +378,8 @@ class RobustGPSampler(BaseSampler):
         search_space = self.infer_relative_search_space(study, trials[0])
         internal_search_space = gp_search_space.SearchSpace(search_space)
         X_train = internal_search_space.get_normalized_params(trials)
-        _sign = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
-        y_train, _, _ = _standardize_values(_sign * np.array([trial.values for trial in trials]))
+        signs = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
+        y_train, _, _ = _standardize_values(signs * np.array([trial.values for trial in trials]))
         is_categorical = internal_search_space.is_categorical
         gpr = gp.fit_kernel_params(
             X=X_train,
