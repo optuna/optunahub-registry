@@ -190,18 +190,10 @@ class CARBOSampler(BaseSampler):
                 )
                 for cache, c_train in zip(_cache_list, C_train.T)
             ]
-        if len(trials):
-            warmstart_index = np.argmax(
-                [t.system_attrs.get(_WORST_ROBUST_ACQF_KEY, -np.inf) for t in trials]
-            )
-        else:
-            warmstart_index = None
-        best_params = None if warmstart_index is None else X_train[warmstart_index].numpy()
         robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
             constraints_gpr_list=constraints_gpr_list,
             constraints_threshold_list=constraints_threshold_list,
-            best_params=best_params,
             rng=self._rng.rng,
             rho=self._rho,
             beta=self._beta,
