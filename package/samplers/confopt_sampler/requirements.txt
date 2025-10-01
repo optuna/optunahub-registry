@@ -1,0 +1,4 @@
+optuna
+optunahub
+numpy >= 1.20.0
+confopt >= 2.0.1
