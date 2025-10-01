@@ -291,19 +291,36 @@ class RobustGPSampler(BaseSampler):
         else:
             assert False, "Should not reach here."
 
+    def _verify_search_space(self, search_space: dict[str, BaseDistribution]) -> None:
+        noisy_param_cands = [
+            k
+            for k, v in search_space.items()
+            if isinstance(v, optuna.distributions.FloatDistribution)
+            and v.step is None
+            and not v.log
+        ]
+        noise_param_names: list[str]
+        if self._uniform_input_noise_ranges is not None:
+            noise_param_names = list(self._uniform_input_noise_ranges.keys())
+        elif self._normal_input_noise_stdevs is not None:
+            noise_param_names = list(self._normal_input_noise_stdevs.keys())
+        else:
+            assert "Should not reach here."
+
+        if len(set(noisy_param_cands) & set(noise_param_names)) == 0:
+            raise ValueError(
+                "RobustGPSampler needs at least one noisy parameter defined in the search space. "
+                f"However, no noisy parameters are found. Noisy parameter candidates are "
+                f"{noisy_param_cands}, but input noise is specified for {noise_param_names}."
+            )
+
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
         if search_space == {}:
             return {}
-        if not any(
-            isinstance(v, optuna.distributions.FloatDistribution) and v.step is None and not v.log
-            for v in search_space.values()
-        ):
-            raise ValueError(
-                "RobustGPSampler does not support search space without noisy parameters."
-            )
 
+        self._verify_search_space(search_space)
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
 

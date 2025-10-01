@@ -40,8 +40,10 @@ def get_gp_sampler(
         n_startup_trials=n_startup_trials,
         seed=seed,
         deterministic_objective=deterministic_objective,
+        # NOTE: We set empty dict to avoid the assertion error in the constructor.
         uniform_input_noise_ranges={},
     )
+    # NOTE: Replace {} with None to unset the noise setting. We set noise in set_noise_to_sampler.
     sampler._uniform_input_noise_ranges = None
     # NOTE: Replace these attributes to reduce the execution time of tests.
     sampler._n_preliminary_samples = 512
@@ -67,21 +69,21 @@ parametrize_noise_type = pytest.mark.parametrize("noise_type", ["uniform", "norm
 parametrize_sampler = pytest.mark.parametrize(
     "sampler_class",
     [
-        lambda: get_gp_sampler(n_startup_trials=0),
-        lambda: get_gp_sampler(n_startup_trials=0, deterministic_objective=True),
+        lambda: get_gp_sampler(n_startup_trials=1),
+        lambda: get_gp_sampler(n_startup_trials=1, deterministic_objective=True),
     ],
 )
 parametrize_relative_sampler = pytest.mark.parametrize(
     "relative_sampler_class",
     [
-        lambda: get_gp_sampler(n_startup_trials=0),
-        lambda: get_gp_sampler(n_startup_trials=0, deterministic_objective=True),
+        lambda: get_gp_sampler(n_startup_trials=1),
+        lambda: get_gp_sampler(n_startup_trials=1, deterministic_objective=True),
     ],
 )
 
 
 sampler_class_with_seed: dict[str, Callable[[int], BaseSampler]] = {
-    "GPSampler": lambda seed: get_gp_sampler(seed=seed, n_startup_trials=0),
+    "GPSampler": lambda seed: get_gp_sampler(seed=seed, n_startup_trials=1),
 }
 param_sampler_with_seed = []
 param_sampler_name_with_seed = []
@@ -96,7 +98,7 @@ parametrize_sampler_name_with_seed = pytest.mark.parametrize(
 
 @pytest.mark.parametrize(
     "sampler_class,expected_has_rng,expected_has_another_sampler",
-    [(lambda: get_gp_sampler(n_startup_trials=0), True, True)],
+    [(lambda: get_gp_sampler(n_startup_trials=1), True, True)],
 )
 def test_sampler_reseed_rng(
     sampler_class: Callable[[], BaseSampler],
