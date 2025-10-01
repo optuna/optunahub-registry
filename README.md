@@ -1,7 +1,7 @@
 OptunaHub Registry
 ==================
 
-![OptunaHub](https://github.com/user-attachments/assets/ee24b6eb-a431-4e02-ae52-c2538ffe01ee)
+![OptunaHub](https://github.com/user-attachments/assets/df21f6d7-9f39-48a1-a824-6b060f7503e2)
 
 :link: [**OptunaHub**](https://hub.optuna.org/)
 | :page_with_curl: [**Docs**](https://optuna.github.io/optunahub/)
