@@ -3,7 +3,7 @@ author: Optuna Team
 title: Multi-dimensional Knapsack Problem
 description: The multi-dimensional knapsack problem is a combinatorial optimization problem that generalizes the classic knapsack problem to multiple dimensions.
 tags: [benchmark, discrete optimization, combinatorial optimization, real world problem]
-optuna_versions: [4.1.0]
+optuna_versions: [4.5.0]
 license: MIT License
 ---
 
