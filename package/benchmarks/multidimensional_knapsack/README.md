@@ -13,20 +13,22 @@ The Multi-dimensional Knapsack Problem (MKP) is a fundamental combinatorial opti
 
 The mathematical formulation is:
 
-```
-maximize:   sum_{i=1}^n v_i * x_i
-subject to: sum_{i=1}^n w_ij * x_i <= c_j  for j = 1, ..., m
-            x_i in {0, 1}  for i = 1, ..., n
-```
+$$
+\begin{align*}
+\max \quad & \sum_{i=1}^n v_i x_i \\
+\text{s.t.} \quad & \sum_{i=1}^n w_{ij} x_i \leq c_j, \quad j = 1, \ldots, m \\
+& x_i \in \{0, 1\}, \quad i = 1, \ldots, n
+\end{align*}
+$$
 
 where:
 
-- n = number of items
-- m = number of dimensions (constraints)
-- v_i = value of item i
-- w_ij = weight of item i in dimension j
-- c_j = capacity constraint for dimension j
-- x_i = binary variable indicating whether item i is selected
+- $n$ = number of items
+- $m$ = number of dimensions (constraints)
+- $v_i$ = value of item $i$
+- $w_{ij}$ = weight of item $i$ in dimension $j$
+- $c_j$ = capacity constraint for dimension $j$
+- $x_i$ = binary variable indicating whether item $i$ is selected
 
 ## APIs
 
