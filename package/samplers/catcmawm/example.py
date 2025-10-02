@@ -32,24 +32,7 @@ def objective(trial: optuna.Trial) -> float:
     )
 
 
-# TODO: Change package_name to test your package.
-package_name = "samplers/catcmawm"
-test_local = True
-
-if test_local:
-    # This is an example of how to load a sampler from your local optunahub-registry.
-    module = optunahub.load_local_module(
-        package=package_name,
-        registry_root="/home/jacob/work/optunahub-registry/package",  # Path to the root of the optunahub-registry.
-    )
-else:
-    # This is an example of how to load a sampler from your fork of the optunahub-registry.
-    # Please remove repo_owner and ref arguments before submitting a pull request.
-    module = optunahub.load_module(
-        package=package_name,
-        repo_owner="jpfeil",
-        ref="94926a1ff8b8304f51f7a0e535f1a6cacacaef9c",
-    )
+module = optunahub.load_module(package="samplers/catcmawm")
 
 study = optuna.create_study(sampler=module.CatCmawmSampler())
 study.optimize(objective, n_trials=20)
