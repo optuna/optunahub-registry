@@ -48,8 +48,8 @@ def objective(trial: optuna.Trial) -> float:
     
     
 module = optunahub.load_module(
-        package="samplers/catcmawm",
-    ) 
+    package="samplers/catcmawm",
+) 
 
 study = optuna.create_study(sampler=module.CatCmawmSampler())
 study.optimize(objective, n_trials=20)
