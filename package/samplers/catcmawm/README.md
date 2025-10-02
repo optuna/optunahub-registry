@@ -10,7 +10,8 @@ license: MIT License
 ## Abstract
 
 CatCMA with Margin \[Hamano et al. 2025\]
-CatCMA with Margin (CatCMAwM) is a method for mixed-variable optimization problems, simultaneously optimizing continuous, integer, and categorical variables. CatCMAwM extends CatCMA by introducing a novel integer handling mechanism, and supports arbitrary combinations of continuous, integer, and categorical variables in a unified framework. \[https://github.com/CyberAgentAILab/cmaes\]
+CatCMA with Margin (CatCMAwM) is a method for mixed-variable optimization problems, simultaneously optimizing continuous, integer, and categorical variables. CatCMAwM extends CatCMA by introducing a novel integer handling mechanism, and supports arbitrary combinations of continuous, integer, and categorical variables in a unified framework.
+This Optuna sampler uses https://github.com/CyberAgentAILab/cmaes under the hood, so please refer to it for details.
 
 ## APIs
 
