@@ -52,7 +52,7 @@ $ pip install confopt
 or via the OptunaHub requirements, via:
 
 ```bash
-pip install -r https://hub.optuna.org/samplers/confopt/requirements.txt
+pip install -r https://hub.optuna.org/samplers/confopt_sampler/requirements.txt
 ```
 
 ## Example
