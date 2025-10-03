@@ -91,7 +91,26 @@ class TurBOSampler(BaseSampler):
         self._n_local_search = 10
         self._tol = 1e-4
 
-        self.length = 0.8
+        self._init_length = 0.8
+        self._max_length = 1.6
+        self._min_length = 0.5**7
+        self._success_tolerance = 3
+        # note(sawa3030): original value was max(4/batch_size, n_dim/batch_size)
+        self._failure_tolerance = 4
+        self._length = self._init_length
+        self._n_consecutive_success = 0
+        self._n_consecutive_failure = 0
+        self._current_trusted_region_index = 0
+        self._best_value_in_current_trusted_region = None
+        self._num_of_completed_trials_in_current_trusted_region = 0
+
+    def reset_trusted_region(self) -> None:
+        self._length = self._init_length
+        self._n_consecutive_success = 0
+        self._n_consecutive_failure = 0
+        self._current_trusted_region_index += 1
+        self._best_value_in_current_trusted_region = None
+        self._num_of_completed_trials_in_current_trusted_region = 0
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -192,13 +211,24 @@ class TurBOSampler(BaseSampler):
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
+        study._storage.set_trial_system_attr(
+            trial._trial_id, "turbo_trusted_region_index", self._current_trusted_region_index
+        )
+
         if search_space == {}:
             return {}
 
         states = (TrialState.COMPLETE,)
-        trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+        all_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+        trials = []
+        for t in all_trials:
+            if (
+                t.system_attrs.get("turbo_trusted_region_index", -1)
+                == self._current_trusted_region_index
+            ):
+                trials.append(t)
 
-        if len(trials) < self._n_startup_trials:
+        if self._num_of_completed_trials_in_current_trusted_region < self._n_startup_trials:
             return {}
 
         internal_search_space = gp_search_space.SearchSpace(search_space)
@@ -313,7 +343,7 @@ class TurBOSampler(BaseSampler):
 
         length_scale = acqf.length_scales
         trusted_region_length = (
-            length_scale * self.length / (np.prod(length_scale) ** (1 / len(length_scale)))
+            length_scale * self._length / (np.prod(length_scale) ** (1 / len(length_scale)))
         )
         trusted_region = np.empty((len(search_space), 2), dtype=float)
         trusted_region[:, 0] = np.maximum(0.0, best_params - trusted_region_length / 2)
@@ -321,6 +351,8 @@ class TurBOSampler(BaseSampler):
         acqf.search_space.set_trusted_region(trusted_region)
 
         normalized_param = self._optimize_acqf(acqf, best_params)
+        warnings.warn(str(self._current_trusted_region_index) + " th trusted region")
+        warnings.warn(str(self._length) + " length")
         warnings.warn(str(trusted_region))
         warnings.warn(str(normalized_param))
         return internal_search_space.get_unnormalized_param(normalized_param)
@@ -351,6 +383,43 @@ class TurBOSampler(BaseSampler):
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
+        assert len(values) == 1  # todo(sawa3030): support multi-objective
+        if self._num_of_completed_trials_in_current_trusted_region >= self._n_startup_trials:
+            if self._best_value_in_current_trusted_region is not None:
+                if values is not None:
+                    if study.direction == StudyDirection.MINIMIZE:
+                        if values[0] < self._best_value_in_current_trusted_region:
+                            self._n_consecutive_success += 1
+                            self._n_consecutive_failure = 0
+                            self._best_value_in_current_trusted_region = values[0]
+                        else:
+                            self._n_consecutive_success = 0
+                            self._n_consecutive_failure += 1
+                    else:
+                        if values[0] > self._best_value_in_current_trusted_region:
+                            self._n_consecutive_success += 1
+                            self._n_consecutive_failure = 0
+                            self._best_value_in_current_trusted_region = values[0]
+                        else:
+                            self._n_consecutive_success = 0
+                            self._n_consecutive_failure += 1
+            else:
+                if values is not None:
+                    self._best_value_in_current_trusted_region = values[0]
+
+        if self._n_consecutive_success >= self._success_tolerance:
+            self._length = min(self._length * 2.0, self._max_length)
+            self._n_consecutive_success = 0
+            self._n_consecutive_failure = 0
+        elif self._n_consecutive_failure >= self._failure_tolerance:
+            self._length = self._length / 2.0
+            self._n_consecutive_success = 0
+            self._n_consecutive_failure = 0
+            if self._length < self._min_length:
+                self.reset_trusted_region()
+
+        self._num_of_completed_trials_in_current_trusted_region += 1
+
         if self._constraints_func is not None:
             _process_constraints_after_trial(self._constraints_func, study, trial, state)
         self._independent_sampler.after_trial(study, trial, state, values)
