@@ -63,7 +63,7 @@ class TurBOSampler(BaseSampler):
         *,
         seed: int | None = None,
         independent_sampler: BaseSampler | None = None,
-        n_startup_trials: int = 10,
+        n_startup_trials: int = 2,  # note(sawa3030): 2*dim is recommended in the original paper
         deterministic_objective: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
         warn_independent_sampling: bool = True,
@@ -91,26 +91,41 @@ class TurBOSampler(BaseSampler):
         self._n_local_search = 10
         self._tol = 1e-4
 
+        # hyperparameters of TurBOSampler
         self._init_length = 0.8
         self._max_length = 1.6
         self._min_length = 0.5**7
         self._success_tolerance = 3
         # note(sawa3030): original value was max(4/batch_size, n_dim/batch_size)
         self._failure_tolerance = 4
-        self._length = self._init_length
-        self._n_consecutive_success = 0
-        self._n_consecutive_failure = 0
-        self._current_trusted_region_index = 0
-        self._best_value_in_current_trusted_region = None
-        self._num_of_completed_trials_in_current_trusted_region = 0
+        self._n_trust_region = 5
 
-    def reset_trusted_region(self) -> None:
-        self._length = self._init_length
-        self._n_consecutive_success = 0
-        self._n_consecutive_failure = 0
-        self._current_trusted_region_index += 1
-        self._best_value_in_current_trusted_region = None
-        self._num_of_completed_trials_in_current_trusted_region = 0
+        self._current_trusted_region_index: set[int] = set(range(self._n_trust_region))
+        self._length: dict[int, float] = {
+            i: self._init_length for i in self._current_trusted_region_index
+        }
+        self._n_consecutive_success: dict[int, int] = {
+            i: 0 for i in self._current_trusted_region_index
+        }
+        self._n_consecutive_failure: dict[int, int] = {
+            i: 0 for i in self._current_trusted_region_index
+        }
+        self._best_value_in_current_trusted_region: dict[int, float | None] = {
+            i: None for i in self._current_trusted_region_index
+        }
+        self._num_of_completed_trials_in_current_trusted_region: dict[int, int] = {
+            i: 0 for i in self._current_trusted_region_index
+        }
+
+    def reset_trusted_region(self, delete_trusted_region_id: int) -> None:
+        new_trusted_region_id = max(self._current_trusted_region_index) + 1
+        self._length[new_trusted_region_id] = self._init_length
+        self._current_trusted_region_index.add(new_trusted_region_id)
+        self._current_trusted_region_index.remove(delete_trusted_region_id)
+        self._n_consecutive_success[new_trusted_region_id] = 0
+        self._n_consecutive_failure[new_trusted_region_id] = 0
+        self._best_value_in_current_trusted_region[new_trusted_region_id] = None
+        self._num_of_completed_trials_in_current_trusted_region[new_trusted_region_id] = 0
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -139,12 +154,12 @@ class TurBOSampler(BaseSampler):
 
     def _optimize_acqf(
         self, acqf: acqf_module.BaseAcquisitionFunc, best_params: np.ndarray | None
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, float]:
         # Advanced users can override this method to change the optimization algorithm.
         # However, we do not make any effort to keep backward compatibility between versions.
         # Particularly, we may remove this function in future refactoring.
         assert best_params is None or len(best_params.shape) == 2
-        normalized_params, _acqf_val = optim_mixed.optimize_acqf_mixed(
+        normalized_params, acqf_val = optim_mixed.optimize_acqf_mixed(
             acqf,
             warmstart_normalized_params_array=best_params,
             n_preliminary_samples=self._n_preliminary_samples,
@@ -152,7 +167,7 @@ class TurBOSampler(BaseSampler):
             tol=self._tol,
             rng=self._rng.rng,
         )
-        return normalized_params
+        return normalized_params, acqf_val
 
     def _get_constraints_acqf_args(
         self,
@@ -211,151 +226,173 @@ class TurBOSampler(BaseSampler):
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
-        study._storage.set_trial_system_attr(
-            trial._trial_id, "turbo_trusted_region_index", self._current_trusted_region_index
-        )
-
         if search_space == {}:
             return {}
 
-        states = (TrialState.COMPLETE,)
-        all_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
-        trials = []
-        for t in all_trials:
+        for id in self._current_trusted_region_index:
             if (
-                t.system_attrs.get("turbo_trusted_region_index", -1)
-                == self._current_trusted_region_index
+                self._num_of_completed_trials_in_current_trusted_region.get(id, 0)
+                < self._n_startup_trials
             ):
-                trials.append(t)
-
-        if self._num_of_completed_trials_in_current_trusted_region < self._n_startup_trials:
-            return {}
-
-        internal_search_space = gp_search_space.SearchSpace(search_space)
-        normalized_params = internal_search_space.get_normalized_params(trials)
-
-        _sign = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
-        standardized_score_vals, _, _ = _standardize_values(
-            _sign * np.array([trial.values for trial in trials])
-        )
-
-        if (
-            self._gprs_cache_list is not None
-            and len(self._gprs_cache_list[0].inverse_squared_lengthscales)
-            != internal_search_space.dim
-        ):
-            # Clear cache if the search space changes.
-            self._gprs_cache_list = None
-
-        gprs_list = []
-        n_objectives = standardized_score_vals.shape[-1]
-        is_categorical = internal_search_space.is_categorical
-        for i in range(n_objectives):
-            cache = self._gprs_cache_list[i] if self._gprs_cache_list is not None else None
-            gprs_list.append(
-                gp.fit_kernel_params(
-                    X=normalized_params,
-                    Y=standardized_score_vals[:, i],
-                    is_categorical=is_categorical,
-                    log_prior=self._log_prior,
-                    minimum_noise=self._minimum_noise,
-                    gpr_cache=cache,
-                    deterministic_objective=self._deterministic,
+                study._storage.set_trial_system_attr(
+                    trial._trial_id, "turbo_trusted_region_index", id
                 )
+                return {}
+
+        best_acqf_val = -np.inf
+        for id in self._current_trusted_region_index:
+            states = (TrialState.COMPLETE,)
+            all_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+            trials = []
+            for t in all_trials:
+                if t.system_attrs.get("turbo_trusted_region_index", -1) == id:
+                    trials.append(t)
+
+            internal_search_space = gp_search_space.SearchSpace(search_space)
+            normalized_params = internal_search_space.get_normalized_params(trials)
+
+            _sign = np.array(
+                [-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions]
             )
-        self._gprs_cache_list = gprs_list
+            standardized_score_vals, _, _ = _standardize_values(
+                _sign * np.array([trial.values for trial in trials])
+            )
 
-        best_params: np.ndarray | None
-        acqf: acqf_module.BaseAcquisitionFunc
-        if self._constraints_func is None:
-            if n_objectives == 1:
-                assert len(gprs_list) == 1
-                acqf = acqf_module.LogEI(
-                    gpr=gprs_list[0],
-                    search_space=internal_search_space,
-                    threshold=standardized_score_vals[:, 0].max(),
+            if (
+                self._gprs_cache_list is not None
+                and len(self._gprs_cache_list[0].inverse_squared_lengthscales)
+                != internal_search_space.dim
+            ):
+                # Clear cache if the search space changes.
+                self._gprs_cache_list = None
+
+            gprs_list = []
+            n_objectives = standardized_score_vals.shape[-1]
+            is_categorical = internal_search_space.is_categorical
+            for i in range(n_objectives):
+                cache = self._gprs_cache_list[i] if self._gprs_cache_list is not None else None
+                gprs_list.append(
+                    gp.fit_kernel_params(
+                        X=normalized_params,
+                        Y=standardized_score_vals[:, i],
+                        is_categorical=is_categorical,
+                        log_prior=self._log_prior,
+                        minimum_noise=self._minimum_noise,
+                        gpr_cache=cache,
+                        deterministic_objective=self._deterministic,
+                    )
                 )
-                best_params = normalized_params[np.argmax(standardized_score_vals), np.newaxis]
+            self._gprs_cache_list = gprs_list
+
+            best_params: np.ndarray | None
+            acqf: acqf_module.BaseAcquisitionFunc
+            if self._constraints_func is None:
+                if n_objectives == 1:
+                    assert len(gprs_list) == 1
+                    acqf = acqf_module.LogEI(
+                        gpr=gprs_list[0],
+                        search_space=internal_search_space,
+                        threshold=standardized_score_vals[:, 0].max(),
+                    )
+                    best_params = normalized_params[np.argmax(standardized_score_vals), np.newaxis]
+                else:
+                    acqf = acqf_module.LogEHVI(
+                        gpr_list=gprs_list,
+                        search_space=internal_search_space,
+                        Y_train=torch.from_numpy(standardized_score_vals),
+                        n_qmc_samples=128,  # NOTE(nabenabe): The BoTorch default value.
+                        qmc_seed=self._rng.rng.randint(1 << 30),
+                    )
+                    best_params = self._get_best_params_for_multi_objective(
+                        normalized_params, standardized_score_vals
+                    )
             else:
-                acqf = acqf_module.LogEHVI(
-                    gpr_list=gprs_list,
-                    search_space=internal_search_space,
-                    Y_train=torch.from_numpy(standardized_score_vals),
-                    n_qmc_samples=128,  # NOTE(nabenabe): The BoTorch default value.
-                    qmc_seed=self._rng.rng.randint(1 << 30),
-                )
-                best_params = self._get_best_params_for_multi_objective(
-                    normalized_params, standardized_score_vals
-                )
-        else:
-            if n_objectives == 1:
-                assert len(gprs_list) == 1
-                constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(study, trials)
-                y_with_neginf = np.where(is_feasible, standardized_score_vals[:, 0], -np.inf)
-                # TODO(kAIto47802): If all trials are infeasible, the acquisition function
-                # for the objective function can be ignored, so skipping the computation
-                # of gpr can speed up.
-                # TODO(kAIto47802): Consider the case where all trials are feasible.
-                # We can ignore constraints in this case.
-                constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
-                    constraint_vals, internal_search_space, normalized_params
-                )
-                i_opt = np.argmax(y_with_neginf)
-                best_feasible_y = y_with_neginf[i_opt]
-                acqf = acqf_module.ConstrainedLogEI(
-                    gpr=gprs_list[0],
-                    search_space=internal_search_space,
-                    threshold=best_feasible_y,
-                    constraints_gpr_list=constr_gpr_list,
-                    constraints_threshold_list=constr_threshold_list,
-                )
-                assert normalized_params.shape[:-1] == y_with_neginf.shape
-                best_params = (
-                    None if np.isneginf(best_feasible_y) else normalized_params[i_opt, np.newaxis]
-                )
-            else:
-                constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(study, trials)
-                constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
-                    constraint_vals, internal_search_space, normalized_params
-                )
-                is_all_infeasible = not any(is_feasible)
-                acqf = acqf_module.ConstrainedLogEHVI(
-                    gpr_list=gprs_list,
-                    search_space=internal_search_space,
-                    Y_feasible=(
-                        torch.from_numpy(standardized_score_vals[is_feasible])
+                if n_objectives == 1:
+                    assert len(gprs_list) == 1
+                    constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(
+                        study, trials
+                    )
+                    y_with_neginf = np.where(is_feasible, standardized_score_vals[:, 0], -np.inf)
+                    # TODO(kAIto47802): If all trials are infeasible, the acquisition function
+                    # for the objective function can be ignored, so skipping the computation
+                    # of gpr can speed up.
+                    # TODO(kAIto47802): Consider the case where all trials are feasible.
+                    # We can ignore constraints in this case.
+                    constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
+                        constraint_vals, internal_search_space, normalized_params
+                    )
+                    i_opt = np.argmax(y_with_neginf)
+                    best_feasible_y = y_with_neginf[i_opt]
+                    acqf = acqf_module.ConstrainedLogEI(
+                        gpr=gprs_list[0],
+                        search_space=internal_search_space,
+                        threshold=best_feasible_y,
+                        constraints_gpr_list=constr_gpr_list,
+                        constraints_threshold_list=constr_threshold_list,
+                    )
+                    assert normalized_params.shape[:-1] == y_with_neginf.shape
+                    best_params = (
+                        None
+                        if np.isneginf(best_feasible_y)
+                        else normalized_params[i_opt, np.newaxis]
+                    )
+                else:
+                    constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(
+                        study, trials
+                    )
+                    constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
+                        constraint_vals, internal_search_space, normalized_params
+                    )
+                    is_all_infeasible = not any(is_feasible)
+                    acqf = acqf_module.ConstrainedLogEHVI(
+                        gpr_list=gprs_list,
+                        search_space=internal_search_space,
+                        Y_feasible=(
+                            torch.from_numpy(standardized_score_vals[is_feasible])
+                            if not is_all_infeasible
+                            else None
+                        ),
+                        n_qmc_samples=128,  # NOTE(nabenabe): The BoTorch default value.
+                        qmc_seed=self._rng.rng.randint(1 << 30),
+                        constraints_gpr_list=constr_gpr_list,
+                        constraints_threshold_list=constr_threshold_list,
+                    )
+                    best_params = (
+                        self._get_best_params_for_multi_objective(
+                            normalized_params[is_feasible],
+                            standardized_score_vals[is_feasible],
+                        )
                         if not is_all_infeasible
                         else None
-                    ),
-                    n_qmc_samples=128,  # NOTE(nabenabe): The BoTorch default value.
-                    qmc_seed=self._rng.rng.randint(1 << 30),
-                    constraints_gpr_list=constr_gpr_list,
-                    constraints_threshold_list=constr_threshold_list,
-                )
-                best_params = (
-                    self._get_best_params_for_multi_objective(
-                        normalized_params[is_feasible],
-                        standardized_score_vals[is_feasible],
                     )
-                    if not is_all_infeasible
-                    else None
-                )
 
-        length_scale = acqf.length_scales
-        trusted_region_length = (
-            length_scale * self._length / (np.prod(length_scale) ** (1 / len(length_scale)))
+            length_scale = acqf.length_scales
+            trusted_region_length = (
+                length_scale
+                * self._length[id]
+                / (np.prod(length_scale) ** (1 / len(length_scale)))
+            )
+            trusted_region = np.empty((len(search_space), 2), dtype=float)
+            trusted_region[:, 0] = np.maximum(0.0, best_params - trusted_region_length / 2)
+            trusted_region[:, 1] = np.minimum(1.0, best_params + trusted_region_length / 2)
+            acqf.search_space.set_trusted_region(trusted_region)
+
+            normalized_param, acqf_val = self._optimize_acqf(acqf, best_params)
+            warnings.warn(str(id) + " th trusted region")
+            warnings.warn(str(self._length[id]) + " length")
+            warnings.warn(str(trusted_region))
+            warnings.warn(str(normalized_param))
+
+            if best_acqf_val < acqf_val:
+                best_acqf_val = acqf_val
+                best_normalized_param = normalized_param
+                best_trusted_region_id = id
+
+        assert best_acqf_val > -np.inf  # todo(sawa3030): handle this case
+        study._storage.set_trial_system_attr(
+            trial._trial_id, "turbo_trusted_region_index", best_trusted_region_id
         )
-        trusted_region = np.empty((len(search_space), 2), dtype=float)
-        trusted_region[:, 0] = np.maximum(0.0, best_params - trusted_region_length / 2)
-        trusted_region[:, 1] = np.minimum(1.0, best_params + trusted_region_length / 2)
-        acqf.search_space.set_trusted_region(trusted_region)
-
-        normalized_param = self._optimize_acqf(acqf, best_params)
-        warnings.warn(str(self._current_trusted_region_index) + " th trusted region")
-        warnings.warn(str(self._length) + " length")
-        warnings.warn(str(trusted_region))
-        warnings.warn(str(normalized_param))
-        return internal_search_space.get_unnormalized_param(normalized_param)
+        return internal_search_space.get_unnormalized_param(best_normalized_param)
 
     def sample_independent(
         self,
@@ -383,42 +420,57 @@ class TurBOSampler(BaseSampler):
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
+        assert values is not None  # todo(sawa3030): handle this case
         assert len(values) == 1  # todo(sawa3030): support multi-objective
-        if self._num_of_completed_trials_in_current_trusted_region >= self._n_startup_trials:
-            if self._best_value_in_current_trusted_region is not None:
-                if values is not None:
-                    if study.direction == StudyDirection.MINIMIZE:
-                        if values[0] < self._best_value_in_current_trusted_region:
-                            self._n_consecutive_success += 1
-                            self._n_consecutive_failure = 0
-                            self._best_value_in_current_trusted_region = values[0]
-                        else:
-                            self._n_consecutive_success = 0
-                            self._n_consecutive_failure += 1
-                    else:
-                        if values[0] > self._best_value_in_current_trusted_region:
-                            self._n_consecutive_success += 1
-                            self._n_consecutive_failure = 0
-                            self._best_value_in_current_trusted_region = values[0]
-                        else:
-                            self._n_consecutive_success = 0
-                            self._n_consecutive_failure += 1
-            else:
-                if values is not None:
-                    self._best_value_in_current_trusted_region = values[0]
+        trusted_region_id = trial.system_attrs.get("turbo_trusted_region_index", -1)
 
-        if self._n_consecutive_success >= self._success_tolerance:
-            self._length = min(self._length * 2.0, self._max_length)
-            self._n_consecutive_success = 0
-            self._n_consecutive_failure = 0
-        elif self._n_consecutive_failure >= self._failure_tolerance:
-            self._length = self._length / 2.0
-            self._n_consecutive_success = 0
-            self._n_consecutive_failure = 0
-            if self._length < self._min_length:
-                self.reset_trusted_region()
+        if trusted_region_id != -1:
+            if (
+                self._num_of_completed_trials_in_current_trusted_region[trusted_region_id]
+                >= self._n_startup_trials
+            ):
+                if self._best_value_in_current_trusted_region[trusted_region_id] is not None:
+                    if values is not None:
+                        best_value = self._best_value_in_current_trusted_region[trusted_region_id]
+                        assert best_value is not None
+                        if study.direction == StudyDirection.MINIMIZE:
+                            if values[0] < best_value:
+                                self._n_consecutive_success[trusted_region_id] += 1
+                                self._n_consecutive_failure[trusted_region_id] = 0
+                                self._best_value_in_current_trusted_region[trusted_region_id] = (
+                                    values[0]
+                                )
+                            else:
+                                self._n_consecutive_success[trusted_region_id] = 0
+                                self._n_consecutive_failure[trusted_region_id] += 1
+                        else:
+                            if values[0] > best_value:
+                                self._n_consecutive_success[trusted_region_id] += 1
+                                self._n_consecutive_failure[trusted_region_id] = 0
+                                self._best_value_in_current_trusted_region[trusted_region_id] = (
+                                    values[0]
+                                )
+                            else:
+                                self._n_consecutive_success[trusted_region_id] = 0
+                                self._n_consecutive_failure[trusted_region_id] += 1
+                else:
+                    if values is not None:
+                        self._best_value_in_current_trusted_region[trusted_region_id] = values[0]
 
-        self._num_of_completed_trials_in_current_trusted_region += 1
+            if self._n_consecutive_success[trusted_region_id] >= self._success_tolerance:
+                self._length[trusted_region_id] = min(
+                    self._length[trusted_region_id] * 2.0, self._max_length
+                )
+                self._n_consecutive_success[trusted_region_id] = 0
+                self._n_consecutive_failure[trusted_region_id] = 0
+            elif self._n_consecutive_failure[trusted_region_id] >= self._failure_tolerance:
+                self._length[trusted_region_id] = self._length[trusted_region_id] / 2.0
+                self._n_consecutive_success[trusted_region_id] = 0
+                self._n_consecutive_failure[trusted_region_id] = 0
+                if self._length[trusted_region_id] < self._min_length:
+                    self.reset_trusted_region(trusted_region_id)
+
+            self._num_of_completed_trials_in_current_trusted_region[trusted_region_id] += 1
 
         if self._constraints_func is not None:
             _process_constraints_after_trial(self._constraints_func, study, trial, state)
