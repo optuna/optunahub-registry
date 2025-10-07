@@ -48,6 +48,33 @@ def _sample_from_normal_sobol(dim: int, n_samples: int, seed: int | None) -> tor
     return torch.erfinv(samples) * float(np.sqrt(2))
 
 
+def _sample_input_noise(
+    n_input_noise_samples: int,
+    uniform_input_noise_ranges: torch.Tensor | None,
+    normal_input_noise_stdevs: torch.Tensor | None,
+    seed: int | None,
+) -> torch.Tensor:
+    def _sample_input_noise_(noise_params: torch.Tensor, gen: SobolGenerator) -> torch.Tensor:
+        dim = noise_params.size(0)
+        noisy_inds = torch.where(noise_params != 0.0)
+        input_noise = torch.zeros(size=(n_input_noise_samples, dim), dtype=torch.float64)
+        input_noise[:, noisy_inds[0]] = (
+            gen(noisy_inds[0].size(0), n_input_noise_samples, seed) * noise_params[noisy_inds]
+        )
+        return input_noise
+
+    assert uniform_input_noise_ranges is not None or normal_input_noise_stdevs is not None
+    if normal_input_noise_stdevs is not None:
+        return _sample_input_noise_(normal_input_noise_stdevs, _sample_from_normal_sobol)
+    elif uniform_input_noise_ranges is not None:
+        return _sample_input_noise_(uniform_input_noise_ranges, _sample_from_sobol)
+    else:
+        raise ValueError(
+            "Either `uniform_input_noise_ranges` or `normal_input_noise_stdevs` "
+            "must be provided."
+        )
+
+
 class BaseAcquisitionFunc(ABC):
     def __init__(self, length_scales: np.ndarray, search_space: SearchSpace) -> None:
         self.length_scales = length_scales
@@ -69,6 +96,51 @@ class BaseAcquisitionFunc(ABC):
         return val.item(), x_tensor.grad.detach().numpy()  # type: ignore
 
 
+class LogProbabilityAtRisk(BaseAcquisitionFunc):
+    """The logarithm of the probability measure at risk
+
+    When we replace f(x) in VaR with 1[f(x) <= f*], the optimization of the new VaR corresponds to
+    that of the mean probability of x with input perturbation being feasible.
+    """
+
+    def __init__(
+        self,
+        gpr_list: list[GPRegressor],
+        search_space: SearchSpace,
+        threshold_list: list[float],
+        n_input_noise_samples: int,
+        qmc_seed: int | None,
+        uniform_input_noise_ranges: torch.Tensor | None = None,
+        normal_input_noise_stdevs: torch.Tensor | None = None,
+        stabilizing_noise: float = 1e-12,
+    ) -> None:
+        self._gpr_list = gpr_list
+        self._threshold_list = threshold_list
+        rng = np.random.RandomState(qmc_seed)
+        self._input_noise = _sample_input_noise(
+            n_input_noise_samples,
+            uniform_input_noise_ranges,
+            normal_input_noise_stdevs,
+            seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
+        )
+        self._stabilizing_noise = stabilizing_noise
+        super().__init__(
+            length_scales=np.mean([gpr.length_scales for gpr in gpr_list], axis=0),
+            search_space=search_space,
+        )
+
+    def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
+        x_noisy = x.unsqueeze(-2) + self._input_noise
+        log_feas_probs = torch.zeros(x_noisy.shape[:-1], dtype=torch.float64)
+        for gpr, threshold in zip(self._gpr_list, self._threshold_list):
+            means, vars_ = gpr.posterior(x_noisy)
+            sigmas = torch.sqrt(vars_ + self._stabilizing_noise)
+            # NOTE(nabenabe): integral from a to b of f(x) is integral from -b to -a of f(-x).
+            log_feas_probs += torch.special.log_ndtr((means - threshold) / sigmas)
+
+        return torch.special.logsumexp(log_feas_probs, dim=-1) - math.log(len(self._input_noise))
+
+
 class ValueAtRisk(BaseAcquisitionFunc):
     def __init__(
         self,
@@ -86,44 +158,19 @@ class ValueAtRisk(BaseAcquisitionFunc):
         self._gpr = gpr
         self._alpha = alpha
         rng = np.random.RandomState(qmc_seed)
-        self._input_noise = self._sample_input_noise(
-            n_input_noise_samples, uniform_input_noise_ranges, normal_input_noise_stdevs, rng
+        self._input_noise = _sample_input_noise(
+            n_input_noise_samples,
+            uniform_input_noise_ranges,
+            normal_input_noise_stdevs,
+            seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
         )
-        seed = rng.random_integers(0, 2**31 - 1, size=1).item()
         self._fixed_samples = _sample_from_normal_sobol(
-            dim=n_input_noise_samples, n_samples=n_qmc_samples, seed=seed
+            dim=n_input_noise_samples,
+            n_samples=n_qmc_samples,
+            seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
         )
         self._acqf_type = acqf_type
         super().__init__(length_scales=gpr.length_scales, search_space=search_space)
-
-    @staticmethod
-    def _sample_input_noise(
-        n_input_noise_samples: int,
-        uniform_input_noise_ranges: torch.Tensor | None,
-        normal_input_noise_stdevs: torch.Tensor | None,
-        rng: np.random.RandomState,
-    ) -> torch.Tensor:
-        seed = rng.random_integers(0, 2**31 - 1, size=1).item()
-
-        def _sample_input_noise(noise_params: torch.Tensor, gen: SobolGenerator) -> torch.Tensor:
-            dim = noise_params.size(0)
-            noisy_inds = torch.where(noise_params != 0.0)
-            input_noise = torch.zeros(size=(n_input_noise_samples, dim), dtype=torch.float64)
-            input_noise[:, noisy_inds[0]] = (
-                gen(noisy_inds[0].size(0), n_input_noise_samples, seed) * noise_params[noisy_inds]
-            )
-            return input_noise
-
-        assert uniform_input_noise_ranges is not None or normal_input_noise_stdevs is not None
-        if normal_input_noise_stdevs is not None:
-            return _sample_input_noise(normal_input_noise_stdevs, _sample_from_normal_sobol)
-        elif uniform_input_noise_ranges is not None:
-            return _sample_input_noise(uniform_input_noise_ranges, _sample_from_sobol)
-        else:
-            raise ValueError(
-                "Either `uniform_input_noise_ranges` or `normal_input_noise_stdevs` "
-                "must be provided."
-            )
 
     def _value_at_risk(self, x: torch.Tensor) -> torch.Tensor:
         means, covar = self._gpr.joint_posterior(x.unsqueeze(-2) + self._input_noise)
@@ -148,3 +195,48 @@ class ValueAtRisk(BaseAcquisitionFunc):
             raise NotImplementedError("NEI is not implemented yet.")
         else:
             raise ValueError(f"Unknown acqf_type: {self._acqf_type}")
+
+
+class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
+    def __init__(
+        self,
+        gpr: GPRegressor,
+        search_space: SearchSpace,
+        constraints_gpr_list: list[GPRegressor],
+        constraints_threshold_list: list[float],
+        alpha: float,
+        n_input_noise_samples: int,
+        n_qmc_samples: int,
+        qmc_seed: int | None,
+        acqf_type: str,
+        uniform_input_noise_ranges: torch.Tensor | None = None,
+        normal_input_noise_stdevs: torch.Tensor | None = None,
+        stabilizing_noise: float = 1e-12,
+    ) -> None:
+        self._value_at_risk = ValueAtRisk(
+            gpr=gpr,
+            search_space=search_space,
+            alpha=alpha,
+            n_input_noise_samples=n_input_noise_samples,
+            n_qmc_samples=n_qmc_samples,
+            qmc_seed=qmc_seed,
+            acqf_type=acqf_type,
+            uniform_input_noise_ranges=uniform_input_noise_ranges,
+            normal_input_noise_stdevs=normal_input_noise_stdevs,
+        )
+        self._log_prob_at_risk = LogProbabilityAtRisk(
+            gpr_list=constraints_gpr_list,
+            search_space=search_space,
+            threshold_list=constraints_threshold_list,
+            n_input_noise_samples=n_input_noise_samples,
+            qmc_seed=qmc_seed,
+            uniform_input_noise_ranges=uniform_input_noise_ranges,
+            normal_input_noise_stdevs=normal_input_noise_stdevs,
+            stabilizing_noise=stabilizing_noise,
+        )
+        super().__init__(self._value_at_risk.length_scales, search_space=search_space)
+
+    def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
+        return self._value_at_risk.eval_acqf(x).clamp_min_(
+            _EPS
+        ).log_() + self._log_prob_at_risk.eval_acqf(x)

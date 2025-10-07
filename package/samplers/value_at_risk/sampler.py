@@ -230,7 +230,9 @@ class RobustGPSampler(BaseSampler):
         internal_search_space: gp_search_space.SearchSpace,
         search_space: dict[str, BaseDistribution],
         acqf_type: str,
-    ) -> acqf_module.ValueAtRisk:
+        constraints_gpr_list: list[gp.GPRegressor] | None = None,
+        constraints_threshold_list: list[float] | None = None,
+    ) -> acqf_module.ValueAtRisk | acqf_module.ConstrainedLogValueAtRisk:
         def _get_scaled_input_noise_params(
             input_noise_params: dict[str, float], noise_param_name: str
         ) -> torch.Tensor:
@@ -260,24 +262,21 @@ class RobustGPSampler(BaseSampler):
                 scaled_input_noise_params[i] = input_noise_param / (dist.high - dist.low)
             return scaled_input_noise_params
 
+        noise_kwargs: dict[str, torch.Tensor] = {}
         if self._uniform_input_noise_ranges is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
                 self._uniform_input_noise_ranges, "uniform_input_noise_ranges"
             )
-            return acqf_module.ValueAtRisk(
-                gpr=gpr,
-                search_space=internal_search_space,
-                alpha=0.95,
-                n_input_noise_samples=32,
-                n_qmc_samples=128,
-                qmc_seed=self._rng.rng.randint(1 << 30),
-                uniform_input_noise_ranges=scaled_input_noise_params,
-                acqf_type=acqf_type,
-            )
+            noise_kwargs["uniform_input_noise_ranges"] = scaled_input_noise_params
         elif self._normal_input_noise_stdevs is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
                 self._normal_input_noise_stdevs, "normal_input_noise_stdevs"
             )
+            noise_kwargs["normal_input_noise_stdevs"] = scaled_input_noise_params
+        else:
+            assert False, "Should not reach here."
+
+        if constraints_gpr_list is None or constraints_threshold_list is None:
             return acqf_module.ValueAtRisk(
                 gpr=gpr,
                 search_space=internal_search_space,
@@ -285,11 +284,22 @@ class RobustGPSampler(BaseSampler):
                 n_input_noise_samples=32,
                 n_qmc_samples=128,
                 qmc_seed=self._rng.rng.randint(1 << 30),
-                normal_input_noise_stdevs=scaled_input_noise_params,
                 acqf_type=acqf_type,
+                **noise_kwargs,
             )
         else:
-            assert False, "Should not reach here."
+            return acqf_module.ConstrainedLogValueAtRisk(
+                gpr=gpr,
+                search_space=internal_search_space,
+                constraints_gpr_list=constraints_gpr_list,
+                constraints_threshold_list=constraints_threshold_list,
+                alpha=0.95,
+                n_input_noise_samples=32,
+                n_qmc_samples=128,
+                qmc_seed=self._rng.rng.randint(1 << 30),
+                acqf_type=acqf_type,
+                **noise_kwargs,
+            )
 
     def _verify_search_space(self, search_space: dict[str, BaseDistribution]) -> None:
         noisy_param_cands = [
@@ -373,25 +383,20 @@ class RobustGPSampler(BaseSampler):
             )
             best_params = None
         else:
-            assert False, "Not Implemented."
-            constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(study, trials)
-            y_with_neginf = np.where(is_feasible, standardized_score_vals[:, 0], -np.inf)
+            constraint_vals, _ = _get_constraint_vals_and_feasibility(study, trials)
             constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
                 constraint_vals, internal_search_space, normalized_params
             )
-            i_opt = np.argmax(y_with_neginf)
-            best_feasible_y = y_with_neginf[i_opt]
-            acqf = acqf_module.ConstrainedLogEI(
-                gpr=gprs_list[0],
-                search_space=internal_search_space,
-                threshold=best_feasible_y,
+            acqf = self._get_value_at_risk(
+                # TODO: Replace mean with nei once NEI is implemented.
+                gprs_list[0],
+                internal_search_space,
+                search_space,
+                acqf_type="mean",
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
             )
-            assert normalized_params.shape[:-1] == y_with_neginf.shape
-            best_params = (
-                None if np.isneginf(best_feasible_y) else normalized_params[i_opt, np.newaxis]
-            )
+            best_params = None
 
         normalized_param = self._optimize_acqf(acqf, best_params)
         return internal_search_space.get_unnormalized_param(normalized_param)
