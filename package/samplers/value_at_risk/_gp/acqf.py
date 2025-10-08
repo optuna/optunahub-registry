@@ -65,9 +65,25 @@ def _sample_input_noise(
 
     assert uniform_input_noise_ranges is not None or normal_input_noise_stdevs is not None
     if normal_input_noise_stdevs is not None:
-        return _sample_input_noise_(normal_input_noise_stdevs, _sample_from_normal_sobol)
+        dim = normal_input_noise_stdevs.size(0)
+        noisy_inds = torch.where(normal_input_noise_stdevs != 0.0)
+        input_noise = torch.zeros(size=(n_input_noise_samples, dim), dtype=torch.float64)
+        input_noise[:, noisy_inds[0]] = (
+            _sample_from_normal_sobol(noisy_inds[0].size(0), n_input_noise_samples, seed)
+            * normal_input_noise_stdevs[noisy_inds]
+        )
+        return input_noise
     elif uniform_input_noise_ranges is not None:
-        return _sample_input_noise_(uniform_input_noise_ranges, _sample_from_sobol)
+        dim = uniform_input_noise_ranges.size(0)
+        noisy_inds = torch.where(uniform_input_noise_ranges != 0.0)
+        input_noise = torch.zeros(size=(n_input_noise_samples, dim), dtype=torch.float64)
+        input_noise[:, noisy_inds[0]] = (
+            _sample_from_sobol(noisy_inds[0].size(0), n_input_noise_samples, seed)
+            * 2
+            * uniform_input_noise_ranges[noisy_inds]
+            - uniform_input_noise_ranges[noisy_inds]
+        )
+        return input_noise
     else:
         raise ValueError(
             "Either `uniform_input_noise_ranges` or `normal_input_noise_stdevs` "
