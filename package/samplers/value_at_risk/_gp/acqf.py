@@ -54,15 +54,6 @@ def _sample_input_noise(
     normal_input_noise_stdevs: torch.Tensor | None,
     seed: int | None,
 ) -> torch.Tensor:
-    def _sample_input_noise_(noise_params: torch.Tensor, gen: SobolGenerator) -> torch.Tensor:
-        dim = noise_params.size(0)
-        noisy_inds = torch.where(noise_params != 0.0)
-        input_noise = torch.zeros(size=(n_input_noise_samples, dim), dtype=torch.float64)
-        input_noise[:, noisy_inds[0]] = (
-            gen(noisy_inds[0].size(0), n_input_noise_samples, seed) * noise_params[noisy_inds]
-        )
-        return input_noise
-
     assert uniform_input_noise_rads is not None or normal_input_noise_stdevs is not None
     if normal_input_noise_stdevs is not None:
         dim = normal_input_noise_stdevs.size(0)
@@ -111,8 +102,8 @@ class BaseAcquisitionFunc(ABC):
         return val.item(), x_tensor.grad.detach().numpy()  # type: ignore
 
 
-class LogProbabilityAtRisk(BaseAcquisitionFunc):
-    """The logarithm of the probability measure at risk
+class LogCumulativeProbabilityAtRisk(BaseAcquisitionFunc):
+    """The logarithm of the cumulative probability measure at risk
 
     When we replace f(x) in VaR with 1[f(x) <= f*], the optimization of the new VaR corresponds to
     that of the mean probability of x with input perturbation being feasible.
@@ -122,6 +113,7 @@ class LogProbabilityAtRisk(BaseAcquisitionFunc):
         self,
         gpr_list: list[GPRegressor],
         search_space: SearchSpace,
+        confidence_level: float,
         threshold_list: list[float],
         n_input_noise_samples: int,
         qmc_seed: int | None,
@@ -139,6 +131,7 @@ class LogProbabilityAtRisk(BaseAcquisitionFunc):
             seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
         )
         self._stabilizing_noise = stabilizing_noise
+        self._confidence_level = confidence_level
         super().__init__(
             length_scales=np.mean([gpr.length_scales for gpr in gpr_list], axis=0),
             search_space=search_space,
@@ -153,7 +146,7 @@ class LogProbabilityAtRisk(BaseAcquisitionFunc):
             # NOTE(nabenabe): integral from a to b of f(x) is integral from -b to -a of f(-x).
             log_feas_probs += torch.special.log_ndtr((means - threshold) / sigmas)
         n_input_noise_samples = len(self._input_noise)
-        n_risky_samples = math.ceil(0.05 * n_input_noise_samples)
+        n_risky_samples = math.ceil((1 - self._confidence_level) * n_input_noise_samples)
         log_feas_probs_at_risk, _ = torch.topk(
             log_feas_probs,
             k=n_risky_samples,
@@ -169,7 +162,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
         self,
         gpr: GPRegressor,
         search_space: SearchSpace,
-        alpha: float,
+        confidence_level: float,
         n_input_noise_samples: int,
         n_qmc_samples: int,
         qmc_seed: int | None,
@@ -177,9 +170,9 @@ class ValueAtRisk(BaseAcquisitionFunc):
         uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
     ) -> None:
-        assert 0 <= alpha <= 1
+        assert 0 <= confidence_level <= 1
         self._gpr = gpr
-        self._alpha = alpha
+        self._confidence_level = confidence_level
         rng = np.random.RandomState(qmc_seed)
         self._input_noise = _sample_input_noise(
             n_input_noise_samples,
@@ -201,7 +194,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
         L, _ = torch.linalg.cholesky_ex(covar)
         posterior_samples = means.unsqueeze(-2) + self._fixed_samples @ L
         # If CVaR, use torch.topk instead of torch.quantile.
-        return torch.quantile(posterior_samples, q=self._alpha, dim=-1)
+        return torch.quantile(posterior_samples, q=self._confidence_level, dim=-1)
 
     def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -227,7 +220,8 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
         search_space: SearchSpace,
         constraints_gpr_list: list[GPRegressor],
         constraints_threshold_list: list[float],
-        alpha: float,
+        objective_confidence_level: float,
+        feas_prob_confidence_level: float,
         n_input_noise_samples: int,
         n_qmc_samples: int,
         qmc_seed: int | None,
@@ -239,7 +233,7 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
         self._value_at_risk = ValueAtRisk(
             gpr=gpr,
             search_space=search_space,
-            alpha=alpha,
+            confidence_level=objective_confidence_level,
             n_input_noise_samples=n_input_noise_samples,
             n_qmc_samples=n_qmc_samples,
             qmc_seed=qmc_seed,
@@ -247,15 +241,19 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
         )
-        self._log_prob_at_risk = LogProbabilityAtRisk(
+        self._log_prob_at_risk = LogCumulativeProbabilityAtRisk(
             gpr_list=constraints_gpr_list,
             search_space=search_space,
+            confidence_level=feas_prob_confidence_level,
             threshold_list=constraints_threshold_list,
             n_input_noise_samples=n_input_noise_samples,
             qmc_seed=qmc_seed,
             uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
             stabilizing_noise=stabilizing_noise,
+        )
+        assert torch.allclose(
+            self._log_prob_at_risk._input_noise, self._value_at_risk._input_noise
         )
         super().__init__(self._value_at_risk.length_scales, search_space=search_space)
 

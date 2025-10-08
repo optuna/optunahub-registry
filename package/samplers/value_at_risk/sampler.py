@@ -141,6 +141,11 @@ class RobustGPSampler(BaseSampler):
         # NOTE(nabenabe): ehvi in BoTorchSampler uses 20.
         self._n_local_search = 10
         self._tol = 1e-4
+        # Control parameters of value at risk.
+        self._objective_confidence_level = 0.95
+        self._feas_prob_confidence_level = 0.95
+        self._n_input_noise_samples = 32
+        self._n_qmc_samples = 128
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -280,9 +285,9 @@ class RobustGPSampler(BaseSampler):
             return acqf_module.ValueAtRisk(
                 gpr=gpr,
                 search_space=internal_search_space,
-                alpha=0.95,
-                n_input_noise_samples=32,
-                n_qmc_samples=128,
+                confidence_level=self._objective_confidence_level,
+                n_input_noise_samples=self._n_input_noise_samples,
+                n_qmc_samples=self._n_qmc_samples,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 acqf_type=acqf_type,
                 **noise_kwargs,
@@ -293,9 +298,10 @@ class RobustGPSampler(BaseSampler):
                 search_space=internal_search_space,
                 constraints_gpr_list=constraints_gpr_list,
                 constraints_threshold_list=constraints_threshold_list,
-                alpha=0.95,
-                n_input_noise_samples=32,
-                n_qmc_samples=128,
+                objective_confidence_level=self._objective_confidence_level,
+                feas_prob_confidence_level=self._feas_prob_confidence_level,
+                n_input_noise_samples=self._n_input_noise_samples,
+                n_qmc_samples=self._n_qmc_samples,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 acqf_type=acqf_type,
                 **noise_kwargs,
