@@ -137,8 +137,16 @@ class LogProbabilityAtRisk(BaseAcquisitionFunc):
             sigmas = torch.sqrt(vars_ + self._stabilizing_noise)
             # NOTE(nabenabe): integral from a to b of f(x) is integral from -b to -a of f(-x).
             log_feas_probs += torch.special.log_ndtr((means - threshold) / sigmas)
-
-        return torch.special.logsumexp(log_feas_probs, dim=-1) - math.log(len(self._input_noise))
+        n_input_noise_samples = len(self._input_noise)
+        n_risky_samples = math.ceil(0.05 * n_input_noise_samples)
+        log_feas_probs_at_risk, _ = torch.topk(
+            log_feas_probs,
+            k=n_risky_samples,
+            dim=-1,
+            largest=False,
+            sorted=False,
+        )
+        return log_feas_probs_at_risk.logsumexp(dim=-1) - math.log(n_risky_samples)
 
 
 class ValueAtRisk(BaseAcquisitionFunc):
