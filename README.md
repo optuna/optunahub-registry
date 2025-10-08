@@ -61,3 +61,16 @@ For more details, please check [Tutorials for Contributors](https://optuna.githu
 > ```
 >
 > For more detail, please check [the tutorial](https://optuna.github.io/optunahub/generated/recipes/005_debugging.html).
+
+## Citation
+
+Please cite [the OptunaHub paper](https://arxiv.org/abs/2510.02798) with the following format when you use it in your project:
+
+```bibtex
+@article{ozaki2025optunahub,
+  title={{OptunaHub}: A Platform for Black-Box Optimization},
+  author={Ozaki, Yoshihiko and Watanabe, Shuhei and Yanase, Toshihiko},
+  journal={arXiv preprint arXiv:2510.02798},
+  year={2025}
+}
+```
