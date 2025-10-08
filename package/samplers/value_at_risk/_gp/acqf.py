@@ -50,7 +50,7 @@ def _sample_from_normal_sobol(dim: int, n_samples: int, seed: int | None) -> tor
 
 def _sample_input_noise(
     n_input_noise_samples: int,
-    uniform_input_noise_ranges: torch.Tensor | None,
+    uniform_input_noise_rads: torch.Tensor | None,
     normal_input_noise_stdevs: torch.Tensor | None,
     seed: int | None,
 ) -> torch.Tensor:
@@ -63,7 +63,7 @@ def _sample_input_noise(
         )
         return input_noise
 
-    assert uniform_input_noise_ranges is not None or normal_input_noise_stdevs is not None
+    assert uniform_input_noise_rads is not None or normal_input_noise_stdevs is not None
     if normal_input_noise_stdevs is not None:
         dim = normal_input_noise_stdevs.size(0)
         noisy_inds = torch.where(normal_input_noise_stdevs != 0.0)
@@ -73,21 +73,20 @@ def _sample_input_noise(
             * normal_input_noise_stdevs[noisy_inds]
         )
         return input_noise
-    elif uniform_input_noise_ranges is not None:
-        dim = uniform_input_noise_ranges.size(0)
-        noisy_inds = torch.where(uniform_input_noise_ranges != 0.0)
+    elif uniform_input_noise_rads is not None:
+        dim = uniform_input_noise_rads.size(0)
+        noisy_inds = torch.where(uniform_input_noise_rads != 0.0)
         input_noise = torch.zeros(size=(n_input_noise_samples, dim), dtype=torch.float64)
         input_noise[:, noisy_inds[0]] = (
             _sample_from_sobol(noisy_inds[0].size(0), n_input_noise_samples, seed)
             * 2
-            * uniform_input_noise_ranges[noisy_inds]
-            - uniform_input_noise_ranges[noisy_inds]
+            * uniform_input_noise_rads[noisy_inds]
+            - uniform_input_noise_rads[noisy_inds]
         )
         return input_noise
     else:
         raise ValueError(
-            "Either `uniform_input_noise_ranges` or `normal_input_noise_stdevs` "
-            "must be provided."
+            "Either `uniform_input_noise_rads` or `normal_input_noise_stdevs` " "must be provided."
         )
 
 
@@ -126,7 +125,7 @@ class LogProbabilityAtRisk(BaseAcquisitionFunc):
         threshold_list: list[float],
         n_input_noise_samples: int,
         qmc_seed: int | None,
-        uniform_input_noise_ranges: torch.Tensor | None = None,
+        uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
         stabilizing_noise: float = 1e-12,
     ) -> None:
@@ -135,7 +134,7 @@ class LogProbabilityAtRisk(BaseAcquisitionFunc):
         rng = np.random.RandomState(qmc_seed)
         self._input_noise = _sample_input_noise(
             n_input_noise_samples,
-            uniform_input_noise_ranges,
+            uniform_input_noise_rads,
             normal_input_noise_stdevs,
             seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
         )
@@ -175,7 +174,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
         n_qmc_samples: int,
         qmc_seed: int | None,
         acqf_type: str,
-        uniform_input_noise_ranges: torch.Tensor | None = None,
+        uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
     ) -> None:
         assert 0 <= alpha <= 1
@@ -184,7 +183,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
         rng = np.random.RandomState(qmc_seed)
         self._input_noise = _sample_input_noise(
             n_input_noise_samples,
-            uniform_input_noise_ranges,
+            uniform_input_noise_rads,
             normal_input_noise_stdevs,
             seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
         )
@@ -233,7 +232,7 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
         n_qmc_samples: int,
         qmc_seed: int | None,
         acqf_type: str,
-        uniform_input_noise_ranges: torch.Tensor | None = None,
+        uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
         stabilizing_noise: float = 1e-12,
     ) -> None:
@@ -245,7 +244,7 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             n_qmc_samples=n_qmc_samples,
             qmc_seed=qmc_seed,
             acqf_type=acqf_type,
-            uniform_input_noise_ranges=uniform_input_noise_ranges,
+            uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
         )
         self._log_prob_at_risk = LogProbabilityAtRisk(
@@ -254,7 +253,7 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             threshold_list=constraints_threshold_list,
             n_input_noise_samples=n_input_noise_samples,
             qmc_seed=qmc_seed,
-            uniform_input_noise_ranges=uniform_input_noise_ranges,
+            uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
             stabilizing_noise=stabilizing_noise,
         )

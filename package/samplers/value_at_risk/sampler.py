@@ -85,7 +85,7 @@ class RobustGPSampler(BaseSampler):
             meaning that no GP model is used in the sampling.
             Note that the parameters of the first trial in a study are always sampled
             via an independent sampler, so no warning messages are emitted in this case.
-        uniform_input_noise_ranges:
+        uniform_input_noise_rads:
             The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
             the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
             `y`.
@@ -104,20 +104,20 @@ class RobustGPSampler(BaseSampler):
         deterministic_objective: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
         warn_independent_sampling: bool = True,
-        uniform_input_noise_ranges: dict[str, float] | None = None,
+        uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
     ) -> None:
-        if uniform_input_noise_ranges is None and normal_input_noise_stdevs is None:
+        if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
-                "Either `uniform_input_noise_ranges` or `normal_input_noise_stdevs` must be "
+                "Either `uniform_input_noise_rads` or `normal_input_noise_stdevs` must be "
                 "specified."
             )
-        if uniform_input_noise_ranges is not None and normal_input_noise_stdevs is not None:
+        if uniform_input_noise_rads is not None and normal_input_noise_stdevs is not None:
             raise ValueError(
-                "Only one of `uniform_input_noise_ranges` and `normal_input_noise_stdevs` "
+                "Only one of `uniform_input_noise_rads` and `normal_input_noise_stdevs` "
                 "can be specified."
             )
-        self._uniform_input_noise_ranges = uniform_input_noise_ranges
+        self._uniform_input_noise_rads = uniform_input_noise_rads
         self._normal_input_noise_stdevs = normal_input_noise_stdevs
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
@@ -263,11 +263,11 @@ class RobustGPSampler(BaseSampler):
             return scaled_input_noise_params
 
         noise_kwargs: dict[str, torch.Tensor] = {}
-        if self._uniform_input_noise_ranges is not None:
+        if self._uniform_input_noise_rads is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
-                self._uniform_input_noise_ranges, "uniform_input_noise_ranges"
+                self._uniform_input_noise_rads, "uniform_input_noise_rads"
             )
-            noise_kwargs["uniform_input_noise_ranges"] = scaled_input_noise_params
+            noise_kwargs["uniform_input_noise_rads"] = scaled_input_noise_params
         elif self._normal_input_noise_stdevs is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
                 self._normal_input_noise_stdevs, "normal_input_noise_stdevs"
@@ -310,8 +310,8 @@ class RobustGPSampler(BaseSampler):
             and not v.log
         ]
         noise_param_names: list[str]
-        if self._uniform_input_noise_ranges is not None:
-            noise_param_names = list(self._uniform_input_noise_ranges.keys())
+        if self._uniform_input_noise_rads is not None:
+            noise_param_names = list(self._uniform_input_noise_rads.keys())
         elif self._normal_input_noise_stdevs is not None:
             noise_param_names = list(self._normal_input_noise_stdevs.keys())
         else:
