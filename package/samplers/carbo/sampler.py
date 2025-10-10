@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 from typing import TYPE_CHECKING
+from typing import TypedDict
 
 import numpy as np
 import optuna
@@ -17,6 +18,7 @@ import torch
 from ._gp import convert_inf
 from ._gp import GPRegressor
 from ._gp import KernelParamsTensor
+from ._optim import evaluate_by_carbo
 from ._optim import suggest_by_carbo
 
 
@@ -32,6 +34,15 @@ EPS = 1e-10
 DEFAULT_MINIMUM_NOISE_VAR = 1e-6
 _WORST_ROBUST_ACQF_KEY = "worst_robust_acqf_val"
 _ROBUST_PARAMS_KEY = "robust_params"
+
+
+class EvaluationResult(TypedDict):
+    trial: FrozenTrial
+    # robust parameters can also be obtained from sampler.get_robust_params_from_trial(self["trial"]),
+    # but please note that it raises exception when the attribute is not defined.
+    robust_params: dict[str, Any]
+    worst_robust_params: dict[str, Any]
+    worst_robust_acqf_val: float
 
 
 def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -284,6 +295,90 @@ class CARBOSampler(BaseSampler):
         if self._constraints_func is not None:
             _process_constraints_after_trial(self._constraints_func, study, trial, state)
         self._independent_sampler.after_trial(study, trial, state, values)
+
+    def reevaluate_trials(
+        self,
+        study: Study,
+    ) -> Sequence[EvaluationResult]:
+        if study._is_multi_objective():
+            raise ValueError("CARBOSampler does not support multi-objective optimization.")
+
+        trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
+        search_space = self.infer_relative_search_space(study, trials[0])
+        if search_space == {}:
+            return []
+
+        X_train, y_train = self._preproc(study, trials, search_space)
+        gpr = GPRegressor(
+            X_train, y_train, kernel_params=self._kernel_params_cache
+        ).fit_kernel_params(self._log_prior, self._minimum_noise, self._deterministic)
+        self._kernel_params_cache = gpr.kernel_params.clone()
+        constraint_vals = (
+            None if self._constraints_func is None else _get_constraint_vals(study, trials)
+        )
+        if constraint_vals is None:
+            constraints_gpr_list = None
+            constraints_threshold_list = None
+        else:
+            _cache_list = (
+                self._constraints_kernel_params_cache_list
+                if self._constraints_kernel_params_cache_list is not None
+                else [None] * constraint_vals.shape[-1]  # type: ignore[list-item]
+            )
+            stded_c_vals, means, stdevs = _standardize_values(-constraint_vals)
+            constraints_threshold_list = (-means / np.maximum(EPS, stdevs)).tolist()
+            C_train = torch.from_numpy(stded_c_vals)
+            constraints_gpr_list = [
+                GPRegressor(X_train, c_train, kernel_params=cache).fit_kernel_params(
+                    self._log_prior, self._minimum_noise, self._deterministic
+                )
+                for cache, c_train in zip(_cache_list, C_train.T)
+            ]
+
+        lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+
+        robust_params = np.empty((len(trials), len(search_space)), dtype=float)
+        for i, t in enumerate(trials):
+            for d, (name, dist) in enumerate(search_space.items()):
+                if _ROBUST_PARAMS_KEY in t.system_attrs:
+                    robust_params[i, d] = t.system_attrs[_ROBUST_PARAMS_KEY][name]
+                else:
+                    robust_params[i, d] = t.params[name]
+        robust_params = normalize_params(robust_params, is_log, lows, highs)
+
+        results = []
+
+        for i, trial in enumerate(trials):
+            worst_robust_params, worst_robust_acqf_val = evaluate_by_carbo(
+                robust_params=robust_params[i],
+                gpr=gpr,
+                constraints_gpr_list=constraints_gpr_list,
+                constraints_threshold_list=constraints_threshold_list,
+                rng=self._rng.rng,
+                rho=self._rho,
+                beta=self._beta,
+                n_local_search=self._n_local_search,
+                local_radius=self._local_ratio / 2,
+            )
+
+            result: EvaluationResult = {
+                "trial": trial,
+                "robust_params": trial.system_attrs[_ROBUST_PARAMS_KEY]
+                if _ROBUST_PARAMS_KEY in trial.system_attrs
+                else trial.params,
+                "worst_robust_params": {
+                    name: float(param_value)
+                    for name, param_value in zip(
+                        search_space,
+                        unnormalize_params(worst_robust_params[None], is_log, lows, highs)[0],
+                    )
+                },
+                "worst_robust_acqf_val": worst_robust_acqf_val,
+            }
+
+            results.append(result)
+
+        return results
 
 
 def _get_constraint_vals(study: Study, trials: list[FrozenTrial]) -> np.ndarray:

@@ -99,3 +99,27 @@ def suggest_by_carbo(
     assert isinstance(robust_x_local, np.ndarray)
     bounds = _create_bounds(robust_x_local, local_radius)
     return robust_x_local, *_gradient_descent(lcb_acqf, robust_x_local, bounds, tol=tol)
+
+
+def evaluate_by_carbo(
+    *,
+    robust_params: np.ndarray,
+    gpr: GPRegressor,
+    constraints_gpr_list: list[GPRegressor] | None,
+    constraints_threshold_list: list[float] | None,
+    rng: np.random.RandomState | None,
+    rho: float,
+    beta: float,
+    n_local_search: int,
+    local_radius: float,
+    tol: float = 1e-4,
+) -> tuple[np.ndarray, float]:
+    lcb_acqf = CombinedLCB(
+        gpr=gpr,
+        constraints_gpr_list=constraints_gpr_list,
+        constraints_threshold_list=constraints_threshold_list,
+        rho=rho,
+        beta=beta,
+    )
+    bounds = _create_bounds(robust_params, local_radius)
+    return _gradient_descent(lcb_acqf, robust_params, bounds, tol=tol)
