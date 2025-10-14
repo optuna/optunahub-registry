@@ -186,12 +186,20 @@ class ValueAtRisk(BaseAcquisitionFunc):
             seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
         )
         self._acqf_type = acqf_type
+        # TODO: Change X here.
+        self._pick_potentially_robust_X(self._gpr._X_train)
         super().__init__(length_scales=gpr.length_scales, search_space=search_space)
 
+    def _pick_potentially_robust_X(self, X: torch.Tensor) -> torch.Tensor:
+        robust_X = X[self._value_at_risk(X).argmax(dim=0).unique()]
+        means, covar = self._gpr.posterior(robust_X.unsqueeze(-2) + self._input_noise, joint=True)
+        # TODO: here.
+        print(means.shape, covar.shape)
+
     def _value_at_risk(self, x: torch.Tensor) -> torch.Tensor:
-        means, covar = self._gpr.joint_posterior(x.unsqueeze(-2) + self._input_noise)
+        means, covar = self._gpr.posterior(x.unsqueeze(-2) + self._input_noise, joint=True)
         # TODO: Think of a better way to avoid numerical issue in the Cholesky decomposition.
-        L, _ = torch.linalg.cholesky_ex(covar)
+        L = torch.linalg.cholesky(covar)
         posterior_samples = means.unsqueeze(-2) + self._fixed_samples @ L
         # If CVaR, use torch.topk instead of torch.quantile.
         return torch.quantile(posterior_samples, q=self._confidence_level, dim=-1)
