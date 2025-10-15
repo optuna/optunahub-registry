@@ -1,7 +1,7 @@
 ---
 author: Jacob Pfeil
 title: Optuna Wrap of CatCMA with Margin [Hamano et al. 2025]
-description:
+description: CatCMA with Margin (CatCMAwM) is a method for mixed-variable optimization problems, simultaneously optimizing continuous, integer, and categorical variables.
 tags: [sampler, cmaes, mixed-variable optimization]
 optuna_versions: [4.5.0]
 license: MIT License
@@ -46,11 +46,11 @@ def objective(trial: optuna.Trial) -> float:
         np.array([z1, z2]).reshape(-1, 1),
         np.array([c1, c2]).reshape(-1, 1),
     )
-    
-    
+
+
 module = optunahub.load_module(
     package="samplers/catcmawm",
-) 
+)
 
 study = optuna.create_study(sampler=module.CatCmawmSampler())
 study.optimize(objective, n_trials=20)
