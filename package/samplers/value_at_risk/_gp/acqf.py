@@ -264,7 +264,9 @@ class ValueAtRisk(BaseAcquisitionFunc):
         )
         L22 = torch.linalg.cholesky(covar - L21.matmul(L21.transpose(-1, -2)))
         posterior_at_x_noisy = (
-            means.unsqueeze(-2) + L21.matmul(self._S1.T).transpose(-2, -1) + self._S2.matmul(L22)
+            means.unsqueeze(-2)
+            + torch.einsum("...ij,kj->ki", L21, self._S1)
+            + self._S2.matmul(L22)
         )
         var_at_x_noisy = torch.quantile(posterior_at_x_noisy, q=self._confidence_level, dim=-1)
         return (var_at_x_noisy - self._var_thresholds).clamp_min(_EPS).mean(dim=-1)
