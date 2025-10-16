@@ -41,10 +41,10 @@ def get_gp_sampler(
         seed=seed,
         deterministic_objective=deterministic_objective,
         # NOTE: We set empty dict to avoid the assertion error in the constructor.
-        uniform_input_noise_ranges={},
+        uniform_input_noise_rads={},
     )
     # NOTE: Replace {} with None to unset the noise setting. We set noise in set_noise_to_sampler.
-    sampler._uniform_input_noise_ranges = None
+    sampler._uniform_input_noise_rads = None
     # NOTE: Replace these attributes to reduce the execution time of tests.
     sampler._n_preliminary_samples = 512
     sampler._n_local_search = 3
@@ -53,12 +53,12 @@ def get_gp_sampler(
 
 def set_noise_to_sampler(
     sampler: RobustGPSampler,  # type: ignore[valid-type]
-    uniform_input_noise_ranges: dict[str, float] | None = None,
+    uniform_input_noise_rads: dict[str, float] | None = None,
     normal_input_noise_stdevs: dict[str, float] | None = None,
 ) -> None:
-    assert uniform_input_noise_ranges is None or normal_input_noise_stdevs is None
-    if uniform_input_noise_ranges is not None:
-        sampler._uniform_input_noise_ranges = uniform_input_noise_ranges  # type: ignore[attr-defined]
+    assert uniform_input_noise_rads is None or normal_input_noise_stdevs is None
+    if uniform_input_noise_rads is not None:
+        sampler._uniform_input_noise_rads = uniform_input_noise_rads  # type: ignore[attr-defined]
     elif normal_input_noise_stdevs is not None:
         sampler._normal_input_noise_stdevs = normal_input_noise_stdevs  # type: ignore[attr-defined]
     else:
@@ -297,7 +297,7 @@ def test_sample_relative_numerical(
             noise_params["x"] = 0.1
         elif can_y_be_noisy:
             noise_params["y"] = 0.1
-        set_noise_to_sampler(sampler, uniform_input_noise_ranges=noise_params)
+        set_noise_to_sampler(sampler, uniform_input_noise_rads=noise_params)
     elif noise_type == "normal":
         if can_x_be_noisy:
             noise_params["x"] = 0.05
@@ -345,7 +345,7 @@ def test_sample_relative_mixed(
     sampler = relative_sampler_class()
     set_noise_to_sampler(
         sampler,
-        uniform_input_noise_ranges=None if noise_type == "normal" else {"x": 0.1},
+        uniform_input_noise_rads=None if noise_type == "normal" else {"x": 0.1},
         normal_input_noise_stdevs=None if noise_type == "uniform" else {"x": 0.05},
     )
     study = optuna.study.create_study(sampler=sampler)
@@ -459,7 +459,7 @@ def test_nan_objective_value(sampler_class: Callable[[], BaseSampler], noise_typ
     sampler = sampler_class()
     set_noise_to_sampler(
         sampler,
-        uniform_input_noise_ranges={"x": 0.005} if noise_type == "uniform" else None,
+        uniform_input_noise_rads={"x": 0.005} if noise_type == "uniform" else None,
         normal_input_noise_stdevs={"x": 0.0025} if noise_type == "normal" else None,
     )
     study = optuna.create_study(sampler=sampler)
@@ -487,7 +487,7 @@ def test_partial_fixed_sampling(sampler_class: Callable[[], BaseSampler], noise_
     sampler = sampler_class()
     set_noise_to_sampler(
         sampler,
-        uniform_input_noise_ranges={"x": 0.05} if noise_type == "uniform" else None,
+        uniform_input_noise_rads={"x": 0.05} if noise_type == "uniform" else None,
         normal_input_noise_stdevs={"x": 0.025} if noise_type == "normal" else None,
     )
     study = optuna.create_study(sampler=sampler)
@@ -555,7 +555,7 @@ def test_single_parameter_objective(
         sampler = sampler_class()
         set_noise_to_sampler(
             sampler,
-            uniform_input_noise_ranges={"x": 0.5} if noise_type == "uniform" else None,
+            uniform_input_noise_rads={"x": 0.5} if noise_type == "uniform" else None,
             normal_input_noise_stdevs={"x": 0.25} if noise_type == "normal" else None,
         )
 
@@ -593,7 +593,7 @@ def test_combination_of_different_distributions_objective(
                 noise_parmas["x"] = 0.5
             if can_be_noisy_y:
                 noise_parmas["y"] = 0.5
-            set_noise_to_sampler(sampler, uniform_input_noise_ranges=noise_parmas)
+            set_noise_to_sampler(sampler, uniform_input_noise_rads=noise_parmas)
         elif noise_type == "normal":
             if can_be_noisy_x:
                 noise_parmas["x"] = 0.25
@@ -631,7 +631,7 @@ def test_dynamic_range_objective(
         sampler = sampler_class()
         set_noise_to_sampler(
             sampler,
-            uniform_input_noise_ranges={"x": 0.25} if noise_type == "uniform" else None,
+            uniform_input_noise_rads={"x": 0.25} if noise_type == "uniform" else None,
             normal_input_noise_stdevs={"x": 0.125} if noise_type == "normal" else None,
         )
 
@@ -665,7 +665,7 @@ def test_reproducible(
         sampler = sampler_class(seed)
         set_noise_to_sampler(
             sampler,
-            uniform_input_noise_ranges={"a": 0.25} if noise_type == "uniform" else None,
+            uniform_input_noise_rads={"a": 0.25} if noise_type == "uniform" else None,
             normal_input_noise_stdevs={"a": 0.125} if noise_type == "normal" else None,
         )
         return sampler
@@ -705,7 +705,7 @@ def test_reseed_rng_change_sampling(
     sampler = sampler_class(1)
     set_noise_to_sampler(
         sampler,
-        uniform_input_noise_ranges={"a": 0.25} if noise_type == "uniform" else None,
+        uniform_input_noise_rads={"a": 0.25} if noise_type == "uniform" else None,
         normal_input_noise_stdevs={"a": 0.125} if noise_type == "normal" else None,
     )
     study = optuna.create_study(sampler=sampler)
@@ -714,7 +714,7 @@ def test_reseed_rng_change_sampling(
     sampler_different_seed = sampler_class(1)
     set_noise_to_sampler(
         sampler_different_seed,
-        uniform_input_noise_ranges={"a": 0.25} if noise_type == "uniform" else None,
+        uniform_input_noise_rads={"a": 0.25} if noise_type == "uniform" else None,
         normal_input_noise_stdevs={"a": 0.125} if noise_type == "normal" else None,
     )
     sampler_different_seed.reseed_rng()
@@ -748,7 +748,7 @@ def run_optimize(
     sampler = sampler_class_with_seed[sampler_name](1)
     set_noise_to_sampler(
         sampler,
-        uniform_input_noise_ranges={"a": 0.25} if noise_type == "uniform" else None,
+        uniform_input_noise_rads={"a": 0.25} if noise_type == "uniform" else None,
         normal_input_noise_stdevs={"a": 0.125} if noise_type == "normal" else None,
     )
     study = optuna.create_study(sampler=sampler)
@@ -813,7 +813,7 @@ def test_trial_relative_params(
     sampler = relative_sampler_class()
     set_noise_to_sampler(
         sampler,
-        uniform_input_noise_ranges={"x": 0.1, "y": 0.2} if noise_type == "uniform" else None,
+        uniform_input_noise_rads={"x": 0.1, "y": 0.2} if noise_type == "uniform" else None,
         normal_input_noise_stdevs={"x": 0.05, "y": 0.1} if noise_type == "normal" else None,
     )
     study = optuna.study.create_study(sampler=sampler)

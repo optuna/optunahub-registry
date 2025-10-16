@@ -85,7 +85,7 @@ class RobustGPSampler(BaseSampler):
             meaning that no GP model is used in the sampling.
             Note that the parameters of the first trial in a study are always sampled
             via an independent sampler, so no warning messages are emitted in this case.
-        uniform_input_noise_ranges:
+        uniform_input_noise_rads:
             The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
             the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
             `y`.
@@ -104,20 +104,20 @@ class RobustGPSampler(BaseSampler):
         deterministic_objective: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
         warn_independent_sampling: bool = True,
-        uniform_input_noise_ranges: dict[str, float] | None = None,
+        uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
     ) -> None:
-        if uniform_input_noise_ranges is None and normal_input_noise_stdevs is None:
+        if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
-                "Either `uniform_input_noise_ranges` or `normal_input_noise_stdevs` must be "
+                "Either `uniform_input_noise_rads` or `normal_input_noise_stdevs` must be "
                 "specified."
             )
-        if uniform_input_noise_ranges is not None and normal_input_noise_stdevs is not None:
+        if uniform_input_noise_rads is not None and normal_input_noise_stdevs is not None:
             raise ValueError(
-                "Only one of `uniform_input_noise_ranges` and `normal_input_noise_stdevs` "
+                "Only one of `uniform_input_noise_rads` and `normal_input_noise_stdevs` "
                 "can be specified."
             )
-        self._uniform_input_noise_ranges = uniform_input_noise_ranges
+        self._uniform_input_noise_rads = uniform_input_noise_rads
         self._normal_input_noise_stdevs = normal_input_noise_stdevs
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
@@ -141,6 +141,11 @@ class RobustGPSampler(BaseSampler):
         # NOTE(nabenabe): ehvi in BoTorchSampler uses 20.
         self._n_local_search = 10
         self._tol = 1e-4
+        # Control parameters of value at risk.
+        self._objective_confidence_level = 0.95
+        self._feas_prob_confidence_level = 0.95
+        self._n_input_noise_samples = 32
+        self._n_qmc_samples = 128
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -230,7 +235,9 @@ class RobustGPSampler(BaseSampler):
         internal_search_space: gp_search_space.SearchSpace,
         search_space: dict[str, BaseDistribution],
         acqf_type: str,
-    ) -> acqf_module.ValueAtRisk:
+        constraints_gpr_list: list[gp.GPRegressor] | None = None,
+        constraints_threshold_list: list[float] | None = None,
+    ) -> acqf_module.ValueAtRisk | acqf_module.ConstrainedLogValueAtRisk:
         def _get_scaled_input_noise_params(
             input_noise_params: dict[str, float], noise_param_name: str
         ) -> torch.Tensor:
@@ -260,36 +267,45 @@ class RobustGPSampler(BaseSampler):
                 scaled_input_noise_params[i] = input_noise_param / (dist.high - dist.low)
             return scaled_input_noise_params
 
-        if self._uniform_input_noise_ranges is not None:
+        noise_kwargs: dict[str, torch.Tensor] = {}
+        if self._uniform_input_noise_rads is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
-                self._uniform_input_noise_ranges, "uniform_input_noise_ranges"
+                self._uniform_input_noise_rads, "uniform_input_noise_rads"
             )
-            return acqf_module.ValueAtRisk(
-                gpr=gpr,
-                search_space=internal_search_space,
-                alpha=0.95,
-                n_input_noise_samples=32,
-                n_qmc_samples=128,
-                qmc_seed=self._rng.rng.randint(1 << 30),
-                uniform_input_noise_ranges=scaled_input_noise_params,
-                acqf_type=acqf_type,
-            )
+            noise_kwargs["uniform_input_noise_rads"] = scaled_input_noise_params
         elif self._normal_input_noise_stdevs is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
                 self._normal_input_noise_stdevs, "normal_input_noise_stdevs"
             )
+            noise_kwargs["normal_input_noise_stdevs"] = scaled_input_noise_params
+        else:
+            assert False, "Should not reach here."
+
+        if constraints_gpr_list is None or constraints_threshold_list is None:
             return acqf_module.ValueAtRisk(
                 gpr=gpr,
                 search_space=internal_search_space,
-                alpha=0.95,
-                n_input_noise_samples=32,
-                n_qmc_samples=128,
+                confidence_level=self._objective_confidence_level,
+                n_input_noise_samples=self._n_input_noise_samples,
+                n_qmc_samples=self._n_qmc_samples,
                 qmc_seed=self._rng.rng.randint(1 << 30),
-                normal_input_noise_stdevs=scaled_input_noise_params,
                 acqf_type=acqf_type,
+                **noise_kwargs,
             )
         else:
-            assert False, "Should not reach here."
+            return acqf_module.ConstrainedLogValueAtRisk(
+                gpr=gpr,
+                search_space=internal_search_space,
+                constraints_gpr_list=constraints_gpr_list,
+                constraints_threshold_list=constraints_threshold_list,
+                objective_confidence_level=self._objective_confidence_level,
+                feas_prob_confidence_level=self._feas_prob_confidence_level,
+                n_input_noise_samples=self._n_input_noise_samples,
+                n_qmc_samples=self._n_qmc_samples,
+                qmc_seed=self._rng.rng.randint(1 << 30),
+                acqf_type=acqf_type,
+                **noise_kwargs,
+            )
 
     def _verify_search_space(self, search_space: dict[str, BaseDistribution]) -> None:
         noisy_param_cands = [
@@ -300,8 +316,8 @@ class RobustGPSampler(BaseSampler):
             and not v.log
         ]
         noise_param_names: list[str]
-        if self._uniform_input_noise_ranges is not None:
-            noise_param_names = list(self._uniform_input_noise_ranges.keys())
+        if self._uniform_input_noise_rads is not None:
+            noise_param_names = list(self._uniform_input_noise_rads.keys())
         elif self._normal_input_noise_stdevs is not None:
             noise_param_names = list(self._normal_input_noise_stdevs.keys())
         else:
@@ -314,22 +330,13 @@ class RobustGPSampler(BaseSampler):
                 f"{noisy_param_cands}, but input noise is specified for {noise_param_names}."
             )
 
-    def sample_relative(
-        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, Any]:
-        if search_space == {}:
-            return {}
-
-        self._verify_search_space(search_space)
+    def _get_gpr_list(
+        self, study: Study, search_space: dict[str, BaseDistribution]
+    ) -> list[gp.GPRegressor]:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
-
-        if len(trials) < self._n_startup_trials:
-            return {}
-
         internal_search_space = gp_search_space.SearchSpace(search_space)
         normalized_params = internal_search_space.get_normalized_params(trials)
-
         signs = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
         standardized_score_vals, _, _ = _standardize_values(
             signs * np.array([trial.values for trial in trials])
@@ -342,7 +349,6 @@ class RobustGPSampler(BaseSampler):
         ):
             # Clear cache if the search space changes.
             self._gprs_cache_list = None
-
         n_objectives = standardized_score_vals.shape[-1]
         is_categorical = internal_search_space.is_categorical
         assert n_objectives == 1, "Value at risk supports only single objective."
@@ -359,10 +365,24 @@ class RobustGPSampler(BaseSampler):
             )
         ]
         self._gprs_cache_list = gprs_list
+        return gprs_list
 
+    def sample_relative(
+        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, Any]:
+        if search_space == {}:
+            return {}
+
+        self._verify_search_space(search_space)
+        trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
+        if len(trials) < self._n_startup_trials:
+            return {}
+
+        gprs_list = self._get_gpr_list(study, search_space)
         best_params: np.ndarray | None
         acqf: acqf_module.BaseAcquisitionFunc
         assert len(gprs_list) == 1
+        internal_search_space = gp_search_space.SearchSpace(search_space)
         if self._constraints_func is None:
             acqf = self._get_value_at_risk(
                 # TODO: Replace mean with nei once NEI is implemented.
@@ -373,25 +393,22 @@ class RobustGPSampler(BaseSampler):
             )
             best_params = None
         else:
-            assert False, "Not Implemented."
-            constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(study, trials)
-            y_with_neginf = np.where(is_feasible, standardized_score_vals[:, 0], -np.inf)
+            constraint_vals, _ = _get_constraint_vals_and_feasibility(study, trials)
             constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
-                constraint_vals, internal_search_space, normalized_params
+                constraint_vals,
+                internal_search_space,
+                internal_search_space.get_normalized_params(trials),
             )
-            i_opt = np.argmax(y_with_neginf)
-            best_feasible_y = y_with_neginf[i_opt]
-            acqf = acqf_module.ConstrainedLogEI(
-                gpr=gprs_list[0],
-                search_space=internal_search_space,
-                threshold=best_feasible_y,
+            acqf = self._get_value_at_risk(
+                # TODO: Replace mean with nei once NEI is implemented.
+                gprs_list[0],
+                internal_search_space,
+                search_space,
+                acqf_type="mean",
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
             )
-            assert normalized_params.shape[:-1] == y_with_neginf.shape
-            best_params = (
-                None if np.isneginf(best_feasible_y) else normalized_params[i_opt, np.newaxis]
-            )
+            best_params = None
 
         normalized_param = self._optimize_acqf(acqf, best_params)
         return internal_search_space.get_unnormalized_param(normalized_param)
@@ -400,28 +417,30 @@ class RobustGPSampler(BaseSampler):
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
         search_space = self.infer_relative_search_space(study, trials[0])
+        gpr = self._get_gpr_list(study, search_space)[0]
         internal_search_space = gp_search_space.SearchSpace(search_space)
         X_train = internal_search_space.get_normalized_params(trials)
-        signs = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
-        y_train, _, _ = _standardize_values(signs * np.array([trial.values for trial in trials]))
-        is_categorical = internal_search_space.is_categorical
-        gpr = gp.fit_kernel_params(
-            X=X_train,
-            Y=y_train.squeeze(),
-            is_categorical=is_categorical,
-            log_prior=self._log_prior,
-            minimum_noise=self._minimum_noise,
-            gpr_cache=None,
-            deterministic_objective=self._deterministic,
-        )
-
         acqf: acqf_module.BaseAcquisitionFunc
         if self._constraints_func is None:
             acqf = self._get_value_at_risk(
                 gpr, internal_search_space, search_space, acqf_type="mean"
             )
         else:
-            assert False, "Not Implemented."
+            constraint_vals, _ = _get_constraint_vals_and_feasibility(study, trials)
+            constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
+                constraint_vals,
+                internal_search_space,
+                internal_search_space.get_normalized_params(trials),
+            )
+            acqf = self._get_value_at_risk(
+                # TODO: Replace mean with nei once NEI is implemented.
+                gpr,
+                internal_search_space,
+                search_space,
+                acqf_type="mean",
+                constraints_gpr_list=constr_gpr_list,
+                constraints_threshold_list=constr_threshold_list,
+            )
 
         best_idx = np.argmax(acqf.eval_acqf_no_grad(X_train)).item()
         return trials[best_idx]
