@@ -28,7 +28,7 @@ def plot_empirical_attainment_surface(
     surfs = _get_empirical_attainment_surfaces(study_list, levels, log_scale_inds)
     plotter = EmpiricalAttainmentFuncPlot()
     if len(attainment_ratios) == 1:
-        ax = plotter.plot_surface(
+        plotter.plot_surface(
             ax,
             surfs[0],
             color=color,
@@ -75,7 +75,7 @@ def plot_multiple_empirical_attainment_surfaces(
     plotter = EmpiricalAttainmentFuncPlot()
     if len(attainment_ratios) == 1:
         surfs_list = [surfs[0] for surfs in surfs_list]
-        ax = plotter.plot_multiple_surface(
+        plotter.plot_multiple_surface(
             ax,
             surfs_list,
             colors=colors,
