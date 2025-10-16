@@ -22,9 +22,9 @@ for sampler_cls in [optuna.samplers.RandomSampler, optuna.samplers.TPESampler]:
     multiple_study_list.append(study_list)
 
 plot_multiple_empirical_attainment_surfaces = optunahub.load_module(
-    "package/visualization/plot_empirical_attainment_surface"
+    "visualization/plot_empirical_attainment_surface"
 ).plot_multiple_empirical_attainment_surfaces
 ax = plot_multiple_empirical_attainment_surfaces(
-    multiple_study_list, levels=[3, 5, 7], labels=["Random", "TPE"]
+    multiple_study_list, attainment_ratios=[0.25, 0.5, 0.75], labels=["Random", "TPE"]
 )
 plt.show()

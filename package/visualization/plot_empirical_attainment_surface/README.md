@@ -19,9 +19,9 @@ The details of empirical attainment surface are available in [`Python Tool for V
 
 ## APIs
 
-- `plot_empirical_attainment_surface(study_list: list[optuna.Study], attainment_rates: list[int], ax: plt.Axes | None = None, color: str | None = None, label: str | None = None, linestyle: str | None = None, marker: str | None = None, log_scale_inds: list[int] | None = None, **ax_plot_kwargs)`
+- `plot_empirical_attainment_surface(study_list: list[optuna.Study], attainment_ratios: list[int], ax: plt.Axes | None = None, color: str | None = None, label: str | None = None, linestyle: str | None = None, marker: str | None = None, log_scale_inds: list[int] | None = None, **ax_plot_kwargs)`
   - `study_list`: A list of studies used for the uncertainty visualization of the attainment surface.
-  - `attainment_rates`: The ratios of studies that need to dominate the surface. The length must be either 1 or 3. If the length is 1, the corresponding attainment surface will be visualized. If the length is 3, the area between the attainment surfaces with the lowest and the highest ratios will be visualized as the uncertainty.
+  - `attainment_ratios`: The ratios of studies that need to dominate the surface. The length must be either 1 or 3. If the length is 1, the corresponding attainment surface will be visualized. If the length is 3, the area between the attainment surfaces with the lowest and the highest ratios will be visualized as the uncertainty.
   - `ax`: The axes of Matplotlib.
   - `color`: The color of the empirical attainment surface.
   - `label`: The label of the empirical attainment surface.
@@ -29,9 +29,9 @@ The details of empirical attainment surface are available in [`Python Tool for V
   - `marker`: The marker of the empirical attainment surface.
   - `log_scale_inds`: The indices of values that should be in the log scale. Either 0 or 1 can be specified.
   - `**ax_plot_kwargs`: The `kwargs` input to `ax.plot`.
-- `plot_multiple_empirical_attainment_surfaces(multiple_study_list: list[list[optuna.Study]], attainment_rates: list[int], ax: plt.Axes | None = None, colors: list[str] | None = None, labels: list[str] | None = None, linestyles: list[str] | None = None, markers: list[str] | None = None, log_scale_inds: list[int] | None = None, **ax_plot_kwargs)`
+- `plot_multiple_empirical_attainment_surfaces(multiple_study_list: list[list[optuna.Study]], attainment_ratios: list[int], ax: plt.Axes | None = None, colors: list[str] | None = None, labels: list[str] | None = None, linestyles: list[str] | None = None, markers: list[str] | None = None, log_scale_inds: list[int] | None = None, **ax_plot_kwargs)`
   - `multiple_study_list`: A list of study list used for the uncertainty visualization of each attainment surface.
-  - `attainment_rates`: The ratios of studies that need to dominate the surface. The length must be either 1 or 3. If the length is 1, the corresponding attainment surface will be visualized. If the length is 3, the area between the attainment surfaces with the lowest and the highest ratios will be visualized as the uncertainty.
+  - `attainment_ratios`: The ratios of studies that need to dominate the surface. The length must be either 1 or 3. If the length is 1, the corresponding attainment surface will be visualized. If the length is 3, the area between the attainment surfaces with the lowest and the highest ratios will be visualized as the uncertainty.
   - `ax`: The axes of Matplotlib.
   - `colors`: A list of the color of each empirical attainment surface.
   - `labels`: A list of the label of each empirical attainment surface.
@@ -40,7 +40,7 @@ The details of empirical attainment surface are available in [`Python Tool for V
   - `log_scale_inds`: The indices of values that should be in the log scale. Either 0 or 1 can be specified.
   - `**ax_plot_kwargs`: The `kwargs` input to `ax.plot`.
 
-A typical `attainment_rates` is `[0.25, 0.5, 0.75]` for the uncertainty visualization and `[0.5]` for the representative Pareto front.
+A typical `attainment_ratios` is `[0.25, 0.5, 0.75]` for the uncertainty visualization and `[0.5]` for the representative Pareto front.
 
 ## Installation
 
@@ -76,10 +76,10 @@ for sampler_cls in [optuna.samplers.RandomSampler, optuna.samplers.TPESampler]:
     multiple_study_list.append(study_list)
 
 plot_multiple_empirical_attainment_surfaces = optunahub.load_module(
-    "package/visualization/plot_empirical_attainment_surface"
+    "visualization/plot_empirical_attainment_surface"
 ).plot_multiple_empirical_attainment_surfaces
 ax = plot_multiple_empirical_attainment_surfaces(
-    multiple_study_list, levels=[3, 5, 7], labels=["Random", "TPE"]
+    multiple_study_list, attainment_ratios=[0.25, 0.5, 0.75], labels=["Random", "TPE"]
 )
 plt.show()
 ```
