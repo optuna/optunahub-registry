@@ -256,6 +256,9 @@ class ValueAtRisk(BaseAcquisitionFunc):
         Let's divide a fixed_sample into S = [S1, S2] then S @ L = [L11 @ S1, L21 @ S1 + L22 @ S2].
         We only need to compute L21 @ S1 + L22 @ S2, which is the posterior sampling at x_noisy.
         """
+        if self._acqf_type == "mean":
+            return self._value_at_risk(x).mean(dim=-1)
+
         x_noisy = x.unsqueeze(-2) + self._input_noise
         means, covar = self._gpr.posterior(x_noisy, joint=True)
         cov21 = self.posterior_covar_cross_block(x_noisy)
@@ -300,7 +303,10 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
         )
-        self._value_at_risk.set_robust_X_noisy(gpr._X_train, n_samples=128)
+        self._acqf_type = acqf_type
+        if acqf_type == "nei":
+            self._value_at_risk.set_robust_X_noisy(gpr._X_train, n_samples=128)
+
         self._log_prob_at_risk = LogCumulativeProbabilityAtRisk(
             gpr_list=constraints_gpr_list,
             search_space=search_space,
@@ -318,4 +324,9 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
         super().__init__(self._value_at_risk.length_scales, search_space=search_space)
 
     def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
-        return self._value_at_risk.eval_acqf(x).log_() + self._log_prob_at_risk.eval_acqf(x)
+        out = self._log_prob_at_risk.eval_acqf(x)
+        if self._acqf_type == "mean":
+            out += self._value_at_risk.eval_acqf(x).clamp_min(_EPS).log_()
+        else:
+            out += self._value_at_risk.eval_acqf(x).log_()
+        return out

@@ -389,7 +389,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type="mean",
+                acqf_type="nei",
             )
             best_params = None
         else:
@@ -404,7 +404,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type="mean",
+                acqf_type="nei",
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
             )
