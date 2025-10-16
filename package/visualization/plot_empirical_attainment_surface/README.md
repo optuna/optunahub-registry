@@ -13,7 +13,7 @@ Hyperparameter optimization is crucial to achieving high performance in deep lea
 On top of the performance, other criteria such as inference time or memory requirement often need to be optimized due to some practical reasons.
 This motivates research on multi-objective optimization (MOO).
 However, Pareto fronts of MOO methods are often shown without considering the variability caused by random seeds, making the performance stability evaluation difficult.
-This package provides empirical attainment surface implementation.
+This package provides empirical attainment surface implementation based on [the original implementation](https://github.com/nabenabe0928/empirical-attainment-func).
 
 The details of empirical attainment surface are available in [`Python Tool for Visualizing Variability of Pareto Fronts over Multiple Runs`](https://arxiv.org/abs/2305.08852).
 
