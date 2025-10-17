@@ -17,8 +17,6 @@ This package provides empirical attainment surface implementation based on [the 
 
 The details of empirical attainment surface are available in [`Python Tool for Visualizing Variability of Pareto Fronts over Multiple Runs`](https://arxiv.org/abs/2305.08852).
 
-![Empirical Attainment Surface](images/demo.png)
-
 ## APIs
 
 - `plot_empirical_attainment_surface(study_list: list[optuna.Study], attainment_ratios: list[int], ax: plt.Axes | None = None, color: str | None = None, label: str | None = None, linestyle: str | None = None, marker: str | None = None, log_scale_inds: list[int] | None = None, **ax_plot_kwargs)`
@@ -85,6 +83,8 @@ ax = plot_multiple_empirical_attainment_surfaces(
 )
 plt.show()
 ```
+
+![Empirical Attainment Surface](images/demo.png)
 
 ## Others
 
