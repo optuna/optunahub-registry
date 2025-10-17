@@ -39,7 +39,7 @@ class SearchSpace:
         self._scale_types = np.empty(len(optuna_search_space), dtype=np.int64)
         self._bounds = np.empty((len(optuna_search_space), 2), dtype=float)
         self._steps = np.empty(len(optuna_search_space), dtype=float)
-        self._trusted_region = np.empty((len(optuna_search_space), 2), dtype=float)
+        self._trust_region = np.empty((len(optuna_search_space), 2), dtype=float)
         for i, distribution in enumerate(optuna_search_space.values()):
             if isinstance(distribution, CategoricalDistribution):
                 # Does not support Categorical Distribution
@@ -60,8 +60,8 @@ class SearchSpace:
         self.discrete_indices = np.flatnonzero(self._steps > 0).astype(int)
         self.continuous_indices = np.flatnonzero(self._steps == 0.0).astype(int)
 
-    def set_trusted_region(self, trusted_region: np.ndarray) -> None:
-        self._trusted_region = trusted_region
+    def set_trust_region(self, trust_region: np.ndarray) -> None:
+        self._trust_region = trust_region
 
     def get_normalized_params(
         self,
@@ -169,7 +169,7 @@ def _sample_normalized_params(
     scale_types = search_space._scale_types
     bounds = search_space._bounds
     steps = search_space._steps
-    trusted_region = search_space._trusted_region
+    trust_region = search_space._trust_region
 
     # Sobol engine likely shares its internal state among threads.
     # Without threading.Lock, ValueError exceptions are raised in Sobol engine as discussed in
@@ -180,7 +180,7 @@ def _sample_normalized_params(
 
     for i in range(dim):
         param_values[:, i] = _unnormalize_one_param(
-            param_values[:, i], scale_types[i], trusted_region[i], 0.0
+            param_values[:, i], scale_types[i], trust_region[i], 0.0
         )
         if scale_types[i] == _ScaleType.CATEGORICAL:
             assert False  # todo: Think a better implementation
