@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
-from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
 from optuna.samplers._base import BaseSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -111,7 +110,6 @@ class TurBOSampler(BaseSampler):
         # We cache the kernel parameters for initial values of fitting the next time.
         # TODO(nabenabe): Make the cache lists system_attrs to make GPSampler stateless.
         self._gprs_cache_list: list[gp.GPRegressor] | None = None
-        self._constraints_gprs_cache_list: list[gp.GPRegressor] | None = None
         self._deterministic = deterministic_objective
         self._warn_independent_sampling = warn_independent_sampling
 
@@ -187,46 +185,6 @@ class TurBOSampler(BaseSampler):
             rng=self._rng.rng,
         )
         return normalized_params, acqf_val
-
-    def _get_constraints_acqf_args(
-        self,
-        constraint_vals: np.ndarray,
-        internal_search_space: gp_search_space.SearchSpace,
-        normalized_params: np.ndarray,
-    ) -> tuple[list[gp.GPRegressor], list[float]]:
-        # NOTE(nabenabe): Flip the sign of constraints since they are always to be minimized.
-        standardized_constraint_vals, means, stds = _standardize_values(-constraint_vals)
-        if (
-            self._gprs_cache_list is not None
-            and len(self._gprs_cache_list[0].inverse_squared_lengthscales)
-            != internal_search_space.dim
-        ):
-            # Clear cache if the search space changes.
-            self._constraints_gprs_cache_list = None
-
-        is_categorical = internal_search_space.is_categorical
-        constraints_gprs = []
-        constraints_threshold_list = []
-        constraints_threshold_list = (-means / np.maximum(EPS, stds)).tolist()
-        for i, vals in enumerate(standardized_constraint_vals.T):
-            cache = (
-                self._constraints_gprs_cache_list[i]
-                if self._constraints_gprs_cache_list is not None
-                else None
-            )
-            gpr = gp.fit_kernel_params(
-                X=normalized_params,
-                Y=vals,
-                is_categorical=is_categorical,
-                log_prior=self._log_prior,
-                minimum_noise=self._minimum_noise,
-                gpr_cache=cache,
-                deterministic_objective=self._deterministic,
-            )
-            constraints_gprs.append(gpr)
-
-        self._constraints_gprs_cache_list = constraints_gprs
-        return constraints_gprs, constraints_threshold_list
 
     def _get_best_params_for_multi_objective(
         self,
@@ -406,20 +364,3 @@ class TurBOSampler(BaseSampler):
             self._n_consecutive_failure[trust_region_id] = 0
             if self._length[trust_region_id] < self._min_length:
                 self.reset_trust_region(trust_region_id)
-
-
-def _get_constraint_vals_and_feasibility(
-    study: Study, trials: list[FrozenTrial]
-) -> tuple[np.ndarray, np.ndarray]:
-    _constraint_vals = [
-        study._storage.get_trial_system_attrs(trial._trial_id).get(_CONSTRAINTS_KEY, ())
-        for trial in trials
-    ]
-    if any(len(_constraint_vals[0]) != len(c) for c in _constraint_vals):
-        raise ValueError("The number of constraints must be the same for all trials.")
-
-    constraint_vals = np.array(_constraint_vals)
-    assert len(constraint_vals.shape) == 2, "constraint_vals must be a 2d array."
-    is_feasible = np.all(constraint_vals <= 0, axis=1)
-    assert not isinstance(is_feasible, np.bool_), "MyPy Redefinition for NumPy v2.2.0."
-    return constraint_vals, is_feasible
