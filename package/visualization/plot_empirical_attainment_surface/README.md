@@ -17,8 +17,6 @@ This package provides empirical attainment surface implementation based on [the 
 
 The details of empirical attainment surface are available in [`Python Tool for Visualizing Variability of Pareto Fronts over Multiple Runs`](https://arxiv.org/abs/2305.08852).
 
-![Empirical Attainment Surface](images/demo.png)
-
 ## APIs
 
 - `plot_empirical_attainment_surface(study_list: list[optuna.Study], attainment_ratios: list[int], ax: plt.Axes | None = None, color: str | None = None, label: str | None = None, linestyle: str | None = None, marker: str | None = None, log_scale_inds: list[int] | None = None, **ax_plot_kwargs)`
@@ -52,6 +50,8 @@ $ pip install optuna matplotlib
 
 ## Example
 
+![Empirical Attainment Surface](images/demo.png)
+
 **Example**
 
 ```python
@@ -61,6 +61,9 @@ import matplotlib.pyplot as plt
 import optuna
 import optunahub
 
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["font.size"] = 18
+
 
 def objective(trial: optuna.Trial) -> tuple[float, float]:
     x = trial.suggest_float("x", -5, 5)
@@ -68,7 +71,7 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
     return x**2 + y**2, (x - 2)**2 + (y - 2)**2
 
 multiple_study_list = []
-for sampler_cls in [optuna.samplers.RandomSampler, optuna.samplers.TPESampler]:
+for sampler_cls in [optuna.samplers.RandomSampler, optuna.samplers.TPESampler, optuna.samplers.GPSampler]:
     study_list = []
     for seed in range(10):
         sampler = sampler_cls(seed=seed)
@@ -80,10 +83,18 @@ for sampler_cls in [optuna.samplers.RandomSampler, optuna.samplers.TPESampler]:
 plot_multiple_empirical_attainment_surfaces = optunahub.load_module(
     "visualization/plot_empirical_attainment_surface"
 ).plot_multiple_empirical_attainment_surfaces
+_, ax = plt.subplots(figsize=(8, 6))
 ax = plot_multiple_empirical_attainment_surfaces(
-    multiple_study_list, attainment_ratios=[0.25, 0.5, 0.75], labels=["Random", "TPE"]
+    multiple_study_list,
+    ax=ax,
+    attainment_ratios=[0.25, 0.5, 0.75],
+    labels=["RandomSampler", "TPESampler", "GPSampler"],
+    colors=["gray", "darkred", "blue"],
 )
-plt.show()
+ax.set_xlabel("Objective 1")
+ax.set_ylabel("Objective 2")
+ax.grid()
+plt.savefig("demo.png", bbox_inches="tight")
 ```
 
 ## Others
