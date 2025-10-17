@@ -5,10 +5,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
-from optuna._experimental import warn_experimental_argument
 from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
-from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._base import BaseSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import StudyDirection
@@ -35,7 +33,6 @@ else:
     prior = _LazyImport("optuna._gp.prior")
 
 import logging
-import warnings  # todo: remove this afterwards
 
 from ._gp import acqf as acqf_module
 from ._gp import gp as gp
@@ -58,14 +55,51 @@ def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.
 
 
 class TurBOSampler(BaseSampler):
+    """Sampler using Trust Region Bayesian optimization.
+
+    Args:
+        n_startup_trials:
+            Number of initial trials PER TRUST REGION. Default is 2.
+            As suggested in the original paper, consider setting this to 2*(number of parameters).
+        n_trust_region:
+            Number of trust regions. Default is 5.
+        success_tolerance:
+            Number of consecutive successful iterations required to expand the trust region.
+            Default is 3.
+        failure_tolerance:
+            Number of consecutive failed iterations required to shrink the trust region.
+            Default is 5. As suggested in the original paper, consider setting this to max(5, number of parameters).
+        seed:
+            Random seed to initialize internal random number generator.
+            Defaults to :obj:`None` (a seed is picked randomly).
+        independent_sampler:
+            Sampler used for initial sampling (for the first ``n_startup_trials`` trials)
+            and for conditional parameters. Defaults to :obj:`None`
+            (a random sampler with the same ``seed`` is used).
+        deterministic_objective:
+            Whether the objective function is deterministic or not.
+            If :obj:`True`, the sampler will fix the noise variance of the surrogate model to
+            the minimum value (slightly above 0 to ensure numerical stability).
+            Defaults to :obj:`False`. Currently, all the objectives will be assume to be
+            deterministic if :obj:`True`.
+        warn_independent_sampling:
+            If this is :obj:`True`, a warning message is emitted when
+            the value of a parameter is sampled by using an independent sampler,
+            meaning that no GP model is used in the sampling.
+            Note that the parameters of the first trial in a study are always sampled
+            via an independent sampler, so no warning messages are emitted in this case.
+    """
+
     def __init__(
         self,
         *,
+        n_startup_trials: int = 4,
+        n_trust_region: int = 5,
+        success_tolerance: int = 3,
+        failure_tolerance: int = 5,
         seed: int | None = None,
         independent_sampler: BaseSampler | None = None,
-        n_startup_trials: int = 2,  # note(sawa3030): 2*dim is recommended in the original paper
         deterministic_objective: bool = False,
-        constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
         warn_independent_sampling: bool = True,
     ) -> None:
         self._rng = LazyRandomState(seed)
@@ -79,11 +113,7 @@ class TurBOSampler(BaseSampler):
         self._gprs_cache_list: list[gp.GPRegressor] | None = None
         self._constraints_gprs_cache_list: list[gp.GPRegressor] | None = None
         self._deterministic = deterministic_objective
-        self._constraints_func = constraints_func
         self._warn_independent_sampling = warn_independent_sampling
-
-        if constraints_func is not None:
-            warn_experimental_argument("constraints_func")
 
         # Control parameters of the acquisition function optimization.
         self._n_preliminary_samples: int = 2048
@@ -95,27 +125,26 @@ class TurBOSampler(BaseSampler):
         self._init_length = 0.8
         self._max_length = 1.6
         self._min_length = 0.5**7
-        self._success_tolerance = 3
-        # note(sawa3030): original value was max(5, number of params), since we doesn't know the number of params here, we set it to 5
-        self._failure_tolerance = 5
-        self._n_trust_region = 5
+        self._n_trust_region = n_trust_region
+        self._success_tolerance = success_tolerance
+        self._failure_tolerance = failure_tolerance
 
-        self._trial_ids_for_trusted_region: list[list[int]] = [
+        self._trial_ids_for_trust_region: list[list[int]] = [
             [] for _ in range(self._n_trust_region)
         ]
         self._length: list[float] = [self._init_length for _ in range(self._n_trust_region)]
         self._n_consecutive_success: list[int] = [0 for _ in range(self._n_trust_region)]
         self._n_consecutive_failure: list[int] = [0 for _ in range(self._n_trust_region)]
-        self._best_value_in_current_trusted_region: list[float | None] = [
+        self._best_value_in_current_trust_region: list[float | None] = [
             None for _ in range(self._n_trust_region)
         ]
 
-    def reset_trusted_region(self, delete_trusted_region_id: int) -> None:
-        self._trial_ids_for_trusted_region[delete_trusted_region_id] = []
-        self._length[delete_trusted_region_id] = self._init_length
-        self._n_consecutive_success[delete_trusted_region_id] = 0
-        self._n_consecutive_failure[delete_trusted_region_id] = 0
-        self._best_value_in_current_trusted_region[delete_trusted_region_id] = None
+    def reset_trust_region(self, delete_trust_region_id: int) -> None:
+        self._trial_ids_for_trust_region[delete_trust_region_id] = []
+        self._length[delete_trust_region_id] = self._init_length
+        self._n_consecutive_success[delete_trust_region_id] = 0
+        self._n_consecutive_failure[delete_trust_region_id] = 0
+        self._best_value_in_current_trust_region[delete_trust_region_id] = None
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -220,8 +249,8 @@ class TurBOSampler(BaseSampler):
             return {}
 
         for id in range(self._n_trust_region):
-            if len(self._trial_ids_for_trusted_region[id]) < self._n_startup_trials:
-                self._trial_ids_for_trusted_region[id].append(trial._trial_id)
+            if len(self._trial_ids_for_trust_region[id]) < self._n_startup_trials:
+                self._trial_ids_for_trust_region[id].append(trial._trial_id)
                 return {}
 
         # todo(sawa3030): no trial might be get if it takes time to evaluate objective function
@@ -231,7 +260,7 @@ class TurBOSampler(BaseSampler):
             all_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
             trials = []
             for t in all_trials:
-                if t._trial_id in self._trial_ids_for_trusted_region[id]:
+                if t._trial_id in self._trial_ids_for_trust_region[id]:
                     trials.append(t)
 
             internal_search_space = gp_search_space.SearchSpace(search_space)
@@ -270,112 +299,36 @@ class TurBOSampler(BaseSampler):
                 )
             self._gprs_cache_list = gprs_list
 
-            best_params: np.ndarray | None
-            acqf: acqf_module.BaseAcquisitionFunc
-            if self._constraints_func is None:
-                if n_objectives == 1:
-                    assert len(gprs_list) == 1
-                    acqf = acqf_module.LogEI(
-                        gpr=gprs_list[0],
-                        search_space=internal_search_space,
-                        threshold=standardized_score_vals[:, 0].max(),
-                    )
-                    best_params = normalized_params[np.argmax(standardized_score_vals), np.newaxis]
-                else:
-                    acqf = acqf_module.LogEHVI(
-                        gpr_list=gprs_list,
-                        search_space=internal_search_space,
-                        Y_train=torch.from_numpy(standardized_score_vals),
-                        n_qmc_samples=128,  # NOTE(nabenabe): The BoTorch default value.
-                        qmc_seed=self._rng.rng.randint(1 << 30),
-                    )
-                    best_params = self._get_best_params_for_multi_objective(
-                        normalized_params, standardized_score_vals
-                    )
-            else:
-                if n_objectives == 1:
-                    assert len(gprs_list) == 1
-                    constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(
-                        study, trials
-                    )
-                    y_with_neginf = np.where(is_feasible, standardized_score_vals[:, 0], -np.inf)
-                    # TODO(kAIto47802): If all trials are infeasible, the acquisition function
-                    # for the objective function can be ignored, so skipping the computation
-                    # of gpr can speed up.
-                    # TODO(kAIto47802): Consider the case where all trials are feasible.
-                    # We can ignore constraints in this case.
-                    constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
-                        constraint_vals, internal_search_space, normalized_params
-                    )
-                    i_opt = np.argmax(y_with_neginf)
-                    best_feasible_y = y_with_neginf[i_opt]
-                    acqf = acqf_module.ConstrainedLogEI(
-                        gpr=gprs_list[0],
-                        search_space=internal_search_space,
-                        threshold=best_feasible_y,
-                        constraints_gpr_list=constr_gpr_list,
-                        constraints_threshold_list=constr_threshold_list,
-                    )
-                    assert normalized_params.shape[:-1] == y_with_neginf.shape
-                    best_params = (
-                        None
-                        if np.isneginf(best_feasible_y)
-                        else normalized_params[i_opt, np.newaxis]
-                    )
-                else:
-                    constraint_vals, is_feasible = _get_constraint_vals_and_feasibility(
-                        study, trials
-                    )
-                    constr_gpr_list, constr_threshold_list = self._get_constraints_acqf_args(
-                        constraint_vals, internal_search_space, normalized_params
-                    )
-                    is_all_infeasible = not any(is_feasible)
-                    acqf = acqf_module.ConstrainedLogEHVI(
-                        gpr_list=gprs_list,
-                        search_space=internal_search_space,
-                        Y_feasible=(
-                            torch.from_numpy(standardized_score_vals[is_feasible])
-                            if not is_all_infeasible
-                            else None
-                        ),
-                        n_qmc_samples=128,  # NOTE(nabenabe): The BoTorch default value.
-                        qmc_seed=self._rng.rng.randint(1 << 30),
-                        constraints_gpr_list=constr_gpr_list,
-                        constraints_threshold_list=constr_threshold_list,
-                    )
-                    best_params = (
-                        self._get_best_params_for_multi_objective(
-                            normalized_params[is_feasible],
-                            standardized_score_vals[is_feasible],
-                        )
-                        if not is_all_infeasible
-                        else None
-                    )
+            # note(sawa3030): TurboSampler currently supports single-objective optimization only.
+            assert n_objectives == 1
+            assert len(gprs_list) == 1
+            acqf = acqf_module.LogEI(
+                gpr=gprs_list[0],
+                search_space=internal_search_space,
+                threshold=standardized_score_vals[:, 0].max(),
+            )
+            best_params = normalized_params[np.argmax(standardized_score_vals), np.newaxis]
 
             length_scale = acqf.length_scales
-            trusted_region_length = (
+            trust_region_length = (
                 length_scale
                 * self._length[id]
                 / (np.prod(length_scale) ** (1 / len(length_scale)))
             )
-            trusted_region = np.empty((len(search_space), 2), dtype=float)
-            trusted_region[:, 0] = np.maximum(0.0, best_params - trusted_region_length / 2)
-            trusted_region[:, 1] = np.minimum(1.0, best_params + trusted_region_length / 2)
-            acqf.search_space.set_trusted_region(trusted_region)
+            trust_region = np.empty((len(search_space), 2), dtype=float)
+            trust_region[:, 0] = np.maximum(0.0, best_params - trust_region_length / 2)
+            trust_region[:, 1] = np.minimum(1.0, best_params + trust_region_length / 2)
+            acqf.search_space.set_trust_region(trust_region)
 
             normalized_param, acqf_val = self._optimize_acqf(acqf, best_params)
-            warnings.warn(str(id) + " th trusted region")
-            warnings.warn(str(self._length[id]) + " length")
-            warnings.warn(str(trusted_region))
-            warnings.warn(str(normalized_param))
 
             if best_acqf_val < acqf_val:
                 best_acqf_val = acqf_val
                 best_normalized_param = normalized_param
-                best_trusted_region_id = id
+                best_trust_region_id = id
 
         assert best_acqf_val > -np.inf  # todo(sawa3030): handle this case
-        self._trial_ids_for_trusted_region[best_trusted_region_id].append(trial._trial_id)
+        self._trial_ids_for_trust_region[best_trust_region_id].append(trial._trial_id)
         return internal_search_space.get_unnormalized_param(best_normalized_param)
 
     def sample_independent(
@@ -405,60 +358,54 @@ class TurBOSampler(BaseSampler):
         values: Sequence[float] | None,
     ) -> None:
         assert values is not None  # todo(sawa3030): handle this case
-        assert len(values) == 1  # todo(sawa3030): support multi-objective
+        assert len(values) == 1
         for id in range(self._n_trust_region):
-            if trial._trial_id in self._trial_ids_for_trusted_region[id]:
-                self._count_and_adjust_trusted_region_length(id, values, study.direction)
+            if trial._trial_id in self._trial_ids_for_trust_region[id]:
+                self._count_and_adjust_trust_region_length(id, values, study.direction)
                 break
 
-        if self._constraints_func is not None:
-            _process_constraints_after_trial(self._constraints_func, study, trial, state)
         self._independent_sampler.after_trial(study, trial, state, values)
 
-    def _count_and_adjust_trusted_region_length(
-        self, trusted_region_id: int, values: Sequence[float] | None, direction: StudyDirection
+    def _count_and_adjust_trust_region_length(
+        self, trust_region_id: int, values: Sequence[float] | None, direction: StudyDirection
     ) -> None:
-        if len(self._trial_ids_for_trusted_region[trusted_region_id]) >= self._n_startup_trials:
-            if self._best_value_in_current_trusted_region[trusted_region_id] is not None:
+        if len(self._trial_ids_for_trust_region[trust_region_id]) >= self._n_startup_trials:
+            if self._best_value_in_current_trust_region[trust_region_id] is not None:
                 if values is not None:
-                    best_value = self._best_value_in_current_trusted_region[trusted_region_id]
+                    best_value = self._best_value_in_current_trust_region[trust_region_id]
                     assert best_value is not None
                     if direction == StudyDirection.MINIMIZE:
                         if values[0] < best_value:
-                            self._n_consecutive_success[trusted_region_id] += 1
-                            self._n_consecutive_failure[trusted_region_id] = 0
-                            self._best_value_in_current_trusted_region[trusted_region_id] = values[
-                                0
-                            ]
+                            self._n_consecutive_success[trust_region_id] += 1
+                            self._n_consecutive_failure[trust_region_id] = 0
+                            self._best_value_in_current_trust_region[trust_region_id] = values[0]
                         else:
-                            self._n_consecutive_success[trusted_region_id] = 0
-                            self._n_consecutive_failure[trusted_region_id] += 1
+                            self._n_consecutive_success[trust_region_id] = 0
+                            self._n_consecutive_failure[trust_region_id] += 1
                     else:
                         if values[0] > best_value:
-                            self._n_consecutive_success[trusted_region_id] += 1
-                            self._n_consecutive_failure[trusted_region_id] = 0
-                            self._best_value_in_current_trusted_region[trusted_region_id] = values[
-                                0
-                            ]
+                            self._n_consecutive_success[trust_region_id] += 1
+                            self._n_consecutive_failure[trust_region_id] = 0
+                            self._best_value_in_current_trust_region[trust_region_id] = values[0]
                         else:
-                            self._n_consecutive_success[trusted_region_id] = 0
-                            self._n_consecutive_failure[trusted_region_id] += 1
+                            self._n_consecutive_success[trust_region_id] = 0
+                            self._n_consecutive_failure[trust_region_id] += 1
             else:
                 if values is not None:
-                    self._best_value_in_current_trusted_region[trusted_region_id] = values[0]
+                    self._best_value_in_current_trust_region[trust_region_id] = values[0]
 
-        if self._n_consecutive_success[trusted_region_id] >= self._success_tolerance:
-            self._length[trusted_region_id] = min(
-                self._length[trusted_region_id] * 2.0, self._max_length
+        if self._n_consecutive_success[trust_region_id] >= self._success_tolerance:
+            self._length[trust_region_id] = min(
+                self._length[trust_region_id] * 2.0, self._max_length
             )
-            self._n_consecutive_success[trusted_region_id] = 0
-            self._n_consecutive_failure[trusted_region_id] = 0
-        elif self._n_consecutive_failure[trusted_region_id] >= self._failure_tolerance:
-            self._length[trusted_region_id] = self._length[trusted_region_id] / 2.0
-            self._n_consecutive_success[trusted_region_id] = 0
-            self._n_consecutive_failure[trusted_region_id] = 0
-            if self._length[trusted_region_id] < self._min_length:
-                self.reset_trusted_region(trusted_region_id)
+            self._n_consecutive_success[trust_region_id] = 0
+            self._n_consecutive_failure[trust_region_id] = 0
+        elif self._n_consecutive_failure[trust_region_id] >= self._failure_tolerance:
+            self._length[trust_region_id] = self._length[trust_region_id] / 2.0
+            self._n_consecutive_success[trust_region_id] = 0
+            self._n_consecutive_failure[trust_region_id] = 0
+            if self._length[trust_region_id] < self._min_length:
+                self.reset_trust_region(trust_region_id)
 
 
 def _get_constraint_vals_and_feasibility(

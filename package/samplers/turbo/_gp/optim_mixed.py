@@ -77,7 +77,7 @@ def _gradient_ascent_batched(
             # note(sawa3030): The original bounds were (0, 1/s)
             bounds=[
                 (tr[0] / s, tr[1] / s)
-                for tr, s in zip(acqf.search_space._trusted_region, lengthscales)
+                for tr, s in zip(acqf.search_space._trust_region, lengthscales)
             ],
             pgtol=math.sqrt(tol),
             max_iters=200,
