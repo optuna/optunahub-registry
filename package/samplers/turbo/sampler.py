@@ -53,7 +53,7 @@ def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.
     return standardized_values, means, stds
 
 
-class TurBOSampler(BaseSampler):
+class TuRBOSampler(BaseSampler):
     """Sampler using Trust Region Bayesian optimization.
 
     Args:
@@ -119,7 +119,7 @@ class TurBOSampler(BaseSampler):
         self._n_local_search = 10
         self._tol = 1e-4
 
-        # hyperparameters of TurBOSampler
+        # hyperparameters of TuRBOSampler
         self._init_length = 0.8
         self._max_length = 1.6
         self._min_length = 0.5**7
@@ -257,7 +257,7 @@ class TurBOSampler(BaseSampler):
                 )
             self._gprs_cache_list = gprs_list
 
-            # note(sawa3030): TurboSampler currently supports single-objective optimization only.
+            # note(sawa3030): TuRBOSampler currently supports single-objective optimization only.
             assert n_objectives == 1
             assert len(gprs_list) == 1
             acqf = acqf_module.LogEI(

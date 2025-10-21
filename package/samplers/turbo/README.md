@@ -1,127 +1,68 @@
 ---
-author: Please fill in the author name here. (e.g., John Smith)
-title: Please fill in the title of the feature here. (e.g., Gaussian-Process Expected Improvement Sampler)
-description: Please fill in the description of the feature here. (e.g., This sampler searches for each trial based on expected improvement using Gaussian process.)
-tags: [Please fill in the list of tags here. (e.g., sampler, visualization, pruner)]
-optuna_versions: ['Please fill in the list of versions of Optuna in which you have confirmed the feature works, e.g., 3.6.1.']
+author: Optuna Team
+title: TuRBOSampler
+description: This sampler performs Bayesian optimization in adaptive trust regions using Gaussian Processes
+tags: [sampler, Bayesian optimization]
+optuna_versions: [4.5.0]
 license: MIT License
 ---
 
-<!--
-This is an example of the frontmatters.
-All columns must be string.
-You can omit quotes when value types are not ambiguous.
-For tags, a package placed in
-- package/samplers/ must include the tag "sampler"
-- package/visualilzation/ must include the tag "visualization"
-- package/pruners/ must include the tag "pruner"
-respectively.
-
----
-author: Optuna team
-title: My Sampler
-description: A description for My Sampler.
-tags: [sampler, 2nd tag for My Sampler, 3rd tag for My Sampler]
-optuna_versions: [3.6.1]
-license: "MIT License"
----
--->
-
-Instruction (Please remove this instruction after you carefully read)
-
-- Please read the [tutorial guide](https://optuna.github.io/optunahub/generated/recipes/001_first.html) to register your feature in OptunaHub. You can find more detailed explanation of the following contents in the tutorial.
-- Looking at [other packages' implementations](https://github.com/optuna/optunahub-registry/tree/main/package) would also be helpful.
-- **Please do not use HTML tags in the `README.md` file. Only markdown is allowed. For security reasons, the HTML tags will be removed when the package is registered on the web page.**
-
 ## Abstract
 
-You can provide an abstract for your package here.
-This section will help attract potential users to your package.
+TuRBOSampler implements Bayesian optimization with trust regions. It places local trust regions around the current best solutions and fits Gaussian Process (GP) models within those regions. Operating within adaptive local regions reduces high-dimensional sample complexity, yielding accurate fits with fewer trials.
 
-**Example**
-
-This package provides a sampler based on Gaussian process-based Bayesian optimization. The sampler is highly sample-efficient, so it is suitable for computationally expensive optimization problems with a limited evaluation budget, such as hyperparameter optimization of machine learning algorithms.
+Please refer to the paper, [Scalable Global Optimization via Local Bayesian Optimization](https://proceedings.neurips.cc/paper_files/paper/2019/file/6c990b7aca7bc7058f5e98ea909e924b-Paper.pdf) for more information.
 
 ## APIs
 
-Please provide API documentation describing how to use your package's functionalities.
-The documentation format is arbitrary, but at least the important class/function names that you implemented should be listed here.
-More users will take advantage of your package by providing detailed and helpful documentation.
+- `TuRBOSampler(*, n_startup_trials: int = 4, n_trust_region: int = 5, success_tolerance: int = 3, failure_tolerance: int = 5, seed: int | None = None, independent_sampler: BaseSampler | None = None, deterministic_objective: bool = False, warn_independent_sampling: bool = True)`
+  - `n_startup_trials`: Number of initial trials PER TRUST REGION. Default is 2. As suggested in the original paper, consider setting this to 2\*(number of parameters).
+  - `n_trust_region`: Number of trust regions. Default is 5.
+  - `success_tolerance`: Number of consecutive successful iterations required to expand the trust region. Default is 3.
+  - `failure_tolerance`: Number of consecutive failed iterations required to shrink the trust region. Default is 5. As suggested in the original paper, consider setting this to max(5, number of parameters).
+  - `seed`: Random seed to initialize internal random number generator. Defaults to :obj:`None` (a seed is picked randomly).
+  - `independent_sampler`: Sampler used for initial sampling (for the first `n_startup_trials` trials) and for conditional parameters. Defaults to :obj:`None` (a random sampler with the same `seed` is used).
+  - `deterministic_objective`: Whether the objective function is deterministic or not. If :obj:`True`, the sampler will fix the noise variance of the surrogate model to the minimum value (slightly above 0 to ensure numerical stability). Defaults to :obj:`False`. Currently, all the objectives will be assume to be deterministic if :obj:`True`.
+  - `warn_independent_sampling`: If this is :obj:`True`, a warning message is emitted when the value of a parameter is sampled by using an independent sampler, meaning that no GP model is used in the sampling. Note that the parameters of the first trial in a study are always sampled via an independent sampler, so no warning messages are emitted in this case.
 
-**Example**
-
-- `MoCmaSampler(*, search_space: dict[str, BaseDistribution] | None = None, popsize: int | None = None, seed: int | None = None)`
-  - `search_space`: A dictionary containing the search space that defines the parameter space. The keys are the parameter names and the values are [the parameter's distribution](https://optuna.readthedocs.io/en/stable/reference/distributions.html). If the search space is not provided, the sampler will infer the search space dynamically.
-    Example:
-    ```python
-    search_space = {
-        "x": optuna.distributions.FloatDistribution(-5, 5),
-        "y": optuna.distributions.FloatDistribution(-5, 5),
-    }
-    MoCmaSampler(search_space=search_space)
-    ```
-  - `popsize`: Population size of the CMA-ES algorithm. If not provided, the population size will be set based on the search space dimensionality. If you have a sufficient evaluation budget, it is recommended to increase the popsize.
-  - `seed`: Seed for random number generator.
-
-Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.
+Note that categorical parameters are currently unsupported, and multi-objective optimization is not available.
 
 ## Installation
 
-If you have additional dependencies, please fill in the installation guide here.
-If no additional dependencies is required, **this section can be removed**.
-
-**Example**
-
 ```shell
-$ pip install scipy torch
-```
-
-If your package has `requirements.txt`, it will be automatically uploaded to the OptunaHub, and the package dependencies will be available to install as follows.
-
-```shell
- pip install -r https://hub.optuna.org/{category}/{your_package_name}/requirements.txt
+$ pip install torch scipy
 ```
 
 ## Example
-
-Please fill in the code snippet to use the implemented feature here.
-
-**Example**
 
 ```python
 import optuna
 import optunahub
 
 
-def objective(trial):
-  x = trial.suggest_float("x", -5, 5)
-  return x**2
+def objective(trial: optuna.Trial) -> float:
+    x = trial.suggest_float("x", -5, 5)
+    y = trial.suggest_float("y", -5, 5)
+    return x**2 + y**2
 
 
-sampler = optunahub.load_module(package="samplers/gp").GPSampler()
+sampler = optunahub.load_module(package="samplers/turbo").TuRBOSampler()
 study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=100)
+study.optimize(objective, n_trials=200)
+
 ```
 
 ## Others
 
-Please fill in any other information if you have here by adding child sections (###).
-If there is no additional information, **this section can be removed**.
-
-<!--
-For example, you can add sections to introduce a corresponding paper.
-
-### Reference
-Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019.
-Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.
-
 ### Bibtex
+
 ```
-@inproceedings{optuna_2019,
-    title={Optuna: A Next-generation Hyperparameter Optimization Framework},
-    author={Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
-    booktitle={Proceedings of the 25th {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining},
-    year={2019}
+@inproceedings{eriksson2019scalable,
+  title = {Scalable Global Optimization via Local {Bayesian} Optimization},
+  author = {Eriksson, David and Pearce, Michael and Gardner, Jacob and Turner, Ryan D and Poloczek, Matthias},
+  booktitle = {Advances in Neural Information Processing Systems},
+  pages = {5496--5507},
+  year = {2019},
+  url = {http://papers.nips.cc/paper/8788-scalable-global-optimization-via-local-bayesian-optimization.pdf},
 }
 ```
--->
