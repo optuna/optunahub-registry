@@ -1,4 +1,4 @@
-from .sampler import TurBOSampler
+from .sampler import TuRBOSampler
 
 
-__all__ = ["TurBOSampler"]
+__all__ = ["TuRBOSampler"]
