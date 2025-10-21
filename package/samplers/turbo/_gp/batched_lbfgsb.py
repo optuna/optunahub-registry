@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-
 from optuna._imports import try_import
 from optuna.logging import get_logger
 
@@ -102,7 +101,6 @@ def batched_lbfgsb(
     max_iters: int = 15000,
     max_line_search: int = 20,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-
     if _greenlet_imports.is_successful() and len(x0_batched) > 1:
         # NOTE(Kaichi-Irie): when batch size is 1, using greenlet causes context-switch overhead.
         xs_opt, fvals_opt, n_iterations = _batched_lbfgsb(

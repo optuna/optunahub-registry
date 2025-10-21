@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    import torch
-
     from optuna._gp import gp
+    import torch
 else:
     from optuna._imports import _LazyImport
 
