@@ -101,6 +101,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
 
     def __init__(
         self,
+        *,
         search_space: Optional[Dict[str, BaseDistribution]] = None,
         n_particles: int = 10,
         inertia: float = 0.5,
@@ -116,6 +117,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         if cognitive < 0.0 or social < 0.0:
             raise ValueError("cognitive and social must be >= 0.0.")
 
+        self.search_space = search_space
         self.n_particles: int = n_particles
         self.inertia: float = inertia
         self.cognitive: float = cognitive
@@ -128,7 +130,6 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         self.dim: int = 0
         # Numeric-only names used for PSO vectorization.
         self.param_names: List[str] = []  # numeric param names
-        self.categorical_param_names: List[str] = []
         self._numeric_dists: Dict[str, BaseDistribution] = {}
         self.lower_bound: np.ndarray = np.array([], dtype=float)
         self.upper_bound: np.ndarray = np.array([], dtype=float)
@@ -151,22 +152,18 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         """Initialize internal state based on the current search space (numeric-only for PSO)."""
         # Split numeric vs. categorical distributions.
         self.param_names = []
-        self.categorical_param_names = []
-        self._numeric_dists = {}
 
-        for name, dist in search_space.items():
+        self._numeric_dists = {
+            name: dist
+            for name, dist in search_space.items()
             if isinstance(
                 dist,
                 (optuna.distributions.FloatDistribution, optuna.distributions.IntDistribution),
-            ):
-                self.param_names.append(name)  # numeric params used by PSO
-                self._numeric_dists[name] = dist
-            elif isinstance(dist, optuna.distributions.CategoricalDistribution):
-                self.categorical_param_names.append(name)
-            else:
-                # Unknown distribution types are ignored by PSO and will be sampled independently.
-                self.categorical_param_names.append(name)
+            )
+            and not dist.single()
+        }
 
+        self.param_names = sorted(self._numeric_dists.keys())
         self.dim = len(self.param_names)
 
         if self.dim > 0:
@@ -194,6 +191,28 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
 
         self._initialized = True
 
+    def infer_relative_search_space(
+        self, study: Study, _: FrozenTrial
+    ) -> Dict[str, BaseDistribution]:
+        if self.search_space is not None:
+            return self.search_space
+
+        inferred = self._intersection_search_space.calculate(study)
+
+        numeric = {
+            n: d
+            for n, d in inferred.items()
+            if not d.single()
+            and isinstance(
+                d, (optuna.distributions.FloatDistribution, optuna.distributions.IntDistribution)
+            )
+        }
+
+        if numeric:
+            self.search_space = numeric
+
+        return numeric
+
     def sample_relative(
         self,
         study: Study,
@@ -210,15 +229,7 @@ class PSOSampler(optunahub.samplers.SimpleBaseSampler):
         if len(search_space) == 0:
             return {}
 
-        # Re-init if the count of numeric params changed.
-        numeric_count = sum(
-            isinstance(
-                dist,
-                (optuna.distributions.FloatDistribution, optuna.distributions.IntDistribution),
-            )
-            for dist in search_space.values()
-        )
-        if not self._initialized or self.dim != numeric_count:
+        if not self._initialized:
             self._lazy_init(search_space)
 
         # Serve next precomputed numeric candidate if available.

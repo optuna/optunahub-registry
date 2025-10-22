@@ -15,6 +15,8 @@ Particle Swarm Optimization (PSO) is a population-based stochastic optimizer ins
 
 > Note: Multi-objective optimization is not supported.
 
+> Note: PSO Sampler cannot process dynamic changes to the search space.
+
 For details on the algorithm, see Kennedy and Eberhart (1995): [Particle Swarm Optimization](https://doi.org/10.1109/ICNN.1995.488968).
 
 ## APIs
