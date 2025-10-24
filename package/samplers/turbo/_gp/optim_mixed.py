@@ -4,15 +4,17 @@ import math
 from typing import TYPE_CHECKING
 
 import numpy as np
-from .scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 from optuna.logging import get_logger
+
 from .batched_lbfgsb import batched_lbfgsb
+from .scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 
 
 if TYPE_CHECKING:
-    from .acqf import BaseAcquisitionFunc
     import scipy.optimize as so
     import torch
+
+    from .acqf import BaseAcquisitionFunc
 else:
     from optuna import _LazyImport
 
