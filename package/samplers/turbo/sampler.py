@@ -136,6 +136,12 @@ class TuRBOSampler(BaseSampler):
         self._best_value_in_current_trust_region: list[float | None] = [
             None for _ in range(self._n_trust_region)
         ]
+        self._cached_params_by_tr: list[dict[str, Any] | None] = [
+            None for _ in range(self._n_trust_region)
+        ]
+        self._cached_acqf_by_tr: list[np.ndarray | None] = [
+            None for _ in range(self._n_trust_region)
+        ]
 
     def reset_trust_region(self, delete_trust_region_id: int) -> None:
         self._trial_ids_for_trust_region[delete_trust_region_id] = []
@@ -212,8 +218,10 @@ class TuRBOSampler(BaseSampler):
                 return {}
 
         # todo(sawa3030): no trial might be get if it takes time to evaluate objective function
-        best_acqf_val = -np.inf
         for id in range(self._n_trust_region):
+            if self._cached_params_by_tr[id] is not None:
+                continue
+
             states = (TrialState.COMPLETE,)
             all_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
             trials = []
@@ -277,17 +285,16 @@ class TuRBOSampler(BaseSampler):
             trust_region[:, 0] = np.maximum(0.0, best_params - trust_region_length / 2)
             trust_region[:, 1] = np.minimum(1.0, best_params + trust_region_length / 2)
             acqf.search_space.set_trust_region(trust_region)
-
             normalized_param, acqf_val = self._optimize_acqf(acqf, best_params)
 
-            if best_acqf_val < acqf_val:
-                best_acqf_val = acqf_val
-                best_normalized_param = normalized_param
-                best_trust_region_id = id
+            self._cached_params_by_tr[id] = internal_search_space.get_unnormalized_param(
+                normalized_param
+            )
+            self._cached_acqf_by_tr[id] = acqf_val
 
-        assert best_acqf_val > -np.inf  # todo(sawa3030): handle this case
-        self._trial_ids_for_trust_region[best_trust_region_id].append(trial._trial_id)
-        return internal_search_space.get_unnormalized_param(best_normalized_param)
+        trust_region_id = np.argmax(np.array(self._cached_acqf_by_tr, dtype=float))
+        self._trial_ids_for_trust_region[trust_region_id].append(trial._trial_id)
+        return self._cached_params_by_tr[trust_region_id]
 
     def sample_independent(
         self,
@@ -319,6 +326,8 @@ class TuRBOSampler(BaseSampler):
         assert len(values) == 1
         for id in range(self._n_trust_region):
             if trial._trial_id in self._trial_ids_for_trust_region[id]:
+                self._cached_params_by_tr[id] = None
+                self._cached_acqf_by_tr[id] = None
                 self._count_and_adjust_trust_region_length(id, values, study.direction)
                 break
 
