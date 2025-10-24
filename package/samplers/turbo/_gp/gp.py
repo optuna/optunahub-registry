@@ -25,8 +25,9 @@ from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
-from .scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 from optuna.logging import get_logger
+
+from .scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 
 
 if TYPE_CHECKING:
