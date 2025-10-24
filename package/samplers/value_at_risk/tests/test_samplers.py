@@ -280,8 +280,8 @@ def test_categorical(
 @parametrize_noise_type
 def test_sample_relative_numerical(
     relative_sampler_class: Callable[[], BaseSampler],
-    x_distribution: BaseDistribution,
-    y_distribution: BaseDistribution,
+    x_distribution: FloatDistribution | IntDistribution,
+    y_distribution: FloatDistribution | IntDistribution,
     noise_type: str,
 ) -> None:
     can_x_be_noisy = x_distribution.step is None and not x_distribution.log

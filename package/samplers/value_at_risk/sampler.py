@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import cast
 from typing import TYPE_CHECKING
+from typing import TypedDict
 
 import numpy as np
 import optuna
@@ -17,6 +19,7 @@ from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
+from typing_extensions import NotRequired
 
 
 if TYPE_CHECKING:
@@ -37,6 +40,11 @@ from ._gp import gp
 _logger = logging.getLogger(f"optuna.{__name__}")
 
 EPS = 1e-10
+
+
+class _NoiseKWArgs(TypedDict):
+    uniform_input_noise_rads: NotRequired[torch.Tensor]
+    normal_input_noise_stdevs: NotRequired[torch.Tensor]
 
 
 def _standardize_values(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -123,7 +131,10 @@ class RobustGPSampler(BaseSampler):
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._intersection_search_space = optuna.search_space.IntersectionSearchSpace()
         self._n_startup_trials = n_startup_trials
-        self._log_prior: Callable[[gp.GPRegressor], torch.Tensor] = prior.default_log_prior
+        # We assume gp.GPRegressor is compatible with optuna._gp.gp.GPRegressor
+        self._log_prior: Callable[[gp.GPRegressor], torch.Tensor] = cast(
+            Callable[[gp.GPRegressor], torch.Tensor], prior.default_log_prior
+        )
         self._minimum_noise: float = prior.DEFAULT_MINIMUM_NOISE_VAR
         # We cache the kernel parameters for initial values of fitting the next time.
         # TODO(nabenabe): Make the cache lists system_attrs to make GPSampler stateless.
@@ -180,7 +191,8 @@ class RobustGPSampler(BaseSampler):
         # Particularly, we may remove this function in future refactoring.
         assert best_params is None or len(best_params.shape) == 2
         normalized_params, _acqf_val = optim_mixed.optimize_acqf_mixed(
-            acqf,
+            # We assume acqf_module.BaseAcquisitionFunc is compatible with optuna._gp.acqf.BaseAcquisitionFunc
+            cast(optuna._gp.acqf.BaseAcquisitionFunc, acqf),
             warmstart_normalized_params_array=best_params,
             n_preliminary_samples=self._n_preliminary_samples,
             n_local_search=self._n_local_search,
@@ -267,7 +279,7 @@ class RobustGPSampler(BaseSampler):
                 scaled_input_noise_params[i] = input_noise_param / (dist.high - dist.low)
             return scaled_input_noise_params
 
-        noise_kwargs: dict[str, torch.Tensor] = {}
+        noise_kwargs: _NoiseKWArgs = {}
         if self._uniform_input_noise_rads is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
                 self._uniform_input_noise_rads, "uniform_input_noise_rads"
