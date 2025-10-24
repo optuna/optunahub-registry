@@ -217,17 +217,21 @@ class TuRBOSampler(BaseSampler):
                 self._trial_ids_for_trust_region[id].append(trial._trial_id)
                 return {}
 
-        # todo(sawa3030): no trial might be get if it takes time to evaluate objective function
+        states = (TrialState.COMPLETE,)
+        all_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+
         for id in range(self._n_trust_region):
             if self._cached_params_by_tr[id] is not None:
                 continue
 
-            states = (TrialState.COMPLETE,)
-            all_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
             trials = []
             for t in all_trials:
                 if t._trial_id in self._trial_ids_for_trust_region[id]:
                     trials.append(t)
+
+            if len(trials) < self._n_startup_trials:
+                self._trial_ids_for_trust_region[id].append(trial._trial_id)
+                return {}
 
             internal_search_space = gp_search_space.SearchSpace(search_space)
             normalized_params = internal_search_space.get_normalized_params(trials)
@@ -322,13 +326,13 @@ class TuRBOSampler(BaseSampler):
         state: TrialState,
         values: Sequence[float] | None,
     ) -> None:
-        assert values is not None  # todo(sawa3030): handle this case
-        assert len(values) == 1
         for id in range(self._n_trust_region):
             if trial._trial_id in self._trial_ids_for_trust_region[id]:
                 self._cached_params_by_tr[id] = None
                 self._cached_acqf_by_tr[id] = None
-                self._count_and_adjust_trust_region_length(id, values, study.direction)
+                if values is not None:
+                    assert len(values) == 1
+                    self._count_and_adjust_trust_region_length(id, values, study.direction)
                 break
 
         self._independent_sampler.after_trial(study, trial, state, values)
