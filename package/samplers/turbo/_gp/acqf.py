@@ -12,8 +12,8 @@ from optuna.study._multi_objective import _is_pareto_front
 
 
 if TYPE_CHECKING:
-    from optuna._gp.gp import GPRegressor
-    from optuna._gp.search_space import SearchSpace
+    from .gp import GPRegressor
+    from .search_space import SearchSpace
     import torch
 else:
     from optuna._imports import _LazyImport
