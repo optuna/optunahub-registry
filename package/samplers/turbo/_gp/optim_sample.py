@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from optuna._gp import acqf as acqf_module
+from . import acqf as acqf_module
 
 
 def optimize_acqf_sample(
