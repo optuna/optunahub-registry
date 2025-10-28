@@ -32,8 +32,11 @@ def objective(trial: optuna.Trial) -> float:
     )
 
 
-module = optunahub.load_module(package="samplers/fcmaes", repo_owner="jpfeil")
+module = optunahub.load_module(
+    package="samplers/fcmaes", repo_owner="jpfeil", ref="ac4d55e33d98f1cf3dda5eeba336524386d54e2c"
+)
 
-study = optuna.create_study(sampler=module.FastCmaesSampler())
+
+study = optuna.create_study(sampler=module.FastCmaesSampler(16))
 study.optimize(objective, n_trials=20)
 print(study.best_params)
