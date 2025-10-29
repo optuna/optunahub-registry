@@ -106,6 +106,7 @@ class RobustGPSampler(BaseSampler):
         warn_independent_sampling: bool = True,
         uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
+        const_noisy_input_param_names: list[str] | None = None,
     ) -> None:
         if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
@@ -117,8 +118,25 @@ class RobustGPSampler(BaseSampler):
                 "Only one of `uniform_input_noise_rads` and `normal_input_noise_stdevs` "
                 "can be specified."
             )
+        if const_noisy_input_param_names is not None:
+            if uniform_input_noise_rads is not None and len(
+                const_noisy_input_param_names & uniform_input_noise_rads.keys()
+            ):
+                raise ValueError(
+                    "noisy parameters can be specified only in one of "
+                    "`const_noisy_input_param_names` and `uniform_input_noise_rads`."
+                )
+            if normal_input_noise_stdevs is not None and len(
+                const_noisy_input_param_names & normal_input_noise_stdevs.keys()
+            ):
+                raise ValueError(
+                    "noisy parameters can be specified only in one of "
+                    "`const_noisy_input_param_names` and `normal_input_noise_stdevs`."
+                )
+
         self._uniform_input_noise_rads = uniform_input_noise_rads
         self._normal_input_noise_stdevs = normal_input_noise_stdevs
+        self._const_noisy_input_param_names = const_noisy_input_param_names
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._intersection_search_space = optuna.search_space.IntersectionSearchSpace()
