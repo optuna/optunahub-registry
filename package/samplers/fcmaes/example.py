@@ -33,7 +33,7 @@ def objective(trial: optuna.Trial) -> float:
 
 
 module = optunahub.load_module(
-    package="samplers/fcmaes", repo_owner="jpfeil", ref="ac4d55e33d98f1cf3dda5eeba336524386d54e2c"
+    package="samplers/fcmaes"
 )
 
 
