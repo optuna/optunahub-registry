@@ -128,7 +128,7 @@ class FastCmaesSampler(BaseSampler):
 
             for t in solution_trials[: self.popsize]:
                 assert t.value is not None, "completed trials must have a value"
-                # Convert Optuna's representation to cmaes.CatCma's internal representation.
+                # Convert Optuna's representation to fcmaes.cmaescpp's internal representation.
 
                 value = t.value if study.direction == StudyDirection.MINIMIZE else -t.value
 
