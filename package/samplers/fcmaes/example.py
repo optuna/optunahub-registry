@@ -32,9 +32,7 @@ def objective(trial: optuna.Trial) -> float:
     )
 
 
-module = optunahub.load_module(
-    package="samplers/fcmaes"
-)
+module = optunahub.load_module(package="samplers/fcmaes")
 
 
 study = optuna.create_study(sampler=module.FastCmaesSampler(16))
