@@ -9,7 +9,7 @@ license: MIT License
 
 ## Abstract
 
-C++ optimized implementation of CMA-ES using the fcmaes library (https://github.com/dietmarwo/fast-cma-es)
+C++ optimized implementation of CMA-ES using the fcmaes library (https://github.com/dietmarwo/fast-cma-es). To use this package, please install the `fcmaes` library.
 
 ## APIs
 
