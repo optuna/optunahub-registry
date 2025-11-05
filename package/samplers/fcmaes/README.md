@@ -1,7 +1,7 @@
 ---
 author: Jacob Pfeil
 title: Optuna Wrapper for Fast CMA-ES
-description:
+description: C++ optimized implementation of CMA-ES using the fcmaes library (https://github.com/dietmarwo/fast-cma-es).
 tags: [sampler, cmaes, fcmaes]
 optuna_versions: [4.5.0]
 license: MIT License
@@ -9,7 +9,15 @@ license: MIT License
 
 ## Abstract
 
-C++ optimized implementation of CMA-ES using the fcmaes library (https://github.com/dietmarwo/fast-cma-es). To use this package, please install the `fcmaes` library.
+C++ optimized implementation of CMA-ES using the fcmaes library (https://github.com/dietmarwo/fast-cma-es).
+
+## Installation
+
+`fcmaes` package is required.
+
+```sh
+pip install fcmaes
+```
 
 ## APIs
 
