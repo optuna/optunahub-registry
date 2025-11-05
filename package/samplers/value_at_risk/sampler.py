@@ -106,7 +106,7 @@ class RobustGPSampler(BaseSampler):
         warn_independent_sampling: bool = True,
         uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
-        const_noisy_input_param_names: list[str] | None = None,
+        const_noisy_param_names: list[str] | None = None,
     ) -> None:
         if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
@@ -118,25 +118,25 @@ class RobustGPSampler(BaseSampler):
                 "Only one of `uniform_input_noise_rads` and `normal_input_noise_stdevs` "
                 "can be specified."
             )
-        if const_noisy_input_param_names is not None:
+        if const_noisy_param_names is not None:
             if uniform_input_noise_rads is not None and len(
-                const_noisy_input_param_names & uniform_input_noise_rads.keys()
+                const_noisy_param_names & uniform_input_noise_rads.keys()
             ):
                 raise ValueError(
                     "noisy parameters can be specified only in one of "
-                    "`const_noisy_input_param_names` and `uniform_input_noise_rads`."
+                    "`const_noisy_param_names` and `uniform_input_noise_rads`."
                 )
             if normal_input_noise_stdevs is not None and len(
-                const_noisy_input_param_names & normal_input_noise_stdevs.keys()
+                const_noisy_param_names & normal_input_noise_stdevs.keys()
             ):
                 raise ValueError(
                     "noisy parameters can be specified only in one of "
-                    "`const_noisy_input_param_names` and `normal_input_noise_stdevs`."
+                    "`const_noisy_param_names` and `normal_input_noise_stdevs`."
                 )
 
         self._uniform_input_noise_rads = uniform_input_noise_rads
         self._normal_input_noise_stdevs = normal_input_noise_stdevs
-        self._const_noisy_input_param_names = const_noisy_input_param_names or []
+        self._const_noisy_param_names = const_noisy_param_names or []
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._intersection_search_space = optuna.search_space.IntersectionSearchSpace()
@@ -244,6 +244,14 @@ class RobustGPSampler(BaseSampler):
         self._constraints_gprs_cache_list = constraints_gprs
         return constraints_gprs, constraints_threshold_list
 
+    def _get_internal_search_space_with_fixed_params(
+        self, search_space: dict[str, BaseDistribution]
+    ) -> gp_search_space.SearchSpace:
+        search_space_with_fixed_params = search_space.copy()
+        for param_name in self._const_noisy_param_names:
+            search_space_with_fixed_params[param_name] = optuna.distributions.IntDistribution(0, 0)
+        return gp_search_space.SearchSpace(search_space_with_fixed_params)
+
     def _get_value_at_risk(
         self,
         gpr: gp.GPRegressor,
@@ -286,7 +294,7 @@ class RobustGPSampler(BaseSampler):
         const_noise_param_inds = [
             i
             for i, param_name in enumerate(search_space)
-            if param_name in self._const_noisy_input_param_names
+            if param_name in self._const_noisy_param_names
         ]
         if self._uniform_input_noise_rads is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
@@ -304,10 +312,13 @@ class RobustGPSampler(BaseSampler):
         else:
             assert False, "Should not reach here."
 
+        search_space_with_fixed_params = self._get_internal_search_space_with_fixed_params(
+            search_space
+        )
         if constraints_gpr_list is None or constraints_threshold_list is None:
             return acqf_module.ValueAtRisk(
                 gpr=gpr,
-                search_space=internal_search_space,
+                search_space=search_space_with_fixed_params,
                 confidence_level=self._objective_confidence_level,
                 n_input_noise_samples=self._n_input_noise_samples,
                 n_qmc_samples=self._n_qmc_samples,
@@ -319,7 +330,7 @@ class RobustGPSampler(BaseSampler):
         else:
             return acqf_module.ConstrainedLogValueAtRisk(
                 gpr=gpr,
-                search_space=internal_search_space,
+                search_space=search_space_with_fixed_params,
                 constraints_gpr_list=constraints_gpr_list,
                 constraints_threshold_list=constraints_threshold_list,
                 objective_confidence_level=self._objective_confidence_level,
