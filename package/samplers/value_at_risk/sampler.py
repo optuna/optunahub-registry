@@ -324,7 +324,6 @@ class RobustGPSampler(BaseSampler):
                 n_qmc_samples=self._n_qmc_samples,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 acqf_type=acqf_type,
-                const_noise_param_inds=const_noise_param_inds,
                 **noise_kwargs,
             )
         else:
@@ -339,7 +338,6 @@ class RobustGPSampler(BaseSampler):
                 n_qmc_samples=self._n_qmc_samples,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 acqf_type=acqf_type,
-                const_noise_param_inds=const_noise_param_inds,
                 **noise_kwargs,
             )
 

@@ -117,13 +117,11 @@ class LogCumulativeProbabilityAtRisk(BaseAcquisitionFunc):
         threshold_list: list[float],
         n_input_noise_samples: int,
         qmc_seed: int | None,
-        const_noise_param_inds: list[int] | None = None,
         uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
         stabilizing_noise: float = 1e-12,
     ) -> None:
         self._gpr_list = gpr_list
-        self._const_noise_param_inds = const_noise_param_inds
         self._threshold_list = threshold_list
         rng = np.random.RandomState(qmc_seed)
         self._input_noise = _sample_input_noise(
@@ -169,7 +167,6 @@ class ValueAtRisk(BaseAcquisitionFunc):
         n_qmc_samples: int,
         qmc_seed: int | None,
         acqf_type: str,
-        const_noise_param_inds: list[int] | None = None,
         uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
     ) -> None:
@@ -177,7 +174,6 @@ class ValueAtRisk(BaseAcquisitionFunc):
         self._gpr = gpr
         self._confidence_level = confidence_level
         rng = np.random.RandomState(qmc_seed)
-        self._const_noise_param_inds = const_noise_param_inds or []
         self._input_noise = _sample_input_noise(
             n_input_noise_samples,
             uniform_input_noise_rads,
@@ -230,7 +226,6 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
         n_qmc_samples: int,
         qmc_seed: int | None,
         acqf_type: str,
-        const_noise_param_inds: list[int] | None = None,
         uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
         stabilizing_noise: float = 1e-12,
@@ -243,7 +238,6 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             n_qmc_samples=n_qmc_samples,
             qmc_seed=qmc_seed,
             acqf_type=acqf_type,
-            const_noise_param_inds=const_noise_param_inds,
             uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
         )
@@ -254,7 +248,6 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             threshold_list=constraints_threshold_list,
             n_input_noise_samples=n_input_noise_samples,
             qmc_seed=qmc_seed,
-            const_noise_param_inds=const_noise_param_inds,
             uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
             stabilizing_noise=stabilizing_noise,
