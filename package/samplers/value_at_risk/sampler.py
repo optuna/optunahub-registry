@@ -442,7 +442,14 @@ class RobustGPSampler(BaseSampler):
             )
 
         normalized_param = self._optimize_acqf(acqf)
-        return internal_search_space.get_unnormalized_param(normalized_param)
+        params = internal_search_space.get_unnormalized_param(normalized_param)
+
+        for name in self._const_noisy_param_names:
+            dist = search_space[name]
+            assert isinstance(dist, optuna.distributions.FloatDistribution)
+            params[name] = self._rng.rng.uniform(dist.low, dist.high)
+
+        return params
 
     def get_robust_trial(self, study: Study) -> FrozenTrial:
         states = (TrialState.COMPLETE,)
