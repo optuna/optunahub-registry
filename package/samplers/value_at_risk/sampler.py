@@ -401,16 +401,13 @@ class RobustGPSampler(BaseSampler):
         self._gprs_cache_list = gprs_list
         return gprs_list
 
-    def sample_relative(
-        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    def _optimize_params(
+        self, study: Study, trials: list[FrozenTrial], search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
         if search_space == {}:
             return {}
 
         self._verify_search_space(search_space)
-        trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
-        if len(trials) < self._n_startup_trials:
-            return {}
 
         gprs_list = self._get_gpr_list(study, search_space)
         acqf: acqf_module.BaseAcquisitionFunc
@@ -442,8 +439,18 @@ class RobustGPSampler(BaseSampler):
             )
 
         normalized_param = self._optimize_acqf(acqf)
-        params = internal_search_space.get_unnormalized_param(normalized_param)
+        return internal_search_space.get_unnormalized_param(normalized_param)
 
+    def sample_relative(
+        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, Any]:
+        trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
+        if len(trials) < self._n_startup_trials:
+            return {}
+
+        params = self._optimize_params(study, trials, search_space)
+
+        # Perturb constant noisy parameter uniformly
         for name in self._const_noisy_param_names:
             dist = search_space[name]
             assert isinstance(dist, optuna.distributions.FloatDistribution)
