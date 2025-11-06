@@ -490,6 +490,12 @@ class RobustGPSampler(BaseSampler):
         best_idx = np.argmax(acqf.eval_acqf_no_grad(X_train)).item()
         return trials[best_idx]
 
+    def get_robust_params(self, study: Study) -> dict[str, Any]:
+        states = (TrialState.COMPLETE,)
+        trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
+        search_space = self.infer_relative_search_space(study, trials[0])
+        return self._optimize_params(study, trials, search_space)
+
     def sample_independent(
         self,
         study: Study,
