@@ -101,6 +101,10 @@ class RobustGPSampler(BaseSampler):
             The input noise standard deviations for each parameter. For example, when
             `{"x": 0.1, "y": 0.2}` is given, the sampler assumes that the input noise of `x` and
             `y` follows `N(0, 0.1**2)` and `N(0, 0.2**2)`, respectively.
+        const_noisy_param_names:
+            The list of parameters determined externally rather than being decision variables.
+            For these parameters, `suggest_float` samples random values instead of searching
+            values that optimize the objective function.
     """
 
     def __init__(
