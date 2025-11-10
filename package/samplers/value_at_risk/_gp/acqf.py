@@ -11,9 +11,10 @@ import numpy as np
 if TYPE_CHECKING:
     from typing import Protocol
 
-    from optuna._gp.gp import GPRegressor
     from optuna._gp.search_space import SearchSpace
     import torch
+
+    from .gp import GPRegressor
 
     class SobolGenerator(Protocol):
         def __call__(self, dim: int, n_samples: int, seed: int | None) -> torch.Tensor:
