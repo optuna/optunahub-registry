@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 from typing import cast
 from typing import TYPE_CHECKING
@@ -11,6 +12,7 @@ from optuna._experimental import warn_experimental_argument
 from optuna._gp import optim_mixed
 from optuna._gp import prior
 from optuna._gp import search_space as gp_search_space
+import optuna._gp.acqf
 from optuna.samplers._base import _CONSTRAINTS_KEY
 from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
 from optuna.samplers._base import _process_constraints_after_trial
@@ -23,7 +25,6 @@ from typing_extensions import NotRequired
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from collections.abc import Sequence
 
     from optuna.distributions import BaseDistribution
