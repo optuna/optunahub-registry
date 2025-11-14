@@ -365,8 +365,9 @@ class TuRBOSampler(BaseSampler):
             self._n_consecutive_success[trust_region_id] = 0
             self._n_consecutive_failure[trust_region_id] = 0
         elif self._n_consecutive_failure[trust_region_id] >= self._failure_tolerance:
-            self._length[trust_region_id] = self._length[trust_region_id] / 2.0
-            self._n_consecutive_success[trust_region_id] = 0
-            self._n_consecutive_failure[trust_region_id] = 0
-            if self._length[trust_region_id] < self._min_length:
+            if self._length[trust_region_id] / 2.0 < self._min_length:
                 self._reset_trust_region(trust_region_id)
+            else:
+                self._length[trust_region_id] = self._length[trust_region_id] / 2.0
+                self._n_consecutive_success[trust_region_id] = 0
+                self._n_consecutive_failure[trust_region_id] = 0
