@@ -20,6 +20,9 @@ Please refer to the paper, [Scalable Global Optimization via Local Bayesian Opti
   - `n_trust_region`: Number of trust regions. Default is 5.
   - `success_tolerance`: Number of consecutive successful iterations required to expand the trust region. Default is 3.
   - `failure_tolerance`: Number of consecutive failed iterations required to shrink the trust region. Default is 5. As suggested in the original paper, consider setting this to max(5, number of parameters).
+  - `init_length`: The initial size of the trust region. Defaults to 0.8.
+  - `max_length`: Maximum size of the trust region. If the trust region grows beyond this value, its size is clipped to this value. Defaults to 1.6.
+  - `min_length`: Minimum size of the trust region. If the trust region shrinks below this value, the region is regarded as fully explored and as having reached a local optimum. In this case, the current trust region is discarded and a new one is initialized with size `init_length`. Defaults to 0.5\*\*7.
   - `seed`: Random seed to initialize internal random number generator. Defaults to :obj:`None` (a seed is picked randomly).
   - `independent_sampler`: Sampler used for initial sampling (for the first `n_startup_trials` trials) and for conditional parameters. Defaults to :obj:`None` (a random sampler with the same `seed` is used).
   - `deterministic_objective`: Whether the objective function is deterministic or not. If :obj:`True`, the sampler will fix the noise variance of the surrogate model to the minimum value (slightly above 0 to ensure numerical stability). Defaults to :obj:`False`. Currently, all the objectives will be assume to be deterministic if :obj:`True`.
