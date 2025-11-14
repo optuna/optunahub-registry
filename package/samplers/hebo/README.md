@@ -86,7 +86,7 @@ However, users need to make sure that the provided search space and the search s
 
 ## Others
 
-HEBO is the winning submission to the [NeurIPS 2020 Black-Box Optimisation Challenge](https://bbochallenge.com/leaderboard).
+HEBO is the winning submission to [the NeurIPS 2020 Black-Box Optimisation Challenge](https://github.com/rdturnermtl/bbo_challenge_starter_kit?tab=readme-ov-file).
 Please refer to [the official repository of HEBO](https://github.com/huawei-noah/HEBO/tree/master/HEBO) for more details.
 
 ### Reference
