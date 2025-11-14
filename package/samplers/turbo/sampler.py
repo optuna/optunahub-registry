@@ -67,7 +67,18 @@ class TuRBOSampler(BaseSampler):
             Default is 3.
         failure_tolerance:
             Number of consecutive failed iterations required to shrink the trust region.
-            Default is 5. As suggested in the original paper, consider setting this to max(5, number of parameters).
+            Default is 5. As suggested in the original paper,
+            consider setting this to max(5, number of parameters).
+        init_length:
+            The initial size of the trust region. Defaults to 0.8.
+        max_length:
+            Maximum size of the trust region. If the trust region grows beyond this value,
+            its size is clipped to this value. Defaults to 1.6.
+        min_length:
+            Minimum size of the trust region. If the trust region shrinks below this value,
+            the region is regarded as fully explored and as having reached a local optimum.
+            In this case, the current trust region is discarded and a new one is initialized
+            with size `init_length`. Defaults to 0.5**7.
         seed:
             Random seed to initialize internal random number generator.
             Defaults to :obj:`None` (a seed is picked randomly).
@@ -96,6 +107,9 @@ class TuRBOSampler(BaseSampler):
         n_trust_region: int = 5,
         success_tolerance: int = 3,
         failure_tolerance: int = 5,
+        init_length: float = 0.8,
+        max_length: float = 1.6,
+        min_length: float = 0.5**7,
         seed: int | None = None,
         independent_sampler: BaseSampler | None = None,
         deterministic_objective: bool = False,
@@ -120,9 +134,9 @@ class TuRBOSampler(BaseSampler):
         self._tol = 1e-4
 
         # hyperparameters of TuRBOSampler
-        self._init_length = 0.8
-        self._max_length = 1.6
-        self._min_length = 0.5**7
+        self._init_length = init_length
+        self._max_length = max_length
+        self._min_length = min_length
         self._n_trust_region = n_trust_region
         self._success_tolerance = success_tolerance
         self._failure_tolerance = failure_tolerance
