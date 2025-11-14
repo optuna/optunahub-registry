@@ -9,7 +9,6 @@ from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
 from optuna.samplers._base import BaseSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import StudyDirection
-from optuna.study._multi_objective import _is_pareto_front
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
@@ -157,7 +156,7 @@ class TuRBOSampler(BaseSampler):
             None for _ in range(self._n_trust_region)
         ]
 
-    def reset_trust_region(self, delete_trust_region_id: int) -> None:
+    def _reset_trust_region(self, delete_trust_region_id: int) -> None:
         self._trial_ids_for_trust_region[delete_trust_region_id] = []
         self._length[delete_trust_region_id] = self._init_length
         self._n_consecutive_success[delete_trust_region_id] = 0
@@ -206,29 +205,18 @@ class TuRBOSampler(BaseSampler):
         )
         return normalized_params, acqf_val
 
-    def _get_best_params_for_multi_objective(
-        self,
-        normalized_params: np.ndarray,
-        standardized_score_vals: np.ndarray,
-    ) -> np.ndarray:
-        pareto_params = normalized_params[
-            _is_pareto_front(-standardized_score_vals, assume_unique_lexsorted=False)
-        ]
-        n_pareto_sols = len(pareto_params)
-        # TODO(nabenabe): Verify the validity of this choice.
-        size = min(self._n_local_search // 2, n_pareto_sols)
-        chosen_indices = self._rng.rng.choice(n_pareto_sols, size=size, replace=False)
-        return pareto_params[chosen_indices]
-
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
+        if study._is_multi_objective():
+            raise ValueError("TurboSampler does not support multi-objective optimization.")
+
         if search_space == {}:
             return {}
 
-        for id in range(self._n_trust_region):
-            if len(self._trial_ids_for_trust_region[id]) < self._n_startup_trials:
-                self._trial_ids_for_trust_region[id].append(trial._trial_id)
+        for ids in self._trial_ids_for_trust_region:
+            if len(ids) < self._n_startup_trials:
+                ids.append(trial._trial_id)
                 return {}
 
         states = (TrialState.COMPLETE,)
@@ -243,16 +231,10 @@ class TuRBOSampler(BaseSampler):
                 if t._trial_id in self._trial_ids_for_trust_region[id]:
                     trials.append(t)
 
-            if len(trials) < self._n_startup_trials:
-                self._trial_ids_for_trust_region[id].append(trial._trial_id)
-                return {}
-
             internal_search_space = gp_search_space.SearchSpace(search_space)
             normalized_params = internal_search_space.get_normalized_params(trials)
 
-            _sign = np.array(
-                [-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions]
-            )
+            _sign = -1.0 if study.direction == StudyDirection.MINIMIZE else 1.0
             standardized_score_vals, _, _ = _standardize_values(
                 _sign * np.array([trial.values for trial in trials])
             )
@@ -359,22 +341,19 @@ class TuRBOSampler(BaseSampler):
                 if values is not None:
                     best_value = self._best_value_in_current_trust_region[trust_region_id]
                     assert best_value is not None
-                    if direction == StudyDirection.MINIMIZE:
-                        if values[0] < best_value:
-                            self._n_consecutive_success[trust_region_id] += 1
-                            self._n_consecutive_failure[trust_region_id] = 0
-                            self._best_value_in_current_trust_region[trust_region_id] = values[0]
-                        else:
-                            self._n_consecutive_success[trust_region_id] = 0
-                            self._n_consecutive_failure[trust_region_id] += 1
+                    is_better = (
+                        values[0] < best_value
+                        if direction == StudyDirection.MINIMIZE
+                        else values[0] > best_value
+                    )
+
+                    if is_better:
+                        self._n_consecutive_success[trust_region_id] += 1
+                        self._n_consecutive_failure[trust_region_id] = 0
+                        self._best_value_in_current_trust_region[trust_region_id] = values[0]
                     else:
-                        if values[0] > best_value:
-                            self._n_consecutive_success[trust_region_id] += 1
-                            self._n_consecutive_failure[trust_region_id] = 0
-                            self._best_value_in_current_trust_region[trust_region_id] = values[0]
-                        else:
-                            self._n_consecutive_success[trust_region_id] = 0
-                            self._n_consecutive_failure[trust_region_id] += 1
+                        self._n_consecutive_success[trust_region_id] = 0
+                        self._n_consecutive_failure[trust_region_id] += 1
             else:
                 if values is not None:
                     self._best_value_in_current_trust_region[trust_region_id] = values[0]
@@ -390,4 +369,4 @@ class TuRBOSampler(BaseSampler):
             self._n_consecutive_success[trust_region_id] = 0
             self._n_consecutive_failure[trust_region_id] = 0
             if self._length[trust_region_id] < self._min_length:
-                self.reset_trust_region(trust_region_id)
+                self._reset_trust_region(trust_region_id)
