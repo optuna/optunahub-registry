@@ -3,7 +3,7 @@ author: Optuna Team
 title: TuRBOSampler
 description: This sampler performs Bayesian optimization in adaptive trust regions using Gaussian Processes
 tags: [sampler, Bayesian optimization]
-optuna_versions: [4.5.0]
+optuna_versions: [4.6.0]
 license: MIT License
 ---
 
