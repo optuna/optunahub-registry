@@ -118,6 +118,8 @@ class LogCumulativeProbabilityAtRisk(BaseAcquisitionFunc):
         threshold_list: list[float],
         n_input_noise_samples: int,
         qmc_seed: int | None,
+        fixed_indices: torch.Tensor,
+        fixed_values: torch.Tensor,
         uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
         stabilizing_noise: float = 1e-12,
@@ -133,12 +135,22 @@ class LogCumulativeProbabilityAtRisk(BaseAcquisitionFunc):
         )
         self._stabilizing_noise = stabilizing_noise
         self._confidence_level = confidence_level
+        self._fixed_indices = fixed_indices
+        self._fixed_values = fixed_values
         super().__init__(
             length_scales=np.mean([gpr.length_scales for gpr in gpr_list], axis=0),
             search_space=search_space,
         )
 
     def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
+        # The search space of constant noisy parameters is internally replaced with IntDistribution(0, 0),
+        # so that their normalized values passed as x is always 0.5. However, values passed to
+        # const_noisy_param_values argument of RobustGPSampler._get_value_at_risk may be normalized to
+        # different values under the original search space used by GPRegressor.  So we carry around the
+        # normalized version of const_noisy_param_values explicity and use them instead.
+        x = x.clone()
+        x[:, self._fixed_indices] = self._fixed_values
+
         x_noisy = x.unsqueeze(-2) + self._input_noise
         log_feas_probs = torch.zeros(x_noisy.shape[:-1], dtype=torch.float64)
         for gpr, threshold in zip(self._gpr_list, self._threshold_list):
@@ -168,6 +180,8 @@ class ValueAtRisk(BaseAcquisitionFunc):
         n_qmc_samples: int,
         qmc_seed: int | None,
         acqf_type: str,
+        fixed_indices: torch.Tensor,
+        fixed_values: torch.Tensor,
         uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
     ) -> None:
@@ -187,6 +201,8 @@ class ValueAtRisk(BaseAcquisitionFunc):
             seed=rng.random_integers(0, 2**31 - 1, size=1).item(),
         )
         self._acqf_type = acqf_type
+        self._fixed_indices = fixed_indices
+        self._fixed_values = fixed_values
         super().__init__(length_scales=gpr.length_scales, search_space=search_space)
 
     def _value_at_risk(self, x: torch.Tensor) -> torch.Tensor:
@@ -206,6 +222,15 @@ class ValueAtRisk(BaseAcquisitionFunc):
         4. Then compute (mc_value_at_risk - f0).clamp_min(0).mean()
         Appendix B.2 of https://www.robots.ox.ac.uk/~mosb/public/pdf/136/full_thesis.pdf
         """
+
+        # The search space of constant noisy parameters is internally replaced with IntDistribution(0, 0),
+        # so that their normalized values passed as x is always 0.5. However, values passed to
+        # const_noisy_param_values argument of RobustGPSampler._get_value_at_risk may be normalized to
+        # different values under the original search space used by GPRegressor.  So we carry around the
+        # normalized version of const_noisy_param_values explicity and use them instead.
+        x = x.clone()
+        x[:, self._fixed_indices] = self._fixed_values
+
         if self._acqf_type == "mean":
             return self._value_at_risk(x).mean(dim=-1)
         elif self._acqf_type == "nei":
@@ -227,6 +252,8 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
         n_qmc_samples: int,
         qmc_seed: int | None,
         acqf_type: str,
+        fixed_indices: torch.Tensor,
+        fixed_values: torch.Tensor,
         uniform_input_noise_rads: torch.Tensor | None = None,
         normal_input_noise_stdevs: torch.Tensor | None = None,
         stabilizing_noise: float = 1e-12,
@@ -241,6 +268,8 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             acqf_type=acqf_type,
             uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
+            fixed_indices=fixed_indices,
+            fixed_values=fixed_values,
         )
         self._log_prob_at_risk = LogCumulativeProbabilityAtRisk(
             gpr_list=constraints_gpr_list,
@@ -252,6 +281,8 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             uniform_input_noise_rads=uniform_input_noise_rads,
             normal_input_noise_stdevs=normal_input_noise_stdevs,
             stabilizing_noise=stabilizing_noise,
+            fixed_indices=fixed_indices,
+            fixed_values=fixed_values,
         )
         assert torch.allclose(
             self._log_prob_at_risk._input_noise, self._value_at_risk._input_noise
