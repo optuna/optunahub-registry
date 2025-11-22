@@ -265,7 +265,8 @@ class RobustGPSampler(BaseSampler):
         return constraints_gprs, constraints_threshold_list
 
     def _get_internal_search_space_with_fixed_params(
-        self, search_space: dict[str, BaseDistribution]
+        self,
+        search_space: dict[str, BaseDistribution],
     ) -> gp_search_space.SearchSpace:
         search_space_with_fixed_params = search_space.copy()
         for param_name in self._const_noisy_param_names:
@@ -278,6 +279,7 @@ class RobustGPSampler(BaseSampler):
         internal_search_space: gp_search_space.SearchSpace,
         search_space: dict[str, BaseDistribution],
         acqf_type: str,
+        const_noisy_param_values: dict[str, float],
         constraints_gpr_list: list[gp.GPRegressor] | None = None,
         constraints_threshold_list: list[float] | None = None,
     ) -> acqf_module.ValueAtRisk | acqf_module.ConstrainedLogValueAtRisk:
@@ -316,10 +318,28 @@ class RobustGPSampler(BaseSampler):
             for i, param_name in enumerate(search_space)
             if param_name in self._const_noisy_param_names
         ]
+
+        def normalize(dist: BaseDistribution, x: float) -> float:
+            assert isinstance(
+                dist,
+                (optuna.distributions.IntDistribution, optuna.distributions.FloatDistribution),
+            )
+            return (x - dist.low) / (dist.high - dist.low)
+
+        const_noisy_param_normalized_values = [
+            normalize(dist, const_noisy_param_values[param_name])
+            if param_name in const_noisy_param_values
+            else 0.5
+            for i, (param_name, dist) in enumerate(search_space.items())
+            if param_name in self._const_noisy_param_names
+        ]
+
         if self._uniform_input_noise_rads is not None:
             scaled_input_noise_params = _get_scaled_input_noise_params(
                 self._uniform_input_noise_rads, "uniform_input_noise_rads"
             )
+            # FIXME(sakai): If the fixed value is not at the center of the range,
+            # \pm 0.5 may not cover the domain.
             scaled_input_noise_params[const_noise_param_inds] = 0.5
             noise_kwargs["uniform_input_noise_rads"] = scaled_input_noise_params
         elif self._normal_input_noise_stdevs is not None:
@@ -327,6 +347,8 @@ class RobustGPSampler(BaseSampler):
                 self._normal_input_noise_stdevs, "normal_input_noise_stdevs"
             )
             # NOTE(nabenabe): \pm 2 sigma will cover the domain.
+            # FIXME(sakai): If the fixed value is not at the center of the range,
+            # \pm 2 sigma may not cover the domain.
             scaled_input_noise_params[const_noise_param_inds] = 0.25
             noise_kwargs["normal_input_noise_stdevs"] = scaled_input_noise_params
         else:
@@ -344,6 +366,10 @@ class RobustGPSampler(BaseSampler):
                 n_qmc_samples=self._n_qmc_samples,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 acqf_type=acqf_type,
+                fixed_indices=torch.tensor(const_noise_param_inds, dtype=torch.int64),
+                fixed_values=torch.tensor(
+                    const_noisy_param_normalized_values, dtype=torch.float64
+                ),
                 **noise_kwargs,
             )
         else:
@@ -358,6 +384,10 @@ class RobustGPSampler(BaseSampler):
                 n_qmc_samples=self._n_qmc_samples,
                 qmc_seed=self._rng.rng.randint(1 << 30),
                 acqf_type=acqf_type,
+                fixed_indices=torch.tensor(const_noise_param_inds, dtype=torch.int64),
+                fixed_values=torch.tensor(
+                    const_noisy_param_normalized_values, dtype=torch.float64
+                ),
                 **noise_kwargs,
             )
 
@@ -422,7 +452,11 @@ class RobustGPSampler(BaseSampler):
         return gprs_list
 
     def _optimize_params(
-        self, study: Study, trials: list[FrozenTrial], search_space: dict[str, BaseDistribution]
+        self,
+        study: Study,
+        trials: list[FrozenTrial],
+        search_space: dict[str, BaseDistribution],
+        const_noisy_param_values: dict[str, float],
     ) -> dict[str, Any]:
         if search_space == {}:
             return {}
@@ -440,6 +474,7 @@ class RobustGPSampler(BaseSampler):
                 internal_search_space,
                 search_space,
                 acqf_type=self._acqf_type,
+                const_noisy_param_values=const_noisy_param_values,
             )
         else:
             constraint_vals, _ = _get_constraint_vals_and_feasibility(study, trials)
@@ -456,10 +491,18 @@ class RobustGPSampler(BaseSampler):
                 acqf_type=self._acqf_type,
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
+                const_noisy_param_values=const_noisy_param_values,
             )
 
         normalized_param = self._optimize_acqf(acqf)
-        return internal_search_space.get_unnormalized_param(normalized_param)
+        # The normalized values of constant noise parameters are fixed at 0.5 during search
+        # regardless of their original values given as const_noisy_param_values, so
+        # `internal_search_space.get_unnormalized_param` cannot decode them correctly.
+        # Therefore, we overwrite those values with their original values.
+        return (
+            internal_search_space.get_unnormalized_param(normalized_param)
+            | const_noisy_param_values
+        )
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -468,17 +511,18 @@ class RobustGPSampler(BaseSampler):
         if len(trials) < self._n_startup_trials:
             return {}
 
-        params = self._optimize_params(study, trials, search_space)
-
         # Perturb constant noisy parameter uniformly
+        const_noisy_param_values = {}
         for name in self._const_noisy_param_names:
             dist = search_space[name]
             assert isinstance(dist, optuna.distributions.FloatDistribution)
-            params[name] = self._rng.rng.uniform(dist.low, dist.high)
+            const_noisy_param_values[name] = self._rng.rng.uniform(dist.low, dist.high)
 
-        return params
+        return self._optimize_params(study, trials, search_space, const_noisy_param_values)
 
-    def get_robust_trial(self, study: Study) -> FrozenTrial:
+    def get_robust_trial(
+        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> FrozenTrial:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
         search_space = self.infer_relative_search_space(study, trials[0])
@@ -488,7 +532,11 @@ class RobustGPSampler(BaseSampler):
         acqf: acqf_module.BaseAcquisitionFunc
         if self._constraints_func is None:
             acqf = self._get_value_at_risk(
-                gpr, internal_search_space, search_space, acqf_type=self.acqf_type
+                gpr,
+                internal_search_space,
+                search_space,
+                acqf_type=self.acqf_type,
+                const_noisy_param_values=const_noisy_param_nominal_values or {},
             )
         else:
             constraint_vals, _ = _get_constraint_vals_and_feasibility(study, trials)
@@ -505,16 +553,21 @@ class RobustGPSampler(BaseSampler):
                 # acqf_type="mean",
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
+                const_noisy_param_values=const_noisy_param_nominal_values or {},
             )
 
         best_idx = np.argmax(acqf.eval_acqf_no_grad(X_train)).item()
         return trials[best_idx]
 
-    def get_robust_params(self, study: Study) -> dict[str, Any]:
+    def get_robust_params(
+        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
         search_space = self.infer_relative_search_space(study, trials[0])
-        return self._optimize_params(study, trials, search_space)
+        return self._optimize_params(
+            study, trials, search_space, const_noisy_param_nominal_values or {}
+        )
 
     def sample_independent(
         self,
