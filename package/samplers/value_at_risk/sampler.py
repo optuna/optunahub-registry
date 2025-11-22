@@ -120,6 +120,7 @@ class RobustGPSampler(BaseSampler):
         uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
         const_noisy_param_names: list[str] | None = None,
+        acqf_type: str = "nei",
     ) -> None:
         if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
@@ -180,6 +181,8 @@ class RobustGPSampler(BaseSampler):
         self._feas_prob_confidence_level = 0.95
         self._n_input_noise_samples = 32
         self._n_qmc_samples = 128
+        assert acqf_type in ["mean", "nei"]
+        self._acqf_type = acqf_type
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -436,7 +439,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type="nei",
+                acqf_type=self._acqf_type,
             )
         else:
             constraint_vals, _ = _get_constraint_vals_and_feasibility(study, trials)
@@ -450,7 +453,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type="nei",
+                acqf_type=self._acqf_type,
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
             )
@@ -485,7 +488,7 @@ class RobustGPSampler(BaseSampler):
         acqf: acqf_module.BaseAcquisitionFunc
         if self._constraints_func is None:
             acqf = self._get_value_at_risk(
-                gpr, internal_search_space, search_space, acqf_type="mean"
+                gpr, internal_search_space, search_space, acqf_type=self.acqf_type
             )
         else:
             constraint_vals, _ = _get_constraint_vals_and_feasibility(study, trials)
@@ -495,11 +498,11 @@ class RobustGPSampler(BaseSampler):
                 internal_search_space.get_normalized_params(trials),
             )
             acqf = self._get_value_at_risk(
-                # TODO: Replace mean with nei once NEI is implemented.
                 gpr,
                 internal_search_space,
                 search_space,
-                acqf_type="mean",
+                acqf_type=self._acqf_type,
+                # acqf_type="mean",
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
             )
