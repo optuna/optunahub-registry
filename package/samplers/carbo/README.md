@@ -15,7 +15,7 @@ The algorithm details are described in the `Others` section.
 
 ## APIs
 
-- `CARBOSampler(*, seed: int | None = None, independent_sampler: BaseSampler | None = None, n_startup_trials: int = 10, deterministic_objective: bool = False, constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None, rho: float = 1e3, beta: float = 4.0, local_ratio: float = 0.1, n_local_search: int = 10)`
+- `CARBOSampler(*, seed: int | None = None, independent_sampler: BaseSampler | None = None, n_startup_trials: int = 10, deterministic_objective: bool = False, constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None, rho: float = 1e3, beta: float = 4.0, local_ratio: float = 0.1, input_noise_rads = None, n_local_search: int = 10)`
   - `seed`: Seed for random number generator.
   - `independent_sampler`: Sampler used for initial sampling (for the first `n_startup_trials` trials) and for conditional parameters. (a random sampler with the same `seed` is used).
     Sampler used when `sample_independent` is called.
@@ -24,7 +24,8 @@ The algorithm details are described in the `Others` section.
   - `constraints_func`: An optional function that computes the objective constraints. It must take a `optuna.trial.FrozenTrial` and return the constraints. The return value must be a sequence of `float` s. A value strictly larger than 0 means that a constraints is violated. A value equal to or smaller than 0 is considered feasible. If `constraints_func` returns more than one value for a trial, that trial is considered feasible if and only if all values are equal to 0 or smaller. The `constraints_func` will be evaluated after each successful trial. The function won't be called when trials fail or are pruned, but this behavior is subject to change in future releases. Currently, the `constraints_func` option is not supported for multi-objective optimization.
   - `rho`: The mix up coefficient for the acquisition function. If this value is large, the parameter suggestion puts more priority on constraints.
   - `beta`: The coefficient for LCB and UCB. If this value is large, the parameter suggestion becomes more pessimistic, meaning that the search is inclined to explore more.
-  - `local_ratio`: The `epsilon` parameter in the CARBO algorithm that controls the size of `W(theta)`. This value must be in `[0, 1]`.
+  - `local_ratio`: DEPRECATED: Use `input_noise_rads` instead. The `epsilon` parameter in the CARBO algorithm that controls the size of `W(theta)`. This value must be in `[0, 1]`.
+  - `input_noise_rads`: The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`, the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for `y`. This determines `W(theta)`.
   - `n_local_search`: How many times the local search is performed.
 
 Note that because of the limitation of the algorithm, only non-conditional numerical parameters can be sampled by the MO-CMA-ES algorithm, and categorical and conditional parameters are handled by random search.

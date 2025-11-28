@@ -52,7 +52,7 @@ def _gradient_descent(
     return initial_params, initial_fval  # No improvement.
 
 
-def _create_bounds(x_local: np.ndarray, local_radius: float) -> np.ndarray:
+def _create_bounds(x_local: np.ndarray, local_radius: np.ndarray) -> np.ndarray:
     bounds = np.empty((len(x_local), 2), dtype=float)
     bounds[:, 0] = np.maximum(0.0, x_local - local_radius)
     bounds[:, 1] = np.minimum(1.0, x_local + local_radius)
@@ -68,7 +68,7 @@ def suggest_by_carbo(
     rho: float,
     beta: float,
     n_local_search: int,
-    local_radius: float,
+    local_radius: np.ndarray,
     tol: float = 1e-4,
 ) -> tuple[np.ndarray, np.ndarray, float]:
     dim = len(gpr.length_scales)
