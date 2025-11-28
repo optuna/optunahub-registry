@@ -104,6 +104,48 @@ def _get_params_array(
 
 
 class CARBOSampler(BaseSampler):
+    """Modified Constrained Adversarially Robust Bayesian Optimization (CARBO) sampler
+
+    Args:
+        seed:
+            Random seed to initialize internal random number generator.
+            Defaults to :obj:`None` (a seed is picked randomly).
+        independent_sampler:
+            Sampler used for initial sampling (for the first ``n_startup_trials`` trials)
+            and for conditional parameters. Defaults to :obj:`None`
+            (a random sampler with the same ``seed`` is used).
+        n_startup_trials:
+            Number of initial trials. Defaults to 10.
+        deterministic_objective:
+            Whether the objective function is deterministic or not.
+            If :obj:`True`, the sampler will fix the noise variance of the surrogate model to
+            the minimum value (slightly above 0 to ensure numerical stability).
+            Defaults to :obj:`False`. Currently, all the objectives will be assume to be
+            deterministic if :obj:`True`.
+        constraints_func:
+            An optional function that computes the objective constraints. It must take a
+            :class:`~optuna.trial.FrozenTrial` and return the constraints. The return value must
+            be a sequence of :obj:`float` s. A value strictly larger than 0 means that a
+            constraints is violated. A value equal to or smaller than 0 is considered feasible.
+            If ``constraints_func`` returns more than one value for a trial, that trial is
+            considered feasible if and only if all values are equal to 0 or smaller.
+
+            The ``constraints_func`` will be evaluated after each successful trial.
+            The function won't be called when trials fail or are pruned, but this behavior is
+            subject to change in future releases.
+        rho:
+            The mix up coefficient for the acquisition function. If this value is large, the
+            parameter suggestion puts more priority on constraints.
+        beta:
+            The coefficient for LCB and UCB. If this value is large, the parameter suggestion
+            becomes more pessimistic, meaning that the search is inclined to explore more.
+        local_ratio:
+            The `epsilon` parameter in the CARBO algorithm that controls the size of `W(theta)`.
+            This value must be in `[0, 1]`.
+        n_local_search:
+            How many times the local search is performed.
+    """
+
     def __init__(
         self,
         *,
