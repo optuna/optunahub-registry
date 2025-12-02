@@ -104,6 +104,49 @@ def _get_params_array(
 
 
 class CARBOSampler(BaseSampler):
+    """Modified Constrained Adversarially Robust Bayesian Optimization (CARBO) sampler
+
+    Args:
+        seed:
+            Random seed to initialize internal random number generator.
+            Defaults to :obj:`None` (a seed is picked randomly).
+        independent_sampler:
+            Sampler used for initial sampling (for the first ``n_startup_trials`` trials)
+            and for conditional parameters. Defaults to :obj:`None`
+            (a random sampler with the same ``seed`` is used).
+        n_startup_trials:
+            Number of initial trials. Defaults to 10.
+        deterministic_objective:
+            Whether the objective function is deterministic or not.
+            If :obj:`True`, the sampler will fix the noise variance of the surrogate model to
+            the minimum value (slightly above 0 to ensure numerical stability).
+            Defaults to :obj:`False`. Currently, all the objectives will be assume to be
+            deterministic if :obj:`True`.
+        constraints_func:
+            An optional function that computes the objective constraints. It must take a
+            :class:`~optuna.trial.FrozenTrial` and return the constraints. The return value must
+            be a sequence of :obj:`float` s. A value strictly larger than 0 means that a
+            constraints is violated. A value equal to or smaller than 0 is considered feasible.
+            If ``constraints_func`` returns more than one value for a trial, that trial is
+            considered feasible if and only if all values are equal to 0 or smaller.
+
+            The ``constraints_func`` will be evaluated after each successful trial.
+            The function won't be called when trials fail or are pruned, but this behavior is
+            subject to change in future releases.
+        rho:
+            The mix up coefficient for the acquisition function. If this value is large, the
+            parameter suggestion puts more priority on constraints.
+        beta:
+            The coefficient for LCB and UCB. If this value is large, the parameter suggestion
+            becomes more pessimistic, meaning that the search is inclined to explore more.
+        input_noise_rads:
+            The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
+            the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
+            `y`. This determines `W(theta)`.
+        n_local_search:
+            How many times the local search is performed.
+    """
+
     def __init__(
         self,
         *,
@@ -114,7 +157,7 @@ class CARBOSampler(BaseSampler):
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
         rho: float = 1e3,
         beta: float = 4.0,
-        local_ratio: float = 0.1,
+        input_noise_rads: dict[str, float] = {},
         # n_local_search is a power of 2 to suppress the warning in Sobol.
         n_local_search: int = 16,
     ) -> None:
@@ -130,8 +173,7 @@ class CARBOSampler(BaseSampler):
         self._constraints_func = constraints_func
         self._beta = beta
         self._rho = rho
-        assert 0 < local_ratio < 1
-        self._local_ratio = local_ratio
+        self._input_noise_rads = input_noise_rads
         self._n_local_search = n_local_search
 
     def _preproc(
@@ -190,6 +232,19 @@ class CARBOSampler(BaseSampler):
                 )
                 for cache, c_train in zip(_cache_list, C_train.T)
             ]
+
+        lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+        local_radius = np.zeros_like(lows)
+        for i, param_name in enumerate(search_space.keys()):
+            if param_name not in self._input_noise_rads:
+                continue
+            rad = self._input_noise_rads[param_name]
+            if is_log[i]:
+                raise ValueError(
+                    f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
+                )
+            local_radius[i] = rad / (highs[i] - lows[i])
+
         robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
             constraints_gpr_list=constraints_gpr_list,
@@ -198,9 +253,9 @@ class CARBOSampler(BaseSampler):
             rho=self._rho,
             beta=self._beta,
             n_local_search=self._n_local_search,
-            local_radius=self._local_ratio / 2,
+            local_radius=local_radius,
         )
-        lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+
         robust_ext_params = {
             name: float(param_value)
             for name, param_value in zip(
