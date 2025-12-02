@@ -78,7 +78,7 @@ def _sample_input_noise(
         return input_noise
     else:
         raise ValueError(
-            "Either `uniform_input_noise_rads` or `normal_input_noise_stdevs` " "must be provided."
+            "Either `uniform_input_noise_rads` or `normal_input_noise_stdevs` must be provided."
         )
 
 
