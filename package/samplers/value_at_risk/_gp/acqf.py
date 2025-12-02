@@ -290,7 +290,11 @@ class ValueAtRisk(BaseAcquisitionFunc):
         L21 = torch.linalg.solve_triangular(
             self._covar_robust_chol.transpose(-1, -2), cov21, left=False, upper=True
         )
-        L22 = torch.linalg.cholesky(covar - L21.matmul(L21.transpose(-1, -2)))
+        # Add a small jitter to prevent the matrix from becoming non-positive definite due to numerical issues.
+        # This issue appears to happen when the x is included in robust_X.
+        L22 = torch.linalg.cholesky(
+            covar - L21.matmul(L21.transpose(-1, -2)) + 1e-12 * torch.eye(covar.shape[-1])
+        )
         posterior_at_x_noisy = (
             means.unsqueeze(-2)
             + torch.einsum("...ij,kj->ki", L21, self._S1)
