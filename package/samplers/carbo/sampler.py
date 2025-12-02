@@ -139,12 +139,6 @@ class CARBOSampler(BaseSampler):
         beta:
             The coefficient for LCB and UCB. If this value is large, the parameter suggestion
             becomes more pessimistic, meaning that the search is inclined to explore more.
-        local_ratio:
-            The `epsilon` parameter in the CARBO algorithm that controls the size of `W(theta)`.
-            This value must be in `[0, 1]`.
-
-            .. warning::
-              Use ``input_noise_rads`` instead.
         input_noise_rads:
             The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
             the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
@@ -163,8 +157,7 @@ class CARBOSampler(BaseSampler):
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
         rho: float = 1e3,
         beta: float = 4.0,
-        local_ratio: float | None = None,
-        input_noise_rads: dict[str, float] | None = None,
+        input_noise_rads: dict[str, float] = {},
         # n_local_search is a power of 2 to suppress the warning in Sobol.
         n_local_search: int = 16,
     ) -> None:
@@ -180,17 +173,7 @@ class CARBOSampler(BaseSampler):
         self._constraints_func = constraints_func
         self._beta = beta
         self._rho = rho
-
-        if local_ratio is not None and input_noise_rads is not None:
-            raise ValueError("Cannot specify both local_ratio and input_noise_rads")
-        if local_ratio is None and input_noise_rads is None:
-            # For backward compatibility
-            local_ratio = 0.1
-        if local_ratio is not None:
-            assert 0 < local_ratio < 1
-        self._local_ratio = local_ratio
         self._input_noise_rads = input_noise_rads
-
         self._n_local_search = n_local_search
 
     def _preproc(
@@ -251,18 +234,13 @@ class CARBOSampler(BaseSampler):
             ]
 
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
-        if self._local_ratio is not None:
-            local_radius = np.full_like(lows, self._local_ratio / 2)
-        elif self._input_noise_rads is not None:
-            local_radius = np.zeros_like(lows)
-            for i, (param_name, rad) in enumerate(self._input_noise_rads.items()):
-                if is_log[i]:
-                    raise ValueError(
-                        f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
-                    )
-                local_radius[i] = rad / (highs[i] - lows[i])
-        else:
-            assert False
+        local_radius = np.zeros_like(lows)
+        for i, (param_name, rad) in enumerate(self._input_noise_rads.items()):
+            if is_log[i]:
+                raise ValueError(
+                    f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
+                )
+            local_radius[i] = rad / (highs[i] - lows[i])
 
         robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
