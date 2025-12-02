@@ -235,7 +235,10 @@ class CARBOSampler(BaseSampler):
 
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
         local_radius = np.zeros_like(lows)
-        for i, (param_name, rad) in enumerate(self._input_noise_rads.items()):
+        for i, param_name in enumerate(search_space.keys()):
+            if param_name not in self._input_noise_rads:
+                continue
+            rad = self._input_noise_rads[param_name]
             if is_log[i]:
                 raise ValueError(
                     f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
