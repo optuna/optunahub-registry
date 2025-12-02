@@ -121,7 +121,7 @@ class RobustGPSampler(BaseSampler):
         uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
         const_noisy_param_names: list[str] | None = None,
-        acqf_type: Literal["mean", "nei"] = "nei",
+        acqf_type: Literal["mean", "nei"] = "mean",
     ) -> None:
         if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
