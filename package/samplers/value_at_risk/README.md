@@ -17,7 +17,7 @@ To implement this sampler, the author referred to [this paper](https://arxiv.org
 
 ## APIs
 
-- `RobustGPSampler(*, seed: int | None = None, independent_sampler: BaseSampler | None = None, n_startup_trials: int = 10, deterministic_objective: bool = False, constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None, warn_independent_sampling: bool = True, uniform_input_noise_rads: dict[str, float] | None = None, normal_input_noise_stdevs: dict[str, float] | None = None)`
+- `RobustGPSampler(*, seed: int | None = None, independent_sampler: BaseSampler | None = None, n_startup_trials: int = 10, deterministic_objective: bool = False, constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None, warn_independent_sampling: bool = True, uniform_input_noise_rads: dict[str, float] | None = None, normal_input_noise_stdevs: dict[str, float] | None = None, acqf_type: Literal["mean", "nei"] = "mean")`
   - `seed`: Random seed to initialize internal random number generator. Defaults to `None` (a seed is picked randomly).
   - `independent_sampler`: Sampler used for initial sampling (for the first `n_startup_trials` trials) and for conditional parameters. Defaults to :obj:`None` (a random sampler with the same `seed` is used).
   - `n_startup_trials`: Number of initial trials. Defaults to 10.
@@ -26,6 +26,7 @@ To implement this sampler, the author referred to [this paper](https://arxiv.org
   - `warn_independent_sampling`: If this is `True`, a warning message is emitted when the value of a parameter is sampled by using an independent sampler, meaning that no GP model is used in the sampling. Note that the parameters of the first trial in a study are always sampled via an independent sampler, so no warning messages are emitted in this case.
   - `uniform_input_noise_rads`: The input noise radiuses for each parameter. For example, when `{"x": 0.1, "y": 0.2}`, the sampler assumes that $\\pm$ 0.1 is acceptable for `x` and $\\pm$ 0.2 is acceptable for `y`.
   - `normal_input_noise_stdevs`: The input noise standard deviations for each parameter. For example, when `{"x": 0.1, "y": 0.2}` is given, the sampler assumes that the input noise of `x` and `y` follows `N(0, 0.1**2)` and `N(0, 0.2**2)`, respectively.
+  - `acqf_type`: The type of acquisition function to use. This must be one of `“mean”` and `“nei”`. Defaults to `“mean”`.
 
 Please note that only one of `uniform_input_noise_rads` and `normal_input_noise_stdevs` can be provided.
 

@@ -107,6 +107,9 @@ class RobustGPSampler(BaseSampler):
             The list of parameters determined externally rather than being decision variables.
             For these parameters, `suggest_float` samples random values instead of searching
             values that optimize the objective function.
+        acqf_type:
+            The type of acquisition function to use. This must be one of `“mean”` and `“nei”`.
+            Defaults to `“mean”`.
     """
 
     def __init__(
