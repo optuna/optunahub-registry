@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import Optional
 
 import numpy as np
 import optuna
+from optuna.samplers._lazy_random_state import LazyRandomState
 import optunahub
 
 
@@ -13,9 +15,10 @@ class WhaleOptimizationSampler(optunahub.samplers.SimpleBaseSampler):
         search_space: dict[str, optuna.distributions.BaseDistribution] | None = None,
         population_size: int = 10,
         max_iter: int = 40,
+        seed: Optional[int] = None,
     ) -> None:
-        super().__init__(search_space)
-        self._rng = np.random.RandomState()
+        super().__init__(search_space, seed)
+        self._rng = LazyRandomState(seed)
         self.population_size = population_size
         self.max_iter = max_iter
         self.dim = 0
@@ -31,11 +34,12 @@ class WhaleOptimizationSampler(optunahub.samplers.SimpleBaseSampler):
         self.upper_bound = np.asarray([dist.high for dist in search_space.values()])
         self.dim = len(search_space)
         self.leader_pos = (
-            np.random.rand(self.dim) * (self.upper_bound - self.lower_bound) + self.lower_bound
+            self._rng.rng.rand(self.dim) * (self.upper_bound - self.lower_bound) + self.lower_bound
         )
         self.leader_score = np.inf
         self.positions = (
-            np.random.rand(self.population_size, self.dim) * (self.upper_bound - self.lower_bound)
+            self._rng.rng.rand(self.population_size, self.dim)
+            * (self.upper_bound - self.lower_bound)
             + self.lower_bound
         )
 
@@ -64,15 +68,14 @@ class WhaleOptimizationSampler(optunahub.samplers.SimpleBaseSampler):
         new_positions = np.zeros_like(self.positions)
 
         for i in range(self.positions.shape[0]):
-            r1, r2 = np.random.rand(), np.random.rand()
+            r1, r2 = self._rng.rng.rand(), self._rng.rng.rand()
             A = 2 * a * r1 - a
             C = 2 * r2
-            b, L = 1, ((a2 - 1) * np.random.rand() + 1)
-            p = np.random.rand()
-
+            b, L = 1, ((a2 - 1) * self._rng.rng.rand() + 1)
+            p = self._rng.rng.rand()
             if p < 0.5:
                 if np.abs(A) >= 1:
-                    rand_leader_index = np.random.randint(self.population_size)
+                    rand_leader_index = self._rng.rng.randint(self.population_size)
                     X_rand = self.positions[rand_leader_index, :]
                     D_X_rand = np.abs(C * X_rand - self.positions[i, :])
                     new_positions[i, :] = X_rand - A * D_X_rand
