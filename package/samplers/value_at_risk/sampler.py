@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 from typing import cast
+from typing import Literal
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
@@ -120,7 +121,7 @@ class RobustGPSampler(BaseSampler):
         uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
         const_noisy_param_names: list[str] | None = None,
-        acqf_type: str = "nei",
+        acqf_type: Literal["mean", "nei"] = "nei",
     ) -> None:
         if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
@@ -278,7 +279,7 @@ class RobustGPSampler(BaseSampler):
         gpr: gp.GPRegressor,
         internal_search_space: gp_search_space.SearchSpace,
         search_space: dict[str, BaseDistribution],
-        acqf_type: str,
+        acqf_type: Literal["mean", "nei"],
         const_noisy_param_values: dict[str, float],
         constraints_gpr_list: list[gp.GPRegressor] | None = None,
         constraints_threshold_list: list[float] | None = None,
