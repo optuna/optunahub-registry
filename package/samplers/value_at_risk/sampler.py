@@ -461,6 +461,7 @@ class RobustGPSampler(BaseSampler):
         trials: list[FrozenTrial],
         search_space: dict[str, BaseDistribution],
         const_noisy_param_values: dict[str, float],
+        acqf_type: Literal["mean", "nei"],
     ) -> dict[str, Any]:
         if search_space == {}:
             return {}
@@ -477,7 +478,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type=self._acqf_type,
+                acqf_type=acqf_type,
                 const_noisy_param_values=const_noisy_param_values,
             )
         else:
@@ -492,7 +493,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type=self._acqf_type,
+                acqf_type=acqf_type,
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
                 const_noisy_param_values=const_noisy_param_values,
@@ -522,10 +523,15 @@ class RobustGPSampler(BaseSampler):
             assert isinstance(dist, optuna.distributions.FloatDistribution)
             const_noisy_param_values[name] = self._rng.rng.uniform(dist.low, dist.high)
 
-        return self._optimize_params(study, trials, search_space, const_noisy_param_values)
+        return self._optimize_params(
+            study, trials, search_space, const_noisy_param_values, acqf_type=self._acqf_type
+        )
 
     def get_robust_trial(
-        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+        self,
+        study: Study,
+        const_noisy_param_nominal_values: dict[str, float] | None = None,
+        acqf_type: Literal["mean", "nei"] | None = None,
     ) -> FrozenTrial:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
@@ -539,7 +545,7 @@ class RobustGPSampler(BaseSampler):
                 gpr,
                 internal_search_space,
                 search_space,
-                acqf_type=self._acqf_type,
+                acqf_type=acqf_type or self._acqf_type,
                 const_noisy_param_values=const_noisy_param_nominal_values or {},
             )
         else:
@@ -553,7 +559,7 @@ class RobustGPSampler(BaseSampler):
                 gpr,
                 internal_search_space,
                 search_space,
-                acqf_type=self._acqf_type,
+                acqf_type=acqf_type or self._acqf_type,
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
                 const_noisy_param_values=const_noisy_param_nominal_values or {},
@@ -563,13 +569,20 @@ class RobustGPSampler(BaseSampler):
         return trials[best_idx]
 
     def get_robust_params(
-        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+        self,
+        study: Study,
+        const_noisy_param_nominal_values: dict[str, float] | None = None,
+        acqf_type: Literal["mean", "nei"] | None = None,
     ) -> dict[str, Any]:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
         search_space = self.infer_relative_search_space(study, trials[0])
         return self._optimize_params(
-            study, trials, search_space, const_noisy_param_nominal_values or {}
+            study,
+            trials,
+            search_space,
+            const_noisy_param_nominal_values or {},
+            acqf_type or self._acqf_type,
         )
 
     def sample_independent(
