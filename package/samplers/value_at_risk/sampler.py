@@ -554,7 +554,6 @@ class RobustGPSampler(BaseSampler):
                 internal_search_space,
                 search_space,
                 acqf_type=self._acqf_type,
-                # acqf_type="mean",
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
                 const_noisy_param_values=const_noisy_param_nominal_values or {},
