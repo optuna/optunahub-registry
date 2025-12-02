@@ -535,7 +535,7 @@ class RobustGPSampler(BaseSampler):
                 gpr,
                 internal_search_space,
                 search_space,
-                acqf_type=self.acqf_type,
+                acqf_type=self._acqf_type,
                 const_noisy_param_values=const_noisy_param_nominal_values or {},
             )
         else:
