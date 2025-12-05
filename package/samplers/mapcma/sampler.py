@@ -16,7 +16,9 @@ import numpy as np
 import optuna
 from optuna import logging
 from optuna._imports import _LazyImport
+from optuna._transform import _SearchSpaceTransform
 from optuna.distributions import BaseDistribution
+from optuna.distributions import FloatDistribution
 from optuna.samplers import BaseSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.search_space import IntersectionSearchSpace
@@ -34,6 +36,7 @@ else:
 
 _logger = logging.get_logger(__name__)
 
+_EPS = 1e-10
 # The value of system_attrs must be less than 2046 characters on RDBStorage.
 _SYSTEM_ATTR_MAX_LENGTH = 2045
 
@@ -56,8 +59,6 @@ class MAPCMASampler(BaseSampler):
         n_max_resampling:
             The maximum number of resampling (default: 100).
             If the number of resampling attempts exceeds this value, the last sample will be clipped to the bounds and returned.
-        bounds:
-            The bounds of the search space.
         seed:
             The seed of the random number generator.
         popsize:
@@ -83,10 +84,8 @@ class MAPCMASampler(BaseSampler):
 
     def __init__(
         self,
-        mean: np.ndarray,
-        sigma0: float,
-        n_max_resampling: int = 100,
-        bounds: Optional[np.ndarray] = None,
+        mean: dict[str, Any] | None = None,
+        sigma0: float | None = None,
         seed: Optional[int] = None,
         popsize: Optional[int] = None,
         cov: Optional[np.ndarray] = None,
@@ -94,14 +93,13 @@ class MAPCMASampler(BaseSampler):
         search_space: dict[str, BaseDistribution] | None = None,
         independent_sampler: Optional[BaseSampler] = None,
     ):
-        assert sigma0 > 0
+        if sigma0 is not None:
+            assert sigma0 > 0
         self.search_space = search_space
         self._seed = seed
         self._initial_popsize = popsize
         self._mean = mean
         self._sigma0 = sigma0
-        self._bounds = bounds
-        self._n_max_resampling = n_max_resampling
         self._cov = cov
         self._momentum_r = momentum_r
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
@@ -119,11 +117,21 @@ class MAPCMASampler(BaseSampler):
         search_space: Dict[str, BaseDistribution] = {}
         for name, distribution in self._intersection_search_space.calculate(study).items():
             if distribution.single():
-                # Single value objects are not sampled with the `sample_relative` method,
-                # but with the `sample_independent` method.
                 continue
             search_space[name] = distribution
         return search_space
+
+    def sample_independent(
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        param_name: str,
+        param_distribution: BaseDistribution,
+    ) -> Any:
+        self._raise_error_if_multi_objective(study)
+        return self._independent_sampler.sample_independent(
+            study, trial, param_name, param_distribution
+        )
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: Dict[str, BaseDistribution]
@@ -143,8 +151,12 @@ class MAPCMASampler(BaseSampler):
             )
             return {}
 
-        # TODO: floatしか受け取らない？
+        # MAPCMASampler only supports continuous search spaces.
+        assert all(
+            isinstance(distribution, FloatDistribution) for distribution in search_space.values()
+        ), "`MapCmaSampler` only supports continuous or integer search spaces (categorical parameters are not supported)."
 
+        trans = _SearchSpaceTransform(search_space)
         if self._initial_popsize is None:
             self._initial_popsize = 4 + math.floor(3 * math.log(len(search_space)))
 
@@ -161,14 +173,7 @@ class MAPCMASampler(BaseSampler):
 
         if optimizer is None:
             optimizer = self._init_optimizer(
-                mean=self._mean,
-                sigma=self._sigma0,
-                bounds=self._bounds,
-                n_max_resampling=self._n_max_resampling,
-                seed=self._seed,
-                population_size=self._initial_popsize,
-                cov=self._cov,
-                momentum_r=self._momentum_r,
+                trans=trans,
             )
 
         solution_trials = self._get_solution_trials(completed_trials, optimizer.generation)
@@ -176,7 +181,7 @@ class MAPCMASampler(BaseSampler):
             solutions: List[Tuple[np.ndarray, float]] = []
             for t in solution_trials[:popsize]:
                 assert t.value is not None, "completed trials must have a value"
-                solutions.append((np.array(list(t.params.values())), t.value))
+                solutions.append((trans.transform(t.params), t.value))
             optimizer.tell(solutions)
 
             # Store optimizer.
@@ -197,7 +202,7 @@ class MAPCMASampler(BaseSampler):
         popsize_attr_key = self._attr_keys.popsize()
         study._storage.set_trial_system_attr(trial._trial_id, popsize_attr_key, popsize)
 
-        external_values = {v: k for k, v in zip(solution, search_space.keys())}
+        external_values = trans.untransform(solution)
         return external_values
 
     @property
@@ -249,36 +254,34 @@ class MAPCMASampler(BaseSampler):
 
     def _init_optimizer(
         self,
-        mean: np.ndarray,
-        sigma: float,
-        bounds: Optional[np.ndarray] = None,
-        n_max_resampling: Optional[int] = None,
-        seed: Optional[int] = None,
-        population_size: Optional[int] = None,
-        cov: Optional[np.ndarray] = None,
-        momentum_r: Optional[float] = None,
+        trans: _SearchSpaceTransform,
     ) -> cmaes.MAPCMA:
+        bounds = trans.bounds
+        n_dimension = len(bounds)
+        if self._mean is None:
+            mean = bounds[:, 0] + (bounds[:, 1] - bounds[:, 0]) / 2
+        else:
+            mean = trans.transform(self._mean)
+
+        if self._sigma0 is None:
+            sigma0 = np.min((bounds[:, 1] - bounds[:, 0]) / 6)
+        else:
+            sigma0 = self._sigma0
+
+        assert sigma0 > 0, "sigma0 must be positive"
+        sigma0 = max(sigma0, _EPS)
+
+        seed = self._seed if self._seed is not None else self._cma_rng.rng.randint(1, 2**31 - 2)
+
         return cmaes.MAPCMA(
-            mean=self._mean,
-            sigma=self._sigma0,
-            bounds=self._bounds,
-            n_max_resampling=self._n_max_resampling,
-            seed=self._seed,
+            mean=mean,
+            sigma=sigma0,
+            bounds=bounds,
+            n_max_resampling=10 * n_dimension,
+            seed=seed,
             population_size=self._initial_popsize,
             cov=self._cov,
             momentum_r=self._momentum_r,
-        )
-
-    def sample_independent(
-        self,
-        study: Study,
-        trial: FrozenTrial,
-        param_name: str,
-        param_distribution: BaseDistribution,
-    ) -> Any:
-        self._raise_error_if_multi_objective(study)
-        return self._independent_sampler.sample_independent(
-            study, trial, param_name, param_distribution
         )
 
     def _get_trials(self, study: Study) -> List[FrozenTrial]:

@@ -1,0 +1,3 @@
+cmaes>=0.12.0
+optuna
+optunahub
