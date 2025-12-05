@@ -32,15 +32,15 @@ from optuna.logging import get_logger
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    import scipy.optimize as so
+    import scipy
     import torch
 else:
     from optuna._imports import _LazyImport
 
-    so = _LazyImport("scipy.optimize")
+    scipy = _LazyImport("scipy")
     torch = _LazyImport("torch")
 
-logger = get_logger(f"optuna.{__name__}")
+logger = get_logger(__name__)
 
 
 def warn_and_convert_inf(values: np.ndarray) -> np.ndarray:
@@ -103,10 +103,11 @@ class GPRegressor:
         self._X_train = X_train
         self._y_train = y_train
         self._squared_X_diff = (X_train[..., None, :] - X_train[..., None, :, :]).square()
-        self._squared_X_diff[..., self._is_categorical] = (
-            self._squared_X_diff[..., self._is_categorical] > 0.0
-        ).type(torch.float64)
-        self._cov_Y_Y_inv: torch.Tensor | None = None
+        if self._is_categorical.any():
+            self._squared_X_diff[..., self._is_categorical] = (
+                self._squared_X_diff[..., self._is_categorical] > 0.0
+            ).type(torch.float64)
+        self._cov_Y_Y_chol: torch.Tensor | None = None
         self._cov_Y_Y_inv_Y: torch.Tensor | None = None
         # TODO(nabenabe): Rename the attributes to private with `_`.
         self.inverse_squared_lengthscales = inverse_squared_lengthscales
@@ -119,16 +120,23 @@ class GPRegressor:
 
     def _cache_matrix(self) -> None:
         assert (
-            self._cov_Y_Y_inv is None and self._cov_Y_Y_inv_Y is None
+            self._cov_Y_Y_chol is None and self._cov_Y_Y_inv_Y is None
         ), "Cannot call cache_matrix more than once."
         with torch.no_grad():
             cov_Y_Y = self.kernel().detach().numpy()
 
         cov_Y_Y[np.diag_indices(self._X_train.shape[0])] += self.noise_var.item()
-        cov_Y_Y_inv = np.linalg.inv(cov_Y_Y)
-        cov_Y_Y_inv_Y = cov_Y_Y_inv @ self._y_train.numpy()
+        cov_Y_Y_chol = np.linalg.cholesky(cov_Y_Y)
+        # cov_Y_Y_inv @ y = v --> y = cov_Y_Y @ v --> y = cov_Y_Y_chol @ cov_Y_Y_chol.T @ v
+        # NOTE(nabenabe): Don't use np.linalg.inv because it is too slow und unstable.
+        # cf. https://github.com/optuna/optuna/issues/6230
+        cov_Y_Y_inv_Y = scipy.linalg.solve_triangular(
+            cov_Y_Y_chol.T,
+            scipy.linalg.solve_triangular(cov_Y_Y_chol, self._y_train.numpy(), lower=True),
+            lower=False,
+        )
         # NOTE(nabenabe): Here we use NumPy to guarantee the reproducibility from the past.
-        self._cov_Y_Y_inv = torch.from_numpy(cov_Y_Y_inv)
+        self._cov_Y_Y_chol = torch.from_numpy(cov_Y_Y_chol)
         self._cov_Y_Y_inv_Y = torch.from_numpy(cov_Y_Y_inv_Y)
         self.inverse_squared_lengthscales = self.inverse_squared_lengthscales.detach()
         self.inverse_squared_lengthscales.grad = None
@@ -167,10 +175,11 @@ class GPRegressor:
         d2 = (d2 * self.inverse_squared_lengthscales).sum(dim=-1)
         return Matern52Kernel.apply(d2) * self.kernel_scale  # type: ignore
 
-    def posterior(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def posterior(self, x: torch.Tensor, joint: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
         """
         This method computes the posterior mean and variance given the points `x` where both mean
         and variance tensors will have the shape of x.shape[:-1].
+        If ``joint=True``, the joint posterior will be computed.
 
         The posterior mean and variance are computed as:
             mean = cov_fx_fX @ inv(cov_fX_fX + noise_var * I) @ y, and
@@ -179,23 +188,29 @@ class GPRegressor:
         Please note that we clamp the variance to avoid negative values due to numerical errors.
         """
         assert (
-            self._cov_Y_Y_inv is not None and self._cov_Y_Y_inv_Y is not None
+            self._cov_Y_Y_chol is not None and self._cov_Y_Y_inv_Y is not None
         ), "Call cache_matrix before calling posterior."
-        cov_fx_fX = self.kernel(x)
-        cov_fx_fx = self.kernel_scale  # kernel(x, x) = kernel_scale
-        mean = cov_fx_fX @ self._cov_Y_Y_inv_Y
-        var = cov_fx_fx - (cov_fx_fX * (cov_fx_fX @ self._cov_Y_Y_inv)).sum(dim=-1)
-        return mean, torch.clamp(var, min=0.0)
-
-    def joint_posterior(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        assert (
-            self._cov_Y_Y_inv is not None and self._cov_Y_Y_inv_Y is not None
-        ), "Call cache_matrix before calling posterior."
-        cov_fx_fX = self.kernel(x)
-        cov_fx_fx = self.kernel(x, x)
-        mean = cov_fx_fX @ self._cov_Y_Y_inv_Y
-        covar = cov_fx_fx - cov_fx_fX @ self._cov_Y_Y_inv @ cov_fx_fX.transpose(-1, -2)
-        return mean, covar
+        is_single_point = x.ndim == 1
+        x_ = x if not is_single_point else x.unsqueeze(0)
+        mean = torch.linalg.vecdot(cov_fx_fX := self.kernel(x_), self._cov_Y_Y_inv_Y)
+        # K @ inv(C) = V --> K = V @ C --> K = V @ L @ L.T
+        V = torch.linalg.solve_triangular(
+            self._cov_Y_Y_chol,
+            torch.linalg.solve_triangular(self._cov_Y_Y_chol.T, cov_fx_fX, upper=True, left=False),
+            upper=False,
+            left=False,
+        )
+        if joint:
+            assert not is_single_point, "Call posterior with joint=False for a single point."
+            cov_fx_fx = self.kernel(x_, x_)
+            # NOTE(nabenabe): Indeed, var_ here is a covariance matrix.
+            var_ = cov_fx_fx - V.matmul(cov_fx_fX.transpose(-1, -2))
+            var_.diagonal(dim1=-2, dim2=-1).clamp_min_(0.0)
+        else:
+            cov_fx_fx = self.kernel_scale  # kernel(x, x) = kernel_scale
+            var_ = cov_fx_fx - torch.linalg.vecdot(cov_fx_fX, V)
+            var_.clamp_min_(0.0)
+        return (mean.squeeze(0), var_.squeeze(0)) if is_single_point else (mean, var_)
 
     def marginal_log_likelihood(self) -> torch.Tensor:  # Scalar
         """
@@ -276,7 +291,7 @@ class GPRegressor:
 
         with single_blas_thread_if_scipy_v1_15_or_newer():
             # jac=True means loss_func returns the gradient for gradient descent.
-            res = so.minimize(
+            res = scipy.optimize.minimize(
                 # Too small `gtol` causes instability in loss_func optimization.
                 loss_func,
                 initial_raw_params,
