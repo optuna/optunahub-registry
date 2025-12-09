@@ -47,6 +47,9 @@ pip install --upgrade pymoo
 
   - `independent_sampler`: A `optuna.samplers.BaseSampler` instance that is used for independent sampling. The parameters not contained in the relative search space are sampled by this sampler. If `None` is specified, `optuna.samplers.RandomSampler` is used as the default.
 
+  - `num_obj`: The number of directions in the optimization study. If set to a value greater than one, use the multi-objective version of HEBO (GeneralBO) as the backend.
+    Default is `num_obj=1`.
+
 ## Example
 
 ```python
@@ -83,6 +86,27 @@ sampler = module.HEBOSampler(search_space=search_space)
 ```
 
 However, users need to make sure that the provided search space and the search space defined in the objective function must be consistent.
+
+### Multi-objective case
+
+```python
+import optuna
+import optunahub
+
+
+def objective(trial: optuna.trial.Trial) -> float:
+    x = trial.suggest_float("x", -10, 10)
+    y = trial.suggest_int("y", -10, 10)
+    return x**2, y**2
+
+
+module = optunahub.load_module("samplers/hebo")
+sampler = module.HEBOSampler(num_obj=2)
+study = optuna.create_study(sampler=sampler, directions=['minimize', 'minimize'])
+study.optimize(objective, n_trials=100)
+
+print(study.best_trial.params, study.best_trial.value)
+```
 
 ## Others
 

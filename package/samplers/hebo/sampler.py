@@ -70,15 +70,15 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                 While `constant_liar` is a simple way to get diverse params for parallel optimization,
                 it may not be the best approach for HEBO.
 
-        num_obj:
-            If :obj:`>1`, use the multi-objective version of HEBO (GeneralBO) as the backend.
-            Default is :obj:`1`.
-
         independent_sampler:
             A :class:`~optuna.samplers.BaseSampler` instance that is used for independent
             sampling. The parameters not contained in the relative search space are sampled
             by this sampler. If :obj:`None` is specified, :class:`~optuna.samplers.RandomSampler`
             is used as the default.
+
+        num_obj:
+            If :obj:`>1`, use the multi-objective version of HEBO (GeneralBO) as the backend.
+            Default is :obj:`1`.
     """  # NOQA
 
     def __init__(
