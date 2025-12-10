@@ -112,14 +112,14 @@ class RobustGPSampler(BaseSampler):
             nominal value plus added noise and clipping. This option is useful when a user want
             to evaluate the objective function against values with added noise rather than
             nominal values. If this option is enabled, nominal values can be retrieved using
-            `get_nominal_params`.
+            ``get_nominal_params``.
         nominal_ranges:
             An optional dictionary to override nominal ranges for a subset of parameters. If
             a range is specified for a parmaeter, it's nominal value is sampled from the given
-            range instead of the range specified to `suggest_float`. When ``noisy_suggestion``
+            range instead of the range specified to ``suggest_float``. When ``noisy_suggestion``
             is enabled, this option is useful for avoiding clipping: if the noise range is
             +/- eps, specify [L, U] as a nominal range and specify [L-eps, U+eps] for
-            `suggest_float`.
+            ``suggest_float``.
     """
 
     def __init__(
