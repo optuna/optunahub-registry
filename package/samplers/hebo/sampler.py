@@ -19,7 +19,6 @@ from optuna.trial import TrialState
 import optunahub
 import pandas as pd
 
-import hebo as hebo_module
 from hebo.design_space.design_space import DesignSpace
 from hebo.optimizers.general import GeneralBO
 from hebo.optimizers.hebo import HEBO
@@ -152,7 +151,6 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             worst_value = (
                 np.nanmax(column) if direction == StudyDirection.MINIMIZE else np.nanmin(column)
             )
-            worst_value = 0.0 if np.isnan(worst_value) else worst_value
             worst_values.append(worst_value)
         worst_values = np.array(worst_values, dtype=float)
 
@@ -175,11 +173,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                 # the domain of these parameters such as changes in low, high, and step.
                 params[name] = (params[name] - dist.low) / dist.step
 
-        # GeneralBO API changed in 0.3.6
-        if isinstance(hebo, GeneralBO) and hebo_module.__version__ > "0.3.5":
-            hebo.observe_new_data(params, nan_padded_values)
-        else:
-            hebo.observe(params, nan_padded_values)
+        hebo.observe(params, nan_padded_values)
 
     def _sample_relative_define_and_run(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
