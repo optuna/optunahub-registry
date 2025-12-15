@@ -24,7 +24,7 @@ pip install --upgrade pymoo
 
 ## APIs
 
-- `HEBOSampler(search_space: dict[str, BaseDistribution] | None = None, *, seed: int | None = None, constant_liar: bool = False, independent_sampler: BaseSampler | None = None)`
+- `HEBOSampler(search_space: dict[str, BaseDistribution] | None = None, *, seed: int | None = None, constant_liar: bool = False, independent_sampler: BaseSampler | None = None, num_obj: int = 1)`
   - `search_space`: By specifying search_space, the sampling speed at each iteration becomes slightly quicker, but this argument is not necessary to run this sampler.
 
     Example:
@@ -94,18 +94,19 @@ import optuna
 import optunahub
 
 
-def objective(trial: optuna.trial.Trial) -> float:
-    x = trial.suggest_float("x", -10, 10)
-    y = trial.suggest_int("y", -10, 10)
-    return x**2, y**2
+def objective(trial: optuna.trial.Trial) -> tuple[float, float]:  
+    x = trial.suggest_float("x", -10, 10)  
+    y = trial.suggest_int("y", -1, 1)  
+    f1 = x**2 + y  
+    f2 = -((x - 2) ** 2 + y)  
+    return f1, f2  
 
 
 module = optunahub.load_module("samplers/hebo")
 sampler = module.HEBOSampler(num_obj=2)
-study = optuna.create_study(sampler=sampler, directions=['minimize', 'minimize'])
+study = optuna.create_study(sampler=sampler, directions=['minimize', 'maximize'])
 study.optimize(objective, n_trials=100)
-
-print(study.best_trial.params, study.best_trial.value)
+print(study.best_trials)
 ```
 
 ## Others
