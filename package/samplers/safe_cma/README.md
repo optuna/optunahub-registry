@@ -66,8 +66,6 @@ safety_threshold = [0.0]
 
 sampler = optunahub.load_module(
     package="samplers/safe_cma",
-    repo_owner="fusawa-yugo",
-    ref="fusawa-yugo/add_Safe_CMA",
 ).SafeCMASampler(
     safe_seeds=safe_seeds,
     seeds_evals=seeds_evals,
