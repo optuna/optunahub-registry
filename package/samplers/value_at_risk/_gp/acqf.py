@@ -26,10 +26,6 @@ else:
     torch = _LazyImport("torch")
 
 
-_SQRT_HALF = math.sqrt(0.5)
-_INV_SQRT_2PI = 1 / math.sqrt(2 * math.pi)
-_SQRT_HALF_PI = math.sqrt(0.5 * math.pi)
-_LOG_SQRT_2PI = math.log(math.sqrt(2 * math.pi))
 _EPS = 1e-12  # NOTE(nabenabe): grad becomes nan when EPS=0.
 
 
