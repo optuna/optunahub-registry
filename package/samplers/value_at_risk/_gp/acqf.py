@@ -159,7 +159,7 @@ class LogCumulativeProbabilityAtRisk(BaseAcquisitionFunc):
             # NOTE(nabenabe): integral from a to b of f(x) is integral from -b to -a of f(-x).
             log_feas_probs += torch.special.log_ndtr((means - threshold) / sigmas)
         n_input_noise_samples = len(self._input_noise)
-        n_risky_samples = math.ceil((1 - self._confidence_level) * n_input_noise_samples)
+        n_risky_samples = max(1, math.ceil((1 - self._confidence_level) * n_input_noise_samples))
         log_feas_probs_at_risk, _ = torch.topk(
             log_feas_probs,
             k=n_risky_samples,
