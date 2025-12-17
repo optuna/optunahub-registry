@@ -597,7 +597,23 @@ class RobustGPSampler(BaseSampler):
         )
         gpr = self._get_gpr_list(study, search_space)[0]
         internal_search_space = gp_search_space.SearchSpace(search_space)
-        X_train = internal_search_space.get_normalized_params(trials)
+        if self._nominal_ranges:
+            # When nominal ranges are specified, we need to use nominal params
+            # since VaR-based acquisition functions work on normalized params.
+            X_train = internal_search_space.get_normalized_params(
+                [
+                    optuna.create_trial(
+                        params=self.get_nominal_params(trial),
+                        distributions=trial.distributions,
+                        values=trial.values,
+                        state=trial.state,
+                    )
+                    for trial in trials
+                ]
+            )
+        else:
+            X_train = internal_search_space.get_normalized_params(trials)
+
         acqf: acqf_module.BaseAcquisitionFunc
         if self._constraints_func is None:
             acqf = self._get_value_at_risk(
