@@ -3,7 +3,7 @@ author: Shuhei Watanabe
 title: Robust Bayesian Optimization under Input Noise (VaR, Value at Risk)
 description: This sampler searches for parameters robust to input noise
 tags: [sampler, gp, bo]
-optuna_versions: [4.5.0]
+optuna_versions: [4.6.0]
 license: MIT License
 ---
 

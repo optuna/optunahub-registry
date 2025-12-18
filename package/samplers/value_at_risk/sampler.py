@@ -42,6 +42,7 @@ from ._gp import gp
 _logger = logging.getLogger(f"optuna.{__name__}")
 
 EPS = 1e-10
+_NOMINAL_PARAMS_KEY = "nominal_params"
 
 
 class _NoiseKWArgs(TypedDict):
@@ -110,6 +111,19 @@ class RobustGPSampler(BaseSampler):
         acqf_type:
             The type of acquisition function to use. This must be one of `“mean”` and `“nei”`.
             Defaults to `“mean”`.
+        noisy_suggestion:
+            If this option is enabled, suggested values will not be the nominal value but the
+            nominal value plus added noise and clipping. This option is useful when a user want
+            to evaluate the objective function against values with added noise rather than
+            nominal values. If this option is enabled, nominal values can be retrieved using
+            ``get_nominal_params``.
+        nominal_ranges:
+            An optional dictionary to override nominal ranges for a subset of parameters. If
+            a range is specified for a parmaeter, it's nominal value is sampled from the given
+            range instead of the range specified to ``suggest_float``. When ``noisy_suggestion``
+            is enabled, this option is useful for avoiding clipping: if the noise range is
+            +/- eps, specify [L, U] as a nominal range and specify [L-eps, U+eps] for
+            ``suggest_float``.
     """
 
     def __init__(
@@ -125,6 +139,8 @@ class RobustGPSampler(BaseSampler):
         normal_input_noise_stdevs: dict[str, float] | None = None,
         const_noisy_param_names: list[str] | None = None,
         acqf_type: Literal["mean", "nei"] = "mean",
+        noisy_suggestion: bool = False,
+        nominal_ranges: dict[str, tuple[float, float]] | None = None,
     ) -> None:
         if uniform_input_noise_rads is None and normal_input_noise_stdevs is None:
             raise ValueError(
@@ -155,6 +171,8 @@ class RobustGPSampler(BaseSampler):
         self._uniform_input_noise_rads = uniform_input_noise_rads
         self._normal_input_noise_stdevs = normal_input_noise_stdevs
         self._const_noisy_param_names = const_noisy_param_names or []
+        self._noisy_suggestion = noisy_suggestion
+        self._nominal_ranges = nominal_ranges or {}
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._intersection_search_space = optuna.search_space.IntersectionSearchSpace()
@@ -418,6 +436,24 @@ class RobustGPSampler(BaseSampler):
                 f"{noisy_param_cands}, but input noise is specified for {noise_param_names}."
             )
 
+    def _get_nominal_search_space(
+        self, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, BaseDistribution]:
+        for param_name, (low, high) in self._nominal_ranges.items():
+            dist = search_space[param_name]
+            assert isinstance(dist, optuna.distributions.FloatDistribution)
+            assert dist.step is None
+            assert not dist.log
+            if low < dist.low or dist.high < high:
+                raise ValueError(
+                    f"The nominal range for a parameter {param_name} should be a subset of "
+                    f"[{dist.low}, {dist.high}], but ([{low}, {high}]) is given."
+                )
+        return search_space | {
+            param_name: optuna.distributions.FloatDistribution(low, high)
+            for param_name, (low, high) in self._nominal_ranges.items()
+        }
+
     def _get_gpr_list(
         self, study: Study, search_space: dict[str, BaseDistribution]
     ) -> list[gp.GPRegressor]:
@@ -523,9 +559,41 @@ class RobustGPSampler(BaseSampler):
             assert isinstance(dist, optuna.distributions.FloatDistribution)
             const_noisy_param_values[name] = self._rng.rng.uniform(dist.low, dist.high)
 
-        return self._optimize_params(
-            study, trials, search_space, const_noisy_param_values, acqf_type=self._acqf_type
+        nominal_search_space = self._get_nominal_search_space(search_space)
+        nominal_params = self._optimize_params(
+            study, trials, nominal_search_space, const_noisy_param_values, acqf_type=self._acqf_type
         )
+
+        if not self._noisy_suggestion:
+            return nominal_params
+
+        study._storage.set_trial_system_attr(trial._trial_id, _NOMINAL_PARAMS_KEY, nominal_params)
+
+        noisy_params = dict(nominal_params)
+        if self._uniform_input_noise_rads is not None:
+            for param_name, rad in self._uniform_input_noise_rads.items():
+                dist = search_space[param_name]
+                assert isinstance(dist, optuna.distributions.FloatDistribution)
+                assert dist.step is None
+                assert not dist.log
+                noisy_params[param_name] = min(
+                    dist.high,
+                    max(dist.low, nominal_params[param_name] + self._rng.rng.uniform(-rad, rad)),
+                )
+        elif self._normal_input_noise_stdevs is not None:
+            for param_name, std in self._normal_input_noise_stdevs.items():
+                dist = search_space[param_name]
+                assert isinstance(dist, optuna.distributions.FloatDistribution)
+                assert dist.step is None
+                assert not dist.log
+                noisy_params[param_name] = min(
+                    dist.high,
+                    max(dist.low, nominal_params[param_name] + self._rng.rng.normal(scale=std)),
+                )
+        else:
+            assert False, "Should not reach here."
+
+        return noisy_params
 
     def get_robust_trial(
         self,
@@ -535,7 +603,9 @@ class RobustGPSampler(BaseSampler):
     ) -> FrozenTrial:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
-        search_space = self.infer_relative_search_space(study, trials[0])
+        search_space = self._get_nominal_search_space(
+            self.infer_relative_search_space(study, trials[0])
+        )
         gpr = self._get_gpr_list(study, search_space)[0]
         internal_search_space = gp_search_space.SearchSpace(search_space)
         X_train = internal_search_space.get_normalized_params(trials)
@@ -576,7 +646,9 @@ class RobustGPSampler(BaseSampler):
     ) -> dict[str, Any]:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
-        search_space = self.infer_relative_search_space(study, trials[0])
+        search_space = self._get_nominal_search_space(
+            self.infer_relative_search_space(study, trials[0])
+        )
         return self._optimize_params(
             study,
             trials,
@@ -584,6 +656,12 @@ class RobustGPSampler(BaseSampler):
             const_noisy_param_nominal_values or {},
             acqf_type or self._acqf_type,
         )
+
+    def get_nominal_params(self, trial: FrozenTrial) -> dict[str, Any]:
+        if _NOMINAL_PARAMS_KEY in trial.system_attrs:
+            return trial.system_attrs[_NOMINAL_PARAMS_KEY]
+        else:
+            return trial.params
 
     def sample_independent(
         self,
@@ -597,6 +675,7 @@ class RobustGPSampler(BaseSampler):
             complete_trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
             if len(complete_trials) >= self._n_startup_trials:
                 self._log_independent_sampling(trial, param_name)
+        # NOTE(sakai): Should we use nominal range here?
         return self._independent_sampler.sample_independent(
             study, trial, param_name, param_distribution
         )
