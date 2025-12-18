@@ -109,7 +109,7 @@ class RobustGPSampler(BaseSampler):
             For these parameters, `suggest_float` samples random values instead of searching
             values that optimize the objective function.
         acqf_type:
-            The type of acquisition function to use. This must be one of `“mean”` and `“nei”`.
+            The type of acquisition function to use. This must be one of ``“mean”`` and ``“nei”``.
             Defaults to `“mean”`.
         noisy_suggestion:
             If this option is enabled, suggested values will not be the nominal value but the
