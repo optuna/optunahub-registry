@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 from typing import cast
+from typing import Literal
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
@@ -107,6 +108,9 @@ class RobustGPSampler(BaseSampler):
             The list of parameters determined externally rather than being decision variables.
             For these parameters, `suggest_float` samples random values instead of searching
             values that optimize the objective function.
+        acqf_type:
+            The type of acquisition function to use. This must be one of ``“mean”`` and ``“nei”``.
+            Defaults to `“mean”`.
         noisy_suggestion:
             If this option is enabled, suggested values will not be the nominal value but the
             nominal value plus added noise and clipping. This option is useful when a user want
@@ -134,6 +138,7 @@ class RobustGPSampler(BaseSampler):
         uniform_input_noise_rads: dict[str, float] | None = None,
         normal_input_noise_stdevs: dict[str, float] | None = None,
         const_noisy_param_names: list[str] | None = None,
+        acqf_type: Literal["mean", "nei"] = "mean",
         noisy_suggestion: bool = False,
         nominal_ranges: dict[str, tuple[float, float]] | None = None,
     ) -> None:
@@ -198,6 +203,8 @@ class RobustGPSampler(BaseSampler):
         self._feas_prob_confidence_level = 0.95
         self._n_input_noise_samples = 32
         self._n_qmc_samples = 128
+        assert acqf_type in ["mean", "nei"]
+        self._acqf_type = acqf_type
 
     def _log_independent_sampling(self, trial: FrozenTrial, param_name: str) -> None:
         msg = _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
@@ -293,7 +300,7 @@ class RobustGPSampler(BaseSampler):
         gpr: gp.GPRegressor,
         internal_search_space: gp_search_space.SearchSpace,
         search_space: dict[str, BaseDistribution],
-        acqf_type: str,
+        acqf_type: Literal["mean", "nei"],
         const_noisy_param_values: dict[str, float],
         constraints_gpr_list: list[gp.GPRegressor] | None = None,
         constraints_threshold_list: list[float] | None = None,
@@ -490,6 +497,7 @@ class RobustGPSampler(BaseSampler):
         trials: list[FrozenTrial],
         search_space: dict[str, BaseDistribution],
         const_noisy_param_values: dict[str, float],
+        acqf_type: Literal["mean", "nei"],
     ) -> dict[str, Any]:
         if search_space == {}:
             return {}
@@ -506,7 +514,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type="mean",
+                acqf_type=acqf_type,
                 const_noisy_param_values=const_noisy_param_values,
             )
         else:
@@ -521,7 +529,7 @@ class RobustGPSampler(BaseSampler):
                 gprs_list[0],
                 internal_search_space,
                 search_space,
-                acqf_type="mean",
+                acqf_type=acqf_type,
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
                 const_noisy_param_values=const_noisy_param_values,
@@ -553,7 +561,11 @@ class RobustGPSampler(BaseSampler):
 
         nominal_search_space = self._get_nominal_search_space(search_space)
         nominal_params = self._optimize_params(
-            study, trials, nominal_search_space, const_noisy_param_values
+            study,
+            trials,
+            nominal_search_space,
+            const_noisy_param_values,
+            acqf_type=self._acqf_type,
         )
 
         if not self._noisy_suggestion:
@@ -588,7 +600,10 @@ class RobustGPSampler(BaseSampler):
         return noisy_params
 
     def get_robust_trial(
-        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+        self,
+        study: Study,
+        const_noisy_param_nominal_values: dict[str, float] | None = None,
+        acqf_type: Literal["mean", "nei"] | None = None,
     ) -> FrozenTrial:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
@@ -604,7 +619,7 @@ class RobustGPSampler(BaseSampler):
                 gpr,
                 internal_search_space,
                 search_space,
-                acqf_type="mean",
+                acqf_type=acqf_type or self._acqf_type,
                 const_noisy_param_values=const_noisy_param_nominal_values or {},
             )
         else:
@@ -615,11 +630,10 @@ class RobustGPSampler(BaseSampler):
                 internal_search_space.get_normalized_params(trials),
             )
             acqf = self._get_value_at_risk(
-                # TODO: Replace mean with nei once NEI is implemented.
                 gpr,
                 internal_search_space,
                 search_space,
-                acqf_type="mean",
+                acqf_type=acqf_type or self._acqf_type,
                 constraints_gpr_list=constr_gpr_list,
                 constraints_threshold_list=constr_threshold_list,
                 const_noisy_param_values=const_noisy_param_nominal_values or {},
@@ -629,7 +643,10 @@ class RobustGPSampler(BaseSampler):
         return trials[best_idx]
 
     def get_robust_params(
-        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+        self,
+        study: Study,
+        const_noisy_param_nominal_values: dict[str, float] | None = None,
+        acqf_type: Literal["mean", "nei"] | None = None,
     ) -> dict[str, Any]:
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
@@ -637,7 +654,11 @@ class RobustGPSampler(BaseSampler):
             self.infer_relative_search_space(study, trials[0])
         )
         return self._optimize_params(
-            study, trials, search_space, const_noisy_param_nominal_values or {}
+            study,
+            trials,
+            search_space,
+            const_noisy_param_nominal_values or {},
+            acqf_type or self._acqf_type,
         )
 
     def get_nominal_params(self, trial: FrozenTrial) -> dict[str, Any]:
