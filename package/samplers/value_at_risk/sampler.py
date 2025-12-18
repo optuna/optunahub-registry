@@ -561,7 +561,11 @@ class RobustGPSampler(BaseSampler):
 
         nominal_search_space = self._get_nominal_search_space(search_space)
         nominal_params = self._optimize_params(
-            study, trials, nominal_search_space, const_noisy_param_values, acqf_type=self._acqf_type
+            study,
+            trials,
+            nominal_search_space,
+            const_noisy_param_values,
+            acqf_type=self._acqf_type,
         )
 
         if not self._noisy_suggestion:
