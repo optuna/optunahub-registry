@@ -656,9 +656,14 @@ class RobustGPSampler(BaseSampler):
             study, trials, search_space, const_noisy_param_nominal_values or {}
         )
 
-    def get_nominal_params(self, trial: FrozenTrial) -> dict[str, Any]:
+    def get_nominal_params(
+        self, trial: FrozenTrial, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         if _NOMINAL_PARAMS_KEY in trial.system_attrs:
-            return trial.system_attrs[_NOMINAL_PARAMS_KEY]
+            params = trial.system_attrs[_NOMINAL_PARAMS_KEY]
+            if const_noisy_param_nominal_values is not None:
+                params = params | const_noisy_param_nominal_values
+            return params
         else:
             return trial.params
 
