@@ -612,7 +612,21 @@ class RobustGPSampler(BaseSampler):
         )
         gpr = self._get_gpr_list(study, search_space)[0]
         internal_search_space = gp_search_space.SearchSpace(search_space)
-        X_train = internal_search_space.get_normalized_params(trials)
+        # Use nominal parameters, since VaR-based acquisition functions are defined on them.
+        # This is safe even when noisy suggestion is disabled, as get_nominal_params returns
+        # trial.params.
+        X_train = internal_search_space.get_normalized_params(
+            [
+                optuna.create_trial(
+                    params=self.get_nominal_params(trial),
+                    distributions=trial.distributions,
+                    values=trial.values,
+                    state=trial.state,
+                )
+                for trial in trials
+            ]
+        )
+
         acqf: acqf_module.BaseAcquisitionFunc
         if self._constraints_func is None:
             acqf = self._get_value_at_risk(
@@ -661,9 +675,14 @@ class RobustGPSampler(BaseSampler):
             acqf_type or self._acqf_type,
         )
 
-    def get_nominal_params(self, trial: FrozenTrial) -> dict[str, Any]:
+    def get_nominal_params(
+        self, trial: FrozenTrial, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         if _NOMINAL_PARAMS_KEY in trial.system_attrs:
-            return trial.system_attrs[_NOMINAL_PARAMS_KEY]
+            params = trial.system_attrs[_NOMINAL_PARAMS_KEY]
+            if const_noisy_param_nominal_values is not None:
+                params = params | const_noisy_param_nominal_values
+            return params
         else:
             return trial.params
 
