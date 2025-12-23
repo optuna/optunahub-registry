@@ -599,7 +599,7 @@ class RobustGPSampler(BaseSampler):
         internal_search_space = gp_search_space.SearchSpace(search_space)
         if self._nominal_ranges:
             # When nominal ranges are specified, we need to use nominal params
-            # since VaR-based acquisition functions work on normalized params.
+            # since VaR-based acquisition functions work on nominal params.
             X_train = internal_search_space.get_normalized_params(
                 [
                     optuna.create_trial(
