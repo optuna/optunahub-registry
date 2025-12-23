@@ -597,22 +597,20 @@ class RobustGPSampler(BaseSampler):
         )
         gpr = self._get_gpr_list(study, search_space)[0]
         internal_search_space = gp_search_space.SearchSpace(search_space)
-        if self._nominal_ranges:
-            # When nominal ranges are specified, we need to use nominal params
-            # since VaR-based acquisition functions work on nominal params.
-            X_train = internal_search_space.get_normalized_params(
-                [
-                    optuna.create_trial(
-                        params=self.get_nominal_params(trial),
-                        distributions=trial.distributions,
-                        values=trial.values,
-                        state=trial.state,
-                    )
-                    for trial in trials
-                ]
-            )
-        else:
-            X_train = internal_search_space.get_normalized_params(trials)
+        # Use nominal parameters, since VaR-based acquisition functions are defined on them.
+        # This is safe even when noisy suggestion is disabled, as get_nominal_params returns
+        # trial.params.
+        X_train = internal_search_space.get_normalized_params(
+            [
+                optuna.create_trial(
+                    params=self.get_nominal_params(trial),
+                    distributions=trial.distributions,
+                    values=trial.values,
+                    state=trial.state,
+                )
+                for trial in trials
+            ]
+        )
 
         acqf: acqf_module.BaseAcquisitionFunc
         if self._constraints_func is None:
