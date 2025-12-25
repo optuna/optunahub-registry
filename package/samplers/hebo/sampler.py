@@ -122,6 +122,21 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         study: Study,
         trials: list[FrozenTrial],
     ) -> None:
+        for t in trials:
+            if t.state != TrialState.COMPLETE:
+                continue
+            expected = set(search_space.keys())
+            actual = set(t.params.keys())
+
+            missing = expected - actual
+            if missing:
+                raise ValueError(
+                    "Incompatible search_space detected. "
+                    "The following parameters are defined in the sampler's search_space "
+                    f"but were missing from completed trial parameters: {missing}. "
+                    "This indicates a mismatch between the sampler's search_space and "
+                    "the parameters generated during optimization."
+                )
         sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
         values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
         worst_value = (
