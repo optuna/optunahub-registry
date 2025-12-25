@@ -20,6 +20,7 @@ import optunahub
 import pandas as pd
 
 from hebo.design_space.design_space import DesignSpace
+from hebo.optimizers.general import GeneralBO
 from hebo.optimizers.hebo import HEBO
 
 
@@ -73,6 +74,10 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
             sampling. The parameters not contained in the relative search space are sampled
             by this sampler. If :obj:`None` is specified, :class:`~optuna.samplers.RandomSampler`
             is used as the default.
+
+        num_obj:
+            If :obj:`>1`, use the multi-objective version of HEBO (GeneralBO) as the backend.
+            Default is :obj:`1`.
     """  # NOQA
 
     def __init__(
@@ -82,12 +87,17 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         seed: int | None = None,
         constant_liar: bool = False,
         independent_sampler: BaseSampler | None = None,
+        num_obj: int = 1,
     ) -> None:
         super().__init__(search_space, seed)
+        self._hebo = None
+        self._multi_objective = num_obj > 1
         if search_space is not None and not constant_liar:
-            self._hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
-        else:
-            self._hebo = None
+            design_space = self._convert_to_hebo_design_space(search_space)
+            if self._multi_objective:
+                self._hebo = GeneralBO(design_space, num_obj=num_obj)
+            else:
+                self._hebo = HEBO(design_space, scramble_seed=seed)
         self._intersection_search_space = IntersectionSearchSpace()
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
         self._constant_liar = constant_liar
@@ -95,7 +105,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
     @staticmethod
     def _suggest_and_transform_to_dict(
-        hebo: HEBO, search_space: dict[str, BaseDistribution]
+        hebo: HEBO | GeneralBO, search_space: dict[str, BaseDistribution]
     ) -> dict[str, float]:
         params = {}
         for name, row in hebo.suggest().items():
@@ -117,7 +127,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
     @staticmethod
     def _transform_to_dict_and_observe(
-        hebo: HEBO,
+        hebo: HEBO | GeneralBO,
         search_space: dict[str, BaseDistribution],
         study: Study,
         trials: list[FrozenTrial],
@@ -137,13 +147,35 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                     "This indicates a mismatch between the sampler's search_space and "
                     "the parameters generated during optimization."
                 )
-        sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
-        values = np.array([t.value if t.state == TrialState.COMPLETE else np.nan for t in trials])
-        worst_value = (
-            np.nanmax(values) if study.direction == StudyDirection.MINIMIZE else np.nanmin(values)
+        directions = study.directions if study._is_multi_objective() else [study.direction]
+        sign = np.array([1 if d == StudyDirection.MINIMIZE else -1 for d in directions])
+
+        values = np.array(
+            [
+                trial.values
+                if trial.state == TrialState.COMPLETE and trial.values is not None
+                else [np.nan] * len(directions)
+                for trial in trials
+            ],
+            dtype=float,
         )
+
+        worst_values = []
+        for idx, direction in enumerate(directions):
+            column = values[:, idx]
+            worst_value = (
+                np.nanmax(column) if direction == StudyDirection.MINIMIZE else np.nanmin(column)
+            )
+            worst_values.append(worst_value)
+        worst_values = np.array(worst_values, dtype=float)
+
+        for idx in range(len(directions)):
+            nan_mask = np.isnan(values[:, idx])
+            if nan_mask.any():
+                values[nan_mask, idx] = worst_values[idx]
+
         # Assume that the back-end HEBO implementation aims to minimize.
-        nan_padded_values = sign * np.where(np.isnan(values), worst_value, values)[:, np.newaxis]
+        nan_padded_values = sign * values
         params = pd.DataFrame([t.params for t in trials])
         for name, dist in search_space.items():
             if (
@@ -182,16 +214,20 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
 
         trials = [t for t in trials if set(search_space.keys()) <= set(t.params.keys())]
         seed = int(self._rng.integers(low=1, high=(1 << 31)))
-        hebo = HEBO(self._convert_to_hebo_design_space(search_space), scramble_seed=seed)
+        design_space = self._convert_to_hebo_design_space(search_space)
+        if self._multi_objective:
+            hebo = GeneralBO(design_space, num_obj=len(study.directions))
+        else:
+            hebo = HEBO(design_space, scramble_seed=seed)
         self._transform_to_dict_and_observe(hebo, search_space, study, trials)
         return self._suggest_and_transform_to_dict(hebo, search_space)
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
-        if study._is_multi_objective():
+        if study._is_multi_objective() and not self._multi_objective:
             raise ValueError(
-                f"{self.__class__.__name__} has not supported multi-objective optimization."
+                f"To use {self.__class__.__name__} for multi-objective optimization, please specify the 'num_obj' parameter."
             )
         if self._hebo is None or self._constant_liar is True:
             return self._sample_relative_stateless(study, trial, search_space)
@@ -269,7 +305,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
         states = (TrialState.COMPLETE,)
         trials = study._get_trials(deepcopy=False, states=states, use_cache=True)
         if any(param_name in trial.params for trial in trials):
-            _logger.warn(f"Use `RandomSampler` for {param_name} due to dynamic search space.")
+            _logger.warning(f"Use `RandomSampler` for {param_name} due to dynamic search space.")
 
         return self._independent_sampler.sample_independent(
             study, trial, param_name, param_distribution
