@@ -120,12 +120,8 @@ class SafeCMASampler(BaseSampler):
         cov: Sequence[Sequence[float]] | None = None,
     ) -> None:
         assert (
-            len(safe_seeds)
-            == len(seeds_evals)
-            == len(seeds_safe_evals)
-            == len(safety_threshold)
-            != 0
-        ), "The length of safe_seeds, seeds_evals, seeds_safe_evals, and safety_threshold must be the same"
+            len(safe_seeds) == len(seeds_evals) == len(seeds_safe_evals) != 0
+        ), "The length of safe_seeds, seeds_evals, seeds_safe_evals, and safety_threshold must be the same."
         self._safe_seeds = np.array(safe_seeds, dtype=np.float64)
         self._seeds_evals = np.array(seeds_evals, dtype=np.float64)
         seeds_safe_evals_arr = np.array(seeds_safe_evals, dtype=np.float64)
