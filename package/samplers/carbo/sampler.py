@@ -149,6 +149,12 @@ class CARBOSampler(BaseSampler):
             by the environement instead of searching values that optimize the objective function.
         n_local_search:
             How many times the local search is performed.
+        nominal_ranges:
+            An optional dictionary to override nominal ranges for a subset of parameters. If
+            a range is specified for a parmaeter, it's nominal value is sampled from the given
+            range instead of the range specified to ``suggest_float``. This option is useful
+            for avoiding clipping: if the noise range is +/- eps, specify [L, U] as a nominal
+            range and specify [L-eps, U+eps] for ``suggest_float``.
     """
 
     def __init__(
@@ -165,6 +171,7 @@ class CARBOSampler(BaseSampler):
         const_noisy_param_names: list[str] | None = None,
         # n_local_search is a power of 2 to suppress the warning in Sobol.
         n_local_search: int = 16,
+        nominal_ranges: dict[str, tuple[float, float]] | None = None,
     ) -> None:
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
@@ -180,6 +187,7 @@ class CARBOSampler(BaseSampler):
         self._rho = rho
         self._input_noise_rads = input_noise_rads
         self._n_local_search = n_local_search
+        self._nominal_ranges = nominal_ranges or {}
 
         if const_noisy_param_names is not None:
             if input_noise_rads is not None and len(
@@ -208,6 +216,21 @@ class CARBOSampler(BaseSampler):
             self._constraints_kernel_params_cache_list = None
 
         return X_train, y_train
+
+    def _get_normalized_nominal_ranges(
+        self, search_space: dict[str, BaseDistribution]
+    ) -> np.ndarray:
+        result = np.empty((len(search_space), 2), dtype=float)
+        result[:, 0] = 0.0
+        result[:, 1] = 1.0
+        for i, (name, dist) in enumerate(search_space.items()):
+            assert isinstance(dist, optuna.distributions.FloatDistribution)
+            if name in self._nominal_ranges:
+                low, high = self._nominal_ranges[name]
+                assert not dist.log
+                result[i, 0] = (low - dist.low) / (dist.high - dist.low)
+                result[i, 1] = (high - dist.low) / (dist.high - dist.low)
+        return result
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
@@ -271,6 +294,7 @@ class CARBOSampler(BaseSampler):
             beta=self._beta,
             n_local_search=self._n_local_search,
             local_radius=local_radius,
+            nominal_ranges=self._get_normalized_nominal_ranges(search_space),
         )
 
         robust_ext_params = {
@@ -313,14 +337,26 @@ class CARBOSampler(BaseSampler):
 
         return search_space
 
-    def get_nominal_params(self, trial: FrozenTrial) -> dict[str, Any]:
-        return trial.system_attrs[_ROBUST_PARAMS_KEY]
+    def get_nominal_params(
+        self, trial: FrozenTrial, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> dict[str, Any]:
+        if _ROBUST_PARAMS_KEY in trial.system_attrs:
+            params = trial.system_attrs[_ROBUST_PARAMS_KEY]
+        else:
+            params = trial.params
+        if const_noisy_param_nominal_values is not None:
+            params = params | const_noisy_param_nominal_values
+        return params
 
-    def get_robust_params(self, study: Study) -> dict[str, Any]:
+    def get_robust_params(
+        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         robust_trial = self.get_robust_trial(study)
-        return self.get_nominal_params(robust_trial)
+        return self.get_nominal_params(robust_trial, const_noisy_param_nominal_values)
 
-    def get_robust_trial(self, study: Study) -> FrozenTrial:
+    def get_robust_trial(
+        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> FrozenTrial:
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=False
         )

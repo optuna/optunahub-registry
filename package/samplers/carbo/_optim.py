@@ -17,11 +17,14 @@ from ._scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 _threading_lock = threading.Lock()
 
 
-def sample_normalized_params(n: int, dim: int, rng: np.random.RandomState | None) -> np.ndarray:
+def sample_normalized_params(
+    n: int, dim: int, nominal_ranges: np.ndarray, rng: np.random.RandomState | None
+) -> np.ndarray:
     rng = rng or np.random.RandomState()
     with _threading_lock:
         qmc_engine = qmc.Sobol(dim, scramble=True, seed=rng.randint(np.iinfo(np.int32).max))
-    return qmc_engine.random(n)
+    params = qmc_engine.random(n)
+    return params * (nominal_ranges[:, 1] - nominal_ranges[:, 0]) + nominal_ranges[:, 0]
 
 
 def _gradient_descent(
@@ -70,9 +73,10 @@ def suggest_by_carbo(
     n_local_search: int,
     local_radius: np.ndarray,
     tol: float = 1e-4,
+    nominal_ranges: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, float]:
     dim = len(gpr.length_scales)
-    local_params = sample_normalized_params(n_local_search, dim, rng=rng)
+    local_params = sample_normalized_params(n_local_search, dim, nominal_ranges, rng=rng)
     robust_x_local: np.ndarray | None = None
     robust_f_local = -np.inf
     ucb_acqf = CombinedUCB(
