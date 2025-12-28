@@ -143,6 +143,10 @@ class CARBOSampler(BaseSampler):
             The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
             the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
             `y`. This determines `W(theta)`.
+        const_noisy_param_names:
+            The list of parameters determined externally rather than being decision variables.
+            For these parameters, ``suggest_float`` returns values that are adversally determined
+            by the environement instead of searching values that optimize the objective function.
         n_local_search:
             How many times the local search is performed.
     """
@@ -158,6 +162,7 @@ class CARBOSampler(BaseSampler):
         rho: float = 1e3,
         beta: float = 4.0,
         input_noise_rads: dict[str, float] = {},
+        const_noisy_param_names: list[str] | None = None,
         # n_local_search is a power of 2 to suppress the warning in Sobol.
         n_local_search: int = 16,
     ) -> None:
@@ -175,6 +180,16 @@ class CARBOSampler(BaseSampler):
         self._rho = rho
         self._input_noise_rads = input_noise_rads
         self._n_local_search = n_local_search
+
+        if const_noisy_param_names is not None:
+            if input_noise_rads is not None and len(
+                const_noisy_param_names & input_noise_rads.keys()
+            ):
+                raise ValueError(
+                    "noisy parameters can be specified only in one of "
+                    "`const_noisy_param_names` and `uniform_input_noise_rads`."
+                )
+        self._const_noisy_param_names = const_noisy_param_names or []
 
     def _preproc(
         self, study: Study, trials: list[FrozenTrial], search_space: dict[str, BaseDistribution]
@@ -236,14 +251,16 @@ class CARBOSampler(BaseSampler):
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
         local_radius = np.zeros_like(lows)
         for i, param_name in enumerate(search_space.keys()):
-            if param_name not in self._input_noise_rads:
-                continue
-            rad = self._input_noise_rads[param_name]
-            if is_log[i]:
-                raise ValueError(
-                    f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
-                )
-            local_radius[i] = rad / (highs[i] - lows[i])
+            if param_name in self._input_noise_rads:
+                rad = self._input_noise_rads[param_name]
+                if is_log[i]:
+                    raise ValueError(
+                        f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
+                    )
+                local_radius[i] = rad / (highs[i] - lows[i])
+            elif param_name in self._const_noisy_param_names:
+                # We define the radius large enough so that the environment can choose arbitrarlly value adversally.
+                local_radius[i] = 1.0
 
         robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
