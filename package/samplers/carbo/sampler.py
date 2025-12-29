@@ -232,6 +232,27 @@ class CARBOSampler(BaseSampler):
                 result[i, 1] = (high - dist.low) / (dist.high - dist.low)
         return result
 
+    def _get_local_radius(
+        self,
+        search_space: dict[str, BaseDistribution],
+        is_log: np.ndarray,
+        lows: np.ndarray,
+        highs: np.ndarray,
+    ) -> np.ndarray:
+        local_radius = np.zeros_like(lows)
+        for i, param_name in enumerate(search_space.keys()):
+            if param_name in self._input_noise_rads:
+                rad = self._input_noise_rads[param_name]
+                if is_log[i]:
+                    raise ValueError(
+                        f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
+                    )
+                local_radius[i] = rad / (highs[i] - lows[i])
+            elif param_name in self._const_noisy_param_names:
+                # We define the radius large enough so that the environment can choose arbitrary value adversally.
+                local_radius[i] = 1.0
+        return local_radius
+
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
@@ -272,18 +293,7 @@ class CARBOSampler(BaseSampler):
             ]
 
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
-        local_radius = np.zeros_like(lows)
-        for i, param_name in enumerate(search_space.keys()):
-            if param_name in self._input_noise_rads:
-                rad = self._input_noise_rads[param_name]
-                if is_log[i]:
-                    raise ValueError(
-                        f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
-                    )
-                local_radius[i] = rad / (highs[i] - lows[i])
-            elif param_name in self._const_noisy_param_names:
-                # We define the radius large enough so that the environment can choose arbitrarlly value adversally.
-                local_radius[i] = 1.0
+        local_radius = self._get_local_radius(search_space, is_log, lows, highs)
 
         robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
