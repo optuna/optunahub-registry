@@ -17,6 +17,7 @@ import torch
 from ._gp import convert_inf
 from ._gp import GPRegressor
 from ._gp import KernelParamsTensor
+from ._optim import evaluate_by_carbo
 from ._optim import suggest_by_carbo
 
 
@@ -300,32 +301,9 @@ class CARBOSampler(BaseSampler):
         if len(trials) < self._n_startup_trials:
             return {}
 
-        X_train, y_train = self._preproc(study, trials, search_space)
-        gpr = GPRegressor(
-            X_train, y_train, kernel_params=self._kernel_params_cache
-        ).fit_kernel_params(self._log_prior, self._minimum_noise, self._deterministic)
-        self._kernel_params_cache = gpr.kernel_params.clone()
-        constraint_vals = (
-            None if self._constraints_func is None else _get_constraint_vals(study, trials)
+        gpr, constraints_gpr_list, constraints_threshold_list = self._get_gpr_list(
+            study, trials, search_space
         )
-        if constraint_vals is None:
-            constraints_gpr_list = None
-            constraints_threshold_list = None
-        else:
-            _cache_list = (
-                self._constraints_kernel_params_cache_list
-                if self._constraints_kernel_params_cache_list is not None
-                else [None] * constraint_vals.shape[-1]  # type: ignore[list-item]
-            )
-            stded_c_vals, means, stdevs = _standardize_values(-constraint_vals)
-            constraints_threshold_list = (-means / np.maximum(EPS, stdevs)).tolist()
-            C_train = torch.from_numpy(stded_c_vals)
-            constraints_gpr_list = [
-                GPRegressor(X_train, c_train, kernel_params=cache).fit_kernel_params(
-                    self._log_prior, self._minimum_noise, self._deterministic
-                )
-                for cache, c_train in zip(_cache_list, C_train.T)
-            ]
 
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
         local_radius = self._get_local_radius(search_space, is_log, lows, highs)
@@ -408,10 +386,41 @@ class CARBOSampler(BaseSampler):
         if len(complete_trials) == 0:
             raise ValueError("No complete trials found in the study.")
 
-        best_idx = np.argmax(
-            [t.system_attrs.get(_WORST_ROBUST_ACQF_KEY, -np.inf) for t in complete_trials]
+        search_space = self.infer_relative_search_space(study, complete_trials[0])
+
+        gpr, constraints_gpr_list, constraints_threshold_list = self._get_gpr_list(
+            study, complete_trials, search_space
         )
-        return complete_trials[best_idx]
+
+        lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+        local_radius = self._get_local_radius(search_space, is_log, lows, highs)
+
+        nominal_params = np.empty((len(complete_trials), len(search_space)), dtype=float)
+        for i, t in enumerate(complete_trials):
+            params = self.get_nominal_params(t, const_noisy_param_nominal_values)
+            for d, (name, dist) in enumerate(search_space.items()):
+                nominal_params[i, d] = params[name]
+        nominal_params = normalize_params(nominal_params, is_log, lows, highs)
+
+        result: tuple[FrozenTrial, float] | None = None
+
+        for i, trial in enumerate(complete_trials):
+            _worst_robust_params, worst_robust_acqf_val = evaluate_by_carbo(
+                nominal_params[i],
+                gpr=gpr,
+                constraints_gpr_list=constraints_gpr_list,
+                constraints_threshold_list=constraints_threshold_list,
+                rng=self._rng.rng,
+                rho=self._rho,
+                beta=self._beta,
+                n_local_search=self._n_local_search,
+                local_radius=local_radius,
+            )
+            if result is None or result[1] < worst_robust_acqf_val:
+                result = (trial, worst_robust_acqf_val)
+
+        assert result is not None
+        return result[0]
 
     def sample_independent(
         self,
