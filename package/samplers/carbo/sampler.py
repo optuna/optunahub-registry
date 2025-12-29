@@ -232,6 +232,41 @@ class CARBOSampler(BaseSampler):
                 result[i, 1] = (high - dist.low) / (dist.high - dist.low)
         return result
 
+    def _get_gpr_list(
+        self,
+        study: Study,
+        trials: list[FrozenTrial],
+        search_space: dict[str, BaseDistribution],
+    ) -> tuple[GPRegressor, list[GPRegressor] | None, list[float] | None]:
+        X_train, y_train = self._preproc(study, trials, search_space)
+        gpr = GPRegressor(
+            X_train, y_train, kernel_params=self._kernel_params_cache
+        ).fit_kernel_params(self._log_prior, self._minimum_noise, self._deterministic)
+        self._kernel_params_cache = gpr.kernel_params.clone()
+        constraint_vals = (
+            None if self._constraints_func is None else _get_constraint_vals(study, trials)
+        )
+        if constraint_vals is None:
+            constraints_gpr_list = None
+            constraints_threshold_list = None
+        else:
+            _cache_list = (
+                self._constraints_kernel_params_cache_list
+                if self._constraints_kernel_params_cache_list is not None
+                else [None] * constraint_vals.shape[-1]  # type: ignore[list-item]
+            )
+            stded_c_vals, means, stdevs = _standardize_values(-constraint_vals)
+            constraints_threshold_list = (-means / np.maximum(EPS, stdevs)).tolist()
+            C_train = torch.from_numpy(stded_c_vals)
+            constraints_gpr_list = [
+                GPRegressor(X_train, c_train, kernel_params=cache).fit_kernel_params(
+                    self._log_prior, self._minimum_noise, self._deterministic
+                )
+                for cache, c_train in zip(_cache_list, C_train.T)
+            ]
+
+        return (gpr, constraints_gpr_list, constraints_threshold_list)
+
     def _get_local_radius(
         self,
         search_space: dict[str, BaseDistribution],
