@@ -146,8 +146,8 @@ class CARBOSampler(BaseSampler):
             `y`. This determines `W(theta)`.
         const_noisy_param_names:
             The list of parameters determined externally rather than being decision variables.
-            For these parameters, ``suggest_float`` returns values that are adversally determined
-            by the environement instead of searching values that optimize the objective function.
+            For these parameters, ``suggest_float`` samples random values instead of searching
+            values that optimize the objective function.
         n_local_search:
             How many times the local search is performed.
         nominal_ranges:
@@ -308,6 +308,20 @@ class CARBOSampler(BaseSampler):
         lows, highs, is_log = _get_dist_info_as_arrays(search_space)
         local_radius = self._get_local_radius(search_space, is_log, lows, highs)
 
+        nominal_ranges = self._get_normalized_nominal_ranges(search_space)
+
+        # Sample constant noisy parameters uniformly and fix them
+        const_noisy_param_values = {}
+        for i, (name, dist) in enumerate(search_space.items()):
+            if name in self._const_noisy_param_names:
+                assert isinstance(dist, optuna.distributions.FloatDistribution)
+                val = self._rng.rng.uniform(dist.low, dist.high)
+                const_noisy_param_values[name] = val
+                nominal_ranges[i, 0] = nominal_ranges[i, 1] = (val - dist.low) / (
+                    dist.high - dist.low
+                )
+                local_radius[i] = 0.0
+
         robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
             constraints_gpr_list=constraints_gpr_list,
@@ -317,7 +331,7 @@ class CARBOSampler(BaseSampler):
             beta=self._beta,
             n_local_search=self._n_local_search,
             local_radius=local_radius,
-            nominal_ranges=self._get_normalized_nominal_ranges(search_space),
+            nominal_ranges=nominal_ranges,
         )
 
         robust_ext_params = {

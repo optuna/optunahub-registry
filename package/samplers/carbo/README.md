@@ -25,7 +25,7 @@ The algorithm details are described in the `Others` section.
   - `rho`: The mix up coefficient for the acquisition function. If this value is large, the parameter suggestion puts more priority on constraints.
   - `beta`: The coefficient for LCB and UCB. If this value is large, the parameter suggestion becomes more pessimistic, meaning that the search is inclined to explore more.
   - `input_noise_rads`: The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`, the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for `y`. This determines `W(theta)`.
-  - `const_noisy_param_names`: The list of parameters determined externally rather than being decision variables. For these parameters, `suggest_float` returns values that are adversally determined by the environement instead of searching values that optimize the objective function.
+  - `const_noisy_param_names`: The list of parameters determined externally rather than being decision variables. For these parameters, `suggest_float` samples random values instead of searching values that optimize the objective function.
   - `n_local_search`: How many times the local search is performed.
   - `nominal_ranges`: An optional dictionary to override nominal ranges for a subset of parameters. If a range is specified for a parmaeter, it's nominal value is sampled from the given range instead of the range specified to `suggest_float`. This option is useful for avoiding clipping: if the noise range is +/- eps, specify \[L, U\] as a nominal range and specify \[L-eps, U+eps\] for `suggest_float`.
 
