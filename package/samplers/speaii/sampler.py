@@ -1,27 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
-
 import optuna
-from optuna.distributions import BaseDistribution
 from optuna.samplers import NSGAIISampler
 from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.samplers._random import RandomSampler
-from optuna.samplers.nsgaii._after_trial_strategy import NSGAIIAfterTrialStrategy
 from optuna.samplers.nsgaii._crossovers._base import BaseCrossover
 from optuna.samplers.nsgaii._crossovers._uniform import UniformCrossover
-from optuna.search_space import IntersectionSearchSpace
-from optuna.study import Study
-from optuna.trial import FrozenTrial, TrialState
+from optuna.trial import FrozenTrial
+from optuna.trial import TrialState
 
 from ._child_generation_strategy import SPEAIIChildGenerationStrategy
 from ._elite_population_selection_strategy import SPEAIIElitePopulationSelectionStrategy
 from ._mutations._base import BaseMutation
 from ._mutations._uniform import UniformMutation
-
-if TYPE_CHECKING:
-    from optuna.study import Study
 
 
 class SPEAIISampler(NSGAIISampler):
@@ -75,9 +65,7 @@ class SPEAIISampler(NSGAIISampler):
         if generation is not None:
             return generation
 
-        trials = study._get_trials(
-            deepcopy=False, states=[TrialState.COMPLETE], use_cache=True
-        )
+        trials = study._get_trials(deepcopy=False, states=[TrialState.COMPLETE], use_cache=True)
 
         max_generation, max_generation_count = 0, 0
 
@@ -125,6 +113,5 @@ class SPEAIISampler(NSGAIISampler):
                 for trial in study._get_trials(
                     deepcopy=False, states=[TrialState.COMPLETE], use_cache=True
                 )
-                if trial.system_attrs.get(self._get_generation_key(), None)
-                == generation
+                if trial.system_attrs.get(self._get_generation_key(), None) == generation
             ]

@@ -4,8 +4,10 @@ import math
 from typing import TYPE_CHECKING
 
 import numpy as np
-from optuna.study import StudyDirection
-from optuna.trial import FrozenTrial, TrialState
+from optuna.study._multi_objective import _dominates
+from optuna.trial import FrozenTrial
+from optuna.trial import TrialState
+
 
 if TYPE_CHECKING:
     from optuna.study import Study
@@ -29,12 +31,8 @@ class SPEAIIElitePopulationSelectionStrategy:
         population: list[FrozenTrial],
     ) -> list[FrozenTrial]:
         archive: list[FrozenTrial] = []
-
         fitness_values = self._calculate_fitness(study, population)
-
-        # Environmental selection: create new archive P̄_{t+1}
-        archive = self._environmental_selection(study, population, fitness_values)
-
+        archive = self._environmental_selection(population, fitness_values)
         return archive
 
     def _calculate_fitness(
@@ -44,10 +42,10 @@ class SPEAIIElitePopulationSelectionStrategy:
     ) -> np.ndarray:
         """Calculate SPEA2 fitness values for all trials.
 
-        SPEA2 fitness = raw fitness + density
+        SPEA2 fitness = Raw fitness + Density
 
-        Raw fitness R(i) = sum of strength values of all dominators
         Strength S(i) = number of individuals dominated by i
+        Raw fitness R(i) = sum of strength values of all dominators
         Density D(i) = 1 / (sigma_k + 2), where sigma_k is distance to k-th nearest neighbor
 
         Args:
@@ -57,147 +55,81 @@ class SPEAIIElitePopulationSelectionStrategy:
         Returns:
             Array of fitness values (lower is better).
         """
-        n = len(trials)
-        if n == 0:
+        n_trials = len(trials)
+        if n_trials == 0:
             return np.array([])
 
-        # Get objective values
-        objectives = self._get_objective_values(study, trials)
+        strength = self._calculate_strength(study, trials)
+        raw_fitness = self._calculate_raw_fitness(study, trials, strength)
+        density = self._calculate_density(trials)
 
-        # Calculate strength values S(i) = number of individuals dominated by i
-        strength = np.zeros(n)
-        for i in range(n):
-            for j in range(n):
-                if i != j and self._dominates(
-                    objectives[i], objectives[j], study.directions
-                ):
-                    strength[i] += 1
-
-        # Calculate raw fitness R(i) = sum of strength of dominators
-        raw_fitness = np.zeros(n)
-        for i in range(n):
-            for j in range(n):
-                if i != j and self._dominates(
-                    objectives[j], objectives[i], study.directions
-                ):
-                    raw_fitness[i] += strength[j]
-
-        # Calculate density using k-nearest neighbor
-        k = int(math.sqrt(n))
-        density = self._calculate_density(objectives, k)
-
-        # Final fitness = raw fitness + density
         fitness = raw_fitness + density
-
         return fitness
 
-    def _get_objective_values(
-        self,
-        study: Study,
-        trials: list[FrozenTrial],
+    def _calculate_strength(self, study: Study, trials: list[FrozenTrial]) -> np.ndarray:
+        """
+        Strength S(i) = number of individuals dominated by i
+        """
+        n_trials = len(trials)
+        strength = np.zeros(n_trials)
+        for i in range(n_trials):
+            for j in range(n_trials):
+                if i != j and _dominates(trials[i], trials[j], study.directions):
+                    strength[i] += 1
+        return strength
+
+    def _calculate_raw_fitness(
+        self, study: Study, trials: list[FrozenTrial], strength: np.ndarray
     ) -> np.ndarray:
-        """Extract objective values from trials.
+        """
+        Raw fitness R(i) = sum of strength values of all dominators
+        """
+        n_trials = len(trials)
+        raw_fitness = np.zeros(n_trials)
+        for i in range(n_trials):
+            for j in range(n_trials):
+                if i != j and _dominates(trials[j], trials[i], study.directions):
+                    raw_fitness[i] += strength[j]
+        return raw_fitness
+
+    def _calculate_distance_matrix(self, values_matrix: np.ndarray) -> np.ndarray:
+        """Calculate pairwise Euclidean distance matrix efficiently using broadcasting.
 
         Args:
-            study: Optuna study object.
-            trials: List of trials.
+            values_matrix: Matrix of shape (n_trials, n_objectives) containing objective values.
 
         Returns:
-            Array of shape (n_trials, n_objectives) containing objective values.
+            Distance matrix of shape (n_trials, n_trials).
         """
-        n_objectives = len(study.directions)
-        objectives = np.zeros((len(trials), n_objectives))
+        diff = values_matrix[:, np.newaxis, :] - values_matrix[np.newaxis, :, :]
+        distances = np.sqrt(np.sum(diff**2, axis=2))
+        return distances
 
-        for i, trial in enumerate(trials):
-            if n_objectives == 1:
-                objectives[i, 0] = trial.value
-            else:
-                objectives[i] = trial.values
-
-        return objectives
-
-    def _dominates(
-        self,
-        values1: np.ndarray,
-        values2: np.ndarray,
-        directions: list[StudyDirection],
-    ) -> bool:
-        """Check if values1 Pareto-dominates values2.
-
-        Args:
-            values1: First objective values.
-            values2: Second objective values.
-            directions: Optimization directions.
-
-        Returns:
-            True if values1 dominates values2.
+    def _calculate_density(self, trials: list[FrozenTrial]) -> np.ndarray:
         """
-        better_in_all = True
-        better_in_at_least_one = False
-
-        for v1, v2, direction in zip(values1, values2, directions):
-            if direction == StudyDirection.MINIMIZE:
-                if v1 > v2:
-                    better_in_all = False
-                if v1 < v2:
-                    better_in_at_least_one = True
-            else:  # MAXIMIZE
-                if v1 < v2:
-                    better_in_all = False
-                if v1 > v2:
-                    better_in_at_least_one = True
-
-        return better_in_all and better_in_at_least_one
-
-    def _calculate_density(
-        self,
-        objectives: np.ndarray,
-        k: int,
-    ) -> np.ndarray:
-        """Calculate density estimation using k-nearest neighbor.
-
         Density D(i) = 1 / (sigma_k^i + 2)
         where sigma_k^i is the distance to the k-th nearest neighbor.
-
-        Args:
-            objectives: Array of objective values (n_trials, n_objectives).
-            k: Number of nearest neighbors to consider.
-
-        Returns:
-            Array of density values.
         """
-        n = len(objectives)
-        if n == 0:
+        k = int(math.sqrt(self._population_size + self._archive_size))
+
+        n_trials = len(trials)
+        if n_trials == 0:
             return np.array([])
 
-        # Ensure k is valid
-        k = min(k, n - 1)
-        if k <= 0:
-            return np.zeros(n)
+        values_matrix = np.array([trial.values for trial in trials])
+        distance_matrix = self._calculate_distance_matrix(values_matrix)
 
-        density = np.zeros(n)
-
-        for i in range(n):
-            # Calculate distances to all other individuals
-            distances = []
-            for j in range(n):
-                if i != j:
-                    # Euclidean distance in objective space
-                    dist = np.linalg.norm(objectives[i] - objectives[j])
-                    distances.append(dist)
-
-            # Sort distances and get k-th nearest neighbor distance
-            distances.sort()
-            sigma_k = distances[k - 1] if k - 1 < len(distances) else distances[-1]
-
-            # Calculate density
+        # For each trial, find k-th nearest neighbor distance
+        density = np.zeros(n_trials)
+        for i in range(n_trials):
+            sorted_distances = np.sort(distance_matrix[i])
+            sigma_k = sorted_distances[k] if k < len(sorted_distances) else sorted_distances[-1]
             density[i] = 1.0 / (sigma_k + 2.0)
 
         return density
 
     def _environmental_selection(
         self,
-        study: Study,
         trials: list[FrozenTrial],
         fitness: np.ndarray,
     ) -> list[FrozenTrial]:
@@ -205,8 +137,8 @@ class SPEAIIElitePopulationSelectionStrategy:
 
         SPEA2 environmental selection:
         1. Copy all nondominated individuals (F < 1) to archive
-        2. If archive size < N-bar: fill with best dominated individuals
-        3. If archive size > N-bar: truncate using archive truncation operator
+        2. If archive individuals < archive_size: fill with best dominated individuals
+        3. If archive individuals > archive_size: truncate using archive truncation operator
 
         Args:
             study: Optuna study object.
@@ -216,26 +148,22 @@ class SPEAIIElitePopulationSelectionStrategy:
         Returns:
             Archive of selected trials.
         """
-        # Step 1: Select all nondominated individuals (fitness < 1)
+        # Copy all nondominated individuals (F < 1) to archive
         nondominated_indices = np.where(fitness < 1.0)[0]
         archive_indices = list(nondominated_indices)
 
-        # Step 2: Fill archive if needed
+        # If archive individuals < archive_size: fill with best dominated individuals
         if len(archive_indices) < self._archive_size:
-            # Add best dominated individuals
             dominated_indices = np.where(fitness >= 1.0)[0]
             if len(dominated_indices) > 0:
-                # Sort dominated individuals by fitness
                 sorted_dominated = sorted(dominated_indices, key=lambda i: fitness[i])
-                n_to_add = min(
-                    self._archive_size - len(archive_indices), len(sorted_dominated)
-                )
-                archive_indices.extend(sorted_dominated[:n_to_add])
+                n_addition = min(self._archive_size - len(archive_indices), len(sorted_dominated))
+                archive_indices.extend(sorted_dominated[:n_addition])
 
-        # Step 3: Truncate archive if needed
+        # If archive individuals > archive_size: truncate using archive truncation operator
         elif len(archive_indices) > self._archive_size:
             archive_trials = [trials[i] for i in archive_indices]
-            selected_indices = self._truncate_archive(archive_trials, study)
+            selected_indices = self._truncate_archive(archive_trials)
             archive_indices = [archive_indices[i] for i in selected_indices]
 
         return [trials[i] for i in archive_indices]
@@ -243,46 +171,51 @@ class SPEAIIElitePopulationSelectionStrategy:
     def _truncate_archive(
         self,
         archive_trials: list[FrozenTrial],
-        study: Study,
     ) -> list[int]:
         """Truncate archive using SPEA2 archive truncation method.
 
         Iteratively remove individuals with minimum distance to other individuals,
-        preserving boundary solutions.
+        using lexicographic ordering of sorted distance lists to break ties.
+        This preserves boundary solutions.
 
         Args:
             archive_trials: Trials in the archive.
-            study: Optuna study object.
 
         Returns:
             Indices of selected trials.
         """
-        objectives = self._get_objective_values(study, archive_trials)
-        n = len(archive_trials)
-        remaining = list(range(n))
+        n_trials = len(archive_trials)
+        remaining = list(range(n_trials))
 
-        # Remove individuals until archive size is reached
+        values_matrix = np.array([trial.values for trial in archive_trials])
+        distance_matrix = self._calculate_distance_matrix(values_matrix)
+
         while len(remaining) > self._archive_size:
-            # Calculate distance matrix for remaining individuals
-            min_distances = np.full(len(remaining), np.inf)
+            n_remaining = len(remaining)
 
-            for i, idx_i in enumerate(remaining):
-                distances = []
-                for j, idx_j in enumerate(remaining):
-                    if i != j:
-                        dist = np.linalg.norm(objectives[idx_i] - objectives[idx_j])
-                        distances.append(dist)
+            remaining_indices = np.array(remaining)
+            distance_submatrix = distance_matrix[np.ix_(remaining_indices, remaining_indices)]
 
-                if distances:
-                    distances.sort()
-                    # Find individual with minimum distance to others
-                    for k, dist in enumerate(distances):
-                        if k == 0 or dist != distances[k - 1]:
-                            min_distances[i] = dist
-                            break
+            distance_lists = []
+            for i in range(n_remaining):
+                distances = np.concatenate(
+                    [distance_submatrix[i, :i], distance_submatrix[i, i + 1 :]]
+                )
+                distances.sort()
+                distance_lists.append(distances)
 
-            # Remove individual with smallest distance
-            remove_idx = np.argmin(min_distances)
+            remove_idx = 0
+            min_dist_list = distance_lists[0]
+
+            for i in range(1, len(distance_lists)):
+                for k in range(min(len(min_dist_list), len(distance_lists[i]))):
+                    if distance_lists[i][k] < min_dist_list[k]:
+                        remove_idx = i
+                        min_dist_list = distance_lists[i]
+                        break
+                    elif distance_lists[i][k] > min_dist_list[k]:
+                        break
+
             remaining.pop(remove_idx)
 
         return remaining

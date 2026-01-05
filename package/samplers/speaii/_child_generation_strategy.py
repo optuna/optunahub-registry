@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import Any
+from typing import TYPE_CHECKING
 
 from optuna.distributions import BaseDistribution
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -13,6 +13,7 @@ from optuna.trial import FrozenTrial
 
 from ._mutation import perform_mutation
 from ._mutations._base import BaseMutation
+
 
 if TYPE_CHECKING:
     from optuna.study import Study
@@ -34,9 +35,7 @@ class SPEAIIChildGenerationStrategy:
             )
 
         if not (0.0 <= crossover_prob <= 1.0):
-            raise ValueError(
-                "`crossover_prob` must be a float value within the range [0.0, 1.0]."
-            )
+            raise ValueError("`crossover_prob` must be a float value within the range [0.0, 1.0].")
 
         if not isinstance(mutation, BaseMutation):
             raise ValueError(f"'{mutation}' is not a valid mutation.")
@@ -62,7 +61,7 @@ class SPEAIIChildGenerationStrategy:
         search_space: dict[str, BaseDistribution],
         parent_population: list[FrozenTrial],
     ) -> dict[str, Any]:
-        """Generate a child parameter from the given parent population by NSGA-II algorithm.
+        """Generate a child parameter from the given parent population.
         Args:
             study:
                 Target study object.
@@ -73,10 +72,7 @@ class SPEAIIChildGenerationStrategy:
         Returns:
             A dictionary containing the parameter names and parameter's values.
         """
-        dominates = (
-            _dominates if self._constraints_func is None else _constrained_dominates
-        )
-        # We choose a child based on the specified crossover method.
+        dominates = _dominates if self._constraints_func is None else _constrained_dominates
         if self._rng.rng.rand() < self._crossover_prob:
             child_params = perform_crossover(
                 self._crossover,
@@ -89,9 +85,7 @@ class SPEAIIChildGenerationStrategy:
             )
         else:
             parent_population_size = len(parent_population)
-            parent_params = parent_population[
-                self._rng.rng.choice(parent_population_size)
-            ].params
+            parent_params = parent_population[self._rng.rng.choice(parent_population_size)].params
             child_params = {name: parent_params[name] for name in search_space.keys()}
 
         n_params = len(child_params)
