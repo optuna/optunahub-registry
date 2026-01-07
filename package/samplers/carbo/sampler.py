@@ -147,12 +147,12 @@ class CARBOSampler(BaseSampler):
         const_noisy_param_names:
             The list of parameters determined externally rather than being decision variables.
             For these parameters, ``suggest_float`` samples random values instead of searching
-            values that optimize the objective function.
+            for values that optimize the objective function.
         n_local_search:
             How many times the local search is performed.
         nominal_ranges:
             An optional dictionary to override nominal ranges for a subset of parameters. If
-            a range is specified for a parmaeter, it's nominal value is sampled from the given
+            a range is specified for a parameter, its nominal value is sampled from the given
             range instead of the range specified to ``suggest_float``. This option is useful
             for avoiding clipping: if the noise range is +/- eps, specify [L, U] as a nominal
             range and specify [L-eps, U+eps] for ``suggest_float``.
