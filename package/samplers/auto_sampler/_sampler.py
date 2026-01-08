@@ -192,6 +192,21 @@ class AutoSampler(BaseSampler):
 
         return self._sampler  # No update happens to self._sampler.
 
+    def _is_compatible(
+        self, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    ) -> bool:
+        """Check if a trial is compatible with the given search space."""
+        # CMA-ES requires fixed dimensionality. Reject trials with extra or missing parameters.
+        if set(trial.params.keys()) != set(search_space.keys()):
+            return False
+
+        for name, distribution in search_space.items():
+            param_value = trial.params[name]
+            # Use internal contains check to mirror sampler compatibility logic
+            if not distribution._contains(distribution.to_internal_repr(param_value)):
+                return False
+        return True
+
     def _determine_single_objective_sampler(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> BaseSampler:
@@ -217,8 +232,21 @@ class AutoSampler(BaseSampler):
                 # Use ``CmaEsSampler`` if search space is numerical and
                 # len(complete_trials) > _MAX_BUDGET_FOR_SINGLE_GP.
                 # Warm start CMA-ES with the first _MAX_BUDGET_FOR_SINGLE_GP complete trials.
-                complete_trials.sort(key=lambda trial: trial.datetime_complete)
-                warm_start_trials = complete_trials[: self._MAX_BUDGET_FOR_SINGLE_GP]
+                compatible_trials = [
+                    t for t in complete_trials if self._is_compatible(t, search_space)
+                ]
+                # Filter trials that are incompatible with the current search space.
+                # This includes checking for correct dimensionality and value validity.
+                compatible_trials.sort(key=lambda trial: trial.datetime_complete)
+                warm_start_trials = compatible_trials[: self._MAX_BUDGET_FOR_SINGLE_GP]
+                if not warm_start_trials:
+                    _logger.warning(
+                        "AutoSampler could not find compatible trials for CMA-ES warm-start "
+                        "(likely due to dynamic search space). Proceeding with cold-start."
+                    )
+                    return CmaEsSampler(
+                        seed=seed, source_trials=None, warn_independent_sampling=True
+                    )
                 return CmaEsSampler(
                     seed=seed, source_trials=warm_start_trials, warn_independent_sampling=True
                 )
