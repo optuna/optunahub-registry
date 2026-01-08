@@ -17,11 +17,14 @@ from ._scipy_blas_thread_patch import single_blas_thread_if_scipy_v1_15_or_newer
 _threading_lock = threading.Lock()
 
 
-def sample_normalized_params(n: int, dim: int, rng: np.random.RandomState | None) -> np.ndarray:
+def sample_normalized_params(
+    n: int, dim: int, nominal_ranges: np.ndarray, rng: np.random.RandomState | None
+) -> np.ndarray:
     rng = rng or np.random.RandomState()
     with _threading_lock:
         qmc_engine = qmc.Sobol(dim, scramble=True, seed=rng.randint(np.iinfo(np.int32).max))
-    return qmc_engine.random(n)
+    params = qmc_engine.random(n)
+    return params * (nominal_ranges[:, 1] - nominal_ranges[:, 0]) + nominal_ranges[:, 0]
 
 
 def _gradient_descent(
@@ -70,9 +73,10 @@ def suggest_by_carbo(
     n_local_search: int,
     local_radius: np.ndarray,
     tol: float = 1e-4,
+    nominal_ranges: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, float]:
     dim = len(gpr.length_scales)
-    local_params = sample_normalized_params(n_local_search, dim, rng=rng)
+    local_params = sample_normalized_params(n_local_search, dim, nominal_ranges, rng=rng)
     robust_x_local: np.ndarray | None = None
     robust_f_local = -np.inf
     ucb_acqf = CombinedUCB(
@@ -99,3 +103,27 @@ def suggest_by_carbo(
     assert isinstance(robust_x_local, np.ndarray)
     bounds = _create_bounds(robust_x_local, local_radius)
     return robust_x_local, *_gradient_descent(lcb_acqf, robust_x_local, bounds, tol=tol)
+
+
+def evaluate_by_carbo(
+    params: np.ndarray,
+    *,
+    gpr: GPRegressor,
+    constraints_gpr_list: list[GPRegressor] | None,
+    constraints_threshold_list: list[float] | None,
+    rng: np.random.RandomState | None,
+    rho: float,
+    beta: float,
+    n_local_search: int,
+    local_radius: np.ndarray,
+    tol: float = 1e-4,
+) -> tuple[np.ndarray, float]:
+    lcb_acqf = CombinedLCB(
+        gpr=gpr,
+        constraints_gpr_list=constraints_gpr_list,
+        constraints_threshold_list=constraints_threshold_list,
+        rho=rho,
+        beta=beta,
+    )
+    bounds = _create_bounds(params, local_radius)
+    return _gradient_descent(lcb_acqf, params, bounds, tol=tol)

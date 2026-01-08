@@ -17,6 +17,7 @@ import torch
 from ._gp import convert_inf
 from ._gp import GPRegressor
 from ._gp import KernelParamsTensor
+from ._optim import evaluate_by_carbo
 from ._optim import suggest_by_carbo
 
 
@@ -143,8 +144,18 @@ class CARBOSampler(BaseSampler):
             The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
             the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
             `y`. This determines `W(theta)`.
+        const_noisy_param_names:
+            The list of parameters determined externally rather than being decision variables.
+            For these parameters, ``suggest_float`` samples random values instead of searching
+            for values that optimize the objective function.
         n_local_search:
             How many times the local search is performed.
+        nominal_ranges:
+            An optional dictionary to override nominal ranges for a subset of parameters. If
+            a range is specified for a parameter, its nominal value is sampled from the given
+            range instead of the range specified to ``suggest_float``. This option is useful
+            for avoiding clipping: if the noise range is +/- eps, specify [L, U] as a nominal
+            range and specify [L-eps, U+eps] for ``suggest_float``.
     """
 
     def __init__(
@@ -158,8 +169,10 @@ class CARBOSampler(BaseSampler):
         rho: float = 1e3,
         beta: float = 4.0,
         input_noise_rads: dict[str, float] = {},
+        const_noisy_param_names: list[str] | None = None,
         # n_local_search is a power of 2 to suppress the warning in Sobol.
         n_local_search: int = 16,
+        nominal_ranges: dict[str, tuple[float, float]] | None = None,
     ) -> None:
         self._rng = LazyRandomState(seed)
         self._independent_sampler = independent_sampler or optuna.samplers.RandomSampler(seed=seed)
@@ -175,6 +188,17 @@ class CARBOSampler(BaseSampler):
         self._rho = rho
         self._input_noise_rads = input_noise_rads
         self._n_local_search = n_local_search
+        self._nominal_ranges = nominal_ranges or {}
+
+        if const_noisy_param_names is not None:
+            if input_noise_rads is not None and len(
+                const_noisy_param_names & input_noise_rads.keys()
+            ):
+                raise ValueError(
+                    "noisy parameters can be specified only in one of "
+                    "`const_noisy_param_names` and `uniform_input_noise_rads`."
+                )
+        self._const_noisy_param_names = const_noisy_param_names or []
 
     def _preproc(
         self, study: Study, trials: list[FrozenTrial], search_space: dict[str, BaseDistribution]
@@ -194,18 +218,27 @@ class CARBOSampler(BaseSampler):
 
         return X_train, y_train
 
-    def sample_relative(
-        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, Any]:
-        if study._is_multi_objective():
-            raise ValueError("CARBOSampler does not support multi-objective optimization.")
-        if search_space == {}:
-            return {}
+    def _get_normalized_nominal_ranges(
+        self, search_space: dict[str, BaseDistribution]
+    ) -> np.ndarray:
+        result = np.empty((len(search_space), 2), dtype=float)
+        result[:, 0] = 0.0
+        result[:, 1] = 1.0
+        for i, (name, dist) in enumerate(search_space.items()):
+            assert isinstance(dist, optuna.distributions.FloatDistribution)
+            if name in self._nominal_ranges:
+                low, high = self._nominal_ranges[name]
+                assert not dist.log
+                result[i, 0] = (low - dist.low) / (dist.high - dist.low)
+                result[i, 1] = (high - dist.low) / (dist.high - dist.low)
+        return result
 
-        trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
-        if len(trials) < self._n_startup_trials:
-            return {}
-
+    def _get_gpr_list(
+        self,
+        study: Study,
+        trials: list[FrozenTrial],
+        search_space: dict[str, BaseDistribution],
+    ) -> tuple[GPRegressor, list[GPRegressor] | None, list[float] | None]:
         X_train, y_train = self._preproc(study, trials, search_space)
         gpr = GPRegressor(
             X_train, y_train, kernel_params=self._kernel_params_cache
@@ -233,17 +266,61 @@ class CARBOSampler(BaseSampler):
                 for cache, c_train in zip(_cache_list, C_train.T)
             ]
 
-        lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+        return (gpr, constraints_gpr_list, constraints_threshold_list)
+
+    def _get_local_radius(
+        self,
+        search_space: dict[str, BaseDistribution],
+        is_log: np.ndarray,
+        lows: np.ndarray,
+        highs: np.ndarray,
+    ) -> np.ndarray:
         local_radius = np.zeros_like(lows)
         for i, param_name in enumerate(search_space.keys()):
-            if param_name not in self._input_noise_rads:
-                continue
-            rad = self._input_noise_rads[param_name]
-            if is_log[i]:
-                raise ValueError(
-                    f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
+            if param_name in self._input_noise_rads:
+                rad = self._input_noise_rads[param_name]
+                if is_log[i]:
+                    raise ValueError(
+                        f"Specifying input_noise_rads for log-domain parameter ({param_name}) is not supported yet."
+                    )
+                local_radius[i] = rad / (highs[i] - lows[i])
+            elif param_name in self._const_noisy_param_names:
+                # We define the radius large enough so that the environment can choose arbitrary value adversally.
+                local_radius[i] = 1.0
+        return local_radius
+
+    def sample_relative(
+        self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+    ) -> dict[str, Any]:
+        if study._is_multi_objective():
+            raise ValueError("CARBOSampler does not support multi-objective optimization.")
+        if search_space == {}:
+            return {}
+
+        trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
+        if len(trials) < self._n_startup_trials:
+            return {}
+
+        gpr, constraints_gpr_list, constraints_threshold_list = self._get_gpr_list(
+            study, trials, search_space
+        )
+
+        lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+        local_radius = self._get_local_radius(search_space, is_log, lows, highs)
+
+        nominal_ranges = self._get_normalized_nominal_ranges(search_space)
+
+        # Sample constant noisy parameters uniformly and fix them
+        const_noisy_param_values = {}
+        for i, (name, dist) in enumerate(search_space.items()):
+            if name in self._const_noisy_param_names:
+                assert isinstance(dist, optuna.distributions.FloatDistribution)
+                val = self._rng.rng.uniform(dist.low, dist.high)
+                const_noisy_param_values[name] = val
+                nominal_ranges[i, 0] = nominal_ranges[i, 1] = (val - dist.low) / (
+                    dist.high - dist.low
                 )
-            local_radius[i] = rad / (highs[i] - lows[i])
+                local_radius[i] = 0.0
 
         robust_params, worst_robust_params, worst_robust_acqf_val = suggest_by_carbo(
             gpr=gpr,
@@ -254,6 +331,7 @@ class CARBOSampler(BaseSampler):
             beta=self._beta,
             n_local_search=self._n_local_search,
             local_radius=local_radius,
+            nominal_ranges=nominal_ranges,
         )
 
         robust_ext_params = {
@@ -296,24 +374,67 @@ class CARBOSampler(BaseSampler):
 
         return search_space
 
-    def get_robust_params_from_trial(self, trial: FrozenTrial) -> dict[str, Any]:
-        return trial.system_attrs[_ROBUST_PARAMS_KEY]
+    def get_nominal_params(
+        self, trial: FrozenTrial, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> dict[str, Any]:
+        if _ROBUST_PARAMS_KEY in trial.system_attrs:
+            params = trial.system_attrs[_ROBUST_PARAMS_KEY]
+        else:
+            params = trial.params
+        if const_noisy_param_nominal_values is not None:
+            params = params | const_noisy_param_nominal_values
+        return params
 
-    def get_robust_params(self, study: Study) -> dict[str, Any]:
+    def get_robust_params(
+        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         robust_trial = self.get_robust_trial(study)
-        return self.get_robust_params_from_trial(robust_trial)
+        return self.get_nominal_params(robust_trial, const_noisy_param_nominal_values)
 
-    def get_robust_trial(self, study: Study) -> FrozenTrial:
+    def get_robust_trial(
+        self, study: Study, const_noisy_param_nominal_values: dict[str, float] | None = None
+    ) -> FrozenTrial:
         complete_trials = study._get_trials(
             deepcopy=False, states=(TrialState.COMPLETE,), use_cache=False
         )
         if len(complete_trials) == 0:
             raise ValueError("No complete trials found in the study.")
 
-        best_idx = np.argmax(
-            [t.system_attrs.get(_WORST_ROBUST_ACQF_KEY, -np.inf) for t in complete_trials]
+        search_space = self.infer_relative_search_space(study, complete_trials[0])
+
+        gpr, constraints_gpr_list, constraints_threshold_list = self._get_gpr_list(
+            study, complete_trials, search_space
         )
-        return complete_trials[best_idx]
+
+        lows, highs, is_log = _get_dist_info_as_arrays(search_space)
+        local_radius = self._get_local_radius(search_space, is_log, lows, highs)
+
+        nominal_params = np.empty((len(complete_trials), len(search_space)), dtype=float)
+        for i, t in enumerate(complete_trials):
+            params = self.get_nominal_params(t, const_noisy_param_nominal_values)
+            for d, (name, dist) in enumerate(search_space.items()):
+                nominal_params[i, d] = params[name]
+        nominal_params = normalize_params(nominal_params, is_log, lows, highs)
+
+        result: tuple[FrozenTrial, float] | None = None
+
+        for i, trial in enumerate(complete_trials):
+            _worst_robust_params, worst_robust_acqf_val = evaluate_by_carbo(
+                nominal_params[i],
+                gpr=gpr,
+                constraints_gpr_list=constraints_gpr_list,
+                constraints_threshold_list=constraints_threshold_list,
+                rng=self._rng.rng,
+                rho=self._rho,
+                beta=self._beta,
+                n_local_search=self._n_local_search,
+                local_radius=local_radius,
+            )
+            if result is None or result[1] < worst_robust_acqf_val:
+                result = (trial, worst_robust_acqf_val)
+
+        assert result is not None
+        return result[0]
 
     def sample_independent(
         self,
