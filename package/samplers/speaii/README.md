@@ -2,7 +2,7 @@
 author: Hiroaki Natsume
 title: SPEAII sampler
 description: Sampler using SPEA-II algorithm, a multi-objective evolutionary algorithm that maintains an external archive of non-dominated solutions. It supports custom mutation methods and warm-start optimization.
-tags: [Sampler, Multi-Objective, Warmstart]
+tags: [Sampler, Multi-Objective, Warmstart, GA]
 optuna_versions: [4.5.0]
 license: MIT License
 ---
@@ -17,15 +17,15 @@ Note that when using warm-start with existing trials, the initial generation may
 
 - `SPEAIISampler(*, population_size=50, archive_size=None, mutation=None, mutation_prob=None, crossover=None, crossover_prob=0.9, seed=None)`
   - `archive_size`: Size of the external archive that stores elite non-dominated solutions. The archive is used in the SPEA-II selection process to maintain diversity and quality of the Pareto front. If `None`, it defaults to `population_size`.
-  - `mutation`: Mutation to be applied when creating child individual. If None, `UniformMutation` is selected.
+  - `mutation`: Mutation to be applied when creating child individual. If `None`, `UniformMutation` is selected.
     - For categorical variables, it is always `UniformMutation`.
   - The other arguments are the same as for Optuna's NSGA-II.
-  - Supported mutation methods are listed below
+  - Supported mutation methods are listed below:
     - `UniformMutation()`
       - This is a mutation method that uses a Uniform distribution for the distribution of the generated individuals.
     - `PolynomialMutation(eta=20)`
       - This is a mutation method that uses a Polynomial distribution for the distribution of the generated individuals.
-      - `eta`: Argument for the width of the distribution. The larger the value, the narrower the distribution. A value `eta ∈ [20, 100]` is adequate in most problems
+      - `eta`: Argument for the width of the distribution. The larger the value, the narrower the distribution. A value `eta ∈ [20, 100]` is adequate in most problems.
     - `GaussianMutation(sigma_factor=1/30)`
       - This is a mutation method that uses a Gaussian distribution for the distribution of the generated individuals.
       - `sigma_factor`: It is a factor that is multiplied by the sigma of the Gaussian distribution. When the `sigma_factor` is `1.0`, the sigma is the difference between the maximum and minimum of the search range for the target variable.
@@ -63,6 +63,6 @@ optuna.visualization.plot_pareto_front(study).show()
 ### Reference
 
 - SPEA-II
-  - Zitzler, Eckart & Laumanns, Marco & Thiele, Lothar. (2001). SPEA2: Improving the Strength Pareto Evolutionary Algorithm. TIK-Report. 103.
+  - Zitzler, Eckart., Laumanns, Marco., & Thiele, Lothar. (2001). SPEA2: Improving the Strength Pareto Evolutionary Algorithm. TIK-Report, 103.
 - Mutation
-  - Kalyanmoy Deb and Debayan Deb. 2014. Analysing mutation schemes for real-parameter genetic algorithms. Int. J. Artif. Intell. Soft Comput. 4, 1 (February 2014), 1–28.
+  - Deb, Kalyanmoy., & Deb, Debayan. (2014). Analysing Mutation Schemes for Real-parameter Genetic Algorithms. International Journal of Artificial Intelligence and Soft Computing, 4(1), 1-28.
