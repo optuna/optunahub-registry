@@ -19,7 +19,7 @@ class HypESampler(NSGAIISampler):
         self,
         *,
         population_size: int = 50,
-        n_samples: int = 2048,
+        n_samples: int = 4096,
         mutation: BaseMutation | None = None,
         mutation_prob: float | None = None,
         crossover: BaseCrossover | None = None,
@@ -35,6 +35,7 @@ class HypESampler(NSGAIISampler):
         elite_population_selection_strategy = HypEElitePopulationSelectionStrategy(
             population_size=population_size,
             n_samples=n_samples,
+            seed=seed,
         )
 
         child_generation_strategy = HypEChildGenerationStrategy(
