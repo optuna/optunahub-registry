@@ -22,6 +22,13 @@ pip install optunahub hebo
 pip install --upgrade pymoo
 ```
 
+At the moment, for Python 3.12+, the following workaround is required to install HEBO.
+
+```bash
+pip install --no-deps --no-build-isolation hebo
+pip install optuna optunahub numpy pandas pymoo disjoint_set gpytorch
+```
+
 ## APIs
 
 - `HEBOSampler(search_space: dict[str, BaseDistribution] | None = None, *, seed: int | None = None, constant_liar: bool = False, independent_sampler: BaseSampler | None = None, num_obj: int = 1)`
