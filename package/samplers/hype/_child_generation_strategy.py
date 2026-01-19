@@ -66,11 +66,11 @@ class HypEChildGenerationStrategy:
             study:
                 Target study object.
             search_space:
-                A dictionary containing the parameter names and parameter's distributions.
+                A dictionary containing the parameter names and parameter distributions.
             parent_population:
                 A list of trials that are selected as parent population.
         Returns:
-            A dictionary containing the parameter names and parameter's values.
+            A dictionary containing the parameter names and parameter values.
         """
         dominates = _dominates if self._constraints_func is None else _constrained_dominates
         if self._rng.rng.rand() < self._crossover_prob:

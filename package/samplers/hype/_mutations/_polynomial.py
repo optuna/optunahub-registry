@@ -13,10 +13,10 @@ class PolynomialMutation(BaseMutation):
     ) -> None:
         self._eta = eta
 
-    def mutation(self, value: float, rng: RandomState, search_space_bonds: ndarray) -> float:
+    def mutation(self, value: float, rng: RandomState, search_space_bounds: ndarray) -> float:
         u = rng.rand()
-        lb = search_space_bonds[0]
-        ub = search_space_bonds[1]
+        lb = search_space_bounds[0]
+        ub = search_space_bounds[1]
 
         if u <= 0.5:
             delta_l = (2.0 * u) ** (1.0 / (self._eta + 1.0)) - 1.0

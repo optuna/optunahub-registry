@@ -14,7 +14,7 @@ class BaseMutation(abc.ABC):
         self,
         value: float,
         rng: np.random.RandomState,
-        search_space_bonds: np.ndarray,
+        search_space_bounds: np.ndarray,
     ) -> float:
         """Mutate the given value.
 

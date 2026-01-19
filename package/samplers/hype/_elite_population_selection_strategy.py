@@ -51,14 +51,14 @@ class HypEElitePopulationSelectionStrategy:
         if population_size < 2:
             raise ValueError("`population_size` must be greater than or equal to 2.")
 
-        if n_samples > 0 and (n_samples & (n_samples - 1)) != 0:
-            warnings.warn(
-                f"`n_samples` ({n_samples}) is not a power of 2. "
-                "Sobol sequence works most effectively with powers of 2 (e.g., 1024, 2048, 4096). "
-                "Consider using a power of 2 for better QMC performance.",
-            )
         if n_samples < 1:
             raise ValueError("`n_samples` must be greater than or equal to 1.")
+        if (n_samples & (n_samples - 1)) != 0:
+            warnings.warn(
+                f"`n_samples` ({n_samples}) is not a power of 2. "
+                "QMC's Sobol sequence works most effectively with powers of 2 (e.g., 1024, 2048, 4096). "
+                "Consider using a power of 2 for better QMC performance.",
+            )
 
         self._population_size = population_size
         self._n_samples = n_samples
@@ -148,7 +148,7 @@ class HypEElitePopulationSelectionStrategy:
             use_exact = self._should_use_exact_hypervolume(len(study.directions))
             if use_exact:
                 fitness_values = self._compute_exact_hypervolume_contributions(
-                    study, remaining_individuals, reference_point, n_select
+                    study, remaining_individuals, reference_point
                 )
             else:
                 fitness_values = self._estimate_hypervolume_contributions(
@@ -197,7 +197,6 @@ class HypEElitePopulationSelectionStrategy:
         study: Study,
         population: list[FrozenTrial],
         reference_point: npt.NDArray[np.float64],
-        k: int,
     ) -> npt.NDArray[np.float64]:
         """Compute exact hypervolume contributions for each individual."""
         n_population = len(population)
