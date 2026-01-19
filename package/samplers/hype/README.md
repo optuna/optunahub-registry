@@ -39,6 +39,18 @@ It employs a greedy selection strategy that preferentially retains individuals w
   - Mutation using a Gaussian distribution.
   - `sigma_factor`: Factor multiplied by the search range to determine sigma. When `sigma_factor=1.0`, sigma equals the full search range.
 
+## Installation
+
+```
+pip install scipy
+```
+
+or
+
+```
+pip install -r https://hub.optuna.org/samplers/hype/requirements.txt
+```
+
 ## Example
 
 Here is the code example comparing hypervolumes using the WFG1 function with NSGA-III.
