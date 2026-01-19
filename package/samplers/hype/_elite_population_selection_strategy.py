@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Literal
 from typing import Sequence
 from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
 import numpy.typing as npt
+from optuna._hypervolume import compute_hypervolume
 from optuna.samplers.nsgaii._constraints_evaluation import _evaluate_penalty
 from optuna.study import StudyDirection
 from optuna.study._multi_objective import _fast_non_domination_rank
@@ -31,6 +33,7 @@ class HypEElitePopulationSelectionStrategy:
         population_size: int,
         n_samples: int,
         seed: int | None = None,
+        hypervolume_method: Literal["auto", "exact", "estimation"] = "auto",
     ) -> None:
         """Initialize HypE elite selection strategy.
 
@@ -38,6 +41,12 @@ class HypEElitePopulationSelectionStrategy:
             population_size: Size of the population.
             n_samples: Number of samples for hypervolume estimation.
             seed: Random seed for Sobol sequence generator.
+            hypervolume_method: Method for hypervolume contribution calculation.
+                If "auto", "exact" is used when the number of objectives
+                is 3 or less, and "estimation" is used otherwise, following the
+                original HypE paper.
+                If "exact", exact hypervolume calculation is always used.
+                If "estimation", Monte Carlo estimation is always used.
         """
         if population_size < 2:
             raise ValueError("`population_size` must be greater than or equal to 2.")
@@ -56,6 +65,7 @@ class HypEElitePopulationSelectionStrategy:
         self._sobol_sampler: qmc.Sobol | None = None
         self._sobol_dimensions: int = 0
         self._seed = seed
+        self._hypervolume_method = hypervolume_method
 
     def __call__(
         self,
@@ -135,7 +145,8 @@ class HypEElitePopulationSelectionStrategy:
             if len(remaining_individuals) <= 1:
                 break
 
-            if len(study.directions) <= 3:
+            use_exact = self._should_use_exact_hypervolume(len(study.directions))
+            if use_exact:
                 fitness_values = self._compute_exact_hypervolume_contributions(
                     study, remaining_individuals, reference_point, n_select
                 )
@@ -149,6 +160,12 @@ class HypEElitePopulationSelectionStrategy:
             remaining_individuals.pop(min_idx)
 
         return remaining_individuals
+
+    def _should_use_exact_hypervolume(self, n_objectives: int) -> bool:
+        if self._hypervolume_method == "auto":
+            # Follow the original HypE paper: use exact for 3 or fewer objectives
+            return n_objectives <= 3
+        return self._hypervolume_method == "exact"
 
     def _calculate_reference_point(
         self, study: Study, population: list[FrozenTrial]
@@ -182,9 +199,34 @@ class HypEElitePopulationSelectionStrategy:
         reference_point: npt.NDArray[np.float64],
         k: int,
     ) -> npt.NDArray[np.float64]:
-        raise NotImplementedError(
-            "Exact hypervolume contribution calculation is not implemented yet."
-        )
+        """Compute exact hypervolume contributions for each individual."""
+        n_population = len(population)
+        values = np.array([trial.values for trial in population])
+
+        # Normalize to minimization problem
+        normalized_values = values.copy()
+        normalized_ref = reference_point.copy()
+        for i, direction in enumerate(study.directions):
+            if direction == StudyDirection.MAXIMIZE:
+                normalized_values[:, i] = -normalized_values[:, i]
+                normalized_ref[i] = -normalized_ref[i]
+
+        total_hypervolume = compute_hypervolume(normalized_values, normalized_ref)
+
+        # Compute hypervolume contribution for each individual
+        contributions = np.zeros(n_population)
+        for i in range(n_population):
+            remaining_values = np.concatenate(
+                [normalized_values[:i], normalized_values[i + 1 :]], axis=0
+            )
+            if len(remaining_values) > 0:
+                hv_without_i = compute_hypervolume(remaining_values, normalized_ref)
+            else:
+                hv_without_i = 0.0
+
+            contributions[i] = total_hypervolume - hv_without_i
+
+        return contributions
 
     def _estimate_hypervolume_contributions(
         self,

@@ -2,24 +2,42 @@ import optuna
 import optunahub
 
 
-def objective(trial: optuna.Trial) -> tuple[float, float]:
-    x = trial.suggest_float("x", 0, 5)
-    y = trial.suggest_float("y", 0, 3)
-    v0 = 4 * x**2 + 4 * y**2
-    v1 = (x - 5) ** 2 + (y - 5) ** 2
-    return v0, v1
+n_objs = 4
+seed = 42
+population_size = 50
+n_trials = 1000
 
+wfg = optunahub.load_module("benchmarks/wfg")
+wfg1 = wfg.Problem(function_id=1, n_objectives=n_objs, dimension=10)
 
-module = optunahub.load_module(
-    "samplers/speaii",
-)
-mutation = module.PolynomialMutation(eta=20)
-sampler = module.SPEAIISampler(population_size=50, archive_size=50, mutation=mutation)
+mod = optunahub.load_module("samplers/hype")
+mutation = mod.PolynomialMutation()
+crossover = optuna.samplers.nsgaii.SBXCrossover()
 
-study = optuna.create_study(
-    sampler=sampler,
-    directions=["minimize", "minimize"],
-)
-study.optimize(objective, n_trials=1000)
+samplers = [
+    mod.HypESampler(
+        population_size=population_size,
+        n_samples=4096,
+        hypervolume_method="auto",
+        mutation=mutation,
+        crossover=crossover,
+        seed=seed,
+    ),
+    optuna.samplers.NSGAIIISampler(
+        population_size=population_size, crossover=crossover, seed=seed
+    ),
+]
+studies = []
+for sampler in samplers:
+    study = optuna.create_study(
+        sampler=sampler,
+        study_name=f"{sampler.__class__.__name__}",
+        directions=["minimize"] * n_objs,
+    )
+    study.optimize(wfg1, n_trials=n_trials)
+    studies.append(study)
 
-optuna.visualization.plot_pareto_front(study).show()
+reference_point = [3 * (i + 1) for i in range(n_objs)]
+m = optunahub.load_module("visualization/plot_hypervolume_history_multi")
+fig = m.plot_hypervolume_history(studies, reference_point)
+fig.show()

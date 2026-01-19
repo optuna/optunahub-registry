@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import optuna
 from optuna.samplers import NSGAIISampler
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -20,6 +22,7 @@ class HypESampler(NSGAIISampler):
         *,
         population_size: int = 50,
         n_samples: int = 4096,
+        hypervolume_method: Literal["auto", "exact", "estimation"] = "auto",
         mutation: BaseMutation | None = None,
         mutation_prob: float | None = None,
         crossover: BaseCrossover | None = None,
@@ -36,6 +39,7 @@ class HypESampler(NSGAIISampler):
             population_size=population_size,
             n_samples=n_samples,
             seed=seed,
+            hypervolume_method=hypervolume_method,
         )
 
         child_generation_strategy = HypEChildGenerationStrategy(
