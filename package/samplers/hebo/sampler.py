@@ -106,7 +106,7 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
     @staticmethod
     def _suggest_and_transform_to_dict(
         hebo: HEBO | GeneralBO, search_space: dict[str, BaseDistribution]
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         params = {}
         for name, row in hebo.suggest().items():
             if name not in search_space:
@@ -119,9 +119,14 @@ class HEBOSampler(optunahub.samplers.SimpleBaseSampler):
                 and dist.step is not None
             ):
                 step_index = row.iloc[0]
-                params[name] = dist.low + step_index * dist.step
+                value = dist.low + step_index * dist.step
             else:
-                params[name] = row.iloc[0]
+                value = row.iloc[0]
+
+            if isinstance(value, np.generic):
+                value = value.item()
+
+            params[name] = value
 
         return params
 
