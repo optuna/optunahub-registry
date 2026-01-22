@@ -20,15 +20,17 @@ Note that when using warm-start with existing trials, the initial generation may
   - `mutation`: Mutation to be applied when creating child individual. If `None`, `UniformMutation` is selected.
     - For categorical variables, it is always `UniformMutation`.
   - The other arguments are the same as for Optuna's NSGA-II.
-  - Supported mutation methods are listed below:
-    - `UniformMutation()`
-      - This is a mutation method that uses a Uniform distribution for the distribution of the generated individuals.
-    - `PolynomialMutation(eta=20)`
-      - This is a mutation method that uses a Polynomial distribution for the distribution of the generated individuals.
-      - `eta`: Argument for the width of the distribution. The larger the value, the narrower the distribution. A value `eta ∈ [20, 100]` is adequate in most problems.
-    - `GaussianMutation(sigma_factor=1/30)`
-      - This is a mutation method that uses a Gaussian distribution for the distribution of the generated individuals.
-      - `sigma_factor`: It is a factor that is multiplied by the sigma of the Gaussian distribution. When the `sigma_factor` is `1.0`, the sigma is the difference between the maximum and minimum of the search range for the target variable.
+
+### Supported Mutation Methods
+
+- `UniformMutation()`
+  - Mutation using a uniform distribution for generating new values.
+- `PolynomialMutation(eta=20)`
+  - Mutation using a polynomial distribution.
+  - `eta`: Distribution index. Larger values produce narrower distributions. Recommended range: `eta in [20, 100]`.
+- `GaussianMutation(sigma_factor=1/30)`
+  - Mutation using a Gaussian distribution.
+  - `sigma_factor`: Factor multiplied by the search range to determine sigma. When `sigma_factor=1.0`, sigma equals the full search range.
 
 ## Example
 
