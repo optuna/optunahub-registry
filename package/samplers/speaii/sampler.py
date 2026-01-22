@@ -32,7 +32,12 @@ class SPEAIISampler(NSGAIISampler):
         if mutation is None:
             mutation = UniformMutation()
 
-        archive_size = archive_size if archive_size is not None else population_size
+        if archive_size is None:
+            archive_size = population_size
+        elif archive_size < crossover.n_parents:
+            raise ValueError(
+                "`archive_size` must be greater than or equal to `crossover.n_parents`."
+            )
 
         elite_population_selection_strategy = SPEAIIElitePopulationSelectionStrategy(
             population_size=population_size,
