@@ -97,20 +97,20 @@ class RobustGPSampler(BaseSampler):
             Note that the parameters of the first trial in a study are always sampled
             via an independent sampler, so no warning messages are emitted in this case.
         uniform_input_noise_rads:
-            The input noise ranges for each parameter. For example, when `{"x": 0.1, "y": 0.2}`,
-            the sampler assumes that +/- 0.1 is acceptable for `x` and +/- 0.2 is acceptable for
-            `y`.
+            The input noise ranges for each parameter. For example, when ``{"x": 0.1, "y": 0.2}``,
+            the sampler assumes that +/- 0.1 is acceptable for ``x`` and +/- 0.2 is acceptable for
+            ``y``.
         normal_input_noise_stdevs:
             The input noise standard deviations for each parameter. For example, when
-            `{"x": 0.1, "y": 0.2}` is given, the sampler assumes that the input noise of `x` and
-            `y` follows `N(0, 0.1**2)` and `N(0, 0.2**2)`, respectively.
+            ``{"x": 0.1, "y": 0.2}`` is given, the sampler assumes that the input noise of ``x`` and
+            ``y`` follows :math:`N(0, 0.1^2)` and :math:`N(0, 0.2^2)`, respectively.
         const_noisy_param_names:
             The list of parameters determined externally rather than being decision variables.
-            For these parameters, `suggest_float` samples random values instead of searching
+            For these parameters, ``suggest_float`` samples random values instead of searching
             values that optimize the objective function.
         acqf_type:
             The type of acquisition function to use. This must be one of ``“mean”`` and ``“nei”``.
-            Defaults to `“mean”`.
+            Defaults to ``"mean"``.
         noisy_suggestion:
             If this option is enabled, suggested values will not be the nominal value but the
             nominal value plus added noise and clipping. This option is useful when a user want
