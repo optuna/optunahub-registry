@@ -1,20 +1,29 @@
-"""Notations in this Gaussian process implementation
+"""Notations in this Gaussian process implementation.
 
-X_train: Observed parameter values with the shape of (len(trials), len(params)).
-y_train: Observed objective values with the shape of (len(trials), ).
-x: (Possibly batched) parameter value(s) to evaluate with the shape of (..., len(params)).
-cov_fX_fX: Kernel matrix X = V[f(X)] with the shape of (len(trials), len(trials)).
-cov_fx_fX: Kernel matrix Cov[f(x), f(X)] with the shape of (..., len(trials)).
-cov_fx_fx: Kernel scalar value x = V[f(x)]. This value is constant for the Matern 5/2 kernel.
-cov_Y_Y_inv:
-    The inverse of the covariance matrix (V[f(X) + noise_var])^-1 with the shape of
-    (len(trials), len(trials)).
-cov_Y_Y_inv_Y: `cov_Y_Y_inv @ y` with the shape of (len(trials), ).
-max_Y: The maximum of Y (Note that we transform the objective values such that it is maximized.)
-d2: The squared distance between two points.
-is_categorical:
-    A boolean array with the shape of (len(params), ). If is_categorical[i] is True, the i-th
-    parameter is categorical.
+``X_train``
+    Observed parameter values with the shape of ``(len(trials), len(params))``.
+``y_train``
+    Observed objective values with the shape of ``(len(trials), )``.
+``x``
+    (Possibly batched) parameter value(s) to evaluate with the shape of ``(..., len(params))``.
+``cov_fX_fX``
+    Kernel matrix ``X = V[f(X)]`` with the shape of ``(len(trials), len(trials))``.
+``cov_fx_fX``
+    Kernel matrix ``Cov[f(x), f(X)]`` with the shape of ``(..., len(trials))``.
+``cov_fx_fx``
+    Kernel scalar value ``x = V[f(x)]``. This value is constant for the Matern 5/2 kernel.
+``cov_Y_Y_inv``
+    The inverse of the covariance matrix ``(V[f(X) + noise_var])^-1`` with the shape of
+    ``(len(trials), len(trials))``.
+``cov_Y_Y_inv_Y``
+    ``cov_Y_Y_inv @ y`` with the shape of ``(len(trials), )``.
+``max_Y``
+    The maximum of Y (Note that we transform the objective values such that it is maximized.)
+``d2``
+    The squared distance between two points.
+``is_categorical``
+    A boolean array with the shape of ``(len(params), )``. If ``is_categorical[i]`` is
+    :obj:`True`, the i-th parameter is categorical.
 """
 
 from __future__ import annotations
@@ -63,14 +72,14 @@ class Matern52Kernel(torch.autograd.Function):
     @staticmethod
     def forward(ctx: Any, squared_distance: torch.Tensor) -> torch.Tensor:
         """
-        This method calculates `exp(-sqrt5d) * (1/3 * sqrt5d ** 2 + sqrt5d + 1)` where
-        `sqrt5d = sqrt(5 * squared_distance)`.
+        This method calculates ``exp(-sqrt5d) * (1/3 * sqrt5d ** 2 + sqrt5d + 1)`` where
+        ``sqrt5d = sqrt(5 * squared_distance)``.
 
         Please note that automatic differentiation by PyTorch does not work well at
-        `squared_distance = 0` due to zero division, so we manually save the derivative, i.e.,
-        `-5/6 * (1 + sqrt5d) * exp(-sqrt5d)`, for the exact derivative calculation.
+        ``squared_distance = 0`` due to zero division, so we manually save the derivative, i.e.,
+        ``-5/6 * (1 + sqrt5d) * exp(-sqrt5d)``, for the exact derivative calculation.
 
-        Notice that the derivative of this function is taken w.r.t. d**2, but not w.r.t. d.
+        Notice that the derivative of this function is taken w.r.t. ``d**2``, but not w.r.t. ``d``.
         """
         sqrt5d = torch.sqrt(5 * squared_distance)
         exp_part = torch.exp(-sqrt5d)
@@ -82,8 +91,8 @@ class Matern52Kernel(torch.autograd.Function):
     @staticmethod
     def backward(ctx: Any, grad: torch.Tensor) -> torch.Tensor:
         """
-        Let x be squared_distance, f(x) be forward(ctx, x), and g(f) be a provided function, then
-        deriv := df/dx, grad := dg/df, and deriv * grad = df/dx * dg/df = dg/dx.
+        Let ``x`` be ``squared_distance``, ``f(x)`` be ``forward(ctx, x)``, and ``g(f)`` be a provided function, then
+        ``deriv := df/dx``, ``grad := dg/df``, and ``deriv * grad = df/dx * dg/df = dg/dx``.
         """
         (deriv,) = ctx.saved_tensors
         return deriv * grad
@@ -149,15 +158,17 @@ class GPRegressor:
         self, X1: torch.Tensor | None = None, X2: torch.Tensor | None = None
     ) -> torch.Tensor:
         """
-        Return the kernel matrix with the shape of (..., n_A, n_B) given X1 and X2 each with the
-        shapes of (..., n_A, len(params)) and (..., n_B, len(params)).
+        Return the kernel matrix with the shape of ``(..., n_A, n_B)`` given ``X1`` and ``X2`` each with the
+        shapes of ``(..., n_A, len(params))`` and ``(..., n_B, len(params))``.
 
-        If x1 and x2 have the shape of (len(params), ), kernel(x1, x2) is computed as:
+        If ``x1`` and ``x2`` have the shape of ``(len(params), )``, ``kernel(x1, x2)`` is computed as::
+
             kernel_scale * Matern52Kernel.apply(
                 d2(x1, x2) @ inverse_squared_lengthscales
             )
-        where if x1[i] is continuous, d2(x1, x2)[i] = (x1[i] - x2[i]) ** 2 and if x1[i] is
-        categorical, d2(x1, x2)[i] = int(x1[i] != x2[i]).
+
+        where if ``x1[i]`` is continuous, ``d2(x1, x2)[i] = (x1[i] - x2[i]) ** 2`` and if
+        ``x1[i]`` is categorical, ``d2(x1, x2)[i] = int(x1[i] != x2[i])``.
         Note that the distance for categorical parameters is the Hamming distance.
         """
         if X1 is None:
@@ -177,11 +188,12 @@ class GPRegressor:
 
     def posterior(self, x: torch.Tensor, joint: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        This method computes the posterior mean and variance given the points `x` where both mean
-        and variance tensors will have the shape of x.shape[:-1].
+        This method computes the posterior mean and variance given the points ``x`` where both mean
+        and variance tensors will have the shape of ``x.shape[:-1]``.
         If ``joint=True``, the joint posterior will be computed.
 
-        The posterior mean and variance are computed as:
+        The posterior mean and variance are computed as::
+
             mean = cov_fx_fX @ inv(cov_fX_fX + noise_var * I) @ y, and
             var = cov_fx_fx - cov_fx_fX @ inv(cov_fX_fX + noise_var * I) @ cov_fx_fX.T.
 
@@ -215,28 +227,34 @@ class GPRegressor:
     def marginal_log_likelihood(self) -> torch.Tensor:  # Scalar
         """
         This method computes the marginal log-likelihood of the kernel hyperparameters given the
-        training dataset (X, y).
-        Assume that N = len(X) in this method.
+        training dataset ``(X, y)``.
+        Assume that ``N = len(X)`` in this method.
 
-        Mathematically, the closed form is given as:
+        Mathematically, the closed form is given as::
+
             -0.5 * log((2*pi)**N * det(C)) - 0.5 * y.T @ inv(C) @ y
             = -0.5 * log(det(C)) - 0.5 * y.T @ inv(C) @ y + const,
-        where C = cov_Y_Y = cov_fX_fX + noise_var * I and inv(...) is the inverse operator.
 
-        We exploit the full advantages of the Cholesky decomposition (C = L @ L.T) in this method:
-            1. The determinant of a lower triangular matrix is the diagonal product, which can be
-               computed with N flops where log(det(C)) = log(det(L.T @ L)) = 2 * log(det(L)).
-            2. Solving linear system L @ u = y, which yields u = inv(L) @ y, costs N**2 flops.
-        Note that given `u = inv(L) @ y` and `inv(C) = inv(L @ L.T) = inv(L).T @ inv(L)`,
-        y.T @ inv(C) @ y is calculated as (inv(L) @ y) @ (inv(L) @ y).
+        where ``C = cov_Y_Y = cov_fX_fX + noise_var * I`` and ``inv(...)`` is the inverse operator.
+
+        We exploit the full advantages of the Cholesky decomposition (``C = L @ L.T``) in this
+        method:
+
+        1. The determinant of a lower triangular matrix is the diagonal product, which can be
+           computed with N flops where ``log(det(C)) = log(det(L.T @ L)) = 2 * log(det(L))``.
+        2. Solving linear system ``L @ u = y``, which yields ``u = inv(L) @ y``, costs :math:`N^2` flops.
+
+        Note that given ``u = inv(L) @ y`` and ``inv(C) = inv(L @ L.T) = inv(L).T @ inv(L)``,
+        ``y.T @ inv(C) @ y`` is calculated as ``(inv(L) @ y) @ (inv(L) @ y)``.
 
         In principle, we could invert the matrix C first, but in this case, it costs:
-            1. 1/3*N**3 flops for the determinant of inv(C).
-            2. 2*N**2-N flops to solve C @ alpha = y, which is alpha = inv(C) @ y.
 
-        Since the Cholesky decomposition costs 1/3*N**3 flops and the matrix inversion costs
-        2/3*N**3 flops, the overall cost for the former is 1/3*N**3+N**2+N flops and that for the
-        latter is N**3+2*N**2-N flops.
+        1. :math:`(1/3) N^3` flops for the determinant of ``inv(C)``.
+        2. :math:`2 N^2 - N` flops to solve ``C @ alpha = y``, which is ``alpha = inv(C) @ y``.
+
+        Since the Cholesky decomposition costs :math:`(1/3) N^3` flops and the matrix inversion costs
+        :math:`(2/3) N^3` flops, the overall cost for the former is :math:`(1/3) N^3 + N^2 + N` flops and that for the
+        latter is :math:`N^3 + 2N^2 - N` flops.
         """
         n_points = self._X_train.shape[0]
         const = -0.5 * n_points * math.log(2 * math.pi)

@@ -102,8 +102,8 @@ class BaseAcquisitionFunc(ABC):
 class LogCumulativeProbabilityAtRisk(BaseAcquisitionFunc):
     """The logarithm of the cumulative probability measure at risk
 
-    When we replace f(x) in VaR with 1[f(x) <= f*], the optimization of the new VaR corresponds to
-    that of the mean probability of x with input perturbation being feasible.
+    When we replace ``f(x)`` in VaR with ``1[f(x) <= f*]``, the optimization of the new VaR corresponds to
+    that of the mean probability of ``x`` with input perturbation being feasible.
     """
 
     def __init__(
@@ -255,18 +255,22 @@ class ValueAtRisk(BaseAcquisitionFunc):
 
     def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Denote cov11 as the covariance matrix at robust_X_noisy, cov22 as that at x_noisy,
-        cov12 as the cross covariance matrix between robust_X_noisy and x_noisy.
-        Consider the block matrix cov = [[cov11, cov12], [cov21, cov22]] and its Cholesky
-        decomposition L = [[L11, 0], [L21, L22]].
-        Since L @ L.T = cov, [[L11, 0], [L21, L22]] @ [[L11.T, L21.T], [0, L22.T]]
-        = [[L11 @ L11.T, L11 @ L21.T], [L21 @ L11.T, L21 @ L21.T + L22 @ L22.T]] = cov holds.
-        Thus, we have L11 = chol(cov11), L21 = cov21 @ inv(L11.T), and
-        L22 = chol(cov22 - L21 @ L21.T). Note that L21 = cov21 @ inv(L11.T)
-        --> L21 @ L11.T = cov21, so we can solve the triangular to yield L21.
+        Denote ``cov11`` as the covariance matrix at ``robust_X_noisy``, ``cov22`` as that at ``x_noisy``,
+        ``cov12`` as the cross covariance matrix between ``robust_X_noisy`` and ``x_noisy``.
+        Consider the block matrix ``cov = [[cov11, cov12], [cov21, cov22]]`` and its Cholesky
+        decomposition ``L = [[L11, 0], [L21, L22]]``.
+        Since ``L @ L.T = cov``::
 
-        Let's divide a fixed_sample into S = [S1, S2] then S @ L = [L11 @ S1, L21 @ S1 + L22 @ S2].
-        We only need to compute L21 @ S1 + L22 @ S2, which is the posterior sampling at x_noisy.
+            [[L11, 0], [L21, L22]] @ [[L11.T, L21.T], [0, L22.T]]
+            = [[L11 @ L11.T, L11 @ L21.T], [L21 @ L11.T, L21 @ L21.T + L22 @ L22.T]]
+            = cov
+
+        Thus, we have ``L11 = chol(cov11)``, ``L21 = cov21 @ inv(L11.T)``, and
+        ``L22 = chol(cov22 - L21 @ L21.T)``. Note that ``L21 = cov21 @ inv(L11.T)``
+        implies ``L21 @ L11.T = cov21``, so we can solve the triangular to yield ``L21``.
+
+        Let's divide a fixed sample into ``S = [S1, S2]`` then ``S @ L = [L11 @ S1, L21 @ S1 + L22 @ S2]``.
+        We only need to compute ``L21 @ S1 + L22 @ S2``, which is the posterior sampling at ``x_noisy``.
         """
 
         # The search space of constant noisy parameters is internally replaced with IntDistribution(0, 0),
