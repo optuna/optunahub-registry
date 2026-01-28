@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import optuna
 from optuna.samplers import NSGAIISampler
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -8,18 +10,19 @@ from optuna.samplers.nsgaii._crossovers._uniform import UniformCrossover
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
-from ._child_generation_strategy import SPEAIIChildGenerationStrategy
-from ._elite_population_selection_strategy import SPEAIIElitePopulationSelectionStrategy
+from ._child_generation_strategy import HypEChildGenerationStrategy
+from ._elite_population_selection_strategy import HypEElitePopulationSelectionStrategy
 from ._mutations._base import BaseMutation
 from ._mutations._uniform import UniformMutation
 
 
-class SPEAIISampler(NSGAIISampler):
+class HypESampler(NSGAIISampler):
     def __init__(
         self,
         *,
         population_size: int = 50,
-        archive_size: int | None = None,
+        n_samples: int = 4096,
+        hypervolume_method: Literal["auto", "exact", "estimation"] = "auto",
         mutation: BaseMutation | None = None,
         mutation_prob: float | None = None,
         crossover: BaseCrossover | None = None,
@@ -32,19 +35,14 @@ class SPEAIISampler(NSGAIISampler):
         if mutation is None:
             mutation = UniformMutation()
 
-        if archive_size is None:
-            archive_size = population_size
-        elif archive_size < crossover.n_parents:
-            raise ValueError(
-                "`archive_size` must be greater than or equal to `crossover.n_parents`."
-            )
-
-        elite_population_selection_strategy = SPEAIIElitePopulationSelectionStrategy(
+        elite_population_selection_strategy = HypEElitePopulationSelectionStrategy(
             population_size=population_size,
-            archive_size=archive_size,
+            n_samples=n_samples,
+            seed=seed,
+            hypervolume_method=hypervolume_method,
         )
 
-        child_generation_strategy = SPEAIIChildGenerationStrategy(
+        child_generation_strategy = HypEChildGenerationStrategy(
             mutation=mutation,
             mutation_prob=mutation_prob,
             crossover=crossover,
