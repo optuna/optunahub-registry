@@ -26,7 +26,11 @@ import math
 
 import optuna
 
-from .optquest import OptQuestModel
+
+try:
+    import optquest
+except ModuleNotFoundError:
+    raise ModuleNotFoundError("Please run `pip install optquest` to use `OptQuestSampler`.")
 
 
 class OptQuestSampler(optuna.samplers.BaseSampler):
@@ -54,7 +58,7 @@ class OptQuestSampler(optuna.samplers.BaseSampler):
 
         if isinstance(search_space, dict) and isinstance(directions, list):
             # create model from search space
-            model = OptQuestModel()
+            model = optquest.OptQuestModel()
             model.set_license(license)
             for var_name, var_distribution in search_space.items():
                 # Create OptQuest variables based on the distribution type
@@ -116,7 +120,7 @@ class OptQuestSampler(optuna.samplers.BaseSampler):
                 model.set_random_seed(seed)
             if not model.initialize():
                 raise RuntimeError(model.get_last_error())
-        elif isinstance(model, OptQuestModel):
+        elif isinstance(model, optquest.OptQuestModel):
             # create search space from model
             if seed is not None:
                 model.set_random_seed(seed)

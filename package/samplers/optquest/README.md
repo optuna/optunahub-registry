@@ -174,15 +174,15 @@ Showing superior performance on a single problem is not conclusive, and no sampl
 
 | Test Suite                      | Functions    | Dimensions                    | AUC Difference Distribution                                                    |
 | ------------------------------- | ------------ | ----------------------------- | ------------------------------------------------------------------------------ |
-| BBOB                            | \[1..24\]    | \[2, 3, 5, 10, 20, 40\]       | ![BBOB](images/bbob_auc_diff_hist.png)                                         |
-| BBOB Large Scale                | \[1..24\]    | \[20, 40, 80, 160, 320, 640\] | ![BBOB Large Scale](images/bbob_largescale_auc_diff_hist.png)                  |
-| BBOB Mixed Integer              | \[1..24\]    | \[5, 10, 20, 40, 80, 160\]    | ![BBOB Mixed Integer](images/bbob_mixint_auc_diff_hist.png)                    |
-| BBOB Noisy                      | \[101..130\] | \[2, 3, 5, 10, 20, 40\]       | ![BBOB Noisy](images/bbob_noisy_auc_diff_hist.png)                             |
-| BBOB Bi-objective               | \[1..92\]    | \[2, 3, 5, 10, 20, 40\]       | ![BBOB Bi-objective](images/bbob_biobj_auc_diff_hist.png)                      |
-| BBOB Bi-objective Mixed Integer | \[1..92\]    | \[5, 10, 20, 40, 80, 160\]    | ![BBOB Bi-objective Mixed Integer](images/bbob_biobj_mixint_auc_diff_hist.png) |
-| WFG                             | \[1..7\]     | \[3,5,7\]                     | ![WFG](images/wfg_biobj_auc_diff_hist.png)                                     |
-| DLTZ                            | \[1..7\]     | \[3, 5, 7, 10, 13, 15\]       | ![DLTZ](images/dtlz_biobj_auc_diff_hist.png)                                   |
-| ZDT                             | \[1..6\]     | n/a                           | ![ZDT](images/zdt_biobj_auc_diff_hist.png)                                     |
+| BBOB                            | \[1..24\]    | \[2, 3, 5, 10, 20, 40\]       | ![BBOB](images/bbob_auc_diff_hist.jpg)                                         |
+| BBOB Large Scale                | \[1..24\]    | \[20, 40, 80, 160, 320, 640\] | ![BBOB Large Scale](images/bbob_largescale_auc_diff_hist.jpg)                  |
+| BBOB Mixed Integer              | \[1..24\]    | \[5, 10, 20, 40, 80, 160\]    | ![BBOB Mixed Integer](images/bbob_mixint_auc_diff_hist.jpg)                    |
+| BBOB Noisy                      | \[101..130\] | \[2, 3, 5, 10, 20, 40\]       | ![BBOB Noisy](images/bbob_noisy_auc_diff_hist.jpg)                             |
+| BBOB Bi-objective               | \[1..92\]    | \[2, 3, 5, 10, 20, 40\]       | ![BBOB Bi-objective](images/bbob_biobj_auc_diff_hist.jpg)                      |
+| BBOB Bi-objective Mixed Integer | \[1..92\]    | \[5, 10, 20, 40, 80, 160\]    | ![BBOB Bi-objective Mixed Integer](images/bbob_biobj_mixint_auc_diff_hist.jpg) |
+| WFG                             | \[1..7\]     | \[3,5,7\]                     | ![WFG](images/wfg_biobj_auc_diff_hist.jpg)                                     |
+| DLTZ                            | \[1..7\]     | \[3, 5, 7, 10, 13, 15\]       | ![DLTZ](images/dtlz_biobj_auc_diff_hist.jpg)                                   |
+| ZDT                             | \[1..6\]     | n/a                           | ![ZDT](images/zdt_biobj_auc_diff_hist.jpg)                                     |
 
 These results show superior performance in aggregate across problems of many different types in the Optuna test suite, specifically our unique approach to multi-objective problems. To see if OptQuest will provide superior performance on your critical real world problems request a trial license.
 
