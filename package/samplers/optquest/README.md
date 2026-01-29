@@ -25,6 +25,9 @@ Website: https://www.opttek.com/optquest/
 
 ## APIs
 
+> \[!NOTE\]
+> The `OptQuestSampler` requries binaries that are not distributed on OptunaHub, the `optquest` python package needs to be installed separatly from PyPI: `pip install optquest`
+
 `OptQuestSampler(model=None, search_space=None, directions=None, seed=None, license='')`
 
 - `model`: a fully defined OptQuestModel that defines the optimization. Mutually exclusive with the `search_space` and `directions` parameters.
