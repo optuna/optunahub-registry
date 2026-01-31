@@ -1,0 +1,76 @@
+Licensing Information for OptQuest
+
+MIT License (applies only to the public Python API source code)
+
+Copyright (c) 2026 OptTek Systems, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Scope of the MIT License
+
+The MIT License set forth above applies exclusively to the following Python 
+API source files and Python example files:
+
+- OptQuestSampler.py
+- OptQuestConstraintsExample.py
+- OptQuestExample.py
+- OptunaExample.py
+
+These files constitute the public Python API and examples for interacting with 
+the OptQuest library.
+
+Proprietary Commercial License (applies to the OptQuest Engine binaries - 
+installed separately from PyPI)
+
+All other components of the OptQuest distribution — including, but not limited 
+to, the core OptQuest optimization engine implemented as shared libraries 
+(.so, .dll, .dylib, or equivalent binary files) — are proprietary software
+owned by OptTek Systems, Inc. and are not licensed under the MIT License or any 
+other open-source license.
+
+A commercial license applies to the following:
+- OptQuestEngine.dll
+- libOptQuestEngine.so
+- OptQuestLib.dll
+- libOptQuestLib.so
+
+
+These proprietary binary components are distributed under a separate commercial 
+license agreement that requires a valid license key issued by OptTek Systems, Inc. 
+Use, distribution, modification, reverse-engineering, or any other activity 
+involving these binaries is strictly governed by the terms of that commercial 
+license.
+
+The binaries may only be used in accordance with the accompanying commercial 
+license terms.
+
+For licensing inquiries, purchasing a commercial license, obtaining a license key, 
+or requesting additional information, please contact:
+
+OptTek Systems, Inc.
+Email: [info@opttek.com]
+Website: [https://www.opttek.com/optquest]
+
+Evaluation / Demo Mode
+
+The OptQuest library can be used in conjunction with Optuna (and other frameworks) 
+in demo/evaluation mode without requiring a commercial license key. This mode is 
+provided solely for testing, evaluation, and demonstration purposes. Any use in 
+production environments, commercial deployments, or for generating results 
+intended for business decision-making requires a valid commercial license key.
