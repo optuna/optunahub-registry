@@ -2,7 +2,7 @@
 author: Hiroaki Natsume
 title: NSGAII sampler with Initial Trials
 description: Sampler using NSGAII algorithm with initial trials. It also supports the selection of mutation methods.
-tags: [Sampler, Multi-Objective, Nsgaii, Warmstart]
+tags: [Sampler, Multi-Objective, GA, Warmstart]
 optuna_versions: [4.5.0]
 license: MIT License
 ---
@@ -17,24 +17,30 @@ In this implementation, the already sampled results are included in the initial 
 Note, however, that this has the effect that the implementation does not necessarily support multi-threading in the generation of the initial generation.
 After the initial generation, the implementation is similar to the built-in NSGAII.
 
-In addition, enhancements to Optuna's NSGA-II include the option to select mutation methods.
+### Differences from Optuna's NSGA-II
+
+- If an existing trial exists, it will be used as the initial generation
+- Multiple mutation methods are available for selection
+- During tournament selection for crossover calculations, congestion distance is considered
+  - Optuna's NSGA-II performs parent tournament selection based solely on dominance relationships without considering congestion distance
 
 ## APIs
 
 - `NSGAIIwITSampler(*, mutation=None, population_size=50, mutation_prob=None, crossover=None, crossover_prob=0.9, swapping_prob=0.5, seed=None, constraints_func=None, elite_population_selection_strategy=None, after_trial_strategy=None)`
   - `mutation`: Mutation to be applied when creating child individual. If None, `UniformMutation` is selected.
-    - [Kalyanmoy Deb and Debayan Deb. 2014. Analysing mutation schemes for real-parameter genetic algorithms. Int. J. Artif. Intell. Soft Comput. 4, 1 (February 2014), 1–28.](https://doi.org/10.1504/IJAISC.2014.059280)
-  - For categorical variables, it is always `UniformMutation`.
-  - Supported mutation methods are listed below
-    - `UniformMutation()`
-      - This is a mutation method that uses a Uniform distribution for the distribution of the generated individuals.
-    - `PolynomialMutation(eta=20)`
-      - This is a mutation method that uses a Polynomial distribution for the distribution of the generated individuals.
-      - `eta`: Argument for the width of the distribution. The larger the value, the narrower the distribution. A value `eta ∈ [20, 100]` is adequate in most problems
-    - `GaussianMutation(sigma_factor=1/30)`
-      - This is a mutation method that uses a Gaussian distribution for the distribution of the generated individuals.
-      - `sigma_factor`: It is a factor that is multiplied by the sigma of the Gaussian distribution. When the `sigma_factor` is `1.0`, the sigma is the difference between the maximum and minimum of the search range for the target variable.
+    - For categorical variables, it is always `UniformMutation`.
   - The other arguments are the same as for Optuna's NSGA-II.
+
+### Supported Mutation Methods
+
+- `UniformMutation()`
+  - Mutation using a uniform distribution for generating new values.
+- `PolynomialMutation(eta=20)`
+  - Mutation using a polynomial distribution.
+  - `eta`: Distribution index. Larger values produce narrower distributions. Recommended range: `eta in [20, 100]`.
+- `GaussianMutation(sigma_factor=1/30)`
+  - Mutation using a Gaussian distribution.
+  - `sigma_factor`: Factor multiplied by the search range to determine sigma. When `sigma_factor=1.0`, sigma equals the full search range.
 
 ## Example
 
@@ -96,3 +102,8 @@ The implementation is modified Optuna's NSGAII to consider initial trials and mu
 
 - [Documentation](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.NSGAIISampler.html)
 - [License](https://github.com/optuna/optuna/blob/master/LICENSE)
+
+### Reference
+
+- Mutation
+  - Deb, Kalyanmoy., & Deb, Debayan. (2014). Analysing Mutation Schemes for Real-parameter Genetic Algorithms. International Journal of Artificial Intelligence and Soft Computing, 4(1), 1-28.
