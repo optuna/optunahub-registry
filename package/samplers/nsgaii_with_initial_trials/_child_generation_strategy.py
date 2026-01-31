@@ -8,11 +8,12 @@ from typing import TYPE_CHECKING
 from optuna.distributions import BaseDistribution
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.samplers.nsgaii._constraints_evaluation import _constrained_dominates
-from optuna.samplers.nsgaii._crossover import perform_crossover
 from optuna.samplers.nsgaii._crossovers._base import BaseCrossover
+from optuna.samplers.nsgaii._elite_population_selection_strategy import _calc_crowding_distance
 from optuna.study._multi_objective import _dominates
 from optuna.trial import FrozenTrial
 
+from ._crossover import perform_crossover
 from ._mutation import perform_mutation
 from ._mutations._base import BaseMutation
 
@@ -80,6 +81,8 @@ class NSGAIIwITChildGenerationStrategy:
             A dictionary containing the parameter names and parameter's values.
         """
         dominates = _dominates if self._constraints_func is None else _constrained_dominates
+        crowding_distances = _calc_crowding_distance(parent_population)
+
         # We choose a child based on the specified crossover method.
         if self._rng.rng.rand() < self._crossover_prob:
             child_params = perform_crossover(
@@ -90,6 +93,7 @@ class NSGAIIwITChildGenerationStrategy:
                 self._rng.rng,
                 self._swapping_prob,
                 dominates,
+                crowding_distances,
             )
         else:
             parent_population_size = len(parent_population)
