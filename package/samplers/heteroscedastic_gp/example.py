@@ -7,6 +7,8 @@ across the parameter space and you have an analytical expression or empirical
 estimate of the noise variance for each trial.
 """
 
+from __future__ import annotations
+
 import math
 
 import numpy as np
