@@ -54,7 +54,7 @@ study.optimize(objective, n_trials=300)
 
 ### Test
 
-To execute the tests for `AutoSampler`, please run the following commands. The test file is provided in the package.
+To execute the tests for `AutoSampler`, please run the following commands. The test file is provided in the package. Note that `optuna>=4.8` is required to execute the tests.
 
 ```sh
 pip install pytest
