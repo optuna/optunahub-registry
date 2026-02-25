@@ -1,17 +1,233 @@
+"""MIT License
+
+Copyright (c) 2018 Preferred Networks, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+This file is taken from Optuna (https://github.com/optuna/optuna/blob/master/tests/samplers_tests/test_samplers.py)
+and modified to test AutoSampler.
+"""
+
 from __future__ import annotations
 
+from collections.abc import Callable
 import pickle
+from unittest.mock import patch
 
+import numpy as np
 import optuna
+from optuna.distributions import BaseDistribution
+from optuna.distributions import CategoricalDistribution
+from optuna.distributions import FloatDistribution
+from optuna.distributions import IntDistribution
+from optuna.samplers import BaseSampler
+from optuna.study import Study
+from optuna.testing.pytest_samplers import BasicSamplerTestCase
+from optuna.testing.pytest_samplers import MultiObjectiveSamplerTestCase
+from optuna.testing.pytest_samplers import RelativeSamplerTestCase
+from optuna.trial import FrozenTrial
+from optuna.trial import Trial
 import optunahub
 import pytest
 
 
-# TODO(nabaenabe): Add the CI for this sampler.
-
 AutoSampler = optunahub.load_local_module(
     package="samplers/auto_sampler", registry_root="package/"
 ).AutoSampler
+
+
+def _create_new_trial(study: Study) -> FrozenTrial:
+    trial_id = study._storage.create_new_trial(study._study_id)
+    return study._storage.get_trial(trial_id)
+
+
+def _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study: optuna.Study) -> None:
+    # NOTE(nabenabe): Choose a sampler inside AutoSampler.
+    study.sampler.before_trial(study, trial=_create_new_trial(study))
+    study.sampler._sampler._n_startup_trials = 0
+
+
+# Test cases from Optuna's test suite
+
+
+class TestSampler(BasicSamplerTestCase, MultiObjectiveSamplerTestCase, RelativeSamplerTestCase):
+    @pytest.fixture
+    def sampler(self) -> Callable[[], BaseSampler]:
+        return AutoSampler
+
+    # RelativeSamplerTestCase requires workarounds to test AutoSampler, so we override them here.
+    # We explicitly inherit RelativeSamplerTestCase to ensure that all test cases in it are covered.
+    @pytest.mark.parametrize(
+        "x_distribution",
+        [
+            FloatDistribution(-1.0, 1.0),
+            FloatDistribution(1e-7, 1.0, log=True),
+            FloatDistribution(-10, 10, step=0.5),
+            IntDistribution(3, 10),
+            IntDistribution(1, 100, log=True),
+            IntDistribution(3, 9, step=2),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "y_distribution",
+        [
+            FloatDistribution(-1.0, 1.0),
+            FloatDistribution(1e-7, 1.0, log=True),
+            FloatDistribution(-10, 10, step=0.5),
+            IntDistribution(3, 10),
+            IntDistribution(1, 100, log=True),
+            IntDistribution(3, 9, step=2),
+        ],
+    )
+    def test_sample_relative_numerical(
+        self,
+        sampler: Callable[[], BaseSampler],
+        x_distribution: BaseDistribution,
+        y_distribution: BaseDistribution,
+    ) -> None:
+        search_space: dict[str, BaseDistribution] = dict(x=x_distribution, y=y_distribution)
+        study = optuna.study.create_study(sampler=sampler())
+        trial = study.ask(search_space)
+        study.tell(trial, sum(trial.params.values()))
+        _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
+
+        def sample() -> list[int | float]:
+            params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
+            return [params[name] for name in search_space]
+
+        points = np.array([sample() for _ in range(10)])
+        for i, distribution in enumerate(search_space.values()):
+            assert isinstance(
+                distribution,
+                (
+                    FloatDistribution,
+                    IntDistribution,
+                ),
+            )
+            assert np.all(points[:, i] >= distribution.low)
+            assert np.all(points[:, i] <= distribution.high)
+        for param_value, distribution in zip(sample(), search_space.values()):
+            assert not isinstance(param_value, np.floating)
+            assert not isinstance(param_value, np.integer)
+            if isinstance(distribution, IntDistribution):
+                assert isinstance(param_value, int)
+            else:
+                assert isinstance(param_value, float)
+
+    def test_sample_relative_categorical(self, sampler: Callable[[], BaseSampler]) -> None:
+        search_space: dict[str, BaseDistribution] = dict(
+            x=CategoricalDistribution([1, 10, 100]), y=CategoricalDistribution([-1, -10, -100])
+        )
+        study = optuna.study.create_study(sampler=sampler())
+        trial = study.ask(search_space)
+        study.tell(trial, sum(trial.params.values()))
+        _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
+
+        def sample() -> list[float]:
+            params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
+            return [params[name] for name in search_space]
+
+        points = np.array([sample() for _ in range(10)])
+        for i, distribution in enumerate(search_space.values()):
+            assert isinstance(distribution, CategoricalDistribution)
+            assert np.all([v in distribution.choices for v in points[:, i]])
+        for param_value in sample():
+            assert not isinstance(param_value, np.floating)
+            assert not isinstance(param_value, np.integer)
+            assert isinstance(param_value, int)
+
+    @pytest.mark.parametrize(
+        "x_distribution",
+        [
+            FloatDistribution(-1.0, 1.0),
+            FloatDistribution(1e-7, 1.0, log=True),
+            FloatDistribution(-10, 10, step=0.5),
+            IntDistribution(1, 10),
+            IntDistribution(1, 100, log=True),
+        ],
+    )
+    def test_sample_relative_mixed(
+        self, sampler: Callable[[], BaseSampler], x_distribution: BaseDistribution
+    ) -> None:
+        search_space: dict[str, BaseDistribution] = dict(
+            x=x_distribution, y=CategoricalDistribution([-1, -10, -100])
+        )
+        study = optuna.study.create_study(sampler=sampler())
+        trial = study.ask(search_space)
+        study.tell(trial, sum(trial.params.values()))
+        _choose_sampler_in_auto_sampler_and_set_n_startup_trials_to_zero(study)
+
+        def sample() -> list[float]:
+            params = study.sampler.sample_relative(study, _create_new_trial(study), search_space)
+            return [params[name] for name in search_space]
+
+        points = np.array([sample() for _ in range(10)])
+        assert isinstance(
+            search_space["x"],
+            (
+                FloatDistribution,
+                IntDistribution,
+            ),
+        )
+        assert np.all(points[:, 0] >= search_space["x"].low)
+        assert np.all(points[:, 0] <= search_space["x"].high)
+        assert isinstance(search_space["y"], CategoricalDistribution)
+        assert np.all([v in search_space["y"].choices for v in points[:, 1]])
+        for param_value, distribution in zip(sample(), search_space.values()):
+            assert not isinstance(param_value, np.floating)
+            assert not isinstance(param_value, np.integer)
+            if isinstance(
+                distribution,
+                (
+                    IntDistribution,
+                    CategoricalDistribution,
+                ),
+            ):
+                assert isinstance(param_value, int)
+            else:
+                assert isinstance(param_value, float)
+
+    @pytest.mark.parametrize("n_jobs", [1, 2])
+    def test_cache_is_invalidated(
+        self,
+        sampler: Callable[[], BaseSampler],
+        n_jobs: int,
+    ) -> None:
+        sampler_ = sampler()
+        original_before_trial = sampler_.before_trial
+
+        def mock_before_trial(study: Study, trial: FrozenTrial) -> None:
+            assert study._thread_local.cached_all_trials is None
+            original_before_trial(study, trial)
+
+        with patch.object(sampler_, "before_trial", side_effect=mock_before_trial):
+            study = optuna.study.create_study(sampler=sampler_)
+
+            def objective(trial: Trial) -> float:
+                assert trial._relative_params is None
+
+                trial.suggest_float("x", -10, 10)
+                trial.suggest_float("y", -10, 10)
+                assert trial._relative_params is not None
+                return -1
+
+            study.optimize(objective, n_trials=10, n_jobs=n_jobs)
+
+
+# AutoSampler-specific tests
 
 parametrize_constraints = pytest.mark.parametrize("use_constraint", [True, False])
 

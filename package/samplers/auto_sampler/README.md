@@ -14,15 +14,15 @@ This package automatically selects an appropriate sampler for the provided searc
 - 📰 [AutoSampler: Automatic Selection of Optimization Algorithms in Optuna](https://medium.com/optuna/autosampler-automatic-selection-of-optimization-algorithms-in-optuna-1443875fd8f9)
 - 📰 [AutoSampler: Full Support for Multi-Objective & Constrained Optimization](https://medium.com/optuna/autosampler-full-support-for-multi-objective-constrained-optimization-c1c4fc957ba2)
 
-![Concept of AutoSampler](images/autosampler.png)
+![Concept of AutoSampler](images/auto_sampler.png)
 
-## Class or Function Names
+## APIs
 
-- AutoSampler
+- `AutoSampler(*, seed: int | None = None, constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None)`
+  - `seed`: Random seed to initialize internal random number generator. Defaults to None (a seed is picked randomly).
+  - `constraints_func`: An optional function that computes the objective constraints. It must take a `FrozenTrial` and return the constraints. The return value must be a sequence of `float`s. A value strictly larger than `0` means that a constraints is violated. A value equal to or smaller than `0` is considered feasible. If `constraints_func` returns more than one value for a trial, that trial is considered feasible if and only if all values are equal to `0` or smaller. The `constraints_func` will be evaluated after each successful trial.
 
-This sampler currently accepts only `seed` and `constraints_func`.
-`constraints_func` enables users to handle constraints along with the objective function.
-These arguments follow the same convention as the other samplers, so please take a look at [the reference](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.TPESampler.html).
+This sampler currently accepts only `seed` and `constraints_func`. These arguments follow the same convention as the other samplers, so please take a look at [the reference](https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.TPESampler.html).
 
 ## Installation
 
@@ -54,7 +54,7 @@ study.optimize(objective, n_trials=300)
 
 ### Test
 
-To execute the tests for `AutoSampler`, please run the following commands. The test file is provided in the package.
+To execute the tests for `AutoSampler`, please run the following commands. The test file is provided in the package. Please use `optuna>=4.8` to run the tests.
 
 ```sh
 pip install pytest
