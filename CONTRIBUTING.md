@@ -3,6 +3,10 @@
 If you are interested in contributing to Optuna Hub, please read the following guidelines.
 If you are new to GitHub, please refer to [our blog](https://medium.com/optuna/optuna-wants-your-pull-request-ff619572302c) for more information.
 
+## Tutorial
+
+You can find tutorials to implement a package for the OptunaHub registry in [Tutorials for Contributors](https://optuna.github.io/optunahub/tutorials_for_contributors.html).
+
 ## Coding Standards and Guidelines
 
 Please adhere to the following coding standards and guidelines:
@@ -37,9 +41,20 @@ Second, the **description** of your pull request should:
 
 Finally, read [`contributor agreements`](#contributor-agreements) and if you agree, please click the checkbox
 
-## Tutorial
+## Code Review Standards
 
-You can find tutorials to implement a package for the OptunaHub registry in [Tutorials for Contributors](https://optuna.github.io/optunahub/tutorials_for_contributors.html).
+All contributions must undergo code review and approval by at least one OptunaHub committer before being merged. Package development and long-term maintenance are primarily the responsibility of contributors. OptunaHub committers only ensure compliance with submission standards.
+
+In general, contributions are expected to satisfy the following requirements:
+
+1. **Minimal Working Example**\
+   For new package registrations or updates, a minimal working example demonstrating basic functionality must be provided. This may be included in the pull request description, the package’s `README.md`, or a separate file such as `example.py`. Adding [unit tests](https://optuna.github.io/optunahub/generated/recipes/008_unit_tests.html) is strongly encouraged but not mandatory. Providing benchmark results is also welcome.
+
+1. **Security and Safety**\
+   Contributions must be free of malicious code. For security reasons, binary files (except images used in `README.md`) cannot be distributed directly through the `optunahub-registry`. If binary dependencies are required, they should be hosted separately (e.g., on PyPI) and declared appropriately.
+
+1. **Engineering and Scientific Integrity**\
+   Contributors are expected to adhere to sound engineering and scientific practices, including compliance with applicable software licenses. OptunaHub does not perform peer review of scientific validity; responsibility for the correctness and validity of methods remains with contributors. However, submissions that clearly violate research ethics, contain misleading claims, or demonstrate harmful or malicious intent may be declined or removed at the discretion of the OptunaHub committers. Community discussion via linked GitHub issues is encouraged to promote transparency and critical evaluation of contributed methods.
 
 ## Contributor Agreements
 
