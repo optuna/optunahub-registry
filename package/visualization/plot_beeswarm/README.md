@@ -30,11 +30,11 @@ plot_beeswarm = mod.plot_beeswarm
 
 
 def objective(trial: optuna.trial.Trial) -> float:
-    x = trial.suggest_float("x", -5.0, 5.0)
-    y = trial.suggest_float("y", -5.0, 5.0)
-    z = trial.suggest_float("z", -5.0, 5.0)
-    w = trial.suggest_float("w", -5.0, 5.0)
-    return x**2 + 0.5 * y**2 + 0.1 * z**2 + 0.01 * w**2
+    x = trial.suggest_float("x", 0.0, 10.0)
+    y = trial.suggest_float("y", 0.0, 10.0)
+    z = trial.suggest_float("z", 0.0, 10.0)
+    w = trial.suggest_float("w", 0.0, 10.0)
+    return 1.0 * x + 0.5 * y + 0.1 * z + 0.01 * w
 
 
 study = optuna.create_study()

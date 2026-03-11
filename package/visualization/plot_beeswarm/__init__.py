@@ -131,30 +131,36 @@ def _compute_density_jitter(
 
 
 def _sort_params_by_importance(
+    study: optuna.Study,
     param_names: list[str],
     param_values: dict[str, np.ndarray],
     objectives: np.ndarray,
 ) -> list[str]:
-    """Sort parameters by absolute Spearman-like correlation with objective.
+    """Sort parameters by importance (most important at top of plot).
 
-    Parameters with stronger monotonic relationships with the objective
-    are placed at the top (higher index = plotted higher), matching the
-    convention of SHAP beeswarm plots.
+    Tries Optuna's built-in fANOVA-based importance first (handles non-monotonic
+    relationships). Falls back to Spearman rank correlation if sklearn is not
+    installed.
     """
+    # Try Optuna's fANOVA (requires sklearn).
+    try:
+        importances = optuna.importance.get_param_importances(study)
+        return sorted(param_names, key=lambda n: importances.get(n, 0.0))
+    except (ImportError, RuntimeError):
+        pass
+
+    # Fallback: absolute Spearman rank correlation.
     correlations: dict[str, float] = {}
     for name in param_names:
         vals = param_values[name]
-        # Use rank correlation (Spearman) without scipy.
         valid = np.isfinite(vals) & np.isfinite(objectives)
         if valid.sum() < 3:
             correlations[name] = 0.0
             continue
         v = vals[valid]
         o = objectives[valid]
-        # Rank the arrays.
         v_rank = np.argsort(np.argsort(v)).astype(float)
         o_rank = np.argsort(np.argsort(o)).astype(float)
-        # Pearson correlation of ranks = Spearman correlation.
         v_rank -= v_rank.mean()
         o_rank -= o_rank.mean()
         denom = np.sqrt((v_rank**2).sum() * (o_rank**2).sum())
@@ -163,7 +169,6 @@ def _sort_params_by_importance(
         else:
             correlations[name] = abs(float(np.dot(v_rank, o_rank) / denom))
 
-    # Sort ascending so that the most important param is at the top of the plot.
     return sorted(param_names, key=lambda n: correlations.get(n, 0.0))
 
 
@@ -215,7 +220,7 @@ def plot_beeswarm(
         raise ValueError("No valid parameters found in completed trials.")
 
     # Sort parameters by importance (least important at bottom).
-    sorted_params = _sort_params_by_importance(param_names, param_values, objectives)
+    sorted_params = _sort_params_by_importance(study, param_names, param_values, objectives)
 
     # Resolve colormap.
     cmap: Colormap = cm.get_cmap(color_map)
