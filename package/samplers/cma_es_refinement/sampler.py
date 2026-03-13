@@ -8,6 +8,7 @@ from optuna.samplers import BaseSampler
 from optuna.samplers import CmaEsSampler
 from optuna.samplers import QMCSampler
 
+
 if TYPE_CHECKING:
     from optuna.distributions import BaseDistribution
     from optuna.study import Study
@@ -161,14 +162,8 @@ class CmaEsRefinementSampler(BaseSampler):
                 spread = (high - low) * sigma_frac
                 val = best_val + self._rng.normal(0, spread)
                 return max(low, min(high, float(val)))
-            return self._qmc.sample_independent(
-                study, trial, param_name, param_distribution
-            )
+            return self._qmc.sample_independent(study, trial, param_name, param_distribution)
 
         if phase == "sobol":
-            return self._qmc.sample_independent(
-                study, trial, param_name, param_distribution
-            )
-        return self._cmaes.sample_independent(
-            study, trial, param_name, param_distribution
-        )
+            return self._qmc.sample_independent(study, trial, param_name, param_distribution)
+        return self._cmaes.sample_independent(study, trial, param_name, param_distribution)

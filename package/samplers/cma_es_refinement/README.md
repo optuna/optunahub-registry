@@ -12,8 +12,8 @@ license: MIT License
 CMA-ES is the gold standard for continuous black-box optimization, but it has diminishing returns: after convergence, additional CMA-ES trials provide little improvement. This sampler addresses that by splitting the trial budget into three phases:
 
 1. **Sobol QMC** (8 trials) — quasi-random space-filling initialization
-2. **CMA-ES** (132 trials) — covariance matrix adaptation for main optimization
-3. **Multi-stage Gaussian refinement** (60 trials) — targeted local search around the best point with decreasing perturbation scale
+1. **CMA-ES** (132 trials) — covariance matrix adaptation for main optimization
+1. **Multi-stage Gaussian refinement** (60 trials) — targeted local search around the best point with decreasing perturbation scale
 
 The refinement phase exploits a key property of Optuna studies: `study.best_value` tracks the global best across all trials. Any improvement from perturbation is kept, while failed perturbations don't hurt the result.
 
@@ -23,22 +23,22 @@ Evaluated on the [BBOB benchmark suite](https://numbbo.github.io/coco/testsuites
 
 **Metric:** Normalized regret = `(sampler_best - f_opt) / (random_best - f_opt)` where 0.0 = optimal and 1.0 = random-level. Optimal values computed via `scipy.differential_evolution` (5 restarts). Random baselines from 10 seeds of 200 random trials.
 
-| Sampler | Mean Normalized Regret | vs Random |
-|---------|----------------------|-----------|
-| Random baseline | 1.0000 | — |
-| Default TPE | 0.2463 | 75% better |
-| CMA-ES (tuned) | 0.2004 | 80% better |
-| **CMA-ES + Refinement** | **0.1501** | **85% better** |
+| Sampler                 | Mean Normalized Regret | vs Random      |
+| ----------------------- | ---------------------- | -------------- |
+| Random baseline         | 1.0000                 | —              |
+| Default TPE             | 0.2463                 | 75% better     |
+| CMA-ES (tuned)          | 0.2004                 | 80% better     |
+| **CMA-ES + Refinement** | **0.1501**             | **85% better** |
 
 Per-category breakdown:
 
-| Category | Functions | CMA-ES | CMA-ES + Refinement | Change |
-|----------|-----------|--------|---------------------|--------|
-| Separable | f1–f5 | 0.1682 | 0.1161 | -31% |
-| Low conditioning | f6–f9 | 0.0281 | 0.0311 | +11% |
-| High conditioning | f10–f14 | 0.0592 | 0.0511 | -14% |
-| Multimodal (global) | f15–f19 | 0.2508 | 0.1663 | -34% |
-| Multimodal (weak) | f20–f24 | 0.4615 | 0.3623 | -21% |
+| Category            | Functions | CMA-ES | CMA-ES + Refinement | Change |
+| ------------------- | --------- | ------ | ------------------- | ------ |
+| Separable           | f1–f5     | 0.1682 | 0.1161              | -31%   |
+| Low conditioning    | f6–f9     | 0.0281 | 0.0311              | +11%   |
+| High conditioning   | f10–f14   | 0.0592 | 0.0511              | -14%   |
+| Multimodal (global) | f15–f19   | 0.2508 | 0.1663              | -34%   |
+| Multimodal (weak)   | f20–f24   | 0.4615 | 0.3623              | -21%   |
 
 The improvement is strongest on multimodal functions, where the refinement phase fine-tunes solutions that CMA-ES leaves on the table after convergence. Results are deterministic and reproducible. Full experiment logs (97 experiments): [github.com/EliMunkey/autoresearch-optuna](https://github.com/EliMunkey/autoresearch-optuna).
 
