@@ -1,8 +1,8 @@
 ---
 author: Elias Munk
-title: CMA-ES with Multi-Stage Refinement Sampler
-description: Three-phase sampler combining Sobol QMC initialization, CMA-ES optimization, and multi-stage Gaussian refinement. Achieves 25% lower regret than pure CMA-ES on BBOB benchmarks by using remaining trial budget for targeted local search.
-tags: [sampler, CMA-ES, local search, refinement, BBOB, black-box optimization]
+title: CMA-ES with Quasi-Random Refinement Sampler
+description: Three-phase sampler combining Sobol QMC initialization, CMA-ES optimization, and quasi-random Gaussian refinement using Sobol-based perturbation vectors. Achieves 36% lower regret than pure CMA-ES on BBOB benchmarks.
+tags: [sampler, CMA-ES, local search, refinement, BBOB, black-box optimization, quasi-random]
 optuna_versions: [4.7.0]
 license: MIT License
 ---
@@ -13,9 +13,11 @@ CMA-ES is the gold standard for continuous black-box optimization, but it has di
 
 1. **Sobol QMC** (8 trials) — quasi-random space-filling initialization
 1. **CMA-ES** (132 trials) — covariance matrix adaptation for main optimization
-1. **Multi-stage Gaussian refinement** (60 trials) — targeted local search around the best point with decreasing perturbation scale
+1. **Quasi-random Gaussian refinement** (60 trials) — targeted local search around the best point using Sobol-based perturbation vectors with exponentially decaying scale
 
-The refinement phase exploits a key property of Optuna studies: `study.best_value` tracks the global best across all trials. Any improvement from perturbation is kept, while failed perturbations don't hurt the result.
+The refinement phase uses quasi-random Sobol sequences transformed via inverse CDF to generate Gaussian-distributed perturbation vectors. Compared to pseudo-random Gaussian perturbation, this provides more uniform directional coverage in high-dimensional spaces — systematically exploring directions that pseudo-random sampling might miss.
+
+The perturbation scale follows an exponential decay: `sigma(n) = 0.13 * exp(-0.11 * n)`, starting wide for basin exploration and tightening for precise convergence.
 
 ## Benchmark Results
 
@@ -28,19 +30,19 @@ Evaluated on the [BBOB benchmark suite](https://numbbo.github.io/coco/testsuites
 | Random baseline         | 1.0000                 | —              |
 | Default TPE             | 0.2463                 | 75% better     |
 | CMA-ES (tuned)          | 0.2004                 | 80% better     |
-| **CMA-ES + Refinement** | **0.1501**             | **85% better** |
+| **CMA-ES + Refinement** | **0.1284**             | **87% better** |
 
 Per-category breakdown:
 
 | Category            | Functions | CMA-ES | CMA-ES + Refinement | Change |
 | ------------------- | --------- | ------ | ------------------- | ------ |
-| Separable           | f1–f5     | 0.1682 | 0.1161              | -31%   |
-| Low conditioning    | f6–f9     | 0.0281 | 0.0311              | +11%   |
-| High conditioning   | f10–f14   | 0.0592 | 0.0511              | -14%   |
-| Multimodal (global) | f15–f19   | 0.2508 | 0.1663              | -34%   |
-| Multimodal (weak)   | f20–f24   | 0.4615 | 0.3623              | -21%   |
+| Separable           | f1–f5     | 0.1682 | 0.0996              | -41%   |
+| Low conditioning    | f6–f9     | 0.0281 | 0.0244              | -13%   |
+| High conditioning   | f10–f14   | 0.0592 | 0.0513              | -13%   |
+| Multimodal (global) | f15–f19   | 0.2508 | 0.1374              | -45%   |
+| Multimodal (weak)   | f20–f24   | 0.4615 | 0.3084              | -33%   |
 
-The improvement is strongest on multimodal functions, where the refinement phase fine-tunes solutions that CMA-ES leaves on the table after convergence. Results are deterministic and reproducible. Full experiment logs (97 experiments): [github.com/EliMunkey/autoresearch-optuna](https://github.com/EliMunkey/autoresearch-optuna).
+The improvement is strongest on separable and multimodal functions, where the quasi-random refinement's uniform directional coverage systematically finds improvements that pseudo-random perturbation misses. Results are deterministic and reproducible. Full experiment logs (135 experiments): [github.com/EliMunkey/autoresearch-optuna](https://github.com/EliMunkey/autoresearch-optuna).
 
 ### Cross-validation on standard test functions
 
@@ -92,9 +94,8 @@ CmaEsRefinementSampler(
     cma_n_trials: int = 132,
     popsize: int = 6,
     sigma0: float = 0.2,
-    medium_sigma_frac: float = 0.01,
-    tight_sigma_frac: float = 0.002,
-    n_medium_refine_trials: int = 30,
+    sigma_start: float = 0.13,
+    decay_rate: float = 0.11,
     seed: int | None = None,
 )
 ```
@@ -105,9 +106,8 @@ CmaEsRefinementSampler(
 - **`cma_n_trials`** — Number of CMA-ES optimization trials. Default: `132`.
 - **`popsize`** — CMA-ES population size. Default: `6`.
 - **`sigma0`** — CMA-ES initial step size. Default: `0.2`.
-- **`medium_sigma_frac`** — Perturbation scale for medium refinement (fraction of parameter range). Default: `0.01`.
-- **`tight_sigma_frac`** — Perturbation scale for tight refinement (fraction of parameter range). Default: `0.002`.
-- **`n_medium_refine_trials`** — Number of medium-perturbation trials before switching to tight. Default: `30`.
+- **`sigma_start`** — Initial refinement perturbation scale as a fraction of parameter range. Default: `0.13`.
+- **`decay_rate`** — Exponential decay rate for refinement perturbation scale. Default: `0.11`.
 - **`seed`** — Random seed for reproducibility. Default: `None`.
 
 ### `CmaEsRefinementSampler.for_budget`
@@ -128,7 +128,7 @@ study.optimize(objective, n_trials=1000)
 
 ## Installation
 
-No additional packages beyond `optuna` and `optunahub` are required.
+Requires `scipy` in addition to `optuna` and `optunahub`.
 
 ## Example
 

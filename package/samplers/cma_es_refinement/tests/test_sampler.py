@@ -26,12 +26,10 @@ def test_runs_without_error() -> None:
 def test_phases() -> None:
     n_startup = 4
     cma_n_trials = 6
-    n_medium = 3
 
     sampler = CmaEsRefinementSampler(
         n_startup_trials=n_startup,
         cma_n_trials=cma_n_trials,
-        n_medium_refine_trials=n_medium,
         seed=42,
     )
 
@@ -58,7 +56,6 @@ def test_refinement_near_best() -> None:
     sampler = CmaEsRefinementSampler(
         n_startup_trials=4,
         cma_n_trials=6,
-        n_medium_refine_trials=5,
         seed=42,
     )
     study = optuna.create_study(sampler=sampler)
@@ -92,7 +89,6 @@ def test_for_budget() -> None:
     sampler = CmaEsRefinementSampler.for_budget(1000, seed=0)
     assert sampler._n_startup >= 4
     assert sampler._cma_end > sampler._n_startup
-    assert sampler._medium_end > sampler._cma_end
 
     # Phase ratios should be approximately preserved
     cma_frac = (sampler._cma_end - sampler._n_startup) / 1000
