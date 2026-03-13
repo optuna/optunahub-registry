@@ -42,6 +42,45 @@ Per-category breakdown:
 
 The improvement is strongest on multimodal functions, where the refinement phase fine-tunes solutions that CMA-ES leaves on the table after convergence. Results are deterministic and reproducible. Full experiment logs (97 experiments): [github.com/EliMunkey/autoresearch-optuna](https://github.com/EliMunkey/autoresearch-optuna).
 
+### Cross-validation on standard test functions
+
+Independent validation on 8 standard test functions (Sphere, Rosenbrock, Rastrigin, Ackley, Griewank, Levy, Styblinski-Tang, Schwefel) with 5 seeds, 200 trials. Includes TPE with `multivariate=True` as a stronger baseline.
+
+**5D results:**
+
+| Sampler                 | Mean Normalized Regret | vs Random      |
+| ----------------------- | ---------------------- | -------------- |
+| Random baseline         | 1.0000                 | —              |
+| TPE                     | 0.2437                 | 76% better     |
+| TPE (multivariate)      | 0.3365                 | 66% better     |
+| CMA-ES                  | 0.2715                 | 73% better     |
+| **CMA-ES + Refinement** | **0.2038**             | **80% better** |
+
+**10D results — the advantage widens at higher dimensions:**
+
+| Sampler                 | Mean Normalized Regret | vs Random      |
+| ----------------------- | ---------------------- | -------------- |
+| Random baseline         | 1.0000                 | —              |
+| TPE                     | 0.4803                 | 52% better     |
+| TPE (multivariate)      | 0.5463                 | 45% better     |
+| CMA-ES                  | 0.3737                 | 63% better     |
+| **CMA-ES + Refinement** | **0.1719**             | **83% better** |
+
+Per-function breakdown (10D):
+
+| Function        | Category   | TPE    | TPE(mv) | CMA-ES | CMA-ES+Refine |
+| --------------- | ---------- | ------ | ------- | ------ | ------------- |
+| Sphere          | Unimodal   | 0.2751 | 0.2699  | 0.0312 | 0.0000        |
+| Rosenbrock      | Unimodal   | 0.1139 | 0.0851  | 0.0071 | 0.0059        |
+| Rastrigin       | Multimodal | 0.6891 | 0.8187  | 0.6566 | 0.0000        |
+| Ackley          | Multimodal | 0.6146 | 0.7282  | 0.3704 | 0.0000        |
+| Griewank        | Multimodal | 0.3050 | 0.2782  | 0.0444 | 0.0000        |
+| Levy            | Multimodal | 0.5383 | 0.3941  | 0.0965 | 0.0188        |
+| Styblinski-Tang | Multimodal | 0.5651 | 0.8238  | 0.6355 | 0.3981        |
+| Schwefel        | Deceptive  | 0.7413 | 0.9723  | 1.1481 | 0.9526        |
+
+**Limitation:** On deceptive functions like Schwefel — where the global optimum is far from typical local optima — the refinement phase can reinforce a suboptimal basin. CMA-ES itself struggles on Schwefel (regret >1.0), and refinement does not recover from that. For problems with known deceptive structure, consider using TPE or increasing the CMA-ES budget.
+
 ## APIs
 
 ### `CmaEsRefinementSampler`
@@ -70,6 +109,22 @@ CmaEsRefinementSampler(
 - **`tight_sigma_frac`** — Perturbation scale for tight refinement (fraction of parameter range). Default: `0.002`.
 - **`n_medium_refine_trials`** — Number of medium-perturbation trials before switching to tight. Default: `30`.
 - **`seed`** — Random seed for reproducibility. Default: `None`.
+
+### `CmaEsRefinementSampler.for_budget`
+
+```python
+CmaEsRefinementSampler.for_budget(n_trials, *, seed=None, **kwargs)
+```
+
+Factory method that scales phase boundaries proportionally to the trial budget.
+The default parameters are tuned for 200 trials; use this when running a different number.
+
+```python
+# 1000-trial study with auto-scaled phases
+sampler = module.CmaEsRefinementSampler.for_budget(1000, seed=42)
+study = optuna.create_study(sampler=sampler)
+study.optimize(objective, n_trials=1000)
+```
 
 ## Installation
 

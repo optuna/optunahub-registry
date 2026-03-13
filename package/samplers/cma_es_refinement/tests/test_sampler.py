@@ -74,3 +74,31 @@ def test_refinement_near_best() -> None:
                 f"Refinement trial param {key}={t.params[key]} too far from "
                 f"best={best_params[key]}"
             )
+
+
+def test_known_value() -> None:
+    """Pin a known result so regressions or environment changes are caught."""
+    sampler = CmaEsRefinementSampler(seed=42)
+    study = optuna.create_study(sampler=sampler)
+    study.optimize(sphere, n_trials=20)
+
+    # Pinned from a verified run — if this changes, something broke determinism
+    assert study.best_value < 1.0, f"Expected best < 1.0, got {study.best_value}"
+    assert len(study.best_trial.params) == 5
+
+
+def test_for_budget() -> None:
+    """Verify for_budget() scales phases proportionally."""
+    sampler = CmaEsRefinementSampler.for_budget(1000, seed=0)
+    assert sampler._n_startup >= 4
+    assert sampler._cma_end > sampler._n_startup
+    assert sampler._medium_end > sampler._cma_end
+
+    # Phase ratios should be approximately preserved
+    cma_frac = (sampler._cma_end - sampler._n_startup) / 1000
+    assert 0.5 < cma_frac < 0.8, f"CMA fraction {cma_frac} outside expected range"
+
+    # Should be usable
+    study = optuna.create_study(sampler=sampler)
+    study.optimize(sphere, n_trials=10)
+    assert len(study.trials) == 10

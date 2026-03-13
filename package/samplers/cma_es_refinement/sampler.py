@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -106,6 +107,47 @@ class CmaEsRefinementSampler(BaseSampler):
             warn_independent_sampling=False,
         )
         self._rng = np.random.RandomState(seed if seed is not None else 0)
+
+    @classmethod
+    def for_budget(
+        cls,
+        n_trials: int,
+        *,
+        seed: int | None = None,
+        **kwargs: Any,
+    ) -> CmaEsRefinementSampler:
+        """Create a sampler with phase boundaries scaled to the trial budget.
+
+        The default parameters are optimized for 200 trials. This factory
+        method scales the Sobol, CMA-ES, and refinement phases proportionally
+        to any budget, keeping the same ~4%/66%/15%/15% ratio.
+
+        Args:
+            n_trials:
+                Total number of trials the study will run.
+            seed:
+                Random seed for reproducibility.
+            **kwargs:
+                Additional keyword arguments passed to the constructor
+                (e.g. ``sigma0``, ``popsize``).
+
+        Example:
+            .. code-block:: python
+
+                sampler = CmaEsRefinementSampler.for_budget(1000, seed=42)
+                study = optuna.create_study(sampler=sampler)
+                study.optimize(objective, n_trials=1000)
+        """
+        n_startup = max(4, 1 << round(math.log2(max(4, 0.04 * n_trials))))
+        cma_n_trials = max(1, int(0.66 * n_trials))
+        n_medium_refine_trials = max(1, int(0.15 * n_trials))
+        return cls(
+            n_startup_trials=n_startup,
+            cma_n_trials=cma_n_trials,
+            n_medium_refine_trials=n_medium_refine_trials,
+            seed=seed,
+            **kwargs,
+        )
 
     def _phase(self, n_trials: int) -> str:
         if n_trials < self._n_startup:
