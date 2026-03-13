@@ -14,8 +14,6 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 # Load the beeswarm plot module from this branch.
 mod = optunahub.load_module(
     package="visualization/plot_beeswarm",
-    repo_owner="yasumorishima",
-    ref="feat/plot-beeswarm",
 )
 plot_beeswarm = mod.plot_beeswarm
 
