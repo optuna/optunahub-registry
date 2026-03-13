@@ -7,10 +7,11 @@ import numpy as np
 from optuna.samplers import BaseSampler
 from optuna.samplers import CmaEsSampler
 from optuna.samplers import QMCSampler
-from optuna.search_space import IntersectionSearchSpace
 
 if TYPE_CHECKING:
-    import optuna
+    from optuna.distributions import BaseDistribution
+    from optuna.study import Study
+    from optuna.trial import FrozenTrial
 
 
 class CmaEsRefinementSampler(BaseSampler):
@@ -47,26 +48,35 @@ class CmaEsRefinementSampler(BaseSampler):
             Population size for CMA-ES. Smaller values give more generations
             within a fixed budget.
         sigma0:
-            Initial step size for CMA-ES. Controls the initial search radius.
+            Initial step size for CMA-ES. Controls the initial search radius
+            in the normalized [0, 1] parameter space.
         medium_sigma_frac:
-            Fraction of parameter range for medium refinement perturbation.
-            Applied to the first portion of the refinement phase.
+            Fraction of parameter range used as standard deviation for the
+            medium refinement perturbation. Applied to the first
+            ``n_medium_refine_trials`` of the refinement phase.
         tight_sigma_frac:
-            Fraction of parameter range for tight refinement perturbation.
-            Applied to the second portion of the refinement phase.
-        medium_frac:
-            Fraction of refinement trials allocated to medium perturbation
-            (the rest goes to tight perturbation). Must be between 0 and 1.
+            Fraction of parameter range used as standard deviation for the
+            tight refinement perturbation. Applied after medium refinement.
+        n_medium_refine_trials:
+            Number of medium-perturbation refinement trials before switching
+            to tight perturbation. Defaults to 30 (optimized for 200 total trials).
         seed:
             Random seed for reproducibility.
 
     Example:
-        >>> import optuna
-        >>> import optunahub
-        >>> module = optunahub.load_module("samplers/cma_es_refinement")
-        >>> sampler = module.CmaEsRefinementSampler(seed=42)
-        >>> study = optuna.create_study(sampler=sampler)
-        >>> study.optimize(lambda trial: (trial.suggest_float("x", -5, 5)) ** 2, n_trials=200)
+        .. code-block:: python
+
+            import optuna
+            from sampler import CmaEsRefinementSampler
+
+            sampler = CmaEsRefinementSampler(seed=42)
+            study = optuna.create_study(sampler=sampler)
+            study.optimize(
+                lambda trial: sum(
+                    trial.suggest_float(f"x{i}", -5, 5) ** 2 for i in range(5)
+                ),
+                n_trials=200,
+            )
     """
 
     def __init__(
@@ -78,15 +88,14 @@ class CmaEsRefinementSampler(BaseSampler):
         sigma0: float = 0.2,
         medium_sigma_frac: float = 0.01,
         tight_sigma_frac: float = 0.002,
-        medium_frac: float = 0.5,
+        n_medium_refine_trials: int = 30,
         seed: int | None = None,
     ) -> None:
         self._n_startup = n_startup_trials
         self._cma_end = n_startup_trials + cma_n_trials
+        self._medium_end = self._cma_end + n_medium_refine_trials
         self._medium_sigma_frac = medium_sigma_frac
         self._tight_sigma_frac = tight_sigma_frac
-        self._medium_frac = medium_frac
-        self._seed = seed
         self._qmc = QMCSampler(seed=seed, warn_independent_sampling=False)
         self._cmaes = CmaEsSampler(
             seed=seed,
@@ -104,18 +113,10 @@ class CmaEsRefinementSampler(BaseSampler):
             return "cma"
         return "refine"
 
-    def _refinement_sigma(self, n_trials: int, total_trials: int) -> float:
-        refine_start = self._cma_end
-        refine_len = total_trials - refine_start
-        medium_end = refine_start + int(refine_len * self._medium_frac)
-        if n_trials < medium_end:
-            return self._medium_sigma_frac
-        return self._tight_sigma_frac
-
     def infer_relative_search_space(
         self,
-        study: optuna.Study,
-        trial: optuna.trial.FrozenTrial,
+        study: Study,
+        trial: FrozenTrial,
     ) -> dict[str, Any]:
         phase = self._phase(len(study.trials))
         if phase == "sobol":
@@ -126,8 +127,8 @@ class CmaEsRefinementSampler(BaseSampler):
 
     def sample_relative(
         self,
-        study: optuna.Study,
-        trial: optuna.trial.FrozenTrial,
+        study: Study,
+        trial: FrozenTrial,
         search_space: dict[str, Any],
     ) -> dict[str, Any]:
         phase = self._phase(len(study.trials))
@@ -139,10 +140,10 @@ class CmaEsRefinementSampler(BaseSampler):
 
     def sample_independent(
         self,
-        study: optuna.Study,
-        trial: optuna.trial.FrozenTrial,
+        study: Study,
+        trial: FrozenTrial,
         param_name: str,
-        param_distribution: Any,
+        param_distribution: BaseDistribution,
     ) -> Any:
         n = len(study.trials)
         phase = self._phase(n)
@@ -153,21 +154,21 @@ class CmaEsRefinementSampler(BaseSampler):
                 best_val = best_trial.params[param_name]
                 low = param_distribution.low
                 high = param_distribution.high
-                # Estimate total trials from study config or use a reasonable default.
-                total = max(n + 1, self._cma_end + 60)
-                sigma_frac = self._refinement_sigma(n, total)
+                if n < self._medium_end:
+                    sigma_frac = self._medium_sigma_frac
+                else:
+                    sigma_frac = self._tight_sigma_frac
                 spread = (high - low) * sigma_frac
                 val = best_val + self._rng.normal(0, spread)
                 return max(low, min(high, float(val)))
+            return self._qmc.sample_independent(
+                study, trial, param_name, param_distribution
+            )
 
         if phase == "sobol":
             return self._qmc.sample_independent(
                 study, trial, param_name, param_distribution
             )
-        if phase == "cma":
-            return self._cmaes.sample_independent(
-                study, trial, param_name, param_distribution
-            )
-        return self._qmc.sample_independent(
+        return self._cmaes.sample_independent(
             study, trial, param_name, param_distribution
         )
