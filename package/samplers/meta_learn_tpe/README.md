@@ -1,7 +1,7 @@
 ---
 author: Yasunori Morishima
-title: "Meta-Learn TPE: Task Similarity-Based Warm-Starting for TPE"
-description: "A TPE sampler that accelerates optimization by transferring knowledge from previously completed studies on related tasks."
+title: 'Meta-Learn TPE: Task Similarity-Based Warm-Starting for TPE'
+description: A TPE sampler that accelerates optimization by transferring knowledge from previously completed studies on related tasks.
 tags: [sampler, tpe, meta-learning, warm-starting, transfer-learning]
 optuna_versions: [v4.1.0]
 license: MIT License

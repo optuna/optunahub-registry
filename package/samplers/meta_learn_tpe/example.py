@@ -7,12 +7,14 @@ studies to speed up convergence on the target task.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 import optuna
 import optunahub
 
 
-def make_shifted_objective(shift: float):
+def make_shifted_objective(shift: float) -> Callable[[optuna.Trial], float]:
     """Create a shifted Branin-like objective."""
 
     def objective(trial: optuna.Trial) -> float:
