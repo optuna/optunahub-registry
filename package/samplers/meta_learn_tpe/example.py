@@ -4,6 +4,7 @@ Scenario: Optimize a function after already having optimized two related
 functions. The meta-learning sampler transfers knowledge from the source
 studies to speed up convergence on the target task.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -18,7 +19,11 @@ def make_shifted_objective(shift: float):
         x = trial.suggest_float("x", -5.0, 10.0)
         y = trial.suggest_float("y", 0.0, 15.0)
         a, b, c, r, s, t = 1.0, 5.1 / (4 * np.pi**2), 5 / np.pi, 6.0, 10.0, 1 / (8 * np.pi)
-        return float(a * (y - b * (x + shift) ** 2 + c * (x + shift) - r) ** 2 + s * (1 - t) * np.cos(x + shift) + s)
+        return float(
+            a * (y - b * (x + shift) ** 2 + c * (x + shift) - r) ** 2
+            + s * (1 - t) * np.cos(x + shift)
+            + s
+        )
 
     return objective
 
@@ -32,9 +37,7 @@ if __name__ == "__main__":
     source_study_2.optimize(make_shifted_objective(shift=0.5), n_trials=30)
 
     # 2. Create the meta-learning sampler with source studies.
-    sampler = optunahub.load_module(
-        package="samplers/meta_learn_tpe"
-    ).MetaLearnTPESampler(
+    sampler = optunahub.load_module(package="samplers/meta_learn_tpe").MetaLearnTPESampler(
         source_studies=[source_study_1, source_study_2],
         seed=42,
     )
