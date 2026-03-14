@@ -108,9 +108,7 @@ class MetaLearnTPESampler(BaseSampler):
 
         # Build Parzen estimators for each source task.
         source_estimators: list[tuple[Any, Any, int]] = []
-        for source_study, source_sampler in zip(
-            self._source_studies, self._source_samplers
-        ):
+        for source_study, source_sampler in zip(self._source_studies, self._source_samplers):
             source_trials = source_study._get_trials(
                 deepcopy=False,
                 states=(TrialState.COMPLETE,),
@@ -127,9 +125,7 @@ class MetaLearnTPESampler(BaseSampler):
             return self._target_sampler.sample_relative(study, trial, search_space)
 
         # Compute task similarities and weights.
-        similarities = self._compute_task_similarities(
-            target_below, source_estimators
-        )
+        similarities = self._compute_task_similarities(target_below, source_estimators)
         task_weights = self._compute_task_weights(similarities)
 
         # Sample candidates from all below estimators.
@@ -267,9 +263,7 @@ class MetaLearnTPESampler(BaseSampler):
         return weights
 
 
-def _log_weighted_sum_exp(
-    weights: np.ndarray, log_values: np.ndarray
-) -> np.ndarray:
+def _log_weighted_sum_exp(weights: np.ndarray, log_values: np.ndarray) -> np.ndarray:
     """Compute log(sum_i w_i * exp(v_i)) in a numerically stable way.
 
     Args:
@@ -280,7 +274,5 @@ def _log_weighted_sum_exp(
         Shape (n_candidates,).
     """
     max_log = np.max(log_values, axis=0, keepdims=True)
-    weighted_sum = np.sum(
-        weights[:, np.newaxis] * np.exp(log_values - max_log), axis=0
-    )
+    weighted_sum = np.sum(weights[:, np.newaxis] * np.exp(log_values - max_log), axis=0)
     return max_log[0] + np.log(weighted_sum + 1e-12)
