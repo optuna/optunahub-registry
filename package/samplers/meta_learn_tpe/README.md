@@ -23,12 +23,12 @@ The key idea is to compute task similarity between the target task and source ta
 
 ### Arguments
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `source_studies` | `Sequence[Study]` | (required) | Completed Optuna studies on related tasks |
-| `n_startup_trials` | `int` | `10` | Number of random trials before meta-learning activates |
-| `seed` | `int \| None` | `None` | Random seed for reproducibility |
-| `n_ei_candidates` | `int` | `24` | Number of EI candidates per task |
+| Name               | Type              | Default    | Description                                            |
+| ------------------ | ----------------- | ---------- | ------------------------------------------------------ |
+| `source_studies`   | `Sequence[Study]` | (required) | Completed Optuna studies on related tasks              |
+| `n_startup_trials` | `int`             | `10`       | Number of random trials before meta-learning activates |
+| `seed`             | `int \| None`     | `None`     | Random seed for reproducibility                        |
+| `n_ei_candidates`  | `int`             | `24`       | Number of EI candidates per task                       |
 
 ## Installation
 
@@ -72,9 +72,9 @@ print(target_study.best_params)
 ## How It Works
 
 1. **Build TPE models**: For each source study and the target study, a TPE model is fitted, splitting trials into "below" (promising) and "above" (non-promising) groups.
-2. **Compute task similarity**: The overlap between the target's promising region and each source's promising region is measured using Total Variation distance.
-3. **Weight tasks**: Source tasks with higher similarity receive larger weights. The target task weight ensures that as optimization progresses, the sampler increasingly relies on the target data.
-4. **Weighted acquisition**: Candidates are sampled from all tasks' below distributions, and scored using a weighted mixture of all tasks' TPE likelihoods.
+1. **Compute task similarity**: The overlap between the target's promising region and each source's promising region is measured using Total Variation distance.
+1. **Weight tasks**: Source tasks with higher similarity receive larger weights. The target task weight ensures that as optimization progresses, the sampler increasingly relies on the target data.
+1. **Weighted acquisition**: Candidates are sampled from all tasks' below distributions, and scored using a weighted mixture of all tasks' TPE likelihoods.
 
 ## Bibtex
 
