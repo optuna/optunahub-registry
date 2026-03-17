@@ -380,7 +380,7 @@ class RobustGPSampler(BaseSampler):
             search_space
         )
         if constraints_gpr_list is None or constraints_threshold_list is None:
-            acqf = acqf_module.ValueAtRisk(
+            return acqf_module.ValueAtRisk(
                 gpr=gpr,
                 search_space=search_space_with_fixed_params,
                 confidence_level=self._objective_confidence_level,
@@ -394,9 +394,6 @@ class RobustGPSampler(BaseSampler):
                 ),
                 **noise_kwargs,
             )
-            if acqf_type == "nei":
-                acqf.set_robust_X_noisy(gpr._X_train, n_samples=128)
-            return acqf
         else:
             return acqf_module.ConstrainedLogValueAtRisk(
                 gpr=gpr,

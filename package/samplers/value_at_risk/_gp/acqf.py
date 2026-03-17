@@ -206,6 +206,8 @@ class ValueAtRisk(BaseAcquisitionFunc):
         self._fixed_indices = fixed_indices
         self._fixed_values = fixed_values
         super().__init__(length_scales=gpr.length_scales, search_space=search_space)
+        if self._acqf_type == "nei":
+            self.set_robust_X_noisy(gpr._X_train, n_samples=n_qmc_samples)
 
     def set_robust_X_noisy(self, X: torch.Tensor, n_samples: int) -> None:
         n_qmc_samples = self._fixed_samples.shape[0]
@@ -337,8 +339,6 @@ class ConstrainedLogValueAtRisk(BaseAcquisitionFunc):
             fixed_values=fixed_values,
         )
         self._acqf_type = acqf_type
-        if acqf_type == "nei":
-            self._value_at_risk.set_robust_X_noisy(gpr._X_train, n_samples=128)
 
         self._log_prob_at_risk = LogCumulativeProbabilityAtRisk(
             gpr_list=constraints_gpr_list,
