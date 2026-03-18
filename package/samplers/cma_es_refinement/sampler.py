@@ -11,6 +11,7 @@ from optuna.samplers import QMCSampler
 from scipy.stats import norm
 from scipy.stats.qmc import Sobol
 
+
 if TYPE_CHECKING:
     from optuna.distributions import BaseDistribution
     from optuna.study import Study
@@ -229,9 +230,7 @@ class CmaEsRefinementSampler(BaseSampler):
                 high = param_distribution.high
                 rng = high - low
 
-                sigma_frac = self._sigma_start * np.exp(
-                    -self._decay_rate * trial_idx
-                )
+                sigma_frac = self._sigma_start * np.exp(-self._decay_rate * trial_idx)
                 spread = rng * sigma_frac
                 val = best_val + z * spread
                 return max(low, min(high, float(val)))
@@ -239,14 +238,8 @@ class CmaEsRefinementSampler(BaseSampler):
             # Fallback for edge cases
             if param_name in best_trial.params:
                 return best_trial.params[param_name]
-            return self._qmc.sample_independent(
-                study, trial, param_name, param_distribution
-            )
+            return self._qmc.sample_independent(study, trial, param_name, param_distribution)
 
         if phase == "sobol":
-            return self._qmc.sample_independent(
-                study, trial, param_name, param_distribution
-            )
-        return self._cmaes.sample_independent(
-            study, trial, param_name, param_distribution
-        )
+            return self._qmc.sample_independent(study, trial, param_name, param_distribution)
+        return self._cmaes.sample_independent(study, trial, param_name, param_distribution)
