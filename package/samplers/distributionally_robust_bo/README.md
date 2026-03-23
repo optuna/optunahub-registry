@@ -21,6 +21,14 @@ Standard Bayesian Optimization assumes a known distribution of environmental var
   - `alpha`: The minimum required probability that the function value will exceed the threshold `h`.
   - `seed`: Seed for the random number generator, used primarily during the initial exploration phase.
 
+## Installation
+
+To use this sampler, ensure you have the following dependencies installed:
+
+```shell
+$ pip install scipy numpy
+```
+
 ## Example
 
 ```python
