@@ -2,7 +2,7 @@
 Example: CmaEsRefinementSampler vs plain CmaEsSampler on Rastrigin (5D).
 
 Demonstrates the benefit of the refinement phase on a multimodal function.
-No additional packages beyond optuna and optunahub are required.
+Requires cmaes and scipy (see requirements.txt).
 """
 
 from __future__ import annotations

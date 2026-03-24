@@ -128,7 +128,9 @@ study.optimize(objective, n_trials=1000)
 
 ## Installation
 
-Requires `scipy` in addition to `optuna` and `optunahub`.
+```shell
+$ pip install optunahub cmaes scipy
+```
 
 ## Example
 
