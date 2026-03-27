@@ -20,9 +20,9 @@ This callback enables tracking of Optuna study in Weights & Biases. The study is
 - `WeightsAndBiasesCallback.track_in_wandb() -> Callable`
   - Decorator for using W&B for logging inside the objective function. The run is initialized with the same `wandb_kwargs` that are passed to the callback. All the metrics from inside the objective function will be logged into the same run which stores the parameters for a given trial. Use as `@wandbc.track_in_wandb()`.
 
-## Dependency
+## Installation
 
-```bash
+```shell
 pip install wandb
 ```
 
