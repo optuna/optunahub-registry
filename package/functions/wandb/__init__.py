@@ -246,4 +246,3 @@ class WeightsAndBiasesCallback:
                 f"Got: {type(run)}."
             )
         return run
-
