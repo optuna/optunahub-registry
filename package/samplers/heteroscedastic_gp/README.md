@@ -1,5 +1,5 @@
 ---
-author: Rishabh-git10
+author: Rishabh Dewangan
 title: Heteroscedastic Gaussian-Process Sampler
 description: A Gaussian Process-based Bayesian Optimization sampler that natively supports heteroscedastic (input-dependent) observation noise to prevent surrogate model corruption.
 tags: [sampler, gaussian-process, bayesian-optimization, heteroscedastic]

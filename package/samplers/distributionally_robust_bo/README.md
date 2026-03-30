@@ -58,4 +58,4 @@ print(study.best_trials)
 
 ## Reference
 
-Hideaki Imamura, et al. "Bayesian Optimization for Distributionally Robust Chance-constrained Problem." Proceedings of the 39th International Conference on Machine Learning (ICML). 2022.
+Inatsu et al., "Bayesian Optimization for Distributionally Robust Chance-constrained Problem." Proceedings of the 39th International Conference on Machine Learning (ICML). 2022.
