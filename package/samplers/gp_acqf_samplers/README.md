@@ -3,7 +3,7 @@ author: Yasunori Morishima
 title: GP-Based Samplers with Alternative Acquisition Functions
 description: GP-based Bayesian optimization samplers with Probability of Improvement (PI), Upper Confidence Bound (UCB), and Thompson Sampling (TS) acquisition functions.
 tags: [sampler, Bayesian optimization, Gaussian process, acquisition function]
-optuna_versions: [4.2.0]
+optuna_versions: [4.8.0]
 license: MIT License
 ---
 
