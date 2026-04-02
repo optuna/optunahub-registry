@@ -12,7 +12,6 @@ from typing import Any
 from typing import TYPE_CHECKING
 
 import numpy as np
-
 import optuna
 from optuna.samplers._gp.sampler import _standardize_values
 from optuna.samplers._gp.sampler import GPSampler
@@ -20,7 +19,8 @@ from optuna.study import StudyDirection
 
 
 if TYPE_CHECKING:
-    import torch
+    from collections.abc import Callable
+    from collections.abc import Sequence
 
     import optuna._gp.acqf as acqf_module
     import optuna._gp.gp as gp
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from optuna.distributions import BaseDistribution
     from optuna.study import Study
     from optuna.trial import FrozenTrial
+    import torch
 else:
     from optuna._imports import _LazyImport
 
@@ -60,6 +61,7 @@ class _GPAcqfSamplerBase(GPSampler):
         search_space: gp_search_space.SearchSpace,
         standardized_score_vals: np.ndarray,
     ) -> acqf_module.BaseAcquisitionFunc:
+        """Create the acquisition function. Subclasses must override this."""
         raise NotImplementedError
 
     def _sample_relative_impl(
@@ -69,19 +71,18 @@ class _GPAcqfSamplerBase(GPSampler):
         trials: list[FrozenTrial],
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
+        """Sample parameters using the custom acquisition function."""
         internal_search_space = gp_search_space.SearchSpace(search_space)
         normalized_params = internal_search_space.get_normalized_params(completed_trials)
 
-        _sign = np.array(
-            [-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions]
-        )
+        _sign = np.array([-1.0 if d == StudyDirection.MINIMIZE else 1.0 for d in study.directions])
         standardized_score_vals, _, _ = _standardize_values(
             _sign * np.array([trial.values for trial in completed_trials])
         )
 
         if (
-            self._gprs_cache_list is not None
-            and len(self._gprs_cache_list[0].inverse_squared_lengthscales)
+            self._gprs_cache_list is not None  # type: ignore[has-type]
+            and len(self._gprs_cache_list[0].inverse_squared_lengthscales)  # type: ignore[has-type]
             != internal_search_space.dim
         ):
             self._gprs_cache_list = None
@@ -90,12 +91,10 @@ class _GPAcqfSamplerBase(GPSampler):
 
         # For multi-objective or constrained cases, fall back to parent GPSampler.
         if n_objectives > 1 or self._constraints_func is not None:
-            return super()._sample_relative_impl(
-                study, completed_trials, trials, search_space
-            )
+            return super()._sample_relative_impl(study, completed_trials, trials, search_space)
 
         is_categorical = internal_search_space.is_categorical
-        cache = self._gprs_cache_list[0] if self._gprs_cache_list is not None else None
+        cache = self._gprs_cache_list[0] if self._gprs_cache_list is not None else None  # type: ignore[index]
         gpr_obj = gp.fit_kernel_params(
             X=normalized_params,
             Y=standardized_score_vals[:, 0],
@@ -112,9 +111,7 @@ class _GPAcqfSamplerBase(GPSampler):
             search_space=internal_search_space,
             standardized_score_vals=standardized_score_vals[:, 0],
         )
-        best_params = normalized_params[
-            np.argmax(standardized_score_vals[:, 0]), np.newaxis
-        ]
+        best_params = normalized_params[np.argmax(standardized_score_vals[:, 0]), np.newaxis]
 
         normalized_param = self._optimize_acqf(acqf, best_params)
         return internal_search_space.get_unnormalized_param(normalized_param)
@@ -143,6 +140,8 @@ class GPPISampler(_GPAcqfSamplerBase):
         independent_sampler: Sampler for independent parameters.
         n_startup_trials: Number of initial random trials before GP kicks in.
         deterministic_objective: If ``True``, assume the objective is noiseless.
+        constraints_func: Constraint evaluation function.
+        warn_independent_sampling: If ``True``, warn when independent sampling is used.
     """
 
     def _create_acqf(
@@ -151,6 +150,7 @@ class GPPISampler(_GPAcqfSamplerBase):
         search_space: gp_search_space.SearchSpace,
         standardized_score_vals: np.ndarray,
     ) -> acqf_module.BaseAcquisitionFunc:
+        """Create a LogPI acquisition function."""
         return acqf_module.LogPI(
             gpr=gpr,
             search_space=search_space,
@@ -178,6 +178,8 @@ class GPUCBSampler(_GPAcqfSamplerBase):
         independent_sampler: Sampler for independent parameters.
         n_startup_trials: Number of initial random trials before GP kicks in.
         deterministic_objective: If ``True``, assume the objective is noiseless.
+        constraints_func: Constraint evaluation function.
+        warn_independent_sampling: If ``True``, warn when independent sampling is used.
     """
 
     def __init__(
@@ -188,12 +190,17 @@ class GPUCBSampler(_GPAcqfSamplerBase):
         independent_sampler: optuna.samplers.BaseSampler | None = None,
         n_startup_trials: int = 10,
         deterministic_objective: bool = False,
+        constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
+        warn_independent_sampling: bool = True,
     ) -> None:
+        """Initialize GPUCBSampler with the exploration-exploitation trade-off parameter."""
         super().__init__(
             seed=seed,
             independent_sampler=independent_sampler,
             n_startup_trials=n_startup_trials,
             deterministic_objective=deterministic_objective,
+            constraints_func=constraints_func,
+            warn_independent_sampling=warn_independent_sampling,
         )
         self._beta = beta
 
@@ -203,6 +210,7 @@ class GPUCBSampler(_GPAcqfSamplerBase):
         search_space: gp_search_space.SearchSpace,
         standardized_score_vals: np.ndarray,
     ) -> acqf_module.BaseAcquisitionFunc:
+        """Create a UCB acquisition function."""
         return acqf_module.UCB(
             gpr=gpr,
             search_space=search_space,
@@ -236,6 +244,7 @@ class _ThompsonSampling(acqf_module.BaseAcquisitionFunc):
         seed: int | None = None,
         n_features: int = 512,
     ) -> None:
+        """Initialize the Thompson Sampling acquisition function with RFF."""
         self._gpr = gpr
         self._seed = seed
         self._n_features = n_features
@@ -264,10 +273,7 @@ class _ThompsonSampling(acqf_module.BaseAcquisitionFunc):
             self._n_features, dim, generator=generator, dtype=torch.float64
         )
         chi2_samples = torch.sum(
-            torch.randn(
-                self._n_features, int(nu), generator=generator, dtype=torch.float64
-            )
-            ** 2,
+            torch.randn(self._n_features, int(nu), generator=generator, dtype=torch.float64) ** 2,
             dim=-1,
             keepdim=True,
         )
@@ -276,9 +282,7 @@ class _ThompsonSampling(acqf_module.BaseAcquisitionFunc):
         # Scale by inverse lengthscales.
         self._rff_weights = (spectral_samples / length_scales.unsqueeze(0)).detach()
         self._rff_bias = (
-            torch.rand(self._n_features, generator=generator, dtype=torch.float64)
-            * 2
-            * np.pi
+            torch.rand(self._n_features, generator=generator, dtype=torch.float64) * 2 * np.pi
         ).detach()
 
         # Compute RFF features for training data.
@@ -310,13 +314,14 @@ class _ThompsonSampling(acqf_module.BaseAcquisitionFunc):
         self._theta = theta_sample.detach()
 
     def _rff_feature(self, x: torch.Tensor) -> torch.Tensor:
-        """Compute Random Fourier Features: sqrt(2/D) * [cos(Wx+b), sin(Wx+b)]."""
+        """Compute Random Fourier Features: sqrt(1/D) * [cos(Wx+b), sin(Wx+b)]."""
         assert self._rff_weights is not None and self._rff_bias is not None
         proj = x @ self._rff_weights.T + self._rff_bias  # (..., n_features)
-        scale = np.sqrt(2.0 / self._n_features)
+        scale = np.sqrt(1.0 / self._n_features)
         return scale * torch.cat([torch.cos(proj), torch.sin(proj)], dim=-1)
 
     def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
+        """Evaluate the Thompson Sampling acquisition function at the given point."""
         if self._theta is None:
             self._setup_rff(x.shape[-1])
         assert self._theta is not None
@@ -341,6 +346,8 @@ class GPTSSampler(_GPAcqfSamplerBase):
         independent_sampler: Sampler for independent parameters.
         n_startup_trials: Number of initial random trials before GP kicks in.
         deterministic_objective: If ``True``, assume the objective is noiseless.
+        constraints_func: Constraint evaluation function.
+        warn_independent_sampling: If ``True``, warn when independent sampling is used.
     """
 
     def __init__(
@@ -351,12 +358,17 @@ class GPTSSampler(_GPAcqfSamplerBase):
         independent_sampler: optuna.samplers.BaseSampler | None = None,
         n_startup_trials: int = 10,
         deterministic_objective: bool = False,
+        constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
+        warn_independent_sampling: bool = True,
     ) -> None:
+        """Initialize GPTSSampler with RFF posterior approximation settings."""
         super().__init__(
             seed=seed,
             independent_sampler=independent_sampler,
             n_startup_trials=n_startup_trials,
             deterministic_objective=deterministic_objective,
+            constraints_func=constraints_func,
+            warn_independent_sampling=warn_independent_sampling,
         )
         self._n_rff_features = n_rff_features
 
@@ -366,6 +378,7 @@ class GPTSSampler(_GPAcqfSamplerBase):
         search_space: gp_search_space.SearchSpace,
         standardized_score_vals: np.ndarray,
     ) -> acqf_module.BaseAcquisitionFunc:
+        """Create a Thompson Sampling acquisition function."""
         return _ThompsonSampling(
             gpr=gpr,
             search_space=search_space,

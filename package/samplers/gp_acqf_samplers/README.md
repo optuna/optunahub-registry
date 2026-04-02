@@ -24,12 +24,12 @@ pip install scipy torch
 
 Optuna's built-in `GPSampler` only supports Expected Improvement (EI) as an acquisition function. This package extends `GPSampler` with three additional acquisition functions commonly used in Bayesian optimization:
 
-| Sampler | Acquisition Function | Description |
-|---|---|---|
-| `GPEISampler` | Expected Improvement (EI) | Alias for `optuna.samplers.GPSampler`. Balances improvement magnitude and probability. |
-| `GPPISampler` | Probability of Improvement (PI) | Selects the point most likely to improve over the current best. More exploitative. |
-| `GPUCBSampler` | Upper Confidence Bound (UCB) | Balances exploration and exploitation via a `beta` parameter. |
-| `GPTSSampler` | Thompson Sampling (TS) | Samples from the GP posterior and maximizes the sample. No tuning parameter needed. |
+| Sampler        | Acquisition Function            | Description                                                                            |
+| -------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| `GPEISampler`  | Expected Improvement (EI)       | Alias for `optuna.samplers.GPSampler`. Balances improvement magnitude and probability. |
+| `GPPISampler`  | Probability of Improvement (PI) | Selects the point most likely to improve over the current best. More exploitative.     |
+| `GPUCBSampler` | Upper Confidence Bound (UCB)    | Balances exploration and exploitation via a `beta` parameter.                          |
+| `GPTSSampler`  | Thompson Sampling (TS)          | Samples from the GP posterior and maximizes the sample. No tuning parameter needed.    |
 
 All samplers inherit from `GPSampler` and reuse its GP fitting, search-space handling, and acquisition function optimization machinery. For multi-objective or constrained optimization, they automatically fall back to the parent `GPSampler` behaviour.
 
@@ -56,16 +56,16 @@ def objective(trial: optuna.Trial) -> float:
 mod = optunahub.load_module("samplers/gp_acqf_samplers")
 
 # Probability of Improvement
-study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=50, sampler=mod.GPPISampler(seed=42))
+study = optuna.create_study(direction="maximize", sampler=mod.GPPISampler(seed=42))
+study.optimize(objective, n_trials=50)
 
 # Upper Confidence Bound (beta controls exploration)
-study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=50, sampler=mod.GPUCBSampler(beta=2.0, seed=42))
+study = optuna.create_study(direction="maximize", sampler=mod.GPUCBSampler(beta=2.0, seed=42))
+study.optimize(objective, n_trials=50)
 
 # Thompson Sampling
-study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=50, sampler=mod.GPTSSampler(seed=42))
+study = optuna.create_study(direction="maximize", sampler=mod.GPTSSampler(seed=42))
+study.optimize(objective, n_trials=50)
 ```
 
 ## API Reference
@@ -76,17 +76,17 @@ Same arguments as `optuna.samplers.GPSampler`.
 
 ### GPUCBSampler
 
-| Argument | Type | Default | Description |
-|---|---|---|---|
-| `beta` | `float` | `2.0` | Exploration-exploitation trade-off. Larger values encourage more exploration. |
+| Argument | Type    | Default | Description                                                                   |
+| -------- | ------- | ------- | ----------------------------------------------------------------------------- |
+| `beta`   | `float` | `2.0`   | Exploration-exploitation trade-off. Larger values encourage more exploration. |
 
 Plus all arguments from `optuna.samplers.GPSampler`.
 
 ### GPTSSampler
 
-| Argument | Type | Default | Description |
-|---|---|---|---|
-| `n_rff_features` | `int` | `512` | Number of random Fourier features for posterior approximation. |
+| Argument         | Type  | Default | Description                                                    |
+| ---------------- | ----- | ------- | -------------------------------------------------------------- |
+| `n_rff_features` | `int` | `512`   | Number of random Fourier features for posterior approximation. |
 
 Plus all arguments from `optuna.samplers.GPSampler`.
 
