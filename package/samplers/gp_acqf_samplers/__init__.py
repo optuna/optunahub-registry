@@ -274,12 +274,12 @@ class _ThompsonSampling(acqf_module.BaseAcquisitionFunc):
         spectral_samples = normal_samples / torch.sqrt(chi2_samples / nu)
 
         # Scale by inverse lengthscales.
-        self._rff_weights = spectral_samples / length_scales.unsqueeze(0)
+        self._rff_weights = (spectral_samples / length_scales.unsqueeze(0)).detach()
         self._rff_bias = (
             torch.rand(self._n_features, generator=generator, dtype=torch.float64)
             * 2
             * np.pi
-        )
+        ).detach()
 
         # Compute RFF features for training data.
         X_train = self._gpr._X_train
@@ -307,7 +307,7 @@ class _ThompsonSampling(acqf_module.BaseAcquisitionFunc):
             L.T, z.unsqueeze(-1), upper=True
         ).squeeze(-1)
 
-        self._theta = theta_sample
+        self._theta = theta_sample.detach()
 
     def _rff_feature(self, x: torch.Tensor) -> torch.Tensor:
         """Compute Random Fourier Features: sqrt(2/D) * [cos(Wx+b), sin(Wx+b)]."""
