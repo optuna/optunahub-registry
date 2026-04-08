@@ -35,7 +35,7 @@ import optuna
 import optunahub
 
 
-module = optunahub.load_module("functions/wandb")
+module = optunahub.load_module("callbacks/wandb")
 WeightsAndBiasesCallback = module.WeightsAndBiasesCallback
 
 
