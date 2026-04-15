@@ -25,20 +25,20 @@ standard Gaussian random variates.
 
 ### When to use
 
-| Situation | Recommendation |
-|---|---|
-| Unimodal or smooth landscapes | ✅ Converges faster than random search |
-| Multi-modal with many shallow optima | ✅ Large Lévy jumps escape local optima |
-| Highly discontinuous / black-box | ⚠️ Pair with a large `n_trials` budget |
-| Categorical-heavy search spaces | ⚠️ Categorical params fall back to random |
+| Situation                            | Recommendation                            |
+| ------------------------------------ | ----------------------------------------- |
+| Unimodal or smooth landscapes        | ✅ Converges faster than random search    |
+| Multi-modal with many shallow optima | ✅ Large Lévy jumps escape local optima   |
+| Highly discontinuous / black-box     | ⚠️ Pair with a large `n_trials` budget    |
+| Categorical-heavy search spaces      | ⚠️ Categorical params fall back to random |
 
 ### Key parameters
 
-| Parameter | Default | Effect |
-|---|---|---|
-| `beta` | `1.5` | Tail heaviness of the Lévy distribution.  Range `(0, 2]`; `2` ≈ Gaussian, `1` ≈ Cauchy |
-| `step_scale` | `0.1` | Step size as a fraction of each parameter's range |
-| `seed` | `None` | RNG seed for reproducibility |
+| Parameter    | Default | Effect                                                                                 |
+| ------------ | ------- | -------------------------------------------------------------------------------------- |
+| `beta`       | `1.5`   | Tail heaviness of the Lévy distribution.  Range `(0, 2]`; `2` ≈ Gaussian, `1` ≈ Cauchy |
+| `step_scale` | `0.1`   | Step size as a fraction of each parameter's range                                      |
+| `seed`       | `None`  | RNG seed for reproducibility                                                           |
 
 ## Installation
 
@@ -73,11 +73,11 @@ See [`example.py`](https://github.com/optuna/optunahub-registry/blob/main/packag
 ## Algorithm Details
 
 1. **Initialization** — first two trials use random sampling to establish an initial best.
-2. **Lévy step** — for each parameter `p` with range `[low, high]`:
+1. **Lévy step** — for each parameter `p` with range `[low, high]`:
    - Draw `u ~ N(0, σ²)` and `v ~ N(0, 1)` using the Mantegna sigma for `beta`.
    - Step length = `step_scale × (high − low) × u / |v|^(1/beta)`.
    - Clip new value to `[low, high]`.
-3. **Fallback** — `CategoricalDistribution` and unknown distributions use `RandomSampler`.
+1. **Fallback** — `CategoricalDistribution` and unknown distributions use `RandomSampler`.
 
 The Mantegna sigma is:
 
