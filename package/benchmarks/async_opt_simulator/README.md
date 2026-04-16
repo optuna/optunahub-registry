@@ -3,7 +3,7 @@ author: Shuhei Watanabe
 title: Async Optimization Benchmark Simulator
 description: A simulator for asynchronous multi-fidelity or parallel optimization using tabular or surrogate benchmarks without any wait.
 tags: [benchmark, simulator, surrogate, tabular]
-optuna_versions: [3.12]
+optuna_versions: [4.8.0]
 license: MIT License
 ---
 
@@ -22,20 +22,21 @@ This package is adapted for OptunaHub based on [the original implementation](htt
 
 ## APIs
 
-- `AsyncOptBenchmarkSimulator(n_workers: int, allow_parallel_sampling: bool = False)`
+### `AsyncOptBenchmarkSimulator(n_workers: int, allow_parallel_sampling: bool = False)`
+
   - `n_workers`: The number of simulated workers. In other words, how many parallel workers to simulate.
   - `allow_parallel_sampling`: Whether sampling can happen in parallel. If `True`, an imprecise simulation is used and results may not accurately reflect the behavior of expensive samplers.
 
-- `AsyncOptBenchmarkSimulator.optimize(study: optuna.Study, problem: BaseProblem, runtime_func: RuntimeFunc, *, n_trials: int | None = None, timeout: float | None = None) -> None`
-  - Start the async optimization using a zero-cost benchmark without any sleep.
+### `AsyncOptBenchmarkSimulator.optimize(study: optuna.Study, problem: BaseProblem, runtime_func: RuntimeFunc, *, n_trials: int | None = None, timeout: float | None = None) -> None`
+
   - `study`: An Optuna study object.
   - `problem`: A benchmark problem that implements the `BaseProblem` interface from `optunahub.benchmarks`.
   - `runtime_func`: A callable that takes an `optuna.Trial` and returns the simulated runtime (float) for that trial.
   - `n_trials`: How many trials to collect.
   - `timeout`: The maximum total evaluation time for the optimization (in simulated time, not actual runtime).
 
-- `AsyncOptBenchmarkSimulator.get_results_from_study(study: optuna.Study, states: TrialState | None = None) -> dict[str, list]` (static method)
-  - Extract results sorted by cumulative time from a completed study.
+### `AsyncOptBenchmarkSimulator.get_results_from_study(study: optuna.Study, states: TrialState | None = None) -> dict[str, list]` (static method)
+
   - `study`: An Optuna study object.
   - `states`: Trial states to include. Defaults to `(TrialState.COMPLETE, TrialState.PRUNED)`. Cannot contain states other than `COMPLETE` and `PRUNED`.
   - Returns a dictionary with keys `"cumtime"`, `"values"`, and `"worker_index"`.
@@ -58,6 +59,7 @@ print(sim.get_results_from_study(study))
 ```
 
 Unit tests are also available for this package:
+
 ```shell
 # Additional dependency.
 $ pip install mfhpo-benchmark-api pytest
