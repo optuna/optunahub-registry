@@ -28,7 +28,8 @@ def optimize_parallel(
         if latency
         else OrderCheckConfigs(n_workers)
     )
-    n_evals = target._n_evals
+    n_evals = target._n_evals  # type: ignore[attr-defined]
+    assert isinstance(n_evals, int)  # mypy check.
 
     if latency:
         sampler = CounterSampler(sleep=UNIT_TIME * 200, max_count=n_evals)
@@ -47,7 +48,9 @@ def optimize_parallel(
     out = np.array(AsyncOptBenchmarkSimulator.get_results_from_study(study)["cumtime"])[:n_evals]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
-    diffs = np.abs(out - target._ans)
+    ans = target._ans  # type: ignore[attr-defined]
+    assert isinstance(ans, np.ndarray)
+    diffs = np.abs(out - ans)
     buffer = UNIT_TIME * 100 if latency else 1
     assert np.all(diffs < buffer)  # 1 is just a buffer.
 
