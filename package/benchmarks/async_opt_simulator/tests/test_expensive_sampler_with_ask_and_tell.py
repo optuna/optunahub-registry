@@ -48,7 +48,7 @@ class ExpensiveSampler(optuna.samplers.BaseSampler):
             return float(10**5)
 
 
-def optimize(index: int, n_workers: int):
+def optimize(index: int, n_workers: int) -> None:
     unittime = 1e-1 if ON_UBUNTU else 1.0
     configs, ans = get_configs(index=index, unittime=unittime)
     n_evals = configs.size

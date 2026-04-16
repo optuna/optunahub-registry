@@ -29,7 +29,7 @@ def _create_problem() -> TestProblem:
     return TestProblem(obj_func=dummy_no_fidel_func, search_space=DUMMY_SEARCH_SPACE)
 
 
-def test_proc_obj_func_works():
+def test_proc_obj_func_works() -> None:
     """_proc_obj_func works without fidels."""
     simulator = AsyncOptBenchmarkSimulator(n_workers=1, allow_parallel_sampling=False)
     study = _create_study()
@@ -55,7 +55,7 @@ def test_results_monotonically_ordered() -> None:
     assert np.allclose(np.maximum.accumulate(cumtimes), cumtimes)
 
 
-def test_error_missing_runtime():
+def test_error_missing_runtime() -> None:
     """Problem must set runtime user_attr."""
     simulator = AsyncOptBenchmarkSimulator(n_workers=1, allow_parallel_sampling=False)
     study = optuna.create_study(sampler=CounterSampler())

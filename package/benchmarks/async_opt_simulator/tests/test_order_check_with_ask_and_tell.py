@@ -21,7 +21,7 @@ LATENCY = "latency"
 
 def optimize_parallel(
     mode: str, n_workers: int, parallel_sampler: bool = False, timeout: bool = False
-):
+) -> None:
     latency = mode == LATENCY
     target = (
         OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout)
@@ -54,7 +54,7 @@ def optimize_parallel(
 
 @pytest.mark.parametrize("mode", ("normal", LATENCY))
 @pytest.mark.parametrize("parallel_sampler", (True, False))
-def test_optimize_parallel(mode: str, parallel_sampler: bool):
+def test_optimize_parallel(mode: str, parallel_sampler: bool) -> None:
     if mode == LATENCY:
         optimize_parallel(mode=mode, n_workers=2, parallel_sampler=parallel_sampler)
     elif not parallel_sampler:

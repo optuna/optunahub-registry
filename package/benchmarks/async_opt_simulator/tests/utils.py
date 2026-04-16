@@ -104,7 +104,7 @@ class OrderCheckConfigsForSync:
         self._n_evals = self._ans.size
         self._sleeping = sleeping
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
+    def __call__(self, eval_config: dict[str, int], *args: Any, **kwargs: Any) -> list[float]:
         time.sleep(self._sleeping)
         results = self._results[min(eval_config["index"], len(self._results) - 1)]
         return results
@@ -143,7 +143,7 @@ class OrderCheckConfigsForSyncWithSampleLatency:
         ]
         self._n_evals = self._ans.size
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
+    def __call__(self, eval_config: dict[str, int], *args: Any, **kwargs: Any) -> list[float]:
         results = self._results[min(eval_config["index"], len(self._results) - 1)]
         return results
 
@@ -271,7 +271,7 @@ class OrderCheckConfigs:
         self._n_evals = self._ans.size
         self._sleeping = sleeping
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
+    def __call__(self, eval_config: dict[str, int], *args: Any, **kwargs: Any) -> list[float]:
         # Latency caused by benchmark function. We must be able to ignore it in the simulation.
         time.sleep(self._sleeping)
         results = self._results[eval_config["index"]]
@@ -323,7 +323,7 @@ class OrderCheckConfigsWithSampleLatency:
         ]
         self._n_evals = self._ans.size
 
-    def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
+    def __call__(self, eval_config: dict[str, int], *args: Any, **kwargs: Any) -> list[float]:
         results = self._results[eval_config["index"]]
         return results
 

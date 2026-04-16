@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 import unittest
 
 import numpy as np
@@ -26,14 +27,14 @@ def _create_study() -> optuna.Study:
     return optuna.create_study(sampler=CounterSampler())
 
 
-def _create_problem(obj_func=dummy_no_fidel_func) -> TestProblem:
+def _create_problem(obj_func: Any = dummy_no_fidel_func) -> TestProblem:
     return TestProblem(obj_func=obj_func, search_space=DUMMY_SEARCH_SPACE)
 
 
 # --- get_optimizer_overhead tests ---
 
 
-def test_get_optimizer_overhead():
+def test_get_optimizer_overhead() -> None:
     """get_optimizer_overhead should return sampling time data with correct structure."""
     n_workers = DEFAULT_KWARGS["n_workers"]
     n_trials = DEFAULT_KWARGS["n_trials"]
@@ -59,7 +60,7 @@ def test_get_optimizer_overhead():
 # --- property tests ---
 
 
-def test_simulator_properties():
+def test_simulator_properties() -> None:
     """Public properties should return expected values."""
     n_workers = DEFAULT_KWARGS["n_workers"]
     simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, allow_parallel_sampling=False)
@@ -69,7 +70,7 @@ def test_simulator_properties():
 # --- result ordering without parallel sampling ---
 
 
-def test_results_sorted_by_cumtime_without_parallel_sampling():
+def test_results_sorted_by_cumtime_without_parallel_sampling() -> None:
     """Without parallel sampling, results should have cumtimes in non-decreasing order."""
     n_trials = 8
     simulator = AsyncOptBenchmarkSimulator(n_workers=4, allow_parallel_sampling=False)
@@ -82,7 +83,7 @@ def test_results_sorted_by_cumtime_without_parallel_sampling():
     assert np.all(cumtimes[:-1] <= cumtimes[1:])
 
 
-def test_results_cumtime_monotonic_with_parallel_sampling():
+def test_results_cumtime_monotonic_with_parallel_sampling() -> None:
     """With parallel sampling, results cumtimes should also be non-decreasing."""
     n_workers = DEFAULT_KWARGS["n_workers"]
     n_trials = DEFAULT_KWARGS["n_trials"]
@@ -99,7 +100,7 @@ def test_results_cumtime_monotonic_with_parallel_sampling():
 # --- tell_pending_result edge cases ---
 
 
-def test_tell_skips_none_pending_results():
+def test_tell_skips_none_pending_results() -> None:
     """_tell_pending_result should skip workers with None pending results."""
     n_trials = DEFAULT_KWARGS["n_trials"]
     simulator = AsyncOptBenchmarkSimulator(n_workers=2, allow_parallel_sampling=False)
@@ -111,7 +112,7 @@ def test_tell_skips_none_pending_results():
     assert len(results["cumtime"]) == n_trials
 
 
-def test_multi_worker_all_results_collected():
+def test_multi_worker_all_results_collected() -> None:
     """With multiple workers, all n_trials results should be collected."""
     n_workers = 4
     n_trials = 12

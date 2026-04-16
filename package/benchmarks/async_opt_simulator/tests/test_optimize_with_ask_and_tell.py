@@ -26,7 +26,7 @@ class MFBraninProblem:
         return out["loss"]
 
 
-def optimize(n_trials: int = 400, timeout: float | None = None):
+def optimize(n_trials: int = 400, timeout: float | None = None) -> dict:
     n_workers = 10
     if n_trials > 1000:
         n_workers = 1000
@@ -48,20 +48,20 @@ def optimize(n_trials: int = 400, timeout: float | None = None):
     return results
 
 
-def test_random_with_ask_and_tell():
+def test_random_with_ask_and_tell() -> None:
     out = optimize()["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
 
 
-def test_random_with_ask_and_tell_with_max_total_eval_time():
+def test_random_with_ask_and_tell_with_max_total_eval_time() -> None:
     out = optimize(timeout=3600 * 20)["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
     assert len(out) < 300  # terminated by time limit
 
 
-def test_random_with_ask_and_tell_many_parallel():
+def test_random_with_ask_and_tell_many_parallel() -> None:
     out = optimize(n_trials=10000)["cumtime"]
     diffs = np.abs(out - np.maximum.accumulate(out))
     assert np.allclose(diffs, 0.0)
