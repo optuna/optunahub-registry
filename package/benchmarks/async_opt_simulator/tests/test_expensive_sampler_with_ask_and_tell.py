@@ -23,10 +23,14 @@ class ExpensiveSampler(optuna.samplers.BaseSampler):
         self._values = values
         self._unittime = unittime
 
-    def infer_relative_search_space(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> dict:
+    def infer_relative_search_space(
+        self, study: optuna.Study, trial: optuna.trial.FrozenTrial
+    ) -> dict:
         return {}
 
-    def sample_relative(self, study: optuna.Study, trial: optuna.trial.FrozenTrial, search_space: dict) -> dict:
+    def sample_relative(
+        self, study: optuna.Study, trial: optuna.trial.FrozenTrial, search_space: dict
+    ) -> dict:
         return {}
 
     def sample_independent(

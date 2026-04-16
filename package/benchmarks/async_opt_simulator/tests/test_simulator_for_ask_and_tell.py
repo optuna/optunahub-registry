@@ -35,7 +35,9 @@ def test_proc_obj_func_works():
     study = _create_study()
     problem = _create_problem()
     trial = study.ask(problem.search_space)
-    simulator._proc_obj_func(trial=trial, problem=problem, runtime_func=default_runtime_func, worker_id=0)
+    simulator._proc_obj_func(
+        trial=trial, problem=problem, runtime_func=default_runtime_func, worker_id=0
+    )
 
 
 def test_results_monotonically_ordered() -> None:
@@ -67,7 +69,9 @@ def test_error_missing_runtime():
     problem = BadProblem()
     trial = study.ask(problem.search_space)
     with pytest.raises(KeyError, match="runtime"):
-        simulator._proc_obj_func(trial=trial, problem=problem, runtime_func=default_runtime_func, worker_id=0)
+        simulator._proc_obj_func(
+            trial=trial, problem=problem, runtime_func=default_runtime_func, worker_id=0
+        )
 
 
 if __name__ == "__main__":

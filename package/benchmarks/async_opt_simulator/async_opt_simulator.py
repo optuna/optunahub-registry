@@ -64,9 +64,14 @@ class AsyncOptBenchmarkSimulator:
         trial.set_user_attr("worker_id", worker_id)
         self._cumtimes[worker_id] += runtime_func(trial)
         trial.set_user_attr("cumtime", self._cumtimes[worker_id].item())
-        self._pending_results[worker_id] = (trial.number, [output] if isinstance(output, float) else list(output))
+        self._pending_results[worker_id] = (
+            trial.number,
+            [output] if isinstance(output, float) else list(output),
+        )
 
-    def _ask_with_timer(self, study: optuna.Study, problem: BaseProblem, worker_id: int) -> optuna.Trial:
+    def _ask_with_timer(
+        self, study: optuna.Study, problem: BaseProblem, worker_id: int
+    ) -> optuna.Trial:
         start = time.time()
         trial = study.ask(problem.search_space)
         sampling_time = time.time() - start
@@ -87,7 +92,8 @@ class AsyncOptBenchmarkSimulator:
             self._allow_parallel_sampling
             and is_first_sample
             and self._cumtimes[worker_id] > _NEGLIGIBLE_SEC
-            and self._cumtimes[worker_id] != np.min(self._cumtimes[self._cumtimes > _NEGLIGIBLE_SEC])
+            and self._cumtimes[worker_id]
+            != np.min(self._cumtimes[self._cumtimes > _NEGLIGIBLE_SEC])
         ):
             raise TimeoutError(
                 "The initialization of the optimizer must be cheaper than one objective evuation.\n"
@@ -100,7 +106,9 @@ class AsyncOptBenchmarkSimulator:
         free_worker_idxs = np.array([worker_id], dtype=int)
         if not self._allow_parallel_sampling:
             before_eval = self._after_sample_times[-1]
-            free_worker_idxs = np.union1d(self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs)
+            free_worker_idxs = np.union1d(
+                self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs
+            )
 
         for _worker_id in free_worker_idxs.astype(int).tolist():
             result = self._pending_results[_worker_id]
@@ -113,14 +121,18 @@ class AsyncOptBenchmarkSimulator:
             self._pending_results[_worker_id] = None
 
     @staticmethod
-    def get_results_from_study(study: optuna.Study, states: TrialState | None = None) -> dict[str, list]:
+    def get_results_from_study(
+        study: optuna.Study, states: TrialState | None = None
+    ) -> dict[str, list]:
         """Extract results sorted by cumtime."""
         valid_states = (TrialState.COMPLETE, TrialState.PRUNED)
         states = states or valid_states
         if any(s not in valid_states for s in states):
             raise ValueError(f"{states=} cannot contain states other than COMPLETE and PRUNED.")
 
-        trials = [t for t in study.get_trials(deepcopy=False, states=states) if "cumtime" in t.user_attrs]
+        trials = [
+            t for t in study.get_trials(deepcopy=False, states=states) if "cumtime" in t.user_attrs
+        ]
         sorted_trials = sorted(trials, key=lambda t: t.user_attrs["cumtime"])
         return {
             "cumtime": [t.user_attrs["cumtime"] for t in sorted_trials],
@@ -151,7 +163,9 @@ class AsyncOptBenchmarkSimulator:
         timeout = timeout or float("inf")
         for i in range(n_trials + self._n_workers - 1):
             trial = self._ask_with_timer(study, problem, worker_id=worker_id)
-            self._proc_obj_func(trial=trial, problem=problem, runtime_func=runtime_func, worker_id=worker_id)
+            self._proc_obj_func(
+                trial=trial, problem=problem, runtime_func=runtime_func, worker_id=worker_id
+            )
             worker_id = np.argmin(self._cumtimes).item()
             if i + 1 >= self._n_workers:
                 # This `if` is needed for the compatibility with the other modes.

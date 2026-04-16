@@ -17,7 +17,9 @@ UNIT_TIME = 1e-3 if ON_UBUNTU else 5e-2
 class TestProblem:
     """Wraps old-style obj_func(eval_config) -> [objectives..., runtime] to the new BaseProblem API."""
 
-    def __init__(self, obj_func: Any, search_space: dict[str, optuna.distributions.BaseDistribution]):
+    def __init__(
+        self, obj_func: Any, search_space: dict[str, optuna.distributions.BaseDistribution]
+    ):
         self.search_space = search_space
         self._obj_func = obj_func
 
@@ -36,10 +38,14 @@ class CounterSampler(optuna.samplers.BaseSampler):
         self._sleep = sleep
         self._max_count = max_count
 
-    def infer_relative_search_space(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> dict:
+    def infer_relative_search_space(
+        self, study: optuna.Study, trial: optuna.trial.FrozenTrial
+    ) -> dict:
         return {}
 
-    def sample_relative(self, study: optuna.Study, trial: optuna.trial.FrozenTrial, search_space: dict) -> dict:
+    def sample_relative(
+        self, study: optuna.Study, trial: optuna.trial.FrozenTrial, search_space: dict
+    ) -> dict:
         return {}
 
     def sample_independent(
@@ -88,7 +94,9 @@ class OrderCheckConfigsForSync:
     def __init__(self, n_workers: int, sleeping: float = 0.0):
         loss_vals = [i for i in range(7)]
         runtimes = np.array([1000, 400, 300, 300, 400, 200, 200])
-        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [
+            [float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)
+        ]
         self._ans = {
             2: np.array([400, 700, 1000, 1300, 1400, 1500, 1700]),
             3: np.array([300, 400, 1000, 1200, 1300, 1400, 1600]),
@@ -130,7 +138,9 @@ class OrderCheckConfigsForSyncWithSampleLatency:
             3: np.array([500, 600, 1200, 1600, 1700, 1800]),
         }[n_workers] * UNIT_TIME
         loss_vals = [i for i in range(self._ans.size)]
-        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [
+            [float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)
+        ]
         self._n_evals = self._ans.size
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:
@@ -160,10 +170,54 @@ class OrderCheckConfigs:
     def __init__(self, n_workers: int, sleeping: float = 0.0):
         loss_vals = [i for i in range(20)]
         runtimes = {
-            2: [1000, 300, 300, 300, 300, 100, 200, 600, 200, 200, 200, 300, 200, 200, 200, 600, 200, 200, 300, 400],
-            4: [1000, 400, 300, 200, 200, 300, 400, 200, 200, 300, 200, 400, 300, 200, 300, 200, 300, 400, 300, 100],
+            2: [
+                1000,
+                300,
+                300,
+                300,
+                300,
+                100,
+                200,
+                600,
+                200,
+                200,
+                200,
+                300,
+                200,
+                200,
+                200,
+                600,
+                200,
+                200,
+                300,
+                400,
+            ],
+            4: [
+                1000,
+                400,
+                300,
+                200,
+                200,
+                300,
+                400,
+                200,
+                200,
+                300,
+                200,
+                400,
+                300,
+                200,
+                300,
+                200,
+                300,
+                400,
+                300,
+                100,
+            ],
         }[n_workers]
-        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [
+            [float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)
+        ]
         self._ans = {
             2: np.array(
                 [
@@ -264,7 +318,9 @@ class OrderCheckConfigsWithSampleLatency:
             self._ans = np.array([500, 600, 1100, 1300, 1500, 1900]) * UNIT_TIME
 
         loss_vals = [i for i in range(self._ans.size)]
-        self._results = [[float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)]
+        self._results = [
+            [float(loss), float(runtime)] for loss, runtime in zip(loss_vals, runtimes)
+        ]
         self._n_evals = self._ans.size
 
     def __call__(self, eval_config: dict[str, int], *args, **kwargs) -> list[float]:

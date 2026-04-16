@@ -19,9 +19,15 @@ N_EVALS = 20
 LATENCY = "latency"
 
 
-def optimize_parallel(mode: str, n_workers: int, parallel_sampler: bool = False, timeout: bool = False):
+def optimize_parallel(
+    mode: str, n_workers: int, parallel_sampler: bool = False, timeout: bool = False
+):
     latency = mode == LATENCY
-    target = OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout) if latency else OrderCheckConfigs(n_workers)
+    target = (
+        OrderCheckConfigsWithSampleLatency(parallel_sampler, timeout)
+        if latency
+        else OrderCheckConfigs(n_workers)
+    )
     n_evals = target._n_evals
 
     if latency:
