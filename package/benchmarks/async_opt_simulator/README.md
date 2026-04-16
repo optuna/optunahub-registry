@@ -20,6 +20,11 @@ This package is adapted for OptunaHub based on [the original implementation](htt
 
 ![Concept of Simulator](images/api-conceptual.png)
 
+To see a concrete example, see [benchmarking_example.py](https://github.com/optuna/optunahub-registry/tree/main/package/benchmarks/async_opt_simulator/benchmarking_example.py).
+This example generates the following:
+
+![Benchmarking of Constant Liar in TPESampler Using This Package](images/async-bench-example.png)
+
 ## APIs
 
 ### `AsyncOptBenchmarkSimulator(n_workers: int, allow_parallel_sampling: bool = False)`
