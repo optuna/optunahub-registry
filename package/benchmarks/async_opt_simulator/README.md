@@ -2,7 +2,7 @@
 author: Shuhei Watanabe
 title: Async Optimization Benchmark Simulator
 description: A simulator for asynchronous multi-fidelity or parallel optimization using tabular or surrogate benchmarks without any wait.
-tags: [benchmark, simulator, surrogate, tabular]
+tags: [benchmark, simulator, surrogate, tabular, runtime, AutoML, HPO, NAS, Hyperparameter Optimization]
 optuna_versions: [4.8.0]
 license: MIT License
 ---
