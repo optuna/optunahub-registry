@@ -18,7 +18,7 @@ Users can pass the optimizer to the simulator directly, and it automatically per
 
 This package is adapted for OptunaHub based on [the original implementation](https://github.com/nabenabe0928/mfhpo-simulator).
 
-![Concept of Simulator](image/api-conceptual.png)
+![Concept of Simulator](images/api-conceptual.png)
 
 ## APIs
 
