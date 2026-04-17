@@ -18,7 +18,7 @@ _, ax = plt.subplots()
 colors = ["darkred", "black"]
 for sampler, color in zip([optuna.samplers.TPESampler(), optuna.samplers.RandomSampler()], colors):
     study_list = []
-    for _ in range(5):
+    for __ in range(5):
         study = optuna.create_study(sampler=sampler)
         study.optimize(objective, n_trials=20)
         study_list.append(study)
