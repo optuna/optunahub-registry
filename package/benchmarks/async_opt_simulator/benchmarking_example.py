@@ -14,17 +14,12 @@ plt.rcParams["mathtext.fontset"] = "stix"
 
 
 def simulate(n_workers: int, constant_liar: bool, seed: int) -> tuple[np.ndarray, np.ndarray]:
-    # AsyncOptBenchmarkSimulator = optunahub.load_module(
-    #     "benchmarks/async_opt_simulator"
-    # ).AsyncOptBenchmarkSimulator
-    AsyncOptBenchmarkSimulator = optunahub.load_local_module(
-        "benchmarks/async_opt_simulator", registry_root="package"
-    ).AsyncOptBenchmarkSimulator
+    sim = optunahub.load_module("benchmarks/async_opt_simulator").AsyncOptBenchmarkSimulator(
+        n_workers=n_workers
+    )
     Problem = optunahub.load_module("benchmarks/hpolib").Problem
     problem = Problem(dataset_id=0, metric_names=["val_loss"], seed=0)
     runtime_func = Problem(dataset_id=0, metric_names=["train_time"], seed=0)
-
-    sim = AsyncOptBenchmarkSimulator(n_workers=n_workers)
     n_init = 10
     sampler = optuna.samplers.TPESampler(
         multivariate=True,

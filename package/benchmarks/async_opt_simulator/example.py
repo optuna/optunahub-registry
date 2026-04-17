@@ -4,10 +4,9 @@ import optuna
 import optunahub
 
 
-AsyncOptBenchmarkSimulator = optunahub.load_module(
-    "benchmarks/async_opt_simulator"
-).AsyncOptBenchmarkSimulator
-sim = AsyncOptBenchmarkSimulator(n_workers=4)
+sim = optunahub.load_module("benchmarks/async_opt_simulator").AsyncOptBenchmarkSimulator(
+    n_workers=4
+)
 Problem = optunahub.load_module("benchmarks/hpolib").Problem
 problem = Problem(dataset_id=0, metric_names=["val_loss"])
 runtime_func = Problem(dataset_id=0, metric_names=["train_time"])
