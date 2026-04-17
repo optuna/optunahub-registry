@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
+    from matplotlib.axes import Axes
+    from matplotlib.lines import Line2D
+
 
 def _get_values_on_fixed_time_steps(
     cumtime_list: list[np.ndarray],
@@ -34,10 +37,10 @@ def _get_values_on_fixed_time_steps(
 
 
 def _validate(
-    valid_states: list[TrialState],
-    states: list[TrialState],
+    valid_states: tuple[TrialState, ...],
+    states: tuple[TrialState, ...],
     target: Callable[[optuna.trial.FrozenTrial], float] | None,
-    target_direction: StudyDirection | None,
+    target_direction: StudyDirection | str | None,
 ) -> None:
     if any(s not in valid_states for s in states):
         raise ValueError(f"{states=} must be in {valid_states}.")
@@ -62,20 +65,21 @@ def plot_target_over_time(
     study_list: list[optuna.Study],
     *,
     color: str,
-    ax: plt.Axes | None = None,
-    states: list[TrialState] | None = None,
+    ax: Axes | None = None,
+    states: tuple[TrialState, ...] | None = None,
     target: Callable[[optuna.trial.FrozenTrial], float] | None = None,
     target_direction: optuna.study.StudyDirection | str | None = None,
     cumtime_func: Callable[[optuna.trial.FrozenTrial], float] | None = None,
     log_time_scale: bool = True,
     n_steps: int = 100,
     **plot_kwargs: Any,
-) -> plt.Line2D:
+) -> Line2D:
     if ax is None:
         _, ax = plt.subplots()
 
     valid_states = (TrialState.COMPLETE, TrialState.PRUNED)
     states = states or valid_states
+    assert states is not None, "Mypy Redefinition."
     _validate(valid_states, states, target, target_direction)
 
     target_list = []
@@ -91,9 +95,13 @@ def plot_target_over_time(
         if cumtime_func is not None:
             cumtime_list.append(np.array([cumtime_func(t) for t in trials]))
         else:
-            datetime_start = min(t.datetime_start for t in trials)
+            datetime_start = min(t.datetime_start for t in trials if t.datetime_start is not None)
             cumtimes = np.array(
-                [(t.datetime_complete - datetime_start).total_seconds() for t in trials]
+                [
+                    (t.datetime_complete - datetime_start).total_seconds()
+                    for t in trials
+                    if t.datetime_complete is not None
+                ]
             )
             cumtime_list.append(cumtimes)
 
