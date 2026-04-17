@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
 import optuna
 import optunahub
-
-import matplotlib.pyplot as plt
 
 
 def objective(trial: optuna.Trial) -> float:
