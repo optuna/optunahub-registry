@@ -112,6 +112,9 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
         trial: optuna.trial.FrozenTrial,
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
+        # This sampler only supports single-objective optimization.
+        self._raise_error_if_multi_objective(study)
+
         if not search_space:
             return {}
 
@@ -121,11 +124,8 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
         if len(completed) < 2:
             return {}
 
-        # Find the current best trial.
-        if study.direction == optuna.study.StudyDirection.MINIMIZE:
-            best_trial = min(completed, key=lambda t: t.value)  # type: ignore[arg-type]
-        else:
-            best_trial = max(completed, key=lambda t: t.value)  # type: ignore[arg-type]
+        # Use Optuna's built-in best_trial which handles direction internally.
+        best_trial = study.best_trial
 
         params: dict[str, Any] = {}
         for name, dist in search_space.items():
@@ -142,8 +142,6 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
 
             if isinstance(dist, FloatDistribution):
                 low, high = dist.low, dist.high
-                step = self._levy_step(high - low)
-                new_val = current + step
 
                 if dist.log:
                     # Work in log-space for log-uniform distributions.
@@ -152,7 +150,8 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
                     log_step = self._levy_step(log_high - log_low)
                     new_val = math.exp(np.clip(log_current + log_step, log_low, log_high))
                 else:
-                    new_val = float(np.clip(new_val, low, high))
+                    step = self._levy_step(high - low)
+                    new_val = float(np.clip(current + step, low, high))
 
                 if dist.step is not None:
                     # Round to the nearest grid point.
@@ -163,8 +162,19 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
 
             elif isinstance(dist, IntDistribution):
                 low, high = dist.low, dist.high
-                step = self._levy_step(float(high - low))
-                new_val = int(round(np.clip(current + step, low, high)))
+
+                if dist.log:
+                    # Work in log-space for log-uniform integer distributions.
+                    log_low, log_high = math.log(dist.low), math.log(dist.high)
+                    log_current = math.log(max(current, dist.low))
+                    log_step = self._levy_step(log_high - log_low)
+                    new_val = int(
+                        round(math.exp(np.clip(log_current + log_step, log_low, log_high)))
+                    )
+                    new_val = int(np.clip(new_val, low, high))
+                else:
+                    step = self._levy_step(float(high - low))
+                    new_val = int(round(np.clip(current + step, low, high)))
 
                 if dist.step != 1:
                     # Snap to the nearest valid integer step.
@@ -186,6 +196,8 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
+        # This sampler only supports single-objective optimization.
+        self._raise_error_if_multi_objective(study)
         return self._random_sampler.sample_independent(
             study, trial, param_name, param_distribution
         )
@@ -203,6 +215,9 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
         # Mantegna algorithm: u ~ N(0, sigma^2), v ~ N(0, 1)
         u = self._rng.normal(0.0, self._sigma)
         v = self._rng.normal(0.0, 1.0)
+        # Guard against the astronomically rare v=0 to avoid division by zero.
+        if v == 0.0:
+            v = float(np.finfo(float).tiny)
         step = u / (abs(v) ** (1.0 / self._beta))
         return float(self._step_scale * search_range * step)
 

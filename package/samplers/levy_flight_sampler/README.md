@@ -43,7 +43,13 @@ standard Gaussian random variates.
 ## Installation
 
 ```bash
-pip install optunahub
+pip install optunahub numpy
+```
+
+Or install dependencies directly from the registry:
+
+```bash
+pip install -r https://hub.optuna.org/samplers/levy_flight_sampler/requirements.txt
 ```
 
 ## Example
