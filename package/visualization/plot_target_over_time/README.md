@@ -7,6 +7,13 @@ optuna_versions: [4.8.0]
 license: MIT License
 ---
 
+## Abstract
+
+This visualization module enables users to plot the target value over time with standard error bands.
+This module is especially convenient when we use parallel optimization such as [Asynchronous optimization simulation](https://hub.optuna.org/benchmarks/async_opt_simulator).
+
+![Example Using Async Opt](images/async-bench-example.png)
+
 ## Class or Function Names
 
 - plot_target_over_time
