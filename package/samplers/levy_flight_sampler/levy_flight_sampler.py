@@ -35,27 +35,25 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
     length is drawn from a Lévy stable distribution approximated via the
     Mantegna algorithm, which is accurate and efficient.
 
-    The algorithm naturally transitions from wide exploration (early trials,
-    large effective steps) toward finer exploitation as the run progresses,
-    controlled by ``step_scale``.
-
     Compared to pure :class:`~optuna.samplers.RandomSampler`, Lévy flights
     converge faster on unimodal functions while still being capable of
-    escaping shallow local optima — at the cost of being stateful (the
-    sampler tracks the current best across trials).
+    escaping shallow local optima.
+
+    .. note::
+        This sampler only supports single-objective optimization.
 
     Args:
         beta (float):
-            Stability index of the Lévy distribution.  Must be in ``(0, 2]``.
-            ``beta=2`` recovers a Gaussian random walk; ``beta=1`` gives a
-            Cauchy distribution (very heavy tails). A value around ``1.5`` is
-            recommended for most optimisation problems.
+            Stability index of the Lévy distribution. Must be in ``(0, 2]``.
+            ``beta=2`` uses pure Gaussian sampling (the mathematical limit);
+            ``beta=1`` gives a Cauchy distribution (very heavy tails).
+            A value around ``1.5`` is recommended for most problems.
         step_scale (float):
-            Global scaling factor applied to every Lévy step.  Smaller values
+            Global scaling factor applied to every Lévy step. Smaller values
             concentrate search near the current best; larger values allow
-            wider jumps.  Defaults to ``0.1`` (10 % of the search range).
+            wider jumps. Defaults to ``0.1`` (10% of the search range).
         seed (int | None):
-            Seed for the internal random number generator.  Use an integer
+            Seed for the internal random number generator. Use an integer
             for reproducible runs.
 
     Example:
@@ -92,8 +90,8 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
         self._rng = np.random.RandomState(seed)
         self._random_sampler = RandomSampler(seed=seed)
 
-        # Pre-compute Mantegna sigma (depends only on beta, so computed once).
-        self._sigma = self._mantegna_sigma(beta)
+        # Pre-compute Mantegna sigma (only used when beta < 2.0).
+        self._sigma = self._mantegna_sigma(beta) if beta < 2.0 else 1.0
 
     # ------------------------------------------------------------------
     # Public Optuna sampler interface
@@ -169,9 +167,12 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
                     log_current = math.log(max(current, dist.low))
                     log_step = self._levy_step(log_high - log_low)
                     new_val = int(
-                        round(math.exp(np.clip(log_current + log_step, log_low, log_high)))
+                        np.clip(
+                            round(math.exp(np.clip(log_current + log_step, log_low, log_high))),
+                            low,
+                            high,
+                        )
                     )
-                    new_val = int(np.clip(new_val, low, high))
                 else:
                     step = self._levy_step(float(high - low))
                     new_val = int(round(np.clip(current + step, low, high)))
@@ -211,14 +212,23 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
 
         Uses the Mantegna algorithm to approximate a Lévy stable variate
         efficiently without requiring special-function libraries.
+
+        At the boundary ``beta=2``, the Lévy stable distribution reduces
+        exactly to a Gaussian. Mantegna's ratio-of-Gaussians construction
+        degenerates at this limit (sigma approaches 0), so we sample directly
+        from N(0, 1) instead, which is the mathematically correct behaviour.
         """
-        # Mantegna algorithm: u ~ N(0, sigma^2), v ~ N(0, 1)
-        u = self._rng.normal(0.0, self._sigma)
-        v = self._rng.normal(0.0, 1.0)
-        # Guard against the astronomically rare v=0 to avoid division by zero.
-        if v == 0.0:
-            v = float(np.finfo(float).tiny)
-        step = u / (abs(v) ** (1.0 / self._beta))
+        if self._beta == 2.0:
+            # Gaussian limiting case — sample directly from N(0, 1).
+            step = self._rng.normal(0.0, 1.0)
+        else:
+            # Mantegna algorithm: u ~ N(0, sigma^2), v ~ N(0, 1)
+            u = self._rng.normal(0.0, self._sigma)
+            v = self._rng.normal(0.0, 1.0)
+            # Guard against the astronomically rare v=0 to avoid division by zero.
+            if v == 0.0:
+                v = float(np.finfo(float).tiny)
+            step = u / (abs(v) ** (1.0 / self._beta))
         return float(self._step_scale * search_range * step)
 
     @staticmethod
@@ -228,7 +238,7 @@ class LevyFlightSampler(optuna.samplers.BaseSampler):
         sigma = ( Gamma(1+beta)*sin(pi*beta/2) /
                   (Gamma((1+beta)/2) * beta * 2^((beta-1)/2)) )^(1/beta)
 
-        This is numerically stable for beta in (0, 2].
+        Valid for beta in (0, 2). Do not call at beta=2 (handled separately).
         """
         num = math.gamma(1.0 + beta) * math.sin(math.pi * beta / 2.0)
         den = math.gamma((1.0 + beta) / 2.0) * beta * (2.0 ** ((beta - 1.0) / 2.0))
