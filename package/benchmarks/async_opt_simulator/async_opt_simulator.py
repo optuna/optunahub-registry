@@ -104,6 +104,9 @@ class AsyncOptBenchmarkSimulator:
     def _tell_pending_result(self, study: optuna.Study, worker_id: int) -> None:
         free_worker_idxs = np.array([worker_id], dtype=int)
         if not self._allow_parallel_sampling:
+            # NOTE: The cutoff uses timenow (= _after_sample_times[-1]) rather than
+            # max(timenow, cumtimes[worker_id]). Under the assumption of continuous
+            # runtime distribution), where cumtimes are almost surely distinct.
             before_eval = self._after_sample_times[-1]
             free_worker_idxs = np.union1d(
                 self._worker_indices[self._cumtimes <= before_eval], free_worker_idxs
