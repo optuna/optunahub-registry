@@ -44,7 +44,7 @@ This example generates the following:
 
 - `study`: An Optuna study object.
 - `states`: Trial states to include. Defaults to `(TrialState.COMPLETE, TrialState.PRUNED)`. Cannot contain states other than `COMPLETE` and `PRUNED`.
-- Returns a dictionary with keys `"cumtime"`, `"values"`, and `"worker_index"`.
+- Returns a dictionary with keys `"cumtime"`, `"values"`, and `"worker_id"`.
 
 ## Example
 

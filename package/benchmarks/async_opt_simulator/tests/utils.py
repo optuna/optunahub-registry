@@ -68,7 +68,7 @@ def get_overhead_from_study(study: optuna.Study) -> dict[str, list[float]]:
     return {
         "before_sample": [t.user_attrs["before_sample"] for t in trials],
         "after_sample": [t.user_attrs["after_sample"] for t in trials],
-        "worker_index": [t.user_attrs["worker_index"] for t in trials],
+        "worker_id": [t.user_attrs["worker_id"] for t in trials],
     }
 
 

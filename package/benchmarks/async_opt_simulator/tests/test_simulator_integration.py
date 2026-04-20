@@ -46,12 +46,12 @@ def test_get_optimizer_overhead() -> None:
     overhead = get_overhead_from_study(study)
     assert "before_sample" in overhead
     assert "after_sample" in overhead
-    assert "worker_index" in overhead
+    assert "worker_id" in overhead
     # n_trials + n_workers - 1 ask() calls
     expected_len = n_trials + n_workers - 1
     assert len(overhead["before_sample"]) == expected_len
     assert len(overhead["after_sample"]) == expected_len
-    assert len(overhead["worker_index"]) == expected_len
+    assert len(overhead["worker_id"]) == expected_len
     # after_sample >= before_sample
     for before, after in zip(overhead["before_sample"], overhead["after_sample"]):
         assert after >= before
@@ -124,7 +124,7 @@ def test_multi_worker_all_results_collected() -> None:
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
     assert len(results["cumtime"]) == n_trials
     assert len(results["values"]) == n_trials
-    assert len(results["worker_index"]) == n_trials
+    assert len(results["worker_id"]) == n_trials
 
 
 if __name__ == "__main__":

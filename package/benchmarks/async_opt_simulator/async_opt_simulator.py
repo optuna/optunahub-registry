@@ -84,7 +84,6 @@ class AsyncOptBenchmarkSimulator:
             self._timenow = before_sample + sampling_time
             self._cumtimes[worker_id] = self._timenow
 
-        trial.set_user_attr("worker_index", worker_id)
         trial.set_user_attr("before_sample", before_sample)
         trial.set_user_attr("after_sample", self._cumtimes[worker_id])
         self._after_sample_times.append(self._cumtimes[worker_id])
@@ -137,7 +136,7 @@ class AsyncOptBenchmarkSimulator:
         return {
             "cumtime": [t.user_attrs["cumtime"] for t in sorted_trials],
             "values": [list(t.values) for t in sorted_trials],
-            "worker_index": [t.user_attrs["worker_id"] for t in sorted_trials],
+            "worker_id": [t.user_attrs["worker_id"] for t in sorted_trials],
         }
 
     def optimize(
