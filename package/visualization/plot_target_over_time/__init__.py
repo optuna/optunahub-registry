@@ -104,6 +104,9 @@ def plot_target_over_time(
                 ]
             )
             cumtime_list.append(cumtimes)
+        order = np.argsort(cumtime_list[-1])
+        cumtime_list[-1] = cumtime_list[-1][order]
+        target_list[-1] = target_list[-1][order]
 
     ts, vs = _get_values_on_fixed_time_steps(
         cumtime_list,
