@@ -15,6 +15,8 @@ The `HeteroscedasticGPSampler` natively supports input-dependent observation noi
 
 This mirrors the architectural capability of advanced frameworks like BoTorch (via `train_Yvar`), bringing robust, noise-aware Bayesian Optimization natively to Optuna.
 
+**Note:** This implementation is distinct from HEBO (Heteroscedastic Evolutionary Bayesian Optimization). While HEBO handles heteroscedasticity by applying non-linear warping to objective values, this sampler allows users to explicitly provide the observation noise variance at each individual data point.
+
 ## Performance
 
 When evaluated on the Branin-Hoo function injected with input-dependent variance, the `HeteroscedasticGPSampler` significantly reduces median regret compared to the standard `GPSampler`. Explicitly mapping the noise variance allows the surrogate model to avoid over-exploring locally noisy regions, accelerating convergence on the true optimum.
