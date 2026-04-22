@@ -88,10 +88,6 @@ def plot_target_over_time(
     for study in study_list:
         trials = study.get_trials(deepcopy=False, states=states)
         target_vals = np.array([target(t) if target is not None else t.value for t in trials])
-        if direction in ["minimize", StudyDirection.MINIMIZE]:
-            target_list.append(np.minimum.accumulate(target_vals))
-        else:
-            target_list.append(np.maximum.accumulate(target_vals))
         if cumtime_func is not None:
             cumtime_list.append(np.array([cumtime_func(t) for t in trials]))
         else:
