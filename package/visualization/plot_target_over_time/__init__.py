@@ -106,7 +106,10 @@ def plot_target_over_time(
             cumtime_list.append(cumtimes)
         order = np.argsort(cumtime_list[-1])
         cumtime_list[-1] = cumtime_list[-1][order]
-        target_list[-1] = target_list[-1][order]
+        if direction in ["minimize", StudyDirection.MINIMIZE]:
+            target_list.append(np.minimum.accumulate(target_vals[order]))
+        else:
+            target_list.append(np.maximum.accumulate(target_vals[order]))
 
     ts, vs = _get_values_on_fixed_time_steps(
         cumtime_list,
