@@ -11,7 +11,9 @@ def objective(trial: optuna.Trial) -> float:
     return x**2 + y**2
 
 
-plot_target_over_time = optunahub.load_module("visualization/plot_target_over_time").plot_target_over_time
+plot_target_over_time = optunahub.load_module(
+    "visualization/plot_target_over_time"
+).plot_target_over_time
 _, ax = plt.subplots()
 colors = ["darkred", "black"]
 for sampler, color in zip([optuna.samplers.TPESampler(), optuna.samplers.RandomSampler()], colors):
