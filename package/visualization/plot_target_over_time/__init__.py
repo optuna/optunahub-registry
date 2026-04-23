@@ -86,7 +86,11 @@ def plot_target_over_time(
     cumtime_list = []
     direction = target_direction or study_list[0].direction
     for study in study_list:
-        trials = study.get_trials(deepcopy=False, states=states)
+        # If COMPLETE, t.values is always not None. If PRUNED, t.values is None only if no report
+        # happens.
+        trials = [
+            t for t in study.get_trials(deepcopy=False, states=states) if t.values is not None
+        ]
         target_vals = np.array([target(t) if target is not None else t.value for t in trials])
         if cumtime_func is not None:
             cumtime_list.append(np.array([cumtime_func(t) for t in trials]))

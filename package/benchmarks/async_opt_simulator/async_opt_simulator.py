@@ -129,7 +129,9 @@ class AsyncOptBenchmarkSimulator:
             study.tell(trial_number, values)
             if func_err is None:  # COMPLETE
                 assert values is not None, "COMPLETE means output should present."
-                _logger.info(f"Trial {trial_number} ({worker_id=}) finished with values: {values}.")
+                _logger.info(
+                    f"Trial {trial_number} ({worker_id=}) finished with values: {values}."
+                )
             else:  # PRUNED
                 assert values is None, "PRUNED means no output should be returned."
                 _logger.info(f"Trial {trial_number} ({worker_id=}) pruned: {str(func_err)}.")
