@@ -68,12 +68,14 @@ class AsyncOptBenchmarkSimulator:
         func_err: TrialPruned | None = None
         try:
             output = problem(trial)
+            assert output is not None, "MyPy redefinition."
             output = [output] if isinstance(output, float) else list(output)
         except TrialPruned as e:
             func_err = e
         trial.set_user_attr("worker_id", worker_id)
         self._cumtimes[worker_id] += runtime_func(trial)
         trial.set_user_attr("cumtime", self._cumtimes[worker_id].item())
+        assert output is None or isinstance(output, list), "MyPy Redefinition."
         self._pending_results[worker_id] = (trial.number, output, func_err)
 
     def _ask_with_timer(
@@ -139,7 +141,7 @@ class AsyncOptBenchmarkSimulator:
 
     @staticmethod
     def get_results_from_study(
-        study: optuna.Study, states: TrialState | None = None
+        study: optuna.Study, states: tuple[TrialState, ...] | None = None
     ) -> dict[str, list]:
         """Extract results sorted by cumtime."""
         valid_states = (TrialState.COMPLETE, TrialState.PRUNED)
