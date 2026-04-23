@@ -128,7 +128,8 @@ class AsyncOptBenchmarkSimulator:
                 continue
 
             trial_number, values, func_err = result
-            study.tell(trial_number, values)
+            state = TrialState.COMPLETE if func_err is None else TrialState.PRUNED
+            study.tell(trial_number, values, state=state)
             if func_err is None:  # COMPLETE
                 assert values is not None, "COMPLETE means output should present."
                 _logger.info(
