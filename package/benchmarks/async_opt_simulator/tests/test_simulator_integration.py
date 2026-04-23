@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 import optuna
 from optuna.trial import TrialState
+import pytest
 
 from .. import AsyncOptBenchmarkSimulator
 from .utils import CounterSampler
@@ -132,23 +133,27 @@ class _PruningProblem:
     """A problem where some trials get pruned based on the sampled parameter value."""
 
     search_space = {"x": optuna.distributions.IntDistribution(0, 99)}
+    use_report = True
 
     def __call__(self, trial: optuna.Trial) -> float:
         x = trial.suggest_int("x", 0, 99)
         trial.set_user_attr("runtime", 10.0)
         if x % 3 == 0:
-            trial.report(float(x), step=0)
+            if self.use_report:
+                trial.report(float(x), step=0)
             raise optuna.TrialPruned(f"Pruned at x={x}")
         return float(x)
 
 
-def test_simulator_handles_pruned_trials() -> None:
+@pytest.mark.parametrize("use_report", (True, False))
+def test_simulator_handles_pruned_trials(use_report: bool) -> None:
     """Simulator should complete successfully when some trials raise TrialPruned."""
     n_workers = 2
     n_trials = 10
     simulator = AsyncOptBenchmarkSimulator(n_workers=n_workers, allow_parallel_sampling=False)
     study = optuna.create_study(sampler=CounterSampler())
     problem = _PruningProblem()
+    problem.use_report = use_report
     simulator.optimize(study, problem, default_runtime_func, n_trials=n_trials)
 
     results = AsyncOptBenchmarkSimulator.get_results_from_study(study)
