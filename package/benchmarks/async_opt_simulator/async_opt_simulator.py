@@ -6,10 +6,12 @@ import warnings
 
 import numpy as np
 import optuna
+from optuna.exceptions import TrialPruned
 from optuna.trial import TrialState
 
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from typing import Final
     from typing import Protocol
 
@@ -47,7 +49,7 @@ class AsyncOptBenchmarkSimulator:
         # --- Data associated with a simulation ---
         self._timenow: float
         self._cumtimes: np.ndarray
-        self._pending_results: list[tuple[int, list[float]] | None]
+        self._pending_results: list[tuple[int, list[float] | None, TrialPruned | None] | None]
         self._after_sample_times: list[float]
         self._init_simulation_data()
 
@@ -60,14 +62,19 @@ class AsyncOptBenchmarkSimulator:
     def _proc_obj_func(
         self, trial: optuna.Trial, problem: BaseProblem, runtime_func: RuntimeFunc, worker_id: int
     ) -> None:
-        output = problem(trial)
+        # NOTE: This method basically mimics the minimal behavior of optuna.study._optimize._run_trial.
+        # Currently due to the limit of Optuna pruner, multi-objective cases do not support pruning.
+        output: float | Sequence[float] | None = None
+        func_err: TrialPruned | None = None
+        try:
+            output = problem(trial)
+            output = [output] if isinstance(output, float) else list(output)
+        except TrialPruned as e:
+            func_err = e
         trial.set_user_attr("worker_id", worker_id)
         self._cumtimes[worker_id] += runtime_func(trial)
         trial.set_user_attr("cumtime", self._cumtimes[worker_id].item())
-        self._pending_results[worker_id] = (
-            trial.number,
-            [output] if isinstance(output, float) else list(output),
-        )
+        self._pending_results[worker_id] = (trial.number, output, func_err)
 
     def _ask_with_timer(
         self, study: optuna.Study, problem: BaseProblem, worker_id: int
@@ -102,6 +109,7 @@ class AsyncOptBenchmarkSimulator:
         return trial
 
     def _tell_pending_result(self, study: optuna.Study, worker_id: int) -> None:
+        # NOTE: This method basically mimics the minimal behavior of optuna.study._optimize._run_trial.
         free_worker_idxs = np.array([worker_id], dtype=int)
         if not self._allow_parallel_sampling:
             # NOTE: The cutoff uses timenow (= _after_sample_times[-1]) rather than
@@ -117,9 +125,14 @@ class AsyncOptBenchmarkSimulator:
             if result is None:
                 continue
 
-            trial_number, values = result
+            trial_number, values, func_err = result
             study.tell(trial_number, values)
-            _logger.info(f"Trial {trial_number} ({worker_id=}) finished with values: {values}.")
+            if func_err is None:  # COMPLETE
+                assert values is not None, "COMPLETE means output should present."
+                _logger.info(f"Trial {trial_number} ({worker_id=}) finished with values: {values}.")
+            else:  # PRUNED
+                assert values is None, "PRUNED means no output should be returned."
+                _logger.info(f"Trial {trial_number} ({worker_id=}) pruned: {str(func_err)}.")
             self._pending_results[_worker_id] = None
 
     @staticmethod
@@ -138,7 +151,7 @@ class AsyncOptBenchmarkSimulator:
         sorted_trials = sorted(trials, key=lambda t: t.user_attrs["cumtime"])
         return {
             "cumtime": [t.user_attrs["cumtime"] for t in sorted_trials],
-            "values": [list(t.values) for t in sorted_trials],
+            "values": [list(t.values) if t.values is not None else None for t in sorted_trials],
             "worker_id": [t.user_attrs["worker_id"] for t in sorted_trials],
         }
 
