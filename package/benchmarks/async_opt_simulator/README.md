@@ -27,24 +27,24 @@ This example generates the following:
 
 ## APIs
 
-### `AsyncOptBenchmarkSimulator(n_workers: int, allow_parallel_sampling: bool = False)`
+- `AsyncOptBenchmarkSimulator(n_workers: int, allow_parallel_sampling: bool = False)`
 
-- `n_workers`: The number of simulated workers. In other words, how many parallel workers to simulate.
-- `allow_parallel_sampling`: Whether sampling can happen in parallel. If `True`, an imprecise simulation is used and results may not accurately reflect the behavior of expensive samplers.
+  - `n_workers`: The number of simulated workers. In other words, how many parallel workers to simulate.
+  - `allow_parallel_sampling`: Whether sampling can happen in parallel. If `True`, an imprecise simulation is used and results may not accurately reflect the behavior of expensive samplers.
 
-### `AsyncOptBenchmarkSimulator.optimize(study: optuna.Study, problem: BaseProblem, runtime_func: RuntimeFunc, *, n_trials: int | None = None, timeout: float | None = None) -> None`
+- `AsyncOptBenchmarkSimulator.optimize(study: optuna.Study, problem: BaseProblem, runtime_func: RuntimeFunc, *, n_trials: int | None = None, timeout: float | None = None) -> None`
 
-- `study`: An Optuna study object.
-- `problem`: A benchmark problem that implements the `BaseProblem` interface from `optunahub.benchmarks`.
-- `runtime_func`: A callable that takes an `optuna.Trial` and returns the simulated runtime (float) for that trial.
-- `n_trials`: How many trials to collect.
-- `timeout`: The maximum total evaluation time for the optimization (in simulated time, not actual runtime).
+  - `study`: An Optuna study object.
+  - `problem`: A benchmark problem that implements the `BaseProblem` interface from `optunahub.benchmarks`.
+  - `runtime_func`: A callable that takes an `optuna.Trial` and returns the simulated runtime (float) for that trial.
+  - `n_trials`: How many trials to collect.
+  - `timeout`: The maximum total evaluation time for the optimization (in simulated time, not actual runtime).
 
-### `AsyncOptBenchmarkSimulator.get_results_from_study(study: optuna.Study, states: TrialState | None = None) -> dict[str, list]` (static method)
+- `AsyncOptBenchmarkSimulator.get_results_from_study(study: optuna.Study, states: TrialState | None = None) -> dict[str, list]` (static method)
 
-- `study`: An Optuna study object.
-- `states`: Trial states to include. Defaults to `(TrialState.COMPLETE, TrialState.PRUNED)`. Cannot contain states other than `COMPLETE` and `PRUNED`.
-- Returns a dictionary with keys `"cumtime"`, `"values"`, and `"worker_id"`.
+  - `study`: An Optuna study object.
+  - `states`: Trial states to include. Defaults to `(TrialState.COMPLETE, TrialState.PRUNED)`. Cannot contain states other than `COMPLETE` and `PRUNED`.
+  - Returns a dictionary with keys `"cumtime"`, `"values"`, and `"worker_id"`.
 
 ## Example
 
