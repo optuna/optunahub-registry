@@ -27,18 +27,17 @@ This module requires the following dependencies:
 
 ## APIs
 
-# `plot_target_over_time(study_list, *, ax=None, states=None, target=None, target_direction=None, cumtime_func=None, log_time_scale=True, n_steps=100, color=None, **plot_kwargs)`
-
-- `study_list`: A list of `optuna.Study` objects. Each study is treated as one run, and results are averaged across them.
-- `ax`: A `matplotlib.axes.Axes` object. If not provided, a new figure and axes will be created.
-- `states`: A list of `optuna.trial.TrialState` to include. Defaults to `[TrialState.COMPLETE, TrialState.PRUNED]`.
-- `target`: A callable that takes a `FrozenTrial` and returns a float value. If not provided, `trial.value` is used.
-- `target_direction`: The direction to optimize the target. Required when `target` is specified. Must be `"minimize"`, `"maximize"`, or the corresponding `StudyDirection` enum.
-- `cumtime_func`: A callable that takes a `FrozenTrial` and returns the cumulative time as a float. If not provided, the elapsed time from the first trial start is used.
-- `log_time_scale`: Whether to use a logarithmic time scale for interpolation. Defaults to `True`.
-- `n_steps`: The number of time steps for interpolation. Defaults to `100`.
-- `color`: The color for the plot line and shaded region.
-- `**plot_kwargs`: Additional keyword arguments passed to `ax.plot` (e.g., `label`, `linestyle`).
+- `plot_target_over_time(study_list, *, ax=None, states=None, target=None, target_direction=None, cumtime_func=None, log_time_scale=True, n_steps=100, color=None, **plot_kwargs)`
+    - `study_list`: A list of `optuna.Study` objects. Each study is treated as one run, and results are averaged across them.
+    - `ax`: A `matplotlib.axes.Axes` object. If not provided, a new figure and axes will be created.
+    - `states`: A list of `optuna.trial.TrialState` to include. Defaults to `[TrialState.COMPLETE, TrialState.PRUNED]`.
+    - `target`: A callable that takes a `FrozenTrial` and returns a float value. If not provided, `trial.value` is used.
+    - `target_direction`: The direction to optimize the target. Required when `target` is specified. Must be `"minimize"`, `"maximize"`, or the corresponding `StudyDirection` enum.
+    - `cumtime_func`: A callable that takes a `FrozenTrial` and returns the cumulative time as a float. If not provided, the elapsed time from the first trial start is used.
+    - `log_time_scale`: Whether to use a logarithmic time scale for interpolation. Defaults to `True`.
+    - `n_steps`: The number of time steps for interpolation. Defaults to `100`.
+    - `color`: The color for the plot line and shaded region.
+    - `**plot_kwargs`: Additional keyword arguments passed to `ax.plot` (e.g., `label`, `linestyle`).
 
 ## Example
 
