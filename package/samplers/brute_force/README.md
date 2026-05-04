@@ -19,7 +19,7 @@ from optuna.samplers import BruteForceSampler
 
 
 def objective(trial):
-    x = trial.suggest_float("x", -5, 5)
+    x = trial.suggest_float("x", -5, 5, step=1)
     return x**2
 
 
