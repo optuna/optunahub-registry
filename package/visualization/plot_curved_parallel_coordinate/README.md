@@ -3,7 +3,7 @@ author: Rishabh Dewangan
 title: Curved Parallel Coordinates
 description: A parallel coordinate plot with smooth, monotonic curves to reduce visual clutter.
 tags: [visualization, plotly, parallel-coordinates, explainable-ai]
-optuna_versions: [3.6.1]
+optuna_versions: [4.7.0]
 license: MIT License
 ---
 
