@@ -7,7 +7,6 @@ optuna_versions: [4.9.0]
 license: MIT License
 ---
 
-
 ## Installation
 
 ```shell
@@ -167,15 +166,15 @@ study.optimize(
 trackioc.finish()
 ```
 
-
 ## Notes
 
 - Trackio synchronization to Hugging Face Spaces is eventually consistent and may take time to become remotely visible.
 
 - For large studies or multirun experiments, it is strongly recommended to:
+
   1. complete the Optuna study locally first,
-  2. verify local experiment tracking,
-  3. then synchronize results to Hugging Face.
+  1. verify local experiment tracking,
+  1. then synchronize results to Hugging Face.
 
 - In most cases, the recommended configuration is:
 
