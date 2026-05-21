@@ -67,14 +67,10 @@ class TrackioCallback:
         _imports.check()
 
         if not isinstance(metric_name, (str, Sequence)):
-            raise TypeError(
-                f"metric_name must be str or sequence[str], got {type(metric_name)}"
-            )
+            raise TypeError(f"metric_name must be str or sequence[str], got {type(metric_name)}")
 
         if sync_frequency not in {"study", "trial"}:
-            raise ValueError(
-                "sync_frequency must be either 'study' or 'trial'"
-            )
+            raise ValueError("sync_frequency must be either 'study' or 'trial'")
 
         self._project: str = project
         self._metric_name: str | Sequence[str] = metric_name
@@ -162,10 +158,7 @@ class TrackioCallback:
         if self._sync_on_finish:
             self._safe_sync()
 
-        if (
-            not self._as_multirun
-            and self._study_run_initialized
-        ):
+        if not self._as_multirun and self._study_run_initialized:
             cast(Any, trackio).finish()
 
     def _safe_sync(self) -> None:
@@ -195,9 +188,7 @@ class TrackioCallback:
         if self._study_instance_id is None:
             self._study_instance_id = uuid.uuid4().hex[:8]
 
-        self._resolved_run_name = (
-            f"{resolved_study_name}-{self._study_instance_id}"
-        )
+        self._resolved_run_name = f"{resolved_study_name}-{self._study_instance_id}"
 
     def _wrap_objective(self, func: ObjectiveFuncType) -> ObjectiveFuncType:
         @functools.wraps(func)
@@ -252,11 +243,7 @@ class TrackioCallback:
                 result = func(trial)
 
                 if self._as_multirun:
-                    values = (
-                        [result]
-                        if not isinstance(result, Sequence)
-                        else result
-                    )
+                    values = [result] if not isinstance(result, Sequence) else result
 
                     metrics = self._build_result_metrics(values)
 
@@ -308,10 +295,7 @@ class TrackioCallback:
             if len(values) == 1:
                 names = [self._metric_name]
             else:
-                names = [
-                    f"{self._metric_name}_{i}"
-                    for i in range(len(values))
-                ]
+                names = [f"{self._metric_name}_{i}" for i in range(len(values))]
         else:
             if len(self._metric_name) != len(values):
                 raise ValueError(
