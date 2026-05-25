@@ -6,12 +6,13 @@ from typing import NamedTuple
 import numpy as np
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
-from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
-from optuna.samplers._tpe.probability_distributions import _BatchedCategoricalDistributions
-from optuna.samplers._tpe.probability_distributions import _BatchedDiscreteTruncNormDistributions
-from optuna.samplers._tpe.probability_distributions import _BatchedDistributions
-from optuna.samplers._tpe.probability_distributions import _BatchedTruncNormDistributions
-from optuna.samplers._tpe.probability_distributions import _MixtureOfProductDistribution
+
+from ._tpe_v4_5_0.parzen_estimator import _ParzenEstimator
+from ._tpe_v4_5_0.probability_distributions import _BatchedCategoricalDistributions
+from ._tpe_v4_5_0.probability_distributions import _BatchedDiscreteTruncNormDistributions
+from ._tpe_v4_5_0.probability_distributions import _BatchedDistributions
+from ._tpe_v4_5_0.probability_distributions import _BatchedTruncNormDistributions
+from ._tpe_v4_5_0.probability_distributions import _MixtureOfProductDistribution
 
 
 class _CustomizableParzenEstimatorParameters(NamedTuple):

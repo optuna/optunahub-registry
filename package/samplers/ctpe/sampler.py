@@ -7,13 +7,13 @@ from typing import Any
 import numpy as np
 from optuna.distributions import BaseDistribution
 from optuna.logging import get_logger
-from optuna.samplers import TPESampler
-from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
 from optuna.study import Study
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
+from ._tpe_v4_5_0.parzen_estimator import _ParzenEstimator
+from ._tpe_v4_5_0.sampler import TPESampler
 from .components import GammaFunc
 from .components import WeightFunc
 from .parzen_estimator import _CustomizableParzenEstimator
