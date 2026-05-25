@@ -128,7 +128,10 @@ class _CustomizableParzenEstimator(_ParzenEstimator):
             weights=weights,
             distributions=[
                 self._calculate_distributions(
-                    transformed_observations[:, i], param, search_space[param], parameters  # type: ignore[arg-type]
+                    transformed_observations[:, i],
+                    param,
+                    search_space[param],
+                    parameters,  # type: ignore[arg-type]
                 )
                 for i, param in enumerate(search_space)
             ],
