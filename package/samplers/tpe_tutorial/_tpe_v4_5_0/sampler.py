@@ -11,9 +11,6 @@ from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
-from optuna import _deprecated
-from optuna._convert_positional_args import convert_positional_args
-from optuna._experimental import warn_experimental_argument
 from optuna._hypervolume import compute_hypervolume
 from optuna._hypervolume.hssp import _solve_hssp
 from optuna.distributions import BaseDistribution
@@ -131,13 +128,6 @@ class TPESampler(BaseSampler):
             :obj:`True`. The prior is only effective if the sampling distribution is
             either :class:`~optuna.distributions.FloatDistribution`,
             or :class:`~optuna.distributions.IntDistribution`.
-
-            .. warning::
-                Deprecated in v4.3.0. ``consider_prior`` argument will be removed in the future.
-                The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                From v4.3.0 onward, ``consider_prior`` automatically falls back to ``True``.
-                See https://github.com/optuna/optuna/releases/tag/v4.3.0.
         prior_weight:
             The weight of the prior. This argument is used in
             :class:`~optuna.distributions.FloatDistribution`,
@@ -181,11 +171,6 @@ class TPESampler(BaseSampler):
             <http://proceedings.mlr.press/v80/falkner18a.html>`__ and `our article
             <https://medium.com/optuna/multivariate-tpe-makes-optuna-even-more-powerful-63c4bfbaebe2>`__
             for more details.
-
-            .. note::
-                Added in v2.2.0 as an experimental feature. The interface may change in newer
-                versions without prior notice. See
-                https://github.com/optuna/optuna/releases/tag/v2.2.0.
         group:
             If this and ``multivariate`` are :obj:`True`, the multivariate TPE with the group
             decomposed search space is used when suggesting parameters.
@@ -197,11 +182,6 @@ class TPESampler(BaseSampler):
             of the trial becomes subspace itself or an empty set.
             Sampling from the joint distribution on the subspace is realized by multivariate TPE.
             If ``group`` is :obj:`True`, ``multivariate`` must be :obj:`True` as well.
-
-            .. note::
-                Added in v2.8.0 as an experimental feature. The interface may change in newer
-                versions without prior notice. See
-                https://github.com/optuna/optuna/releases/tag/v2.8.0.
 
             Example:
 
@@ -245,10 +225,6 @@ class TPESampler(BaseSampler):
                 and the durations of the running states are significant, and/or the number of
                 workers is high.
 
-            .. note::
-                Added in v2.8.0 as an experimental feature. The interface may change in newer
-                versions without prior notice. See
-                https://github.com/optuna/optuna/releases/tag/v2.8.0.
         constraints_func:
             An optional function that computes the objective constraints. It must take a
             :class:`~optuna.trial.FrozenTrial` and return the constraints. The return value must
@@ -261,10 +237,6 @@ class TPESampler(BaseSampler):
             The function won't be called when trials fail or they are pruned, but this behavior is
             subject to change in the future releases.
 
-            .. note::
-                Added in v3.0.0 as an experimental feature. The interface may change in newer
-                versions without prior notice.
-                See https://github.com/optuna/optuna/releases/tag/v3.0.0.
         categorical_distance_func:
             A dictionary of distance functions for categorical parameters. The key is the name of
             the categorical parameter and the value is a distance function that takes two
@@ -274,67 +246,22 @@ class TPESampler(BaseSampler):
             While categorical choices are handled equally by default, this option allows users to
             specify prior knowledge on the structure of categorical parameters. When specified,
             categorical choices closer to current best choices are more likely to be sampled.
-
-            .. note::
-                Added in v3.4.0 as an experimental feature. The interface may change in newer
-                versions without prior notice.
-                See https://github.com/optuna/optuna/releases/tag/v3.4.0.
     """
 
-    @convert_positional_args(
-        previous_positional_arg_names=[
-            "self",
-            "consider_prior",
-            "prior_weight",
-            "consider_magic_clip",
-            "consider_endpoints",
-            "n_startup_trials",
-            "n_ei_candidates",
-            "gamma",
-            "weights",
-            "seed",
-        ],
-        deprecated_version="4.4.0",
-        removed_version="6.0.0",
-    )
     def __init__(
         self,
         *,
-        consider_prior: bool = True,
-        prior_weight: float = 1.0,
-        consider_magic_clip: bool = True,
-        consider_endpoints: bool = False,
         n_startup_trials: int = 10,
         n_ei_candidates: int = 24,
         gamma: Callable[[int], int] = default_gamma,
-        weights: Callable[[int], np.ndarray] = default_weights,
         seed: int | None = None,
         multivariate: bool = False,
         group: bool = False,
         warn_independent_sampling: bool = True,
         constant_liar: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
-        categorical_distance_func: (
-            dict[str, Callable[[CategoricalChoiceType, CategoricalChoiceType], float]] | None
-        ) = None,
     ) -> None:
-        if not consider_prior:
-            msg = _deprecated._DEPRECATION_WARNING_TEMPLATE.format(
-                name="`consider_prior`", d_ver="4.3.0", r_ver="6.0.0"
-            )
-            warnings.warn(
-                f"{msg} From v4.3.0 onward, `consider_prior` automatically falls back to `True`.",
-                FutureWarning,
-            )
-
-        self._parzen_estimator_parameters = _ParzenEstimatorParameters(
-            prior_weight=prior_weight,
-            consider_magic_clip=consider_magic_clip,
-            consider_endpoints=consider_endpoints,
-            weights=weights,
-            multivariate=multivariate,
-            categorical_distance_func=categorical_distance_func or {},
-        )
+        self._parzen_estimator_parameters = _ParzenEstimatorParameters()
         self._n_startup_trials = n_startup_trials
         self._n_ei_candidates = n_ei_candidates
         self._gamma = gamma
@@ -353,25 +280,12 @@ class TPESampler(BaseSampler):
         # NOTE(nabenabe0928): Users can overwrite _ParzenEstimator to customize the TPE behavior.
         self._parzen_estimator_cls = _ParzenEstimator
 
-        if multivariate:
-            warn_experimental_argument("multivariate")
-
         if group:
             if not multivariate:
                 raise ValueError(
                     "``group`` option can only be enabled when ``multivariate`` is enabled."
                 )
-            warn_experimental_argument("group")
             self._group_decomposed_search_space = _GroupDecomposedSearchSpace(True)
-
-        if constant_liar:
-            warn_experimental_argument("constant_liar")
-
-        if constraints_func is not None:
-            warn_experimental_argument("constraints_func")
-
-        if categorical_distance_func is not None:
-            warn_experimental_argument("categorical_distance_func")
 
     def reseed_rng(self) -> None:
         self._rng.rng.seed()

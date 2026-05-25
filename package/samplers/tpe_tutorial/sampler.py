@@ -38,15 +38,10 @@ class CustomizableTPESampler(TPESampler):
         gamma = GammaFunc(strategy=gamma_strategy, beta=gamma_beta)
         weights = WeightFunc(strategy=weight_strategy)
         super().__init__(
-            consider_prior=consider_prior,
-            prior_weight=prior_weight,
-            consider_magic_clip=consider_magic_clip,
-            consider_endpoints=True,
             warn_independent_sampling=False,
             n_startup_trials=n_startup_trials,
             n_ei_candidates=n_ei_candidates,
             gamma=gamma,
-            weights=weights,
             seed=seed,
             multivariate=multivariate,
             group=group,
