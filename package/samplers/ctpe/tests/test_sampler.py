@@ -178,7 +178,7 @@ def test_raise_error_for_samplers_during_multi_objectives(
         study.sampler.sample_independent(study, _create_new_trial(study), "x", distribution)
 
     with pytest.raises(ValueError):
-        study.sampler.sample_relative(study, study.ask(), {"x": FloatDistribution(-5, 5)})
+        study.sampler.sample_relative(study, _create_new_trial(study), {"x": FloatDistribution(-5, 5)})
 
 
 @pytest.mark.parametrize("seed", [0, 169208])

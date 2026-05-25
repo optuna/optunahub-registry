@@ -46,8 +46,8 @@ class CustomizableTPESampler(TPESampler):
             multivariate=multivariate,
             group=group,
         )
-        self._parzen_estimator_cls = _CustomizableParzenEstimator
-        self._parzen_estimator_parameters = _CustomizableParzenEstimatorParameters(
+        self._parzen_estimator_cls = _CustomizableParzenEstimator  # type: ignore[assignment]
+        self._parzen_estimator_parameters = _CustomizableParzenEstimatorParameters(  # type: ignore[assignment]
             consider_prior=consider_prior,
             prior_weight=prior_weight,
             consider_magic_clip=consider_magic_clip,
@@ -81,7 +81,7 @@ class CustomizableTPESampler(TPESampler):
         below_trial_numbers = set([t.number for t in trials])
         sign = 1 if study.direction == StudyDirection.MINIMIZE else -1
         threshold = min(
-            sign * t.value
+            sign * t.value  # type: ignore[operator]
             for t in study._get_trials(
                 deepcopy=False, states=(TrialState.COMPLETE, TrialState.PRUNED), use_cache=True
             )
@@ -91,9 +91,9 @@ class CustomizableTPESampler(TPESampler):
             parzen_estimator_parameters = self._parzen_estimator_parameters
             weights_below = np.ones(len(trials))
         else:
-            loss_vals = np.asarray([sign * t.value for t in trials])
+            loss_vals = np.asarray([sign * t.value for t in trials])  # type: ignore[operator]
             weights_below = np.maximum(1e-12, threshold - loss_vals)
-            parzen_estimator_parameters = self._parzen_estimator_parameters._replace(
+            parzen_estimator_parameters = self._parzen_estimator_parameters._replace(  # type: ignore[call-arg]
                 prior_weight=np.mean(weights_below)
             )
 

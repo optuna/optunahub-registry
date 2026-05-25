@@ -128,13 +128,13 @@ class _CustomizableParzenEstimator(_ParzenEstimator):
             weights=weights,
             distributions=[
                 self._calculate_distributions(
-                    transformed_observations[:, i], param, search_space[param], parameters
+                    transformed_observations[:, i], param, search_space[param], parameters  # type: ignore[arg-type]
                 )
                 for i, param in enumerate(search_space)
             ],
         )
 
-    def _calculate_numerical_distributions(
+    def _calculate_numerical_distributions(  # type: ignore[override]
         self,
         observations: np.ndarray,
         low: float,
@@ -179,7 +179,7 @@ class _CustomizableParzenEstimator(_ParzenEstimator):
         else:
             return _BatchedDiscreteTruncNormDistributions(mus, sigmas, low, high, step)
 
-    def _calculate_categorical_distributions(
+    def _calculate_categorical_distributions(  # type: ignore[override]
         self,
         observations: np.ndarray,
         param_name: str,

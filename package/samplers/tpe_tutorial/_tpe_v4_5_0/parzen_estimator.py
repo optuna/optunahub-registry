@@ -10,6 +10,7 @@ from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 
 from .probability_distributions import _BatchedDistributions
+from .probability_distributions import _MixtureOfProductDistribution
 
 
 EPS = 1e-12
@@ -19,6 +20,9 @@ class _ParzenEstimatorParameters(NamedTuple): ...
 
 
 class _ParzenEstimator:
+    _search_space: dict[str, BaseDistribution]
+    _mixture_distribution: _MixtureOfProductDistribution
+
     def __init__(
         self,
         observations: dict[str, np.ndarray],
