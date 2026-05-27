@@ -1,6 +1,6 @@
 name: "\U0001F4ACGeneral discussion"
 description: Create a general discussion on packages of OptunaHub.
-title: "[category/package_name]: "
+title: "[category/package_name] "
 labels: ["general-discussions"]
 body:
   - type: markdown
