@@ -1,0 +1,16 @@
+name: "\U0001F4ACGeneral discussion"
+description: Create a general discussion on packages of OptunaHub.
+title: "[category/package_name]: "
+labels: ["general-discussions"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to start a general discussion! Please write a clear and concise description of your topic.
+  - type: textarea
+    id: topic
+    attributes:
+      label: Topic
+      description: Please write a clear and concise description of your topic.
+    validations:
+      required: true
