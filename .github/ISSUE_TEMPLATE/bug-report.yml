@@ -1,6 +1,6 @@
 name: "\U0001F41BBug report"
 description: Create a report to help community improve packages of OptunaHub.
-title: "[category/package_name]: "
+title: "[category/package_name] "
 labels: ["bug"]
 body:
   - type: markdown
