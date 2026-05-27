@@ -86,7 +86,7 @@ OrthoBO's advantage is most pronounced on higher-dimensional problems where acqu
 
 ```bibtex
 @misc{schröder2026orthoboorthogonalbayesianhyperparameter,
-      title={ORTHOBO: Orthogonal Bayesian Hyperparameter Optimization}, 
+      title={{ORTHOBO}: Orthogonal Bayesian Hyperparameter Optimization}, 
       author={Maresa Schröder and Pascal Janetzky and Michael Klar and Stefan Feuerriegel},
       year={2026},
       eprint={2605.06454},
