@@ -75,13 +75,13 @@ Marginal BO (MC marginalisation without orthogonal correction, orange).
 ### Hartmann-6 (6 dimensions)
 
 <p align="center">
-  <img src="images/Hartmann6.png" alt="Hartmann6" style="max-width: 100%; width: 700px;">
+  <img src="images/Hartmann6.png" alt="Hartmann6" style="max-width: 100%; width: 600px;">
 </p>
 
 ### Levy-16 (16 dimensions)
 
 <p align="center">
-  <img src="images/Hartmann6.png" alt="Hartmann6" style="max-width: 100%; width: 700px;">
+  <img src="images/Levy16.png" alt="Levy16" style="max-width: 100%; width: 600px;">
 </p>
 
 OrthoBO's advantage is most pronounced on higher-dimensional problems where acquisition estimation noise has a larger effect on candidate rankings. On lower-dimensional problems (Hartmann-6) where the GP fits well with few observations, the methods converge to similar performance.
