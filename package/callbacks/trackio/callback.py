@@ -47,6 +47,7 @@ class TrackioCallback:
         To ensure deterministic trial ordering in logged metrics, this
         callback should only be used with ``study.optimize(n_jobs=1)``.
         Parallel optimization may result in out-of-order steps.
+
     """
 
     def __init__(
@@ -67,7 +68,7 @@ class TrackioCallback:
         _imports.check()
 
         if not isinstance(metric_name, (str, Sequence)):
-            raise TypeError(f"metric_name must be str or sequence[str], got {type(metric_name)}")
+            raise TypeError(f"metric_name must be str or Sequence[str], got {type(metric_name)}")
 
         if sync_frequency not in {"study", "trial"}:
             raise ValueError("sync_frequency must be either 'study' or 'trial'")
@@ -88,26 +89,21 @@ class TrackioCallback:
         self._objective_wrapped: bool = False
         self._resolved_run_name: str | None = None
         self._study_instance_id: str | None = None
-        self._active_trial_number: int | None = None
         self._study_run_initialized: bool = False
 
     def __call__(
         self,
-        _study: optuna.study.Study,
+        study: optuna.study.Study,
         trial: optuna.trial.FrozenTrial,
     ) -> None:
         if trial.values is None:
             return
 
-        # Multirun logging is handled entirely
-        # inside the wrapped objective lifecycle.
+        # Multirun logging is handled entirely inside the wrapped objective lifecycle.
         if self._as_multirun:
-            if not self._objective_wrapped:
-                print(
-                    "TrackioCallback(as_multirun=True) requires the objective "
-                    "to be wrapped with @trackioc.track_in_trackio(). "
-                )
             return
+
+        self._ensure_study_run_initialized(study)
 
         metrics = self._build_metrics(trial)
 
@@ -153,10 +149,16 @@ class TrackioCallback:
         return decorator
 
     def finish(self) -> None:
-        """Finalize Trackio synchronization and cleanup."""
+        """Finalize Trackio synchronization and cleanup.
 
+        Must be called after ``study.optimize()`` completes to close the
+        single-run session and trigger any end-of-study synchronization.
+        For multirun mode, individual trial runs are closed automatically
+        after each trial; this method handles the optional study-level sync.
+        """
         if self._sync_on_finish:
-            self._safe_sync()
+            if not self._as_multirun or self._sync_frequency == "study":
+                self._safe_sync()
 
         if not self._as_multirun and self._study_run_initialized:
             cast(Any, trackio).finish()
@@ -167,7 +169,6 @@ class TrackioCallback:
                 project=self._project,
                 run_in_background=self._sync_run_in_background,
             )
-
         except TimeoutError as exc:
             print(
                 "Trackio sync timed out while waiting for "
@@ -190,20 +191,43 @@ class TrackioCallback:
 
         self._resolved_run_name = f"{resolved_study_name}-{self._study_instance_id}"
 
+    def _ensure_study_run_initialized(
+        self,
+        study: optuna.study.Study,
+    ) -> None:
+        if self._as_multirun:
+            return
+
+        if self._study_run_initialized:
+            return
+
+        self._initialize_study_identity(study.study_name)
+
+        trackio.init(
+            project=self._project,
+            name=cast(str, self._resolved_run_name),
+            space_id=self._space_id,
+            dataset_id=self._dataset_id,
+            private=self._private,
+            resume=self._resume,
+            **self._trackio_kwargs,
+        )
+
+        self._study_run_initialized = True
+
+        trackio.log({"study_name": study.study_name})
+
     def _wrap_objective(self, func: ObjectiveFuncType) -> ObjectiveFuncType:
         @functools.wraps(func)
         def wrapped(trial: optuna.trial.Trial) -> Any:
             study = trial.study
 
-            self._initialize_study_identity(
-                study.study_name,
-            )
+            self._initialize_study_identity(study.study_name)
 
             base_name = cast(str, self._resolved_run_name)
 
             if self._as_multirun:
                 run_name = f"{base_name}/trial-{trial.number}"
-                self._active_trial_number = trial.number
 
                 trackio.init(
                     project=self._project,
@@ -216,26 +240,7 @@ class TrackioCallback:
                 )
 
             else:
-                run_name = base_name
-
-                if not self._study_run_initialized:
-                    trackio.init(
-                        project=self._project,
-                        name=run_name,
-                        space_id=self._space_id,
-                        dataset_id=self._dataset_id,
-                        private=self._private,
-                        resume=self._resume,
-                        **self._trackio_kwargs,
-                    )
-
-                    self._study_run_initialized = True
-
-                    trackio.log(
-                        {
-                            "study_name": study.study_name,
-                        }
-                    )
+                self._ensure_study_run_initialized(study)
 
             trial_completed = False
 
@@ -243,8 +248,7 @@ class TrackioCallback:
                 result = func(trial)
 
                 if self._as_multirun:
-                    values = [result] if not isinstance(result, Sequence) else result
-
+                    values = result if isinstance(result, (list, tuple)) else [result]
                     metrics = self._build_result_metrics(values)
 
                     trackio.log(
@@ -257,7 +261,6 @@ class TrackioCallback:
                     )
 
                 trial_completed = True
-
                 return result
 
             except optuna.exceptions.TrialPruned:
@@ -265,18 +268,12 @@ class TrackioCallback:
                 raise
 
             except Exception as exc:
-                trackio.log(
-                    {
-                        "trial_state": "failed",
-                        "error": str(exc),
-                    }
-                )
+                trackio.log({"trial_state": "failed", "error": str(exc)})
                 raise
 
             finally:
                 if self._as_multirun:
                     cast(Any, trackio).finish()
-                    self._active_trial_number = None
 
                     if (
                         trial_completed
@@ -302,7 +299,6 @@ class TrackioCallback:
                     "Metric names must match number of objectives "
                     f"({len(self._metric_name)} vs {len(values)})"
                 )
-
             names = list(self._metric_name)
 
         return dict(zip(names, values))
@@ -313,5 +309,4 @@ class TrackioCallback:
     ) -> dict[str, float]:
         values = trial.values
         assert values is not None
-
         return self._build_result_metrics(values)

@@ -79,7 +79,6 @@ The callback also supports multi-run mode, where each Optuna trial is tracked as
 
   - Explicitly finalizes synchronization and cleanup after `study.optimize()` completes.
 
-
 ## Example
 
 ### Add Trackio callback to Optuna optimization
