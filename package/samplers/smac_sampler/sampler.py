@@ -42,7 +42,7 @@ _SMAC_SEED_KEY = "smac:seed"
 
 class SMACSampler(optunahub.samplers.SimpleBaseSampler):
     """
-    A sampler that uses SMAC3 v2.2.0.
+    A sampler that uses SMAC3 v2.4.0.
 
     Please check the API reference for more details:
         https://automl.github.io/SMAC3/main/5_api.html
