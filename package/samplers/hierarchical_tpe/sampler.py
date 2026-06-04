@@ -14,8 +14,7 @@ therefore be modeled jointly. The conditional structure — which parameters are
 given the values sampled so far — is either learned from observed trials with a
 ``DecisionTreeClassifier`` or provided exactly by the user through ``conditional_fn``.
 
-See ``README.md`` and ``docs/adr/0001-*`` for the relationship to the union-search-space approach
-in optuna#6697.
+See ``README.md`` for the relationship to the union-search-space approach in optuna#6697.
 """
 
 from __future__ import annotations
