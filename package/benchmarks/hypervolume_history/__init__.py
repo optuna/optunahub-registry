@@ -28,6 +28,7 @@ def get_hypervolume_history(
     else:
         max_values = np.max(values_array, axis=0)
         ref_point = np.maximum(0.9 * max_values, 1.1 * max_values)
+        ref_point[ref_point == 0] = 1e-12
 
     hh = np.zeros(len(completed_trials), dtype=float)
     pareto_sols: np.ndarray | None = None
