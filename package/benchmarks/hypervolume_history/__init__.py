@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 import optuna
-from ._hv import compute_hypervolume
-from optuna.study import StudyDirection
 from optuna.samplers._base import _CONSTRAINTS_KEY
+from optuna.study import StudyDirection
+
+from ._hv import compute_hypervolume
 
 
 def get_hypervolume_history(
@@ -34,7 +35,7 @@ def get_hypervolume_history(
         hh[i] = hh[i - 1].item() if i > 0 else 0.0
         if not feas:
             continue
-        
+
         new_values = values[np.newaxis]
         if pareto_sols is not None:
             if (pareto_sols <= new_values).all(axis=1).any(axis=0):
