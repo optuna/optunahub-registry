@@ -47,7 +47,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         if k < 1 or k >= dimension:
             err_msg = f"Choose a larger dimension. The closest is `dimension={k + 1}`."
             raise ValueError(f"{k_msg} must be 1 <= k < {dimension=}. {err_msg}")
-        if k % (n_objectives - 1) == 0:
+        if k % (n_objectives - 1) != 0:
             raise ValueError(f"{k_msg} must be a multiple of `{n_objectives-1=}`. Use `k=None`.")
 
         self._problem = optproblems.wfg.WFG(n_objectives, dimension, k, **kwargs)[function_id - 1]
