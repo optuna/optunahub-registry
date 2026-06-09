@@ -12,10 +12,6 @@ except ModuleNotFoundError:
     raise ModuleNotFoundError("Please run `pip install optproblems diversipy` to use `wfg`.")
 
 
-def _input_validator() -> None:
-    pass
-
-
 class Problem(optunahub.benchmarks.BaseProblem):
     """Wrapper class for the WFG test suite of optproblems."""
 
