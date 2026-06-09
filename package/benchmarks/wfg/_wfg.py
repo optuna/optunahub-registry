@@ -39,6 +39,16 @@ class Problem(optunahub.benchmarks.BaseProblem):
         if k is None:
             k = 2 * (n_objectives - 1) if n_objectives > 2 else 4
 
+        k_msg = (
+            f"{k=} (defaults to `2 * (n_objectives - 1)` for 3+ objectives; `4` for 2 objectives)"
+        )
+        if n_objectives <= 1:
+            raise ValueError(f"{n_objectives=} must be larger than or equal to 2.")
+        if k < 1 or k >= dimension:
+            raise ValueError(f"{k_msg} must be 1 <= k < {dimension=}. Choose a larger dimension.")
+        if k % (n_objectives - 1) == 0:
+            raise ValueError(f"{k_msg} must be a multiple of `{n_objectives-1=}`.")
+
         self._problem = optproblems.wfg.WFG(n_objectives, dimension, k, **kwargs)[function_id - 1]
 
         self._search_space = {
