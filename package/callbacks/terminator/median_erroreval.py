@@ -4,7 +4,6 @@ import sys
 from typing import TYPE_CHECKING
 
 import numpy as np
-from optuna._experimental import experimental_class
 from optuna.trial._state import TrialState
 
 from .erroreval import BaseErrorEvaluator
@@ -17,7 +16,6 @@ if TYPE_CHECKING:
     from .improvement.evaluator import BaseImprovementEvaluator
 
 
-@experimental_class("4.0.0")
 class MedianErrorEvaluator(BaseErrorEvaluator):
     """An error evaluator that returns the ratio to initial median.
 

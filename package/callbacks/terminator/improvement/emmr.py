@@ -6,7 +6,6 @@ from typing import cast
 from typing import TYPE_CHECKING
 
 import numpy as np
-from optuna._experimental import experimental_class
 from optuna._warnings import optuna_warn
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.search_space import intersection_search_space
@@ -36,7 +35,6 @@ else:
 MARGIN_FOR_NUMARICAL_STABILITY = 0.1
 
 
-@experimental_class("4.0.0")
 class EMMREvaluator(BaseImprovementEvaluator):
     """Evaluates a kind of regrets, called the Expected Minimum Model Regret(EMMR).
 

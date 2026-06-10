@@ -4,7 +4,6 @@ import abc
 from typing import TYPE_CHECKING
 
 import numpy as np
-from optuna._experimental import experimental_class
 from optuna.distributions import BaseDistribution
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.search_space import intersection_search_space
@@ -83,7 +82,6 @@ def _compute_standardized_regret_bound(
     return standardized_ucb_value - standardized_lcb_value  # standardized regret bound
 
 
-@experimental_class("3.2.0")
 class BaseImprovementEvaluator(metaclass=abc.ABCMeta):
     """Base class for improvement evaluators."""
 
@@ -92,7 +90,6 @@ class BaseImprovementEvaluator(metaclass=abc.ABCMeta):
         pass
 
 
-@experimental_class("3.2.0")
 class RegretBoundEvaluator(BaseImprovementEvaluator):
     """An error evaluator for upper bound on the regret with high-probability confidence.
 
@@ -191,7 +188,6 @@ class RegretBoundEvaluator(BaseImprovementEvaluator):
             )
 
 
-@experimental_class("3.4.0")
 class BestValueStagnationEvaluator(BaseImprovementEvaluator):
     """Evaluates the stagnation period of the best value in an optimization process.
 

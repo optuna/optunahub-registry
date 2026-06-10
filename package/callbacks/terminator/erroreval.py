@@ -5,9 +5,6 @@ from typing import cast
 from typing import TYPE_CHECKING
 
 import numpy as np
-from optuna._deprecated import _DEPRECATION_WARNING_TEMPLATE
-from optuna._experimental import experimental_class
-from optuna._warnings import optuna_warn
 from optuna.study import StudyDirection
 from optuna.trial._state import TrialState
 
@@ -18,11 +15,6 @@ if TYPE_CHECKING:
 
 
 _CROSS_VALIDATION_SCORES_KEY = "terminator:cv_scores"
-_DEPRECATION_WARNING_MESSAGE = _DEPRECATION_WARNING_TEMPLATE.format(
-    name="`optuna.terminator` module",
-    d_ver="4.9.0",
-    r_ver="6.0.0",
-)
 
 
 class BaseErrorEvaluator(metaclass=abc.ABCMeta):
@@ -37,7 +29,6 @@ class BaseErrorEvaluator(metaclass=abc.ABCMeta):
         pass
 
 
-@experimental_class("3.2.0")
 class CrossValidationErrorEvaluator(BaseErrorEvaluator):
     """An error evaluator for objective functions based on cross-validation.
 
@@ -109,14 +100,12 @@ def report_cross_validation_scores(trial: Trial, scores: list[float]) -> None:
             The cross-validation scores of the trial.
 
     """
-    optuna_warn(_DEPRECATION_WARNING_MESSAGE, FutureWarning)
 
     if len(scores) <= 1:
         raise ValueError("The length of `scores` is expected to be greater than one.")
     trial.storage.set_trial_system_attr(trial._trial_id, _CROSS_VALIDATION_SCORES_KEY, scores)
 
 
-@experimental_class("3.2.0")
 class StaticErrorEvaluator(BaseErrorEvaluator):
     """An error evaluator that always returns a constant value.
 
