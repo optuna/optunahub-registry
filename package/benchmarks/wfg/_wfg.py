@@ -12,6 +12,10 @@ except ModuleNotFoundError:
     raise ModuleNotFoundError("Please run `pip install optproblems diversipy` to use `wfg`.")
 
 
+def _input_validator() -> None:
+    pass
+
+
 class Problem(optunahub.benchmarks.BaseProblem):
     """Wrapper class for the WFG test suite of optproblems."""
 
@@ -38,6 +42,22 @@ class Problem(optunahub.benchmarks.BaseProblem):
 
         if k is None:
             k = 2 * (n_objectives - 1) if n_objectives > 2 else 4
+
+        k_msg = (
+            f"{k=} (defaults to `2 * (n_objectives - 1)` for 3+ objectives; `4` for 2 objectives)"
+        )
+        if n_objectives <= 1:
+            raise ValueError(f"`{n_objectives=}` must be larger than or equal to 2.")
+        if k < 1 or k >= dimension:
+            err_msg = f"Choose a larger dimension. The closest is `dimension={k + 1}`."
+            raise ValueError(f"{k_msg} must be 1 <= k < {dimension=}. {err_msg}")
+        if k % (n_objectives - 1) != 0:
+            raise ValueError(f"{k_msg} must be a multiple of `{n_objectives-1=}`. Use `k=None`.")
+        if (dimension - k) % 2 != 0:
+            raise ValueError(
+                f"{k_msg} and {dimension=} must be the same parity. By default, dimension must be "
+                "an even number."
+            )
 
         self._problem = optproblems.wfg.WFG(n_objectives, dimension, k, **kwargs)[function_id - 1]
 
