@@ -72,9 +72,13 @@ class EMMREvaluator(BaseImprovementEvaluator):
         .. testcode::
 
             import optuna
-            from optuna.terminator import EMMREvaluator
-            from optuna.terminator import MedianErrorEvaluator
-            from optuna.terminator import Terminator
+            import optunahub
+
+
+            module = optunahub.load_module("callbacks/terminator")
+            EMMREvaluator = module.EMMREvaluator
+            MedianErrorEvaluator = module.MedianErrorEvaluator
+            Terminator = module.Terminator
 
             sampler = optuna.samplers.TPESampler(seed=0)
             study = optuna.create_study(sampler=sampler, direction="minimize")

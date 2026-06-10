@@ -61,8 +61,12 @@ class Terminator(BaseTerminator):
             from sklearn.model_selection import KFold
 
             import optuna
-            from optuna.terminator import Terminator
-            from optuna.terminator import report_cross_validation_scores
+            import optunahub
+
+
+            module = optunahub.load_module("callbacks/terminator")
+            Terminator = module.Terminator
+            report_cross_validation_scores = module.report_cross_validation_scores
 
 
             study = optuna.create_study(direction="maximize")
@@ -103,7 +107,6 @@ class Terminator(BaseTerminator):
         error_evaluator: BaseErrorEvaluator | None = None,
         min_n_trials: int = DEFAULT_MIN_N_TRIALS,
     ) -> None:
-
         if min_n_trials <= 0:
             raise ValueError("`min_n_trials` is expected to be a positive integer.")
 

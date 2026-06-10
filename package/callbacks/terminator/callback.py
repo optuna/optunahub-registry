@@ -40,8 +40,12 @@ class TerminatorCallback:
             from sklearn.model_selection import KFold
 
             import optuna
-            from optuna.terminator import TerminatorCallback
-            from optuna.terminator import report_cross_validation_scores
+            import optunahub
+
+
+            module = optunahub.load_module("callbacks/terminator")
+            TerminatorCallback = module.TerminatorCallback
+            report_cross_validation_scores = module.report_cross_validation_scores
 
 
             def objective(trial):
