@@ -1,0 +1,263 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import NamedTuple
+
+import numpy as np
+from optuna.distributions import BaseDistribution
+from optuna.distributions import CategoricalChoiceType
+from optuna.distributions import CategoricalDistribution
+from optuna.distributions import FloatDistribution
+from optuna.distributions import IntDistribution
+
+from .probability_distributions import _BatchedCategoricalDistributions
+from .probability_distributions import _BatchedDiscreteTruncLogNormDistributions
+from .probability_distributions import _BatchedDiscreteTruncNormDistributions
+from .probability_distributions import _BatchedDistributions
+from .probability_distributions import _BatchedTruncLogNormDistributions
+from .probability_distributions import _BatchedTruncNormDistributions
+from .probability_distributions import _BatchedUnionCategoricalDistributions
+from .probability_distributions import _MixtureOfProductDistribution
+
+
+EPS = 1e-12
+
+
+class _ParzenEstimatorParameters(NamedTuple):
+    prior_weight: float
+    consider_magic_clip: bool
+    consider_endpoints: bool
+    weights: Callable[[int], np.ndarray]
+    multivariate: bool
+    categorical_distance_func: dict[
+        str, Callable[[CategoricalChoiceType, CategoricalChoiceType], float]
+    ]
+
+
+class _ParzenEstimator:
+    def __init__(
+        self,
+        observations: dict[str, np.ndarray],
+        search_space: dict[str, BaseDistribution],
+        parameters: _ParzenEstimatorParameters,
+        predetermined_weights: np.ndarray | None = None,
+    ) -> None:
+        if parameters.prior_weight < 0:
+            raise ValueError(
+                "A non-negative value must be specified for prior_weight,"
+                f" but got {parameters.prior_weight}."
+            )
+
+        self._search_space = search_space
+        transformed_observations = self._transform(observations)
+
+        assert predetermined_weights is None or len(transformed_observations) == len(
+            predetermined_weights
+        )
+        weights = (
+            predetermined_weights
+            if predetermined_weights is not None
+            else self._call_weights_func(parameters.weights, len(transformed_observations))
+        )
+
+        if len(transformed_observations) == 0:
+            weights = np.array([1.0])
+        else:
+            weights = np.append(weights, [parameters.prior_weight])
+        weights /= weights.sum()
+        self._mixture_distribution = _MixtureOfProductDistribution(
+            weights=weights,
+            distributions=[
+                self._calculate_distributions(
+                    transformed_observations[:, i], param, search_space[param], parameters
+                )
+                for i, param in enumerate(search_space)
+            ],
+        )
+
+    def sample(self, rng: np.random.RandomState, size: int) -> dict[str, np.ndarray]:
+        sampled = self._mixture_distribution.sample(rng, size)
+        return self._untransform(sampled)
+
+    def log_pdf(self, samples_dict: dict[str, np.ndarray]) -> np.ndarray:
+        transformed_samples = self._transform(samples_dict)
+        return self._mixture_distribution.log_pdf(transformed_samples)
+
+    @staticmethod
+    def _call_weights_func(weights_func: Callable[[int], np.ndarray], n: int) -> np.ndarray:
+        w = np.array(weights_func(n))[:n]
+        if np.any(w < 0):
+            raise ValueError(
+                f"The `weights` function is not allowed to return negative values {w}."
+            )
+        if len(w) > 0 and np.sum(w) <= 0:
+            raise ValueError(
+                f"The `weight` function is not allowed to return all-zero values {w}."
+            )
+        if not np.all(np.isfinite(w)):
+            raise ValueError(
+                f"The `weights` function is not allowed to return infinite or NaN values {w}."
+            )
+        return w
+
+    def _transform(self, samples_dict: dict[str, np.ndarray]) -> np.ndarray:
+        return np.array([samples_dict[param] for param in self._search_space]).T
+
+    def _untransform(self, samples_array: np.ndarray) -> dict[str, np.ndarray]:
+        return {param: samples_array[:, i] for i, param in enumerate(self._search_space)}
+
+    def _calculate_distributions(
+        self,
+        observations: np.ndarray,
+        param_name: str,
+        search_space: BaseDistribution,
+        parameters: _ParzenEstimatorParameters,
+    ) -> _BatchedDistributions:
+        if isinstance(search_space, CategoricalDistribution):
+            return self._calculate_categorical_distributions(
+                observations, param_name, search_space, parameters
+            )
+        else:
+            assert isinstance(search_space, (FloatDistribution, IntDistribution))
+            return self._calculate_numerical_distributions(observations, search_space, parameters)
+
+    def _calculate_categorical_distributions(
+        self,
+        observations: np.ndarray,
+        param_name: str,
+        search_space: CategoricalDistribution,
+        parameters: _ParzenEstimatorParameters,
+    ) -> _BatchedDistributions:
+        choices = search_space.choices
+        n_choices = len(choices)
+        has_nan = np.any(np.isnan(observations))
+
+        if len(observations) == 0:
+            return _BatchedCategoricalDistributions(
+                weights=np.full((1, n_choices), fill_value=1.0 / n_choices)
+            )
+
+        actual_choices = n_choices + 1 if has_nan else n_choices
+        n_kernels = len(observations) + 1
+        weights = np.full(
+            shape=(n_kernels, actual_choices),
+            fill_value=parameters.prior_weight / n_kernels,
+        )
+
+        observations_ = observations.copy()
+        if has_nan:
+            observations_[np.isnan(observations)] = n_choices
+
+        observed_indices = observations_.astype(int)
+        if param_name in parameters.categorical_distance_func:
+            used_indices, rev_indices = np.unique(observed_indices, return_inverse=True)
+            dist_func = parameters.categorical_distance_func[param_name]
+            dists = []
+            for i in used_indices:
+                if i < n_choices:
+                    dists.append([dist_func(choices[i], c) for c in choices])
+                else:
+                    dists.append([0.0] * n_choices)
+            dists_arr = np.array(dists)
+            coef = np.log(n_kernels / parameters.prior_weight) * np.log(n_choices) / np.log(6)
+
+            max_dists = np.max(dists_arr, axis=1)[:, np.newaxis]
+            max_dists = np.where(max_dists == 0, 1, max_dists)
+            cat_weights = np.exp(-((dists_arr / max_dists) ** 2) * coef)
+
+            if has_nan:
+                cat_weights = np.hstack([cat_weights, np.zeros((cat_weights.shape[0], 1))])
+                if n_choices in used_indices:
+                    nan_idx = np.where(used_indices == n_choices)[0][0]
+                    cat_weights[nan_idx, :] = 0.0
+                    cat_weights[nan_idx, n_choices] = 1.0
+
+            weights[: len(observed_indices)] = cat_weights[rev_indices]
+        else:
+            weights[np.arange(len(observed_indices)), observed_indices] += 1
+
+        row_sums = weights.sum(axis=1, keepdims=True)
+        weights /= np.where(row_sums == 0, 1, row_sums)
+
+        if has_nan:
+            return _BatchedUnionCategoricalDistributions(weights)
+        return _BatchedCategoricalDistributions(weights)
+
+    def _calculate_numerical_distributions(
+        self,
+        observations: np.ndarray,
+        search_space: FloatDistribution | IntDistribution,
+        parameters: _ParzenEstimatorParameters,
+    ) -> _BatchedDistributions:
+        low = search_space.low
+        high = search_space.high
+        if search_space.step is not None:
+            low -= search_space.step / 2
+            high += search_space.step / 2
+        if search_space.log:
+            observations = np.log(observations)
+            low = np.log(low)
+            high = np.log(high)
+
+        mus = observations
+
+        def compute_sigmas() -> np.ndarray:
+            if parameters.multivariate:
+                SIGMA0_MAGNITUDE = 0.2
+                sigma = (
+                    SIGMA0_MAGNITUDE
+                    * max(len(observations), 1) ** (-1.0 / (len(self._search_space) + 4))
+                    * (high - low)
+                )
+                sigmas = np.full(shape=(len(observations),), fill_value=sigma)
+            else:
+                sorted_indices = np.argsort(mus)
+                sorted_mus = mus[sorted_indices]
+                sorted_mus_with_endpoints = np.empty(len(mus) + 2, dtype=float)
+                sorted_mus_with_endpoints[0] = low
+                sorted_mus_with_endpoints[1:-1] = sorted_mus
+                sorted_mus_with_endpoints[-1] = high
+
+                sorted_sigmas = np.maximum(
+                    sorted_mus_with_endpoints[1:-1] - sorted_mus_with_endpoints[0:-2],
+                    sorted_mus_with_endpoints[2:] - sorted_mus_with_endpoints[1:-1],
+                )
+
+                if not parameters.consider_endpoints and sorted_mus_with_endpoints.shape[0] >= 4:
+                    sorted_sigmas[0] = sorted_mus_with_endpoints[2] - sorted_mus_with_endpoints[1]
+                    sorted_sigmas[-1] = (
+                        sorted_mus_with_endpoints[-2] - sorted_mus_with_endpoints[-3]
+                    )
+
+                sigmas = sorted_sigmas[np.argsort(sorted_indices)]
+
+            maxsigma = high - low
+            if parameters.consider_magic_clip:
+                n_kernels = len(observations) + 1
+                minsigma = (high - low) / min(100.0, (1.0 + n_kernels))
+            else:
+                minsigma = EPS
+            return np.asarray(np.clip(sigmas, minsigma, maxsigma))
+
+        sigmas = compute_sigmas()
+        mus = np.append(mus, [0.5 * (low + high)])
+        sigmas = np.append(sigmas, [high - low])
+
+        if search_space.step is None:
+            if not search_space.log:
+                return _BatchedTruncNormDistributions(
+                    mus, sigmas, search_space.low, search_space.high
+                )
+            else:
+                return _BatchedTruncLogNormDistributions(
+                    mus, sigmas, search_space.low, search_space.high
+                )
+        else:
+            if not search_space.log:
+                return _BatchedDiscreteTruncNormDistributions(
+                    mus, sigmas, search_space.low, search_space.high, search_space.step
+                )
+            else:
+                return _BatchedDiscreteTruncLogNormDistributions(
+                    mus, sigmas, search_space.low, search_space.high, search_space.step
+                )
