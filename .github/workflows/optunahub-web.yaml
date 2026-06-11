@@ -4,6 +4,10 @@ on:
     branches:
       - main
   pull_request: {}
+
+permissions:
+  contents: read
+
 jobs:
   test-optunahub-web-build:
     runs-on: ubuntu-latest

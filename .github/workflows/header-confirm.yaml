@@ -6,6 +6,9 @@ on:
       - main
   pull_request: {}
 
+permissions:
+  contents: read
+
 jobs:
   header-confirm:
     runs-on: ubuntu-latest
