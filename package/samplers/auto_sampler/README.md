@@ -14,9 +14,11 @@ This package automatically selects an appropriate sampler for the provided searc
 - 📰 [AutoSampler: Automatic Selection of Optimization Algorithms in Optuna](https://medium.com/optuna/autosampler-automatic-selection-of-optimization-algorithms-in-optuna-1443875fd8f9)
 - 📰 [AutoSampler: Full Support for Multi-Objective & Constrained Optimization](https://medium.com/optuna/autosampler-full-support-for-multi-objective-constrained-optimization-c1c4fc957ba2)
 
-Cite the OptunaHub paper shown in the `Citation` section when you use `AutoSampler` in your project.
-
 ![Concept of AutoSampler](images/auto_sampler.png)
+
+### How to Cite Us
+
+Cite the OptunaHub paper shown in the `Citation` section when you use `AutoSampler` in your project.
 
 ## APIs
 
