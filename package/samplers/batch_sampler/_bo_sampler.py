@@ -110,9 +110,7 @@ class BatchSampler(BaseSampler):
         result: dict[str, BaseDistribution] = {}
         for dim in self._search_space:
             if dim.type == "float":
-                result[dim.name] = FloatDistribution(
-                    dim.low, dim.high, log=dim.log, step=dim.step
-                )
+                result[dim.name] = FloatDistribution(dim.low, dim.high, log=dim.log, step=dim.step)
             elif dim.type == "int":
                 result[dim.name] = IntDistribution(
                     int(dim.low),

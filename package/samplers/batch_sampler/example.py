@@ -23,8 +23,9 @@ sampler = BatchSampler(
 
 study = optuna.create_study(direction="minimize", sampler=sampler)
 study.optimize(
-    lambda trial: trial.suggest_float("x", -5.0, 5.0) ** 2
-    + trial.suggest_float("y", -5.0, 5.0) ** 2,
+    lambda trial: (
+        trial.suggest_float("x", -5.0, 5.0) ** 2 + trial.suggest_float("y", -5.0, 5.0) ** 2
+    ),
     n_trials=32,
     n_jobs=4,
 )

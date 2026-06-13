@@ -49,13 +49,13 @@ Dataclass describing one dimension of the search space.
 
 ### `BatchSampler(search_space, suggest_fn, ...)`
 
-| Argument           | Type            | Default | Description                                                                   |
-| ------------------ | --------------- | ------- | ----------------------------------------------------------------------------- |
-| `search_space`     | `list[DimSpec]` | —       | **Required.** Dimensions of the optimisation problem.                         |
-| `suggest_fn`       | `Callable`      | —       | **Required.** Batch suggestion function (see signature below).                |
-| `n_startup_trials` | `int`           | `8`     | Random trials before `suggest_fn` is called.                                  |
+| Argument           | Type            | Default | Description                                                                  |
+| ------------------ | --------------- | ------- | ---------------------------------------------------------------------------- |
+| `search_space`     | `list[DimSpec]` | —       | **Required.** Dimensions of the optimisation problem.                        |
+| `suggest_fn`       | `Callable`      | —       | **Required.** Batch suggestion function (see signature below).               |
+| `n_startup_trials` | `int`           | `8`     | Random trials before `suggest_fn` is called.                                 |
 | `q`                | `int`           | `4`     | Batch size — suggestions requested per `suggest_fn` call. Match to `n_jobs`. |
-| `seed`             | `int\|None`     | `None`  | Seed for the fallback random sampler.                                         |
+| `seed`             | `int\|None`     | `None`  | Seed for the fallback random sampler.                                        |
 
 #### `suggest_fn` signature
 
