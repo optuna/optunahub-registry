@@ -9,7 +9,7 @@ license: MIT License
 
 ## Abstract
 
-This package automatically selects an appropriate sampler for the provided search space based on the developers' recommendation. The following articles provide detailed information about AutoSampler.
+This package automatically selects an appropriate sampler for the provided search space based on the developers' recommendation. The following articles provide detailed information about AutoSampler. Please read the `Citation` section when you use `AutoSampler` in your project.
 
 - 📰 [AutoSampler: Automatic Selection of Optimization Algorithms in Optuna](https://medium.com/optuna/autosampler-automatic-selection-of-optimization-algorithms-in-optuna-1443875fd8f9)
 - 📰 [AutoSampler: Full Support for Multi-Objective & Constrained Optimization](https://medium.com/optuna/autosampler-full-support-for-multi-objective-constrained-optimization-c1c4fc957ba2)
@@ -62,4 +62,17 @@ pip install pytest
 
 ```python
 pytest package/samplers/auto_sampler/tests/
+```
+
+## Citation
+
+Please cite [the OptunaHub paper](https://arxiv.org/abs/2510.02798) with the following format when you use `AutoSampler` in your project:
+
+```bibtex
+@article{ozaki2025optunahub,
+  title={{OptunaHub}: A Platform for Black-Box Optimization},
+  author={Ozaki, Yoshihiko and Watanabe, Shuhei and Yanase, Toshihiko},
+  journal={arXiv preprint arXiv:2510.02798},
+  year={2025}
+}
 ```
