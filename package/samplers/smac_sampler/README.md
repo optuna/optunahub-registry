@@ -12,7 +12,7 @@ license: MIT License
 A sampler that uses SMAC3 v2.4.0 verified by unittests that can be run by the following:
 
 ```shell
-$ pip install pytest -r package/samplers/smac_sampler/requirements.txt
+$pip install pytest -r https://hub.optuna.org/samplers/smac_sampler/requirements.txt
 $ python -m pytest package/samplers/smac_sampler/tests/
 ```
 
