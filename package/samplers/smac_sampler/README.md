@@ -3,16 +3,16 @@ author: Difan Deng
 title: SMAC3
 description: SMAC offers a robust and flexible framework for Bayesian Optimization to support users in determining well-performing hyperparameter configurations for their (Machine Learning) algorithms, datasets and applications at hand. The main core consists of Bayesian Optimization in combination with an aggressive racing mechanism to efficiently decide which of two configurations performs better.
 tags: [sampler, Bayesian optimization, Gaussian process, Random Forest]
-optuna_versions: [3.6.1]
+optuna_versions: [4.8.0]
 license: MIT License
 ---
 
 ## APIs
 
-A sampler that uses SMAC3 v2.2.0 verified by unittests that can be run by the following:
+A sampler that uses SMAC3 v2.4.0 verified by unittests that can be run by the following:
 
 ```shell
-$ pip install pytest optunahub smac
+$pip install pytest -r https://hub.optuna.org/samplers/smac_sampler/requirements.txt
 $ python -m pytest package/samplers/smac_sampler/tests/
 ```
 
