@@ -7,13 +7,13 @@ from typing import Any
 import numpy as np
 from optuna.distributions import BaseDistribution
 from optuna.logging import get_logger
-from optuna.samplers import TPESampler
-from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
 from optuna.study import Study
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
+from ._tpe_v4_5_0.parzen_estimator import _ParzenEstimator
+from ._tpe_v4_5_0.sampler import TPESampler
 from .components import GammaFunc
 from .components import WeightFunc
 from .parzen_estimator import _CustomizableParzenEstimator
@@ -65,8 +65,8 @@ class cTPESampler(TPESampler):
             multivariate=multivariate,
             constraints_func=constraints_func,
         )
-        self._parzen_estimator_cls = _CustomizableParzenEstimator
-        self._parzen_estimator_parameters = _CustomizableParzenEstimatorParameters(
+        self._parzen_estimator_cls = _CustomizableParzenEstimator  # type: ignore[assignment]
+        self._parzen_estimator_parameters = _CustomizableParzenEstimatorParameters(  # type: ignore[assignment]
             consider_prior=consider_prior,
             prior_weight=prior_weight,
             consider_magic_clip=consider_magic_clip,
@@ -134,6 +134,7 @@ class cTPESampler(TPESampler):
     ) -> dict[str, Any]:
         self._warning_multi_objective_for_ctpe(study)
         trials = study._get_trials(deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True)
+        assert self._constraints_func is not None
         constraints_vals = np.asarray([self._constraints_func(t) for t in trials])
         (mpes_below, mpes_above, quantiles) = (
             self._build_parzen_estimators_for_constraints_and_get_quantiles(
@@ -172,7 +173,7 @@ class cTPESampler(TPESampler):
 
         return ret
 
-    def _compute_acquisition_func(
+    def _compute_acquisition_func(  # type: ignore[override]
         self,
         samples: dict[str, np.ndarray],
         mpes_below: list[_ParzenEstimator],

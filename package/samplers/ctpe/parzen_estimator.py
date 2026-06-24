@@ -6,12 +6,13 @@ from typing import NamedTuple
 import numpy as np
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
-from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
-from optuna.samplers._tpe.probability_distributions import _BatchedCategoricalDistributions
-from optuna.samplers._tpe.probability_distributions import _BatchedDiscreteTruncNormDistributions
-from optuna.samplers._tpe.probability_distributions import _BatchedDistributions
-from optuna.samplers._tpe.probability_distributions import _BatchedTruncNormDistributions
-from optuna.samplers._tpe.probability_distributions import _MixtureOfProductDistribution
+
+from ._tpe_v4_5_0.parzen_estimator import _ParzenEstimator
+from ._tpe_v4_5_0.probability_distributions import _BatchedCategoricalDistributions
+from ._tpe_v4_5_0.probability_distributions import _BatchedDiscreteTruncNormDistributions
+from ._tpe_v4_5_0.probability_distributions import _BatchedDistributions
+from ._tpe_v4_5_0.probability_distributions import _BatchedTruncNormDistributions
+from ._tpe_v4_5_0.probability_distributions import _MixtureOfProductDistribution
 
 
 class _CustomizableParzenEstimatorParameters(NamedTuple):
@@ -128,13 +129,16 @@ class _CustomizableParzenEstimator(_ParzenEstimator):
             weights=weights,
             distributions=[
                 self._calculate_distributions(
-                    transformed_observations[:, i], param, search_space[param], parameters
+                    transformed_observations[:, i],
+                    param,
+                    search_space[param],
+                    parameters,  # type: ignore[arg-type]
                 )
                 for i, param in enumerate(search_space)
             ],
         )
 
-    def _calculate_numerical_distributions(
+    def _calculate_numerical_distributions(  # type: ignore[override]
         self,
         observations: np.ndarray,
         low: float,
@@ -184,7 +188,7 @@ class _CustomizableParzenEstimator(_ParzenEstimator):
         else:
             return _BatchedDiscreteTruncNormDistributions(mus, sigmas, low, high, step)
 
-    def _calculate_categorical_distributions(
+    def _calculate_categorical_distributions(  # type: ignore[override]
         self,
         observations: np.ndarray,
         param_name: str,
