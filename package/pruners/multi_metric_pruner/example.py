@@ -31,6 +31,7 @@ def objective_multi(trial: optuna.Trial) -> tuple[float, float]:
 
 study_multi = optuna.create_study(
     directions=["minimize", "minimize"],
+    sampler=optuna.samplers.TPESampler(seed=42),
     pruner=MultiMetricPruner(
         optuna.pruners.MedianPruner(n_startup_trials=3),
         metric_directions={"loss": "minimize", "acc": "minimize"},
@@ -67,6 +68,7 @@ def objective_per_metric(trial: optuna.Trial) -> tuple[float, float]:
 
 study_per_metric = optuna.create_study(
     directions=["minimize", "maximize"],
+    sampler=optuna.samplers.TPESampler(seed=42),
     pruner=MultiMetricPruner(
         optuna.pruners.MedianPruner(n_startup_trials=3),
         metric_directions={"loss": "minimize", "acc": "maximize"},
@@ -109,6 +111,7 @@ def objective_mixed_freq(trial: optuna.Trial) -> tuple[float, float]:
 
 study_mixed = optuna.create_study(
     directions=["minimize", "minimize"],
+    sampler=optuna.samplers.TPESampler(seed=42),
     pruner=MultiMetricPruner(
         optuna.pruners.MedianPruner(n_startup_trials=3),
         metric_directions={"train_loss": "minimize", "val_loss": "minimize"},

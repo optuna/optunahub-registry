@@ -23,22 +23,11 @@ if TYPE_CHECKING:
 
 
 _USER_ATTR_KEY = "multi_pruner:values"
-# Example of the attribute data (ivs; intermediate values):
+# Example of the attribute data:
 # {
 #     "0": {"loss": 0.52, "acc": 0.81},  # The reported values at step 0.
 #     "5": {"loss": 0.31},        # mixed-frequency: only one metric at this step
 # }
-
-
-def _nondomination_rank(
-    values_list: list[list[float]], directions: list[StudyDirection]
-) -> np.ndarray:
-    lvals = np.array(values_list, dtype=float)
-    lvals *= np.array(
-        [-1.0 if d == StudyDirection.MAXIMIZE else 1.0 for d in directions],
-        dtype=float,
-    )
-    return _fast_non_domination_rank(lvals)
 
 
 @contextlib.contextmanager
@@ -55,42 +44,39 @@ def _suppress_new_study_log() -> Generator[None, None, None]:
 def _build_synthetic_study_and_trial(
     trial: FrozenTrial,
     trials: list[FrozenTrial],
-    ivs: list[dict[int, float]],
-    current_ivs: dict[int, float],
+    reported_values_list: list[dict[int, float]],
+    current_reported_values: dict[int, float],
     *,
     direction: str | StudyDirection,
 ) -> tuple[Study, FrozenTrial]:
     with _suppress_new_study_log():
         new_study = optuna.create_study(direction=direction)
-    for t, ivs in zip(trials, ivs):
-        if not t.state.is_finished() or not ivs:
+    for t, reported_values_list in zip(trials, reported_values_list):
+        if not t.state.is_finished() or not reported_values_list:
             continue
         new_study.add_trial(
             create_trial(
                 state=TrialState.COMPLETE,
-                value=0.0,  # required by create_trial; base pruners use intermediate_values, not value
+                # required by create_trial; base pruners use intermediate_values, not value.
+                value=0.0,
                 params=t.params,
                 distributions=t.distributions,
-                intermediate_values=ivs,
+                intermediate_values=reported_values_list,
             )
         )
     new_trial = create_trial(
         state=TrialState.RUNNING,
         params=trial.params,
         distributions=trial.distributions,
-        intermediate_values=current_ivs,
+        intermediate_values=current_reported_values,
     )
     return new_study, new_trial
 
 
 def _create_single_metric_study_and_trial_multi(
-    study: Study,
-    trial: FrozenTrial,
-    metric_directions: dict[str, StudyDirection],
+    study: Study, trial: FrozenTrial, metric_directions: dict[str, StudyDirection]
 ) -> tuple[Study, FrozenTrial]:
     metric_names = list(metric_directions.keys())
-    directions_list = list(metric_directions.values())
-
     all_trials = study.get_trials(deepcopy=False)
     trials = [t for t in all_trials if t.number != trial.number]
 
@@ -102,47 +88,48 @@ def _create_single_metric_study_and_trial_multi(
             if all(m in v for m in metric_names)
         }
 
-    current_data = _extract(trial.user_attrs.get(_USER_ATTR_KEY, {}))
-    other_data_list = [_extract(t.user_attrs.get(_USER_ATTR_KEY, {})) for t in trials]
-
+    signs = np.array(
+        [-1.0 if d == StudyDirection.MAXIMIZE else 1.0 for d in metric_directions.values()],
+        dtype=float,
+    )
+    current_reported_values = _extract(trial.user_attrs.get(_USER_ATTR_KEY, {}))
+    reported_values_list = [_extract(t.user_attrs.get(_USER_ATTR_KEY, {})) for t in trials]
     current_ranks: dict[int, float] = {}
-    other_ranks: list[dict[int, float]] = [{} for _ in trials]
-
-    for step in current_data:
-        entries: list[tuple[int, list[float]]] = [(-1, current_data[step])]
-        for i, t_data in enumerate(other_data_list):
-            if step in t_data:
-                entries.append((i, t_data[step]))
-
-        if len(entries) < 2:
+    ranks_list: list[dict[int, float]] = [{} for _ in trials]
+    for step in current_reported_values:
+        trial_indices = [
+            i for i, reported_vs in enumerate(reported_values_list) if step in reported_vs
+        ]
+        vs = [reported_vs[step] for reported_vs in reported_values_list if step in reported_vs]
+        vs.append(current_reported_values[step])
+        values_in_step = np.asarray(vs)
+        if len(values_in_step) < 2:
             current_ranks[step] = 0.0
             continue
 
-        ranks = _nondomination_rank([e[1] for e in entries], directions_list)
-        for j, (idx, _) in enumerate(entries):
-            if idx == -1:
-                current_ranks[step] = float(ranks[j])
-            else:
-                other_ranks[idx][step] = float(ranks[j])
+        ranks = _fast_non_domination_rank(values_in_step * signs)
+        # If rank is zero, this means the trial is on the Pareto front. To prevent it from being
+        # pruned unintentionally, we use -1.0. This ensures that this trial won't be pruned.
+        pareto_bonus = -1.0 if np.min(ranks) == ranks[-1] else 0.0
+        current_ranks[step] = float(ranks[-1]) + pareto_bonus
+        for i, trial_idx in enumerate(trial_indices):
+            ranks_list[trial_idx][step] = float(ranks[i])
 
     return _build_synthetic_study_and_trial(
-        trial, trials, other_ranks, current_ranks, direction="minimize"
+        trial, trials, ranks_list, current_ranks, direction="minimize"
     )
 
 
 def _create_single_metric_study_and_trial_single(
-    study: Study,
-    trial: FrozenTrial,
-    metric_name: str,
-    direction: StudyDirection,
+    study: Study, trial: FrozenTrial, metric_name: str, direction: StudyDirection
 ) -> tuple[Study, FrozenTrial]:
     trials = [t for t in study.get_trials(deepcopy=False) if t.number != trial.number]
-    current_ivs: dict[int, float] = {
+    current_reported_values: dict[int, float] = {
         int(k): v[metric_name]
         for k, v in trial.user_attrs.get(_USER_ATTR_KEY, {}).items()
         if metric_name in v
     }
-    other_ivs = [
+    reported_values_list = [
         {
             int(k): v[metric_name]
             for k, v in t.user_attrs.get(_USER_ATTR_KEY, {}).items()
@@ -151,7 +138,7 @@ def _create_single_metric_study_and_trial_single(
         for t in trials
     ]
     return _build_synthetic_study_and_trial(
-        trial, trials, other_ivs, current_ivs, direction=direction
+        trial, trials, reported_values_list, current_reported_values, direction=direction
     )
 
 
