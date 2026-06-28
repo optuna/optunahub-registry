@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+from copy import deepcopy
 import logging
 from typing import TYPE_CHECKING
 
@@ -26,9 +27,8 @@ _USER_ATTR_KEY_MULTI = "multi_pruner:multi:"
 _USER_ATTR_KEY_PREFIX_SINGLE = "multi_pruner:single:"
 
 
-def _compute_pareto_ranks(
-    values_list: list[list[float]],
-    directions: list[StudyDirection] | None,
+def _nondomination_rank(
+    values_list: list[list[float]], directions: list[StudyDirection] | None
 ) -> np.ndarray:
     lvals = np.array(values_list, dtype=float)
     if directions is not None:
@@ -80,7 +80,7 @@ def _create_single_metric_study_and_trial_multi(
             continue
 
         values_list = [e[1] for e in entries]
-        ranks = _compute_pareto_ranks(values_list, directions)
+        ranks = _nondomination_rank(values_list, directions)
 
         for j, (idx, _) in enumerate(entries):
             if idx == -1:
@@ -168,13 +168,13 @@ class MultiMetricPruner(BasePruner):
 
     Two reporting modes are supported (choose one per trial, do not mix them):
 
-    - **Multi-metric mode**: Report all metrics jointly via :func:`trial_report_multi`. The
-      pruner converts the multi-dimensional intermediate values to Pareto ranks and passes
-      those ranks to the base pruner as single-metric values. Use
+    - **Multi-metric mode**: Call :meth:`MultiMetricPrunerTrial.report` with a sequence of
+      floats. The pruner converts the multi-dimensional intermediate values to Pareto ranks
+      and passes those ranks to the base pruner as single-metric values. Use
       :meth:`prune` with ``metric_name=None``.
 
-    - **Single-metric mode**: Report each metric independently via :func:`trial_report` with
-      a ``metric_name``. The pruner extracts the specified metric's values and passes them
+    - **Single-metric mode**: Call :meth:`MultiMetricPrunerTrial.report` with a float and a
+      ``metric_name``. The pruner extracts the specified metric's values and passes them
       to the base pruner. Use :meth:`prune` with ``metric_name`` set to the target metric.
 
     Args:
@@ -219,34 +219,32 @@ class MultiMetricPruner(BasePruner):
         self,
         base_pruner: BasePruner,
         *,
-        directions: Sequence[str] | None = None,
-        metric_directions: dict[str, str] | None = None,
+        directions: Sequence[str | StudyDirection] | None = None,
+        metric_directions: dict[str, str | StudyDirection] | None = None,
     ) -> None:
+        direction_choices = [
+            "minimize",
+            "maximize",
+            StudyDirection.MINIMIZE,
+            StudyDirection.MAXIMIZE,
+        ]
+        if directions is None and metric_directions is None:
+            raise ValueError("Specify either `directions` or `metric_directions`.")
+        if directions is not None and metric_directions is not None:
+            raise ValueError("Specify only one of `directions` and `metric_directions`.")
+        if directions is not None and any(d not in direction_choices for d in directions):
+            raise ValueError(
+                f"`directions` must be a list of `minimize` or `maximize`, but got {directions=}."
+            )
+        if metric_directions is not None and any(
+            d not in direction_choices for d in metric_directions.values()
+        ):
+            raise ValueError(
+                f"`metric_directions` must be a list of `minimize` or `maximize`, but got {metric_directions=}."
+            )
         self._base_pruner = base_pruner
-
-        self._directions: list[StudyDirection] | None = None
-        if directions is not None:
-            self._directions = []
-            for d in directions:
-                if d not in ("minimize", "maximize"):
-                    raise ValueError(
-                        f"Invalid direction {d!r}. Each direction must be 'minimize' or 'maximize'."
-                    )
-                self._directions.append(
-                    StudyDirection.MAXIMIZE if d == "maximize" else StudyDirection.MINIMIZE
-                )
-
-        self._metric_directions: dict[str, StudyDirection] = {}
-        if metric_directions is not None:
-            for name, d in metric_directions.items():
-                if d not in ("minimize", "maximize"):
-                    raise ValueError(
-                        f"Invalid direction {d!r} for metric {name!r}. "
-                        "Must be 'minimize' or 'maximize'."
-                    )
-                self._metric_directions[name] = (
-                    StudyDirection.MAXIMIZE if d == "maximize" else StudyDirection.MINIMIZE
-                )
+        self._directions: list[StudyDirection] | None = deepcopy(directions)
+        self._metric_directions: dict[str, StudyDirection] = deepcopy(metric_directions)
 
     def prune(self, study: Study, trial: FrozenTrial, *, metric_name: str | None = None) -> bool:
         """Determine whether the trial should be pruned.
