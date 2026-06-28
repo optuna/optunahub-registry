@@ -7,19 +7,15 @@ import optuna
 from optuna.pruners import BasePruner
 from optuna.study import StudyDirection
 from optuna.trial import TrialState
-import optunahub
 import pytest
 
+from multi_metric_pruner import MultiMetricPruner
+from multi_metric_pruner import MultiMetricPrunerTrial
 from multi_metric_pruner._hypervolume._nondomination import _fast_non_domination_rank
 from multi_metric_pruner._hypervolume._ordering import _argsort_by_hv_contribution
 from multi_metric_pruner._hypervolume.hssp import _solve_hssp
 from multi_metric_pruner._pruner import _tie_break
 from multi_metric_pruner._pruner import _USER_ATTR_KEY
-
-
-module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
-MultiMetricPruner = module.MultiMetricPruner
-MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

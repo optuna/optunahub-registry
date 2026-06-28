@@ -52,8 +52,8 @@ def _build_synthetic_study_and_trial(
 ) -> tuple[Study, FrozenTrial]:
     with _suppress_new_study_log():
         new_study = optuna.create_study(direction=direction)
-    for t, reported_values_list in zip(trials, reported_values_list):
-        if not t.state.is_finished() or not reported_values_list:
+    for t, reported_values in zip(trials, reported_values_list):
+        if not t.state.is_finished() or not reported_values:
             continue
         new_study.add_trial(
             create_trial(
@@ -62,7 +62,7 @@ def _build_synthetic_study_and_trial(
                 value=0.0,
                 params=t.params,
                 distributions=t.distributions,
-                intermediate_values=reported_values_list,
+                intermediate_values=reported_values,
             )
         )
     new_trial = create_trial(
@@ -95,7 +95,7 @@ def _tie_break(loss_values: np.ndarray, ranks: np.ndarray) -> tuple[np.ndarray, 
 
 
 def _create_single_metric_study_and_trial_multi(
-    study: Study, trial: FrozenTrial, metric_directions: dict[str, StudyDirection]
+    study: Study, trial: FrozenTrial, metric_directions: dict[str, str | StudyDirection]
 ) -> tuple[Study, FrozenTrial]:
     metric_names = list(metric_directions.keys())
     all_trials = study.get_trials(deepcopy=False)
@@ -149,7 +149,7 @@ def _create_single_metric_study_and_trial_multi(
 
 
 def _create_single_metric_study_and_trial_single(
-    study: Study, trial: FrozenTrial, metric_name: str, direction: StudyDirection
+    study: Study, trial: FrozenTrial, metric_name: str, direction: str | StudyDirection
 ) -> tuple[Study, FrozenTrial]:
     trials = [t for t in study.get_trials(deepcopy=False) if t.number != trial.number]
     current_reported_values: dict[int, float] = {
