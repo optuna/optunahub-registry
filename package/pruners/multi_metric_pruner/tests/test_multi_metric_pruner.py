@@ -22,7 +22,7 @@ MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 _USER_ATTR_KEY = "multi_pruner:values"
 
 _spec = importlib.util.spec_from_file_location(
-    "_nondomination", os.path.join(_MODULE_DIR, "_nondomination.py")
+    "_nondomination", os.path.join(_MODULE_DIR, "_hypervolume", "_nondomination.py")
 )
 _nondom = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_nondom)

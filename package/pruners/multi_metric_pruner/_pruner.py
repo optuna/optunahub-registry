@@ -12,7 +12,7 @@ from optuna.study import StudyDirection
 from optuna.trial import create_trial
 from optuna.trial import TrialState
 
-from ._nondomination import _fast_non_domination_rank
+from ._hypervolume._nondomination import _fast_non_domination_rank
 
 
 if TYPE_CHECKING:
@@ -111,6 +111,7 @@ def _create_single_metric_study_and_trial_multi(
         # If rank is zero, this means the trial is on the Pareto front. To prevent it from being
         # pruned unintentionally, we use -1.0. This ensures that this trial won't be pruned.
         pareto_bonus = -1.0 if np.min(ranks) == ranks[-1] else 0.0
+        # TODO: Tie-break until the current rank. The ranks after do not matter.
         current_ranks[step] = float(ranks[-1]) + pareto_bonus
         for i, trial_idx in enumerate(trial_indices):
             ranks_list[trial_idx][step] = float(ranks[i])
