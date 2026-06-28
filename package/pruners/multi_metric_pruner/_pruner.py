@@ -161,6 +161,7 @@ def _create_single_metric_study_and_trial_multi(
             rewards[-1] -= 1.0
         else:  # Tie-break for non-Pareto solutions.
             winner_indices = _tie_break(loss_values, ranks)
+            # Since pruners are mostly ranking-based, we simply need linear sloping based on rank.
             winner_rewards = -np.linspace(0, 0.5, winner_indices.size)[::-1]
             rewards[winner_indices] += winner_rewards
 
