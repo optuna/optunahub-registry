@@ -4,13 +4,11 @@ from typing import TYPE_CHECKING
 
 from optuna._warnings import optuna_warn
 
-from ._pruner import _USER_ATTR_KEY_MULTI
-from ._pruner import _USER_ATTR_KEY_PREFIX_SINGLE
+from ._pruner import _USER_ATTR_KEY
 from ._pruner import MultiMetricPruner
 
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from typing import Any
 
     from optuna.trial import Trial
@@ -20,8 +18,8 @@ def _cast_value_to_float(value: float) -> float:
     try:
         return float(value)
     except (TypeError, ValueError):
-        message = f"`values` must be float or a list of float but got {type(value)}."
-        raise TypeError(message) from None
+        msg = f"`values` must be a dict of float but got value with type {type(value)}."
+        raise TypeError(msg) from None
 
 
 def _cast_step_to_int(step: int) -> int:
@@ -49,7 +47,7 @@ class MultiMetricPrunerTrial:
             trial = MultiMetricPrunerTrial(trial)
             x = trial.suggest_float("x", -5.0, 5.0)
             for step in range(10):
-                trial.report([metric1, metric2], step)
+                trial.report({"loss": metric1, "acc": metric2}, step)
                 if trial.should_prune():
                     raise optuna.TrialPruned()
             return x**2, (x - 2.0) ** 2
@@ -61,49 +59,53 @@ class MultiMetricPrunerTrial:
     def __getattr__(self, name: str) -> Any:
         return getattr(self._trial, name)
 
-    def report(
-        self,
-        values: float | Sequence[float],
-        step: int,
-        *,
-        metric_name: str | None = None,
-    ) -> None:
-        """Report intermediate metric value(s) at a given step.
+    def report(self, values: dict[str, float], step: int) -> None:
+        """Report intermediate metric values at a given step.
 
         Args:
-            values: A single float (single-metric mode) or a sequence of floats
-                (multi-metric mode).
+            values: A dict mapping metric names to float values. All keys must be present
+                in ``metric_directions``. Pass all metrics for multi-metric (Pareto) mode,
+                or a single-entry dict for per-metric mode.
             step: Step of the trial (e.g., training epoch).
-            metric_name: Required when ``values`` is a single float; the name of the
-                metric to report. Must be :obj:`None` when ``values`` is a sequence.
         """
         step = _cast_step_to_int(step)
-        if isinstance(values, float):
-            if metric_name is None:
-                raise ValueError("When `values` is float, metric_name must be specified.")
-            key = f"{_USER_ATTR_KEY_PREFIX_SINGLE}{metric_name}"
-            values = _cast_value_to_float(values)
-        else:
-            if metric_name is not None:
-                raise ValueError("When `values` is not float, metric_name cannot be specified.")
-            key = _USER_ATTR_KEY_MULTI
-            values = [_cast_value_to_float(v) for v in values]
+        if not isinstance(values, dict):
+            raise TypeError(f"`values` must be a dict but got {type(values)}.")
+        if len(values) == 0:
+            raise ValueError("`values` must have at least one entry.")
 
-        if len(data := self._trial.user_attrs.get(key, {})) == 0:
+        pruner = self._trial.study.pruner
+        if isinstance(pruner, MultiMetricPruner):
+            unknown_keys = set(values.keys()) - set(pruner._metric_directions.keys())
+            if unknown_keys:
+                raise ValueError(f"Got unknown metric names `{unknown_keys}` in `values`.")
+
+        float_values = {k: _cast_value_to_float(v) for k, v in values.items()}
+
+        data = dict(self._trial.user_attrs.get(_USER_ATTR_KEY, {}))
+        # RDBStorages JSON-serialize user attrs, turning int keys into strings; use str upfront so
+        # readers always see consistent key types.
+        str_step = str(step) 
+        step_data = dict(data.get(str_step, {}))
+        already_reported = set(float_values) & set(step_data)
+        if already_reported:
             optuna_warn(
-                f"The reported value is ignored because this `{step=}` is already reported."
+                f"The reported values for {already_reported} are ignored because "
+                f"already reported at step={step}."
             )
-            return
-        data[step] = values
-        self._trial.set_user_attr(key, data)
+            float_values = {k: v for k, v in float_values.items() if k not in already_reported}
+        if float_values:
+            step_data.update(float_values)
+            data[str_step] = step_data
+            self._trial.set_user_attr(_USER_ATTR_KEY, data)
 
     def should_prune(self, *, metric_name: str | None = None) -> bool:
         """Check whether the trial should be pruned.
 
         Args:
-            metric_name: If specified, prune based on this named metric (single-metric
-                mode). If :obj:`None`, prune based on jointly reported values
-                (multi-metric mode).
+            metric_name: If specified, prune based on this named metric (per-metric mode).
+                If :obj:`None`, prune based on Pareto ranking over all jointly reported
+                metrics (multi-metric mode).
 
         Returns:
             :obj:`True` if the trial should be pruned.

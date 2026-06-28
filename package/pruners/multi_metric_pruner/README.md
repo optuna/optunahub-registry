@@ -18,25 +18,23 @@ Optuna's built-in `trial.report()` raises `NotImplementedError` in multi-objecti
 `MultiMetricPruner` works around this by storing intermediate values in trial user attributes
 and constructing a synthetic single-objective study for the wrapped base pruner to evaluate.
 
-Two reporting modes are available (do **not** mix them within the same trial):
+The pruning mode is determined by the number of entries in `metric_directions`:
 
-| Mode | Report call | `prune` / `should_prune` |
+| Mode | `metric_directions` length | `report` call |
 |---|---|---|
-| Multi-metric | `trial.report([v1, v2, ...], step)` | `metric_name=None` (default) |
-| Single-metric | `trial.report(v, step, metric_name="loss")` | `metric_name="loss"` |
+| Multi-metric | > 1 | `trial.report({"loss": v1, "acc": v2}, step)` |
+| Single-metric | 1 | `trial.report({"loss": v}, step)` |
 
 ### Multi-metric mode
 
-All metrics are reported together at each step. The pruner ranks every trial at each step
-using Pareto dominance (following Optuna's MOTPE tie-breaking via hypervolume subset
-selection). The resulting Pareto ranks serve as single-metric intermediate values passed
-to the base pruner.
+All metrics are reported together as a dict at each step. The pruner ranks every trial at
+each step using Pareto dominance. The resulting Pareto ranks serve as single-metric
+intermediate values passed to the base pruner.
 
 ### Single-metric mode
 
-Each metric is reported independently by name. The pruner extracts the values for the
-specified metric and passes them verbatim to the base pruner. Different metrics can be
-pruned at different steps using different calls to `should_prune`.
+A single metric is reported by name. The pruner extracts that metric's values and passes
+them verbatim to the base pruner.
 
 ## Example
 
@@ -55,7 +53,7 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
     for step in range(10):
         metric1 = (x - step * 0.1) ** 2
         metric2 = (x + step * 0.1) ** 2
-        trial.report([metric1, metric2], step)
+        trial.report({"loss": metric1, "acc": metric2}, step)
         if trial.should_prune():
             raise optuna.TrialPruned()
     return x**2, (x - 2.0) ** 2
@@ -65,7 +63,7 @@ study = optuna.create_study(
     directions=["minimize", "minimize"],
     pruner=MultiMetricPruner(
         optuna.pruners.MedianPruner(n_startup_trials=3),
-        directions=["minimize", "minimize"],
+        metric_directions={"loss": "minimize", "acc": "minimize"},
     ),
 )
 study.optimize(objective, n_trials=30)
@@ -80,10 +78,4 @@ See [example.py](https://github.com/optuna/optunahub-registry/blob/main/package/
 | Argument | Type | Default | Description |
 |---|---|---|---|
 | `base_pruner` | `BasePruner` | — | Pruner that makes the actual pruning decision. |
-| `directions` | `list[str] \| None` | `None` | Directions (`"minimize"` / `"maximize"`) for each metric in multi-metric mode. Defaults to all-minimize when `None`. |
-| `metric_directions` | `dict[str, str] \| None` | `None` | Per-metric directions for single-metric mode, e.g. `{"loss": "minimize", "accuracy": "maximize"}`. Unlisted metrics default to `"minimize"`. |
-
-### `prune(study, trial, *, metric_name=None)`
-
-The `prune` method extends `BasePruner.prune` with an optional `metric_name` keyword
-argument. Pass `metric_name` to select a specific metric when using single-metric mode.
+| `metric_directions` | `dict[str, str]` | — | Mapping from metric name to direction (`"minimize"` / `"maximize"`). Pass multiple entries for multi-metric (Pareto-rank) mode, or a single entry for single-metric mode. |
