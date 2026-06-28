@@ -20,10 +20,10 @@ and constructing a synthetic single-objective study for the wrapped base pruner 
 
 Two reporting modes are available (do **not** mix them within the same trial):
 
-| Mode | Report function | `prune` / `should_prune` |
+| Mode | Report call | `prune` / `should_prune` |
 |---|---|---|
-| Multi-metric | `trial_report_multi(trial, [v1, v2, ...], step)` | `metric_name=None` (default) |
-| Single-metric | `trial_report(trial, v, step, metric_name="loss")` | `metric_name="loss"` |
+| Multi-metric | `trial.report([v1, v2, ...], step)` | `metric_name=None` (default) |
+| Single-metric | `trial.report(v, step, metric_name="loss")` | `metric_name="loss"` |
 
 ### Multi-metric mode
 

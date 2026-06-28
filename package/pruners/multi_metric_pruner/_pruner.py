@@ -253,8 +253,9 @@ class MultiMetricPruner(BasePruner):
             study: A study object.
             trial: A frozen trial object of the running trial.
             metric_name: If specified, prune based on this named metric (reported via
-                :func:`trial_report`). If :obj:`None`, prune based on jointly reported
-                values (reported via :func:`trial_report_multi`).
+                :meth:`MultiMetricPrunerTrial.report` with a ``metric_name``). If
+                :obj:`None`, prune based on jointly reported values (reported via
+                :meth:`MultiMetricPrunerTrial.report` with a sequence of floats).
 
         Returns:
             :obj:`True` if the trial should be pruned.
@@ -267,15 +268,15 @@ class MultiMetricPruner(BasePruner):
 
         if has_multi and has_single:
             raise ValueError(
-                "Both trial_report_multi and trial_report were used in the same trial. "
-                "Use only one of them."
+                "Both multi-metric and single-metric values were reported in the same trial. "
+                "Use only one reporting mode."
             )
 
         if metric_name is None:
             if has_single:
                 raise ValueError(
-                    "trial_report was used but metric_name is not specified in prune(). "
-                    "Pass metric_name to prune() or use trial_report_multi instead."
+                    "Single-metric values were reported but metric_name is not specified in "
+                    "prune(). Pass metric_name to prune() or report a sequence of floats instead."
                 )
             if not has_multi:
                 return False
@@ -285,9 +286,9 @@ class MultiMetricPruner(BasePruner):
         else:
             if has_multi:
                 raise ValueError(
-                    f"trial_report_multi was used but metric_name={metric_name!r} was passed "
-                    "to prune(). Use trial_report_multi with metric_name=None, "
-                    "or use trial_report with a metric_name."
+                    f"Multi-metric values were reported but metric_name={metric_name!r} was "
+                    "passed to prune(). Report a sequence of floats and use metric_name=None, "
+                    "or report a float with a metric_name."
                 )
             key = f"{_USER_ATTR_KEY_PREFIX_SINGLE}{metric_name}"
             if key not in trial.user_attrs:
