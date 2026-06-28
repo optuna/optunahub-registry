@@ -34,6 +34,7 @@ study_multi = optuna.create_study(
     pruner=MultiMetricPruner(
         optuna.pruners.MedianPruner(n_startup_trials=3),
         metric_directions={"loss": "minimize", "acc": "minimize"},
+        joint=True,
     ),
 )
 study_multi.optimize(objective_multi, n_trials=30)
@@ -55,13 +56,10 @@ def objective_per_metric(trial: optuna.Trial) -> tuple[float, float]:
     for step in range(10):
         loss = (x - step * 0.1) ** 2
         acc = 1.0 / (1.0 + (x + step * 0.1) ** 2)
-        # Report each metric independently — they are merged at the same step.
-        trial.report({"loss": loss}, step)
-        trial.report({"acc": acc}, step)
+        # Reporting multiple metrics is iterated per-metric automatically when joint=False.
+        trial.report({"loss": loss, "acc": acc}, step)
         # Prune if either metric individually warrants pruning.
-        if trial.should_prune(metric_name="loss"):
-            raise optuna.TrialPruned()
-        if trial.should_prune(metric_name="acc"):
+        if trial.should_prune():
             raise optuna.TrialPruned()
 
     return x**2, 1.0 / (1.0 + (x - 2.0) ** 2)
@@ -72,7 +70,50 @@ study_per_metric = optuna.create_study(
     pruner=MultiMetricPruner(
         optuna.pruners.MedianPruner(n_startup_trials=3),
         metric_directions={"loss": "minimize", "acc": "maximize"},
+        joint=False,
     ),
 )
 study_per_metric.optimize(objective_per_metric, n_trials=30)
 print(f"[Per-metric] Completed trials: {len(study_per_metric.trials)}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Mode 3: Mixed-frequency per-metric mode — metrics have different computational
+# costs and are therefore reported at different step intervals.
+# train_loss is cheap and reported every step; val_loss is expensive and only
+# evaluated every 5 steps.  should_prune() is called right after each report
+# with metric_name= so only that metric's history is checked.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def objective_mixed_freq(trial: optuna.Trial) -> tuple[float, float]:
+    trial = MultiMetricPrunerTrial(trial)
+    x = trial.suggest_float("x", -5.0, 5.0)
+
+    for step in range(10):
+        # Cheap metric — computed at every step.
+        train_loss = (x - step * 0.1) ** 2
+        trial.report({"train_loss": train_loss}, step)
+        if trial.should_prune(metric_name="train_loss"):
+            raise optuna.TrialPruned()
+
+        # Expensive metric — computed only every 5 steps.
+        if step % 5 == 0:
+            val_loss = (x + step * 0.05) ** 2
+            trial.report({"val_loss": val_loss}, step)
+            if trial.should_prune(metric_name="val_loss"):
+                raise optuna.TrialPruned()
+
+    return x**2, (x - 2.0) ** 2
+
+
+study_mixed = optuna.create_study(
+    directions=["minimize", "minimize"],
+    pruner=MultiMetricPruner(
+        optuna.pruners.MedianPruner(n_startup_trials=3),
+        metric_directions={"train_loss": "minimize", "val_loss": "minimize"},
+        joint=False,
+    ),
+)
+study_mixed.optimize(objective_mixed_freq, n_trials=30)
+print(f"[Mixed-frequency] Completed trials: {len(study_mixed.trials)}")

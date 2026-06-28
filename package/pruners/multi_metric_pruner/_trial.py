@@ -79,9 +79,12 @@ class MultiMetricPrunerTrial:
             unknown_keys = set(values.keys()) - set(pruner._metric_directions.keys())
             if unknown_keys:
                 raise ValueError(f"Got unknown metric names `{unknown_keys}` in `values`.")
+            if not pruner._joint and len(values) > 1:
+                for k, v in values.items():
+                    self.report({k: v}, step)
+                return
 
         float_values = {k: _cast_value_to_float(v) for k, v in values.items()}
-
         data = dict(self._trial.user_attrs.get(_USER_ATTR_KEY, {}))
         # RDBStorages JSON-serialize user attrs, turning int keys into strings; use str upfront so
         # readers always see consistent key types.
@@ -102,10 +105,15 @@ class MultiMetricPrunerTrial:
     def should_prune(self, *, metric_name: str | None = None) -> bool:
         """Check whether the trial should be pruned.
 
+        The pruning mode is determined by the ``joint`` argument of :class:`MultiMetricPruner`.
+        When ``joint=True``, all metrics are considered jointly via Pareto ranking and
+        ``metric_name`` is ignored. When ``joint=False``, each metric is evaluated
+        independently; passing ``metric_name`` restricts the check to that single metric,
+        while omitting it checks all metrics and prunes if any triggers the base pruner.
+
         Args:
-            metric_name: If specified, prune based on this named metric (per-metric mode).
-                If :obj:`None`, prune based on Pareto ranking over all jointly reported
-                metrics (multi-metric mode).
+            metric_name: Only used when ``joint=False``. If specified, prune based on this
+                single named metric. Ignored when ``joint=True``.
 
         Returns:
             :obj:`True` if the trial should be pruned.

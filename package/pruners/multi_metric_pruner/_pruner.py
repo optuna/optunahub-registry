@@ -178,17 +178,18 @@ class MultiMetricPruner(BasePruner):
     user attributes and building a synthetic single-objective study for the wrapped
     ``base_pruner`` to evaluate.
 
-    Two reporting / pruning modes are available and can be used with the same pruner instance:
+    Two reporting / pruning modes are selected via the ``joint`` argument:
 
-    - **Multi-metric mode**: Call :meth:`MultiMetricPrunerTrial.report` with a dict
-      containing all metrics at each step, then call :meth:`should_prune` with no argument.
-      The pruner converts the multi-dimensional intermediate values to Pareto ranks and
-      passes those ranks to the base pruner.
+    - **Multi-metric mode** (``joint=True``): Call :meth:`MultiMetricPrunerTrial.report`
+      with a dict containing all metrics at each step, then call :meth:`should_prune` with
+      no argument. The pruner converts the multi-dimensional intermediate values to Pareto
+      ranks and passes those ranks to the base pruner.
 
-    - **Per-metric mode**: Call :meth:`MultiMetricPrunerTrial.report` with a single-entry
-      dict at each step, then call :meth:`should_prune` with ``metric_name`` set to the
-      target metric. The pruner extracts that metric's values and passes them to the base
-      pruner.
+    - **Per-metric mode** (``joint=False``): Call :meth:`MultiMetricPrunerTrial.report`
+      with any number of metrics; each metric is handled independently. Calling
+      :meth:`should_prune` with no argument checks all metrics and prunes if any of them
+      individually triggers the base pruner. You can also call :meth:`should_prune` with
+      ``metric_name`` to check a single metric.
 
     Args:
         base_pruner:
@@ -197,6 +198,10 @@ class MultiMetricPruner(BasePruner):
             A mapping from metric name to direction, e.g.
             ``{"loss": "minimize", "accuracy": "maximize"}``. All metrics reported via
             :meth:`MultiMetricPrunerTrial.report` must be keys in this mapping.
+        joint:
+            If :obj:`True`, all reported metrics are considered jointly using Pareto ranking
+            (multi-metric mode). If :obj:`False`, each metric is evaluated independently by
+            the base pruner (per-metric mode).
 
     Example:
 
@@ -222,6 +227,7 @@ class MultiMetricPruner(BasePruner):
                 pruner=MultiMetricPruner(
                     optuna.pruners.MedianPruner(),
                     metric_directions={"loss": "minimize", "acc": "minimize"},
+                    joint=True,
                 ),
             )
             study.optimize(objective, n_trials=20)
@@ -232,6 +238,7 @@ class MultiMetricPruner(BasePruner):
         base_pruner: BasePruner,
         *,
         metric_directions: dict[str, str | StudyDirection],
+        joint: bool,
     ) -> None:
         direction_choices = [
             "minimize",
@@ -247,6 +254,7 @@ class MultiMetricPruner(BasePruner):
                 f"but got {metric_directions=}."
             )
         self._base_pruner = base_pruner
+        self._joint = joint
         self._metric_directions: dict[str, StudyDirection] = {
             k: _to_study_direction(v) for k, v in metric_directions.items()
         }
@@ -257,9 +265,10 @@ class MultiMetricPruner(BasePruner):
         Args:
             study: A study object.
             trial: A frozen trial object of the running trial.
-            metric_name: If specified, prune based on this named metric (per-metric mode).
-                If :obj:`None`, prune based on Pareto ranking over all jointly reported
-                metrics (multi-metric mode).
+            metric_name: Only used when ``joint=False``. If specified, prune based on this
+                single named metric. If :obj:`None`, iterate over all metrics in
+                ``metric_directions`` and prune if any of them triggers the base pruner.
+                Ignored when ``joint=True``.
 
         Returns:
             :obj:`True` if the trial should be pruned.
@@ -267,19 +276,26 @@ class MultiMetricPruner(BasePruner):
         if _USER_ATTR_KEY not in trial.user_attrs:
             return False
 
-        if metric_name is None:
+        if self._joint:
             new_study, new_trial = _create_single_metric_study_and_trial_multi(
                 study, trial, self._metric_directions
             )
-        else:
-            if metric_name not in self._metric_directions:
-                raise ValueError(
-                    f"{metric_name=} is not in metric_directions. "
-                    f"Valid names: {list(self._metric_directions.keys())}."
-                )
-            direction = self._metric_directions[metric_name]
-            new_study, new_trial = _create_single_metric_study_and_trial_single(
-                study, trial, metric_name, direction
-            )
+            return self._base_pruner.prune(new_study, new_trial)
 
+        if metric_name is None or metric_name not in self._metric_directions:
+            for name, direction in self._metric_directions.items():
+                new_study, new_trial = _create_single_metric_study_and_trial_single(
+                    study, trial, name, direction
+                )
+                if self._base_pruner.prune(new_study, new_trial):
+                    return True
+            return False
+
+        if metric_name not in self._metric_directions:
+            metric_directions = self._metric_directions
+            raise ValueError(f"{metric_name=} is not in {metric_directions=}.")
+        direction = self._metric_directions[metric_name]
+        new_study, new_trial = _create_single_metric_study_and_trial_single(
+            study, trial, metric_name, direction
+        )
         return self._base_pruner.prune(new_study, new_trial)
