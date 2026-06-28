@@ -88,7 +88,7 @@ class MultiMetricPrunerTrial:
         data = dict(self._trial.user_attrs.get(_USER_ATTR_KEY, {}))
         # RDBStorages JSON-serialize user attrs, turning int keys into strings; use str upfront so
         # readers always see consistent key types.
-        str_step = str(step) 
+        str_step = str(step)
         step_data = dict(data.get(str_step, {}))
         already_reported = set(float_values) & set(step_data)
         if already_reported:

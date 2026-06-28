@@ -23,12 +23,11 @@ if TYPE_CHECKING:
 
 
 _USER_ATTR_KEY = "multi_pruner:values"
-
-
-def _to_study_direction(d: str | StudyDirection) -> StudyDirection:
-    if d in ("maximize", StudyDirection.MAXIMIZE):
-        return StudyDirection.MAXIMIZE
-    return StudyDirection.MINIMIZE
+# Example of the attribute data (ivs; intermediate values):
+# {
+#     "0": {"loss": 0.52, "acc": 0.81},  # The reported values at step 0.
+#     "5": {"loss": 0.31},        # mixed-frequency: only one metric at this step
+# }
 
 
 def _nondomination_rank(
@@ -53,6 +52,37 @@ def _suppress_new_study_log() -> Generator[None, None, None]:
         logger.setLevel(original_level)
 
 
+def _build_synthetic_study_and_trial(
+    trial: FrozenTrial,
+    trials: list[FrozenTrial],
+    ivs: list[dict[int, float]],
+    current_ivs: dict[int, float],
+    *,
+    direction: str | StudyDirection,
+) -> tuple[Study, FrozenTrial]:
+    with _suppress_new_study_log():
+        new_study = optuna.create_study(direction=direction)
+    for t, ivs in zip(trials, ivs):
+        if not t.state.is_finished() or not ivs:
+            continue
+        new_study.add_trial(
+            create_trial(
+                state=TrialState.COMPLETE,
+                value=0.0,  # required by create_trial; base pruners use intermediate_values, not value
+                params=t.params,
+                distributions=t.distributions,
+                intermediate_values=ivs,
+            )
+        )
+    new_trial = create_trial(
+        state=TrialState.RUNNING,
+        params=trial.params,
+        distributions=trial.distributions,
+        intermediate_values=current_ivs,
+    )
+    return new_study, new_trial
+
+
 def _create_single_metric_study_and_trial_multi(
     study: Study,
     trial: FrozenTrial,
@@ -62,7 +92,7 @@ def _create_single_metric_study_and_trial_multi(
     directions_list = list(metric_directions.values())
 
     all_trials = study.get_trials(deepcopy=False)
-    other_trials = [t for t in all_trials if t.number != trial.number]
+    trials = [t for t in all_trials if t.number != trial.number]
 
     def _extract(data: dict) -> dict[int, list[float]]:
         # Only include steps where all metrics are present.
@@ -73,10 +103,10 @@ def _create_single_metric_study_and_trial_multi(
         }
 
     current_data = _extract(trial.user_attrs.get(_USER_ATTR_KEY, {}))
-    other_data_list = [_extract(t.user_attrs.get(_USER_ATTR_KEY, {})) for t in other_trials]
+    other_data_list = [_extract(t.user_attrs.get(_USER_ATTR_KEY, {})) for t in trials]
 
     current_ranks: dict[int, float] = {}
-    other_ranks: list[dict[int, float]] = [{} for _ in other_trials]
+    other_ranks: list[dict[int, float]] = [{} for _ in trials]
 
     for step in current_data:
         entries: list[tuple[int, list[float]]] = [(-1, current_data[step])]
@@ -95,32 +125,9 @@ def _create_single_metric_study_and_trial_multi(
             else:
                 other_ranks[idx][step] = float(ranks[j])
 
-    with _suppress_new_study_log():
-        new_study = optuna.create_study(direction="minimize")
-
-    for i, t in enumerate(other_trials):
-        if not t.state.is_finished():
-            continue
-        ivs = other_ranks[i]
-        if not ivs:
-            continue
-        new_study.add_trial(
-            create_trial(
-                state=TrialState.COMPLETE,
-                value=float(ivs[max(ivs.keys())]),
-                params=t.params,
-                distributions=t.distributions,
-                intermediate_values=ivs,
-            )
-        )
-
-    new_trial = create_trial(
-        state=TrialState.RUNNING,
-        params=trial.params,
-        distributions=trial.distributions,
-        intermediate_values=current_ranks,
+    return _build_synthetic_study_and_trial(
+        trial, trials, other_ranks, current_ranks, direction="minimize"
     )
-    return new_study, new_trial
 
 
 def _create_single_metric_study_and_trial_single(
@@ -129,44 +136,23 @@ def _create_single_metric_study_and_trial_single(
     metric_name: str,
     direction: StudyDirection,
 ) -> tuple[Study, FrozenTrial]:
-    all_trials = study.get_trials(deepcopy=False)
-    other_trials = [t for t in all_trials if t.number != trial.number]
-
-    current_data = trial.user_attrs.get(_USER_ATTR_KEY, {})
+    trials = [t for t in study.get_trials(deepcopy=False) if t.number != trial.number]
     current_ivs: dict[int, float] = {
-        int(k): v[metric_name] for k, v in current_data.items() if metric_name in v
+        int(k): v[metric_name]
+        for k, v in trial.user_attrs.get(_USER_ATTR_KEY, {}).items()
+        if metric_name in v
     }
-
-    direction_str = "maximize" if direction == StudyDirection.MAXIMIZE else "minimize"
-    with _suppress_new_study_log():
-        new_study = optuna.create_study(direction=direction_str)
-
-    for t in other_trials:
-        if not t.state.is_finished():
-            continue
-        t_data = t.user_attrs.get(_USER_ATTR_KEY, {})
-        t_ivs: dict[int, float] = {
-            int(k): v[metric_name] for k, v in t_data.items() if metric_name in v
+    other_ivs = [
+        {
+            int(k): v[metric_name]
+            for k, v in t.user_attrs.get(_USER_ATTR_KEY, {}).items()
+            if metric_name in v
         }
-        if not t_ivs:
-            continue
-        new_study.add_trial(
-            create_trial(
-                state=TrialState.COMPLETE,
-                value=0.0,
-                params=t.params,
-                distributions=t.distributions,
-                intermediate_values=t_ivs,
-            )
-        )
-
-    new_trial = create_trial(
-        state=TrialState.RUNNING,
-        params=trial.params,
-        distributions=trial.distributions,
-        intermediate_values=current_ivs,
+        for t in trials
+    ]
+    return _build_synthetic_study_and_trial(
+        trial, trials, other_ivs, current_ivs, direction=direction
     )
-    return new_study, new_trial
 
 
 class MultiMetricPruner(BasePruner):
@@ -255,9 +241,7 @@ class MultiMetricPruner(BasePruner):
             )
         self._base_pruner = base_pruner
         self._joint = joint
-        self._metric_directions: dict[str, StudyDirection] = {
-            k: _to_study_direction(v) for k, v in metric_directions.items()
-        }
+        self._metric_directions = deepcopy(metric_directions)
 
     def prune(self, study: Study, trial: FrozenTrial, *, metric_name: str | None = None) -> bool:
         """Determine whether the trial should be pruned.
