@@ -2,7 +2,7 @@
 author: Shuhei Watanabe
 title: Multi-Metric Pruner
 description: Pruner that supports intermediate value reporting for multi-objective optimization, using Pareto ranking (multi-metric mode) or named per-metric pruning (single-metric mode).
-tags: [pruner, multi-objective, intermediate]
+tags: [pruner, multi-objective, intermediate, pruning]
 optuna_versions: [4.8.0]
 license: MIT License
 ---
@@ -15,10 +15,10 @@ and constructing a synthetic single-objective study for the wrapped base pruner 
 
 The pruning mode is selected via the `joint` argument:
 
-| Mode | `joint` | `report` call |
-|---|---|---|
-| Multi-metric | `True` | `trial.report({"loss": v1, "acc": v2}, step)` |
-| Per-metric | `False` | `trial.report({"loss": v1, "acc": v2}, step)` or `trial.report({"loss": v}, step)` |
+| Mode         | `joint` | `report` call                                                                      |
+| ------------ | ------- | ---------------------------------------------------------------------------------- |
+| Multi-metric | `True`  | `trial.report({"loss": v1, "acc": v2}, step)`                                      |
+| Per-metric   | `False` | `trial.report({"loss": v1, "acc": v2}, step)` or `trial.report({"loss": v}, step)` |
 
 ### Multi-metric mode (`joint=True`)
 
