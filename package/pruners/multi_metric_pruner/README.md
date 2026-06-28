@@ -7,34 +7,41 @@ optuna_versions: [4.8.0]
 license: MIT License
 ---
 
-## Class or Function Names
-
-- `MultiMetricPruner`
-- `MultiMetricPrunerTrial`
-
-## Overview
+## Abstract
 
 Optuna's built-in `trial.report()` raises `NotImplementedError` in multi-objective studies.
 `MultiMetricPruner` works around this by storing intermediate values in trial user attributes
 and constructing a synthetic single-objective study for the wrapped base pruner to evaluate.
 
-The pruning mode is determined by the number of entries in `metric_directions`:
+The pruning mode is selected via the `joint` argument:
 
-| Mode | `metric_directions` length | `report` call |
+| Mode | `joint` | `report` call |
 |---|---|---|
-| Multi-metric | > 1 | `trial.report({"loss": v1, "acc": v2}, step)` |
-| Single-metric | 1 | `trial.report({"loss": v}, step)` |
+| Multi-metric | `True` | `trial.report({"loss": v1, "acc": v2}, step)` |
+| Per-metric | `False` | `trial.report({"loss": v1, "acc": v2}, step)` or `trial.report({"loss": v}, step)` |
 
-### Multi-metric mode
+### Multi-metric mode (`joint=True`)
 
 All metrics are reported together as a dict at each step. The pruner ranks every trial at
 each step using Pareto dominance. The resulting Pareto ranks serve as single-metric
 intermediate values passed to the base pruner.
 
-### Single-metric mode
+### Per-metric mode (`joint=False`)
 
-A single metric is reported by name. The pruner extracts that metric's values and passes
-them verbatim to the base pruner.
+Each metric is evaluated independently by the base pruner. Calling `should_prune()` with no
+argument checks all metrics and prunes if any one of them triggers the base pruner. You can
+also pass `metric_name` to `should_prune()` to restrict the check to a single metric.
+This mode supports mixed-frequency reporting where different metrics are reported at
+different step intervals.
+
+## APIs
+
+- `MultiMetricPruner(base_pruner, *, metric_directions, joint)`
+  - `base_pruner`: Pruner that makes the actual pruning decision.
+  - `metric_directions`: Mapping from metric name to direction (`"minimize"` / `"maximize"`).
+  - `joint`: If `True`, use multi-metric (Pareto-rank) mode. If `False`, use per-metric mode where each metric is evaluated independently.
+- `MultiMetricPrunerTrial(trial)`
+  - `trial`: The trial object received in the objective function.
 
 ## Example
 
@@ -64,18 +71,10 @@ study = optuna.create_study(
     pruner=MultiMetricPruner(
         optuna.pruners.MedianPruner(n_startup_trials=3),
         metric_directions={"loss": "minimize", "acc": "minimize"},
+        joint=True,
     ),
 )
 study.optimize(objective, n_trials=30)
 ```
 
-See [example.py](https://github.com/optuna/optunahub-registry/blob/main/package/pruners/multi_metric_pruner/example.py) for a full example including single-metric mode.
-
-## Arguments
-
-### `MultiMetricPruner`
-
-| Argument | Type | Default | Description |
-|---|---|---|---|
-| `base_pruner` | `BasePruner` | — | Pruner that makes the actual pruning decision. |
-| `metric_directions` | `dict[str, str]` | — | Mapping from metric name to direction (`"minimize"` / `"maximize"`). Pass multiple entries for multi-metric (Pareto-rank) mode, or a single entry for single-metric mode. |
+See [example.py](https://github.com/optuna/optunahub-registry/blob/main/package/pruners/multi_metric_pruner/example.py) for a full example including per-metric and mixed-frequency modes.
