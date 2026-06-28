@@ -40,22 +40,22 @@ For example, we often encounter the following example in LLM trainings:
 
 ```python
 def objective(trial: optuna.Trial) -> tuple[float, float]:
-    trial = MultiMetricPrunerTrial(trial)
-    lr = trial.suggest_float("lr", 1e-6, 1e-4, log=True)
+    mmt = MultiMetricPrunerTrial(trial)
+    lr = mmt.suggest_float("lr", 1e-6, 1e-4, log=True)
     train_data_loader = ...
     val_data_loader = ...
     best_val_loss = ...
     for epoch in range(10):
         for step, batch in data_loader:
             train_loss = ...
-            trial.report({"train_loss": train_loss}, step=step)
-            if trial.should_prune(metric_name="train_loss"):
+            mmt.report({"train_loss": train_loss}, step=step)
+            if mmt.should_prune(metric_name="train_loss"):
                 raise optuna.TrialPruned()
         val_loss = ...
         for i, batch in val_loader:
             ...
-        trial.report({"val_loss": val_loss}, step=epoch)
-        if trial.should_prune(metric_name="val_loss"):
+        mmt.report({"val_loss": val_loss}, step=epoch)
+        if mmt.should_prune(metric_name="val_loss"):
             raise optuna.TrialPruned()
         best_val_loss = min(val_loss, best_val_loss)
     return best_val_loss
@@ -82,13 +82,13 @@ MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
 
 def objective(trial: optuna.Trial) -> tuple[float, float]:
-    trial = MultiMetricPrunerTrial(trial)
-    x = trial.suggest_float("x", -5.0, 5.0)
+    mmt = MultiMetricPrunerTrial(trial)
+    x = mmt.suggest_float("x", -5.0, 5.0)
     for step in range(10):
         metric1 = (x - step * 0.1) ** 2
         metric2 = (x + step * 0.1) ** 2
-        trial.report({"loss": metric1, "acc": metric2}, step)
-        if trial.should_prune():
+        mmt.report({"loss": metric1, "acc": metric2}, step)
+        if mmt.should_prune():
             raise optuna.TrialPruned()
     return x**2, (x - 2.0) ** 2
 

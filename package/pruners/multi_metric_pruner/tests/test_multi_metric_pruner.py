@@ -115,9 +115,11 @@ class TestMultiMetricPrunerInit:
             )
 
     def test_metric_directions_deepcopied(self) -> None:
-        original = {"loss": "minimize"}
+        original: dict[str, str] = {"loss": "minimize"}
         pruner = MultiMetricPruner(
-            optuna.pruners.NopPruner(), metric_directions=original, joint=True
+            optuna.pruners.NopPruner(),
+            metric_directions=original,
+            joint=True,  # type: ignore[arg-type]
         )
         original["loss"] = "maximize"
         assert pruner._metric_directions["loss"] == "minimize"
@@ -146,7 +148,7 @@ class TestMultiMetricPrunerTrialReport:
         study = _make_study()
         wrapped = _ask_wrapped(study)
         with pytest.raises(TypeError, match="must be a dict of float"):
-            wrapped.report({"loss": "not_a_number"}, step=0)
+            wrapped.report({"loss": "not_a_number"}, step=0)  # type: ignore[arg-type,dict-item]
 
     def test_non_dict_raises(self) -> None:
         study = _make_study()
@@ -299,6 +301,24 @@ class TestMultiMetricPrunerTrialShouldPrune:
         # NeverPrunePruner means no pruning even with metric_name specified.
         assert wrapped.should_prune(metric_name="loss") is False
 
+    def test_joint_true_metric_name_ignored_with_real_pruner(self) -> None:
+        """With joint=True and a real base pruner, metric_name must not change the outcome."""
+        pruner = MultiMetricPruner(
+            optuna.pruners.MedianPruner(n_startup_trials=0),
+            metric_directions={"loss": "minimize", "acc": "minimize"},
+            joint=True,
+        )
+        study = optuna.create_study(directions=["minimize", "minimize"], pruner=pruner)
+        for val in [0.1, 0.2, 0.3, 0.4]:
+            _add_complete_trial(study, {0: {"loss": val, "acc": val}}, [val, val])
+        trial = study.ask()
+        wrapped = MultiMetricPrunerTrial(trial)
+        wrapped.report({"loss": 10.0, "acc": 10.0}, step=0)
+        # Dominated trial — all three call forms must agree and return True.
+        assert wrapped.should_prune()
+        assert wrapped.should_prune(metric_name="loss")
+        assert wrapped.should_prune(metric_name="acc")
+
 
 # ── MultiMetricPruner.prune routing ──────────────────────────────────────────
 
@@ -392,6 +412,150 @@ class TestParetoBonus:
         assert wrapped.should_prune()
 
 
+# ── Pareto with maximize direction ───────────────────────────────────────────
+
+
+class TestParetoWithMaximizeDirection:
+    def test_pareto_front_protected_with_maximize_metric(self) -> None:
+        """A trial that excels on the maximize metric is on the Pareto front → not pruned."""
+        pruner = MultiMetricPruner(
+            optuna.pruners.MedianPruner(n_startup_trials=0),
+            metric_directions={"loss": "minimize", "acc": "maximize"},
+            joint=True,
+        )
+        study = optuna.create_study(directions=["minimize", "maximize"], pruner=pruner)
+        # Completed trials: good loss, bad acc.
+        for val in [2.0, 3.0, 4.0, 5.0]:
+            _add_complete_trial(study, {0: {"loss": val, "acc": 0.1}}, [val, 0.1])
+        # Current: bad loss, good acc — neither side dominates the other → Pareto front.
+        trial = study.ask()
+        wrapped = MultiMetricPrunerTrial(trial)
+        wrapped.report({"loss": 10.0, "acc": 0.9}, step=0)
+        assert not wrapped.should_prune()
+
+    def test_dominated_trial_pruned_with_maximize_metric(self) -> None:
+        """A trial worse on both minimize and maximize metrics is prunable."""
+        pruner = MultiMetricPruner(
+            optuna.pruners.MedianPruner(n_startup_trials=0),
+            metric_directions={"loss": "minimize", "acc": "maximize"},
+            joint=True,
+        )
+        study = optuna.create_study(directions=["minimize", "maximize"], pruner=pruner)
+        # Completed trials: good loss AND good acc.
+        for val in [0.1, 0.2, 0.3, 0.4]:
+            _add_complete_trial(study, {0: {"loss": val, "acc": 0.9}}, [val, 0.9])
+        # Current: bad loss AND bad acc → dominated by all completed trials.
+        trial = study.ask()
+        wrapped = MultiMetricPrunerTrial(trial)
+        wrapped.report({"loss": 5.0, "acc": 0.1}, step=0)
+        assert wrapped.should_prune()
+
+
+# ── Pareto rank changes across steps ─────────────────────────────────────────
+
+
+class TestParetoRankAcrossSteps:
+    def test_dominated_at_early_step_but_pareto_front_at_latest_not_pruned(self) -> None:
+        """A trial dominated at step 0 but Pareto-dominant at step 1 must not be pruned."""
+        pruner = MultiMetricPruner(
+            optuna.pruners.MedianPruner(n_startup_trials=0),
+            metric_directions={"loss": "minimize", "acc": "minimize"},
+            joint=True,
+        )
+        study = optuna.create_study(directions=["minimize", "minimize"], pruner=pruner)
+        # Completed: strong at step 0, weak at step 1.
+        for _ in range(4):
+            _add_complete_trial(
+                study,
+                {0: {"loss": 0.1, "acc": 0.1}, 1: {"loss": 5.0, "acc": 5.0}},
+                [0.1, 0.1],
+            )
+        # Current: weak at step 0 (dominated), dominant at step 1.
+        trial = study.ask()
+        wrapped = MultiMetricPrunerTrial(trial)
+        wrapped.report({"loss": 5.0, "acc": 5.0}, step=0)
+        wrapped.report({"loss": 0.01, "acc": 0.01}, step=1)
+        assert not wrapped.should_prune()
+
+    def test_pareto_dominance_at_any_step_protects_from_pruning(self) -> None:
+        """A trial Pareto-dominant at step 0 stays protected even after degrading at step 1.
+
+        MedianPruner uses the trial's best intermediate value across all steps, so a trial
+        that achieves a very negative synthetic rank at step 0 (-1.0) keeps that protection
+        regardless of what happens at the latest step.
+        """
+        pruner = MultiMetricPruner(
+            optuna.pruners.MedianPruner(n_startup_trials=0),
+            metric_directions={"loss": "minimize", "acc": "minimize"},
+            joint=True,
+        )
+        study = optuna.create_study(directions=["minimize", "minimize"], pruner=pruner)
+        # Completed: weak at step 0, strong at step 1.
+        for _ in range(4):
+            _add_complete_trial(
+                study,
+                {0: {"loss": 5.0, "acc": 5.0}, 1: {"loss": 0.1, "acc": 0.1}},
+                [0.1, 0.1],
+            )
+        # Current: dominant at step 0 (synthetic rank -1.0), then dominated at step 1.
+        # The best-over-steps value is -1.0, which is below the median → not pruned.
+        trial = study.ask()
+        wrapped = MultiMetricPrunerTrial(trial)
+        wrapped.report({"loss": 0.01, "acc": 0.01}, step=0)
+        wrapped.report({"loss": 10.0, "acc": 10.0}, step=1)
+        assert not wrapped.should_prune()
+
+
+# ── Tie-break bonus integration ───────────────────────────────────────────────
+
+
+class TestTieBreakBonusIntegration:
+    """Verify that HV-contribution tie-breaking within a shared Pareto rank affects pruning.
+
+    Setup: one completed trial at rank 0 ([1,1]) anchors the non-dominated front.
+    Five identical rank-1 completed trials create a majority at a known synthetic rank range.
+    The current trial is also at rank 1 but differs in HV contribution, so the tie-break
+    bonus is either -0.5 (high contribution → lower synthetic rank → not pruned) or -0.1
+    (low contribution → higher synthetic rank → pruned) relative to the median.
+    """
+
+    def test_high_hv_contribution_not_pruned(self) -> None:
+        # Completed rank-1 trials: 5×[3,3] — lower HV contribution than [2,4].
+        # Their synthetic ranks fill [0.58, …, 0.90]; median ≈ 0.70.
+        # Current [2,4]: bonus -0.5 → synthetic rank 0.50 < median → not pruned.
+        pruner = MultiMetricPruner(
+            optuna.pruners.MedianPruner(n_startup_trials=0),
+            metric_directions={"loss": "minimize", "acc": "minimize"},
+            joint=True,
+        )
+        study = optuna.create_study(directions=["minimize", "minimize"], pruner=pruner)
+        _add_complete_trial(study, {0: {"loss": 1.0, "acc": 1.0}}, [1.0, 1.0])
+        for _ in range(5):
+            _add_complete_trial(study, {0: {"loss": 3.0, "acc": 3.0}}, [3.0, 3.0])
+        trial = study.ask()
+        wrapped = MultiMetricPrunerTrial(trial)
+        wrapped.report({"loss": 2.0, "acc": 4.0}, step=0)
+        assert not wrapped.should_prune()
+
+    def test_low_hv_contribution_pruned(self) -> None:
+        # Completed rank-1 trials: 5×[2,4] — higher HV contribution than [3,3].
+        # Their synthetic ranks fill [0.50, …, 0.82]; median ≈ 0.62.
+        # Current [3,3]: bonus -0.1 → synthetic rank 0.90 > median → pruned.
+        pruner = MultiMetricPruner(
+            optuna.pruners.MedianPruner(n_startup_trials=0),
+            metric_directions={"loss": "minimize", "acc": "minimize"},
+            joint=True,
+        )
+        study = optuna.create_study(directions=["minimize", "minimize"], pruner=pruner)
+        _add_complete_trial(study, {0: {"loss": 1.0, "acc": 1.0}}, [1.0, 1.0])
+        for _ in range(5):
+            _add_complete_trial(study, {0: {"loss": 2.0, "acc": 4.0}}, [2.0, 4.0])
+        trial = study.ask()
+        wrapped = MultiMetricPrunerTrial(trial)
+        wrapped.report({"loss": 3.0, "acc": 3.0}, step=0)
+        assert wrapped.should_prune()
+
+
 # ── End-to-end tests from example.py ─────────────────────────────────────────
 
 
@@ -400,11 +564,11 @@ class TestEndToEnd:
         """Mode 1: joint=True with Pareto-ranked intermediate values."""
 
         def objective(trial: optuna.Trial) -> tuple[float, float]:
-            trial = MultiMetricPrunerTrial(trial)
-            x = trial.suggest_float("x", -5.0, 5.0)
+            mmt = MultiMetricPrunerTrial(trial)
+            x = mmt.suggest_float("x", -5.0, 5.0)
             for step in range(10):
-                trial.report({"loss": (x - step * 0.1) ** 2, "acc": (x + step * 0.1) ** 2}, step)
-                if trial.should_prune():
+                mmt.report({"loss": (x - step * 0.1) ** 2, "acc": (x + step * 0.1) ** 2}, step)
+                if mmt.should_prune():
                     raise optuna.TrialPruned()
             return x**2, (x - 2.0) ** 2
 
@@ -425,13 +589,13 @@ class TestEndToEnd:
         """Mode 2: joint=False, each metric evaluated independently."""
 
         def objective(trial: optuna.Trial) -> tuple[float, float]:
-            trial = MultiMetricPrunerTrial(trial)
-            x = trial.suggest_float("x", -5.0, 5.0)
+            mmt = MultiMetricPrunerTrial(trial)
+            x = mmt.suggest_float("x", -5.0, 5.0)
             for step in range(10):
                 loss = (x - step * 0.1) ** 2
                 acc = 1.0 / (1.0 + (x + step * 0.1) ** 2)
-                trial.report({"loss": loss, "acc": acc}, step)
-                if trial.should_prune():
+                mmt.report({"loss": loss, "acc": acc}, step)
+                if mmt.should_prune():
                     raise optuna.TrialPruned()
             return x**2, 1.0 / (1.0 + (x - 2.0) ** 2)
 
@@ -452,15 +616,15 @@ class TestEndToEnd:
         """Mode 3: metrics reported at different step intervals."""
 
         def objective(trial: optuna.Trial) -> tuple[float, float]:
-            trial = MultiMetricPrunerTrial(trial)
-            x = trial.suggest_float("x", -5.0, 5.0)
+            mmt = MultiMetricPrunerTrial(trial)
+            x = mmt.suggest_float("x", -5.0, 5.0)
             for step in range(10):
-                trial.report({"train_loss": (x - step * 0.1) ** 2}, step)
-                if trial.should_prune(metric_name="train_loss"):
+                mmt.report({"train_loss": (x - step * 0.1) ** 2}, step)
+                if mmt.should_prune(metric_name="train_loss"):
                     raise optuna.TrialPruned()
                 if step % 5 == 0:
-                    trial.report({"val_loss": (x + step * 0.05) ** 2}, step)
-                    if trial.should_prune(metric_name="val_loss"):
+                    mmt.report({"val_loss": (x + step * 0.05) ** 2}, step)
+                    if mmt.should_prune(metric_name="val_loss"):
                         raise optuna.TrialPruned()
             return x**2, (x - 2.0) ** 2
 
@@ -481,12 +645,12 @@ class TestEndToEnd:
         """Per-metric mode: reporting a subset of metric_directions must not error."""
 
         def objective(trial: optuna.Trial) -> tuple[float, float]:
-            trial = MultiMetricPrunerTrial(trial)
-            x = trial.suggest_float("x", -5.0, 5.0)
+            mmt = MultiMetricPrunerTrial(trial)
+            x = mmt.suggest_float("x", -5.0, 5.0)
             for step in range(5):
                 # Only train_loss is reported; val_loss is never reported.
-                trial.report({"train_loss": (x - step * 0.1) ** 2}, step)
-                if trial.should_prune(metric_name="train_loss"):
+                mmt.report({"train_loss": (x - step * 0.1) ** 2}, step)
+                if mmt.should_prune(metric_name="train_loss"):
                     raise optuna.TrialPruned()
             return x**2, (x - 2.0) ** 2
 

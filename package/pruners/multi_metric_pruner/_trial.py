@@ -44,11 +44,11 @@ class MultiMetricPrunerTrial:
     Example::
 
         def objective(trial: optuna.Trial) -> tuple[float, float]:
-            trial = MultiMetricPrunerTrial(trial)
-            x = trial.suggest_float("x", -5.0, 5.0)
+            mmt = MultiMetricPrunerTrial(trial)
+            x = mmt.suggest_float("x", -5.0, 5.0)
             for step in range(10):
-                trial.report({"loss": metric1, "acc": metric2}, step)
-                if trial.should_prune():
+                mmt.report({"loss": metric1, "acc": metric2}, step)
+                if mmt.should_prune():
                     raise optuna.TrialPruned()
             return x**2, (x - 2.0) ** 2
     """

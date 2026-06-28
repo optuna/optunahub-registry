@@ -109,8 +109,9 @@ def _create_single_metric_study_and_trial_multi(
             if all(m in v for m in metric_names)
         }
 
+    maximize_choices = (StudyDirection.MAXIMIZE, "maximize")
     signs = np.array(
-        [-1.0 if d == StudyDirection.MAXIMIZE else 1.0 for d in metric_directions.values()],
+        [-1.0 if d in maximize_choices else 1.0 for d in metric_directions.values()],
         dtype=float,
     )
     current_reported_values = _extract(trial.user_attrs.get(_USER_ATTR_KEY, {}))
@@ -216,10 +217,10 @@ class MultiMetricPruner(BasePruner):
             MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
             def objective(trial):
-                trial = MultiMetricPrunerTrial(trial)
+                mmt = MultiMetricPrunerTrial(trial)
                 for step in range(10):
-                    trial.report({"loss": metric1, "acc": metric2}, step)
-                    if trial.should_prune():
+                    mmt.report({"loss": metric1, "acc": metric2}, step)
+                    if mmt.should_prune():
                         raise optuna.TrialPruned()
                 return final_metric1, final_metric2
 

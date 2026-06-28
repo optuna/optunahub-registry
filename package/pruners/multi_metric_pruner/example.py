@@ -17,14 +17,14 @@ MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
 
 def objective_multi(trial: optuna.Trial) -> tuple[float, float]:
-    trial = MultiMetricPrunerTrial(trial)
-    x = trial.suggest_float("x", -5.0, 5.0)
+    mmt = MultiMetricPrunerTrial(trial)
+    x = mmt.suggest_float("x", -5.0, 5.0)
 
     for step in range(10):
         metric1 = (x - step * 0.1) ** 2
         metric2 = (x + step * 0.1) ** 2
-        trial.report({"loss": metric1, "acc": metric2}, step)
-        if trial.should_prune():
+        mmt.report({"loss": metric1, "acc": metric2}, step)
+        if mmt.should_prune():
             raise optuna.TrialPruned()
 
     return x**2, (x - 2.0) ** 2
@@ -52,16 +52,16 @@ print(f"[Multi-metric] Completed trials: {len(study_multi.trials)}")
 
 
 def objective_per_metric(trial: optuna.Trial) -> tuple[float, float]:
-    trial = MultiMetricPrunerTrial(trial)
-    x = trial.suggest_float("x", -5.0, 5.0)
+    mmt = MultiMetricPrunerTrial(trial)
+    x = mmt.suggest_float("x", -5.0, 5.0)
 
     for step in range(10):
         loss = (x - step * 0.1) ** 2
         acc = 1.0 / (1.0 + (x + step * 0.1) ** 2)
         # Reporting multiple metrics is iterated per-metric automatically when joint=False.
-        trial.report({"loss": loss, "acc": acc}, step)
+        mmt.report({"loss": loss, "acc": acc}, step)
         # Prune if either metric individually warrants pruning.
-        if trial.should_prune():
+        if mmt.should_prune():
             raise optuna.TrialPruned()
 
     return x**2, 1.0 / (1.0 + (x - 2.0) ** 2)
@@ -90,21 +90,21 @@ print(f"[Per-metric] Completed trials: {len(study_per_metric.trials)}")
 
 
 def objective_mixed_freq(trial: optuna.Trial) -> tuple[float, float]:
-    trial = MultiMetricPrunerTrial(trial)
-    x = trial.suggest_float("x", -5.0, 5.0)
+    mmt = MultiMetricPrunerTrial(trial)
+    x = mmt.suggest_float("x", -5.0, 5.0)
 
     for step in range(10):
         # Cheap metric — computed at every step.
         train_loss = (x - step * 0.1) ** 2
-        trial.report({"train_loss": train_loss}, step)
-        if trial.should_prune(metric_name="train_loss"):
+        mmt.report({"train_loss": train_loss}, step)
+        if mmt.should_prune(metric_name="train_loss"):
             raise optuna.TrialPruned()
 
         # Expensive metric — computed only every 5 steps.
         if step % 5 == 0:
             val_loss = (x + step * 0.05) ** 2
-            trial.report({"val_loss": val_loss}, step)
-            if trial.should_prune(metric_name="val_loss"):
+            mmt.report({"val_loss": val_loss}, step)
+            if mmt.should_prune(metric_name="val_loss"):
                 raise optuna.TrialPruned()
 
     return x**2, (x - 2.0) ** 2
