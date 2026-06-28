@@ -15,7 +15,7 @@ and constructing a synthetic single-objective study for the wrapped base pruner 
 
 The pruning mode is selected via the `joint` argument:
 
-| Mode         | `joint` | `report` call                                                                      |
+| Mode         | `joint` | `report` call (Example with `metric_names = ["loss", "acc"]`)                      |
 | ------------ | ------- | ---------------------------------------------------------------------------------- |
 | Multi-metric | `True`  | `trial.report({"loss": v1, "acc": v2}, step)`                                      |
 | Per-metric   | `False` | `trial.report({"loss": v1, "acc": v2}, step)` or `trial.report({"loss": v}, step)` |
@@ -33,6 +33,33 @@ argument checks all metrics and prunes if any one of them triggers the base prun
 also pass `metric_name` to `should_prune()` to restrict the check to a single metric.
 This mode supports mixed-frequency reporting where different metrics are reported at
 different step intervals.
+
+This is convenient when each objective has different computational overhead or when we would like to track multiple metrics per objective.
+
+For example, thi
+
+```python
+def objective(trial: optuna.Trial) -> tuple[float, float]:
+    trial = MultiMetricPrunerTrial(trial)
+    lr = trial.suggest_float("lr", 1e-6, 1e-4, log=True)
+    train_data_loader = ...
+    val_data_loader = ...
+    best_val_loss = ...
+    for epoch in range(10):
+        for step, batch in data_loader:
+            train_loss = ...
+            trial.report({"train_loss": train_loss}, step=step)
+            if trial.should_prune(metric_name="train_loss"):
+                raise optuna.TrialPruned()
+        val_loss = ...
+        for i, batch in val_loader:
+            ...
+        trial.report({"val_loss": val_loss}, step=epoch)
+        if trial.should_prune(metric_name="val_loss"):
+            raise optuna.TrialPruned()
+        best_val_loss = min(val_loss, best_val_loss)
+    return best_val_loss
+```
 
 ## APIs
 
