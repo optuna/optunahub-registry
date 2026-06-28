@@ -10,9 +10,7 @@ license: MIT License
 ## Class or Function Names
 
 - `MultiMetricPruner`
-- `trial_report_multi`
-- `trial_report`
-- `should_prune`
+- `MultiMetricPrunerTrial`
 
 ## Overview
 
@@ -48,17 +46,17 @@ import optunahub
 
 module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
 MultiMetricPruner = module.MultiMetricPruner
-trial_report_multi = module.trial_report_multi
-should_prune = module.should_prune
+MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
 
-def objective(trial):
+def objective(trial: optuna.Trial) -> tuple[float, float]:
+    trial = MultiMetricPrunerTrial(trial)
     x = trial.suggest_float("x", -5.0, 5.0)
     for step in range(10):
         metric1 = (x - step * 0.1) ** 2
         metric2 = (x + step * 0.1) ** 2
-        trial_report_multi(trial, [metric1, metric2], step)
-        if should_prune(trial):
+        trial.report([metric1, metric2], step)
+        if trial.should_prune():
             raise optuna.TrialPruned()
     return x**2, (x - 2.0) ** 2
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -10,20 +12,18 @@ from optuna.trial import create_trial
 from optuna.trial import TrialState
 
 from ._nondomination import _fast_non_domination_rank
-from ._report import _USER_ATTR_KEY_MULTI
-from ._report import _USER_ATTR_KEY_PREFIX_SINGLE
+
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from collections.abc import Sequence
-    from typing import Any
 
     from optuna.study import Study
     from optuna.trial import FrozenTrial
 
 
-def _get_intermediate_values(frozen_trial: FrozenTrial, key: str) -> dict[int, Any]:
-    data = frozen_trial.user_attrs.get(key, {})
-    return {int(k): v for k, v in data.items()}
+_USER_ATTR_KEY_MULTI = "multi_pruner:multi:"
+_USER_ATTR_KEY_PREFIX_SINGLE = "multi_pruner:single:"
 
 
 def _compute_pareto_ranks(
@@ -39,30 +39,15 @@ def _compute_pareto_ranks(
     return _fast_non_domination_rank(lvals)
 
 
-def _make_synthetic_complete_trial(
-    original: FrozenTrial,
-    intermediate_values: dict[int, float],
-    value: float,
-) -> FrozenTrial:
-    return create_trial(
-        state=TrialState.COMPLETE,
-        value=value,
-        params=original.params,
-        distributions=original.distributions,
-        intermediate_values=intermediate_values,
-    )
-
-
-def _make_synthetic_running_trial(
-    original: FrozenTrial,
-    intermediate_values: dict[int, float],
-) -> FrozenTrial:
-    return create_trial(
-        state=TrialState.RUNNING,
-        params=original.params,
-        distributions=original.distributions,
-        intermediate_values=intermediate_values,
-    )
+@contextlib.contextmanager
+def _suppress_new_study_log() -> Generator[None, None, None]:
+    logger = logging.getLogger("optuna.storages._in_memory")
+    original_level = logger.level
+    logger.setLevel(logging.WARNING)
+    try:
+        yield
+    finally:
+        logger.setLevel(original_level)
 
 
 def _create_single_metric_study_and_trial_multi(
@@ -73,8 +58,11 @@ def _create_single_metric_study_and_trial_multi(
     all_trials = study.get_trials(deepcopy=False)
     other_trials = [t for t in all_trials if t.number != trial.number]
 
-    current_data = _get_intermediate_values(trial, _USER_ATTR_KEY_MULTI)
-    other_data_list = [_get_intermediate_values(t, _USER_ATTR_KEY_MULTI) for t in other_trials]
+    current_data = {int(k): v for k, v in trial.user_attrs.get(_USER_ATTR_KEY_MULTI, {}).items()}
+    other_data_list = [
+        {int(k): v for k, v in t.user_attrs.get(_USER_ATTR_KEY_MULTI, {}).items()}
+        for t in other_trials
+    ]
 
     current_ranks: dict[int, float] = {}
     other_ranks: list[dict[int, float]] = [{} for _ in other_trials]
@@ -100,7 +88,8 @@ def _create_single_metric_study_and_trial_multi(
             else:
                 other_ranks[idx][step] = float(ranks[j])
 
-    new_study = optuna.create_study(direction="minimize")
+    with _suppress_new_study_log():
+        new_study = optuna.create_study(direction="minimize")
 
     for i, t in enumerate(other_trials):
         if not t.state.is_finished():
@@ -109,9 +98,22 @@ def _create_single_metric_study_and_trial_multi(
         if not ivs:
             continue
         last_rank = float(ivs[max(ivs.keys())])
-        new_study.add_trial(_make_synthetic_complete_trial(t, ivs, last_rank))
+        new_study.add_trial(
+            create_trial(
+                state=TrialState.COMPLETE,
+                value=last_rank,
+                params=t.params,
+                distributions=t.distributions,
+                intermediate_values=ivs,
+            )
+        )
 
-    new_trial = _make_synthetic_running_trial(trial, current_ranks)
+    new_trial = create_trial(
+        state=TrialState.RUNNING,
+        params=trial.params,
+        distributions=trial.distributions,
+        intermediate_values=current_ranks,
+    )
     return new_study, new_trial
 
 
@@ -125,19 +127,33 @@ def _create_single_metric_study_and_trial_single(
     all_trials = study.get_trials(deepcopy=False)
     other_trials = [t for t in all_trials if t.number != trial.number]
 
-    current_ivs: dict[int, float] = _get_intermediate_values(trial, key)
+    current_ivs: dict[int, float] = {int(k): v for k, v in trial.user_attrs.get(key, {}).items()}
     direction_str = "maximize" if direction == StudyDirection.MAXIMIZE else "minimize"
-    new_study = optuna.create_study(direction=direction_str)
+    with _suppress_new_study_log():
+        new_study = optuna.create_study(direction=direction_str)
 
     for t in other_trials:
         if not t.state.is_finished():
             continue
-        t_ivs: dict[int, float] = _get_intermediate_values(t, key)
+        t_ivs: dict[int, float] = {int(k): v for k, v in t.user_attrs.get(key, {}).items()}
         if not t_ivs:
             continue
-        new_study.add_trial(_make_synthetic_complete_trial(t, t_ivs, 0.0))
+        new_study.add_trial(
+            create_trial(
+                state=TrialState.COMPLETE,
+                value=0.0,
+                params=t.params,
+                distributions=t.distributions,
+                intermediate_values=t_ivs,
+            )
+        )
 
-    new_trial = _make_synthetic_running_trial(trial, current_ivs)
+    new_trial = create_trial(
+        state=TrialState.RUNNING,
+        params=trial.params,
+        distributions=trial.distributions,
+        intermediate_values=current_ivs,
+    )
     return new_study, new_trial
 
 
@@ -182,15 +198,13 @@ class MultiMetricPruner(BasePruner):
 
             module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
             MultiMetricPruner = module.MultiMetricPruner
-            trial_report_multi = module.trial_report_multi
-            should_prune = module.should_prune
+            MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
             def objective(trial):
+                trial = MultiMetricPrunerTrial(trial)
                 for step in range(10):
-                    metric1 = ...
-                    metric2 = ...
-                    trial_report_multi(trial, [metric1, metric2], step)
-                    if should_prune(trial):
+                    trial.report([metric1, metric2], step)
+                    if trial.should_prune():
                         raise optuna.TrialPruned()
                 return final_metric1, final_metric2
 

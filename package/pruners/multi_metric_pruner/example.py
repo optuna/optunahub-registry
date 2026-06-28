@@ -1,15 +1,12 @@
-"""Examples of MultiMetricPruner in multi-metric and single-metric modes."""
+"""Examples of MultiMetricPruner with MultiMetricPrunerTrial."""
 
 import optuna
 import optunahub
 
-module = optunahub.load_local_module(
-    "pruners/multi_metric_pruner", registry_root="package/"
-)
+
+module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
 MultiMetricPruner = module.MultiMetricPruner
-trial_report = module.trial_report
-trial_report_multi = module.trial_report_multi
-should_prune = module.should_prune
+MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -17,15 +14,16 @@ should_prune = module.should_prune
 # Pruning uses Pareto ranking over all intermediate value pairs.
 # ──────────────────────────────────────────────────────────────────────────────
 
-def objective_multi(trial: optuna.Trial) -> tuple[float, float]:
-    x = trial.suggest_float("x", -5.0, 5.0)
-    n_steps = 10
 
-    for step in range(n_steps):
+def objective_multi(trial: optuna.Trial) -> tuple[float, float]:
+    trial = MultiMetricPrunerTrial(trial)
+    x = trial.suggest_float("x", -5.0, 5.0)
+
+    for step in range(10):
         metric1 = (x - step * 0.1) ** 2
         metric2 = (x + step * 0.1) ** 2
-        trial_report_multi(trial, [metric1, metric2], step)
-        if should_prune(trial):
+        trial.report([metric1, metric2], step)
+        if trial.should_prune():
             raise optuna.TrialPruned()
 
     return x**2, (x - 2.0) ** 2
@@ -44,17 +42,18 @@ print(f"[Multi-metric] Completed trials: {len(study_multi.trials)}")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Mode 2: Single-metric mode — report each metric independently by name.
-# Pruning considers only the metric named in should_prune / prune.
+# Pruning considers only the metric named in should_prune.
 # ──────────────────────────────────────────────────────────────────────────────
 
-def objective_single(trial: optuna.Trial) -> tuple[float, float]:
-    x = trial.suggest_float("x", -5.0, 5.0)
-    n_steps = 10
 
-    for step in range(n_steps):
+def objective_single(trial: optuna.Trial) -> tuple[float, float]:
+    trial = MultiMetricPrunerTrial(trial)
+    x = trial.suggest_float("x", -5.0, 5.0)
+
+    for step in range(10):
         loss = (x - step * 0.1) ** 2
-        trial_report(trial, loss, step, metric_name="loss")
-        if should_prune(trial, metric_name="loss"):
+        trial.report(loss, step, metric_name="loss")
+        if trial.should_prune(metric_name="loss"):
             raise optuna.TrialPruned()
 
     return x**2, (x - 2.0) ** 2

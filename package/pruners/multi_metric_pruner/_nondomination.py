@@ -1,4 +1,5 @@
 """Non-domination rank — copied from optuna/optuna/study/_multi_objective.py."""
+
 from __future__ import annotations
 
 from typing import cast
