@@ -119,7 +119,8 @@ class MultiMetricPrunerTrial:
             :obj:`True` if the trial should be pruned.
 
         Raises:
-            ValueError: If the study's pruner is not a :class:`MultiMetricPruner`.
+            ValueError: If the study's pruner is not a :class:`MultiMetricPruner`, or if
+                ``metric_name`` is not in ``metric_directions`` (per-metric mode only).
         """
         pruner = self._trial.study.pruner
         if not isinstance(pruner, MultiMetricPruner):

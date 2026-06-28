@@ -78,9 +78,8 @@ def _tie_break(loss_values: np.ndarray, ranks: np.ndarray) -> tuple[np.ndarray, 
     """Break ties among trials sharing the current trial's rank by HV contribution.
 
     Returns ``(indices, bonuses)`` where ``bonuses`` slopes linearly from ``-0.5`` (largest HV
-    contribution) to ``0.0`` (smallest). The magnitude stays below ``1.0`` so every trial keeps
-    its rank band, and unlike the previous binary-search scheme the current trial is ranked by
-    its own contribution rather than always landing at ``0.0``.
+    contribution) to ``-0.1`` (smallest). The magnitude stays below ``1.0`` so every trial keeps
+    its rank band.
     """
     is_same_rank_current_trial = ranks == ranks[-1]
     same_rank_indices = np.arange(len(loss_values))[is_same_rank_current_trial]
@@ -282,7 +281,11 @@ class MultiMetricPruner(BasePruner):
             )
             return self._base_pruner.prune(new_study, new_trial)
 
-        if metric_name is None or metric_name not in self._metric_directions:
+        if metric_name is not None and metric_name not in self._metric_directions:
+            metric_directions = self._metric_directions
+            raise ValueError(f"{metric_name=} is not in {metric_directions=}.")
+
+        if metric_name is None:
             for name, direction in self._metric_directions.items():
                 new_study, new_trial = _create_single_metric_study_and_trial_single(
                     study, trial, name, direction
@@ -290,10 +293,6 @@ class MultiMetricPruner(BasePruner):
                 if self._base_pruner.prune(new_study, new_trial):
                     return True
             return False
-
-        if metric_name not in self._metric_directions:
-            metric_directions = self._metric_directions
-            raise ValueError(f"{metric_name=} is not in {metric_directions=}.")
         direction = self._metric_directions[metric_name]
         new_study, new_trial = _create_single_metric_study_and_trial_single(
             study, trial, metric_name, direction

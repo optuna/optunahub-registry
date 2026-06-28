@@ -38,7 +38,7 @@ study_multi = optuna.create_study(
         joint=True,
     ),
 )
-study_multi.optimize(objective_multi, n_trials=30)
+study_multi.optimize(objective_multi, n_trials=100)
 print(f"[Multi-metric] Completed trials: {len(study_multi.trials)}")
 
 
@@ -75,7 +75,7 @@ study_per_metric = optuna.create_study(
         joint=False,
     ),
 )
-study_per_metric.optimize(objective_per_metric, n_trials=30)
+study_per_metric.optimize(objective_per_metric, n_trials=100)
 print(f"[Per-metric] Completed trials: {len(study_per_metric.trials)}")
 
 
@@ -118,5 +118,5 @@ study_mixed = optuna.create_study(
         joint=False,
     ),
 )
-study_mixed.optimize(objective_mixed_freq, n_trials=30)
+study_mixed.optimize(objective_mixed_freq, n_trials=100)
 print(f"[Mixed-frequency] Completed trials: {len(study_mixed.trials)}")
