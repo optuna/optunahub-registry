@@ -118,8 +118,8 @@ class TestMultiMetricPrunerInit:
         original: dict[str, str] = {"loss": "minimize"}
         pruner = MultiMetricPruner(
             optuna.pruners.NopPruner(),
-            metric_directions=original,
-            joint=True,  # type: ignore[arg-type]
+            metric_directions=original,  # type: ignore[arg-type]
+            joint=True,
         )
         original["loss"] = "maximize"
         assert pruner._metric_directions["loss"] == "minimize"
@@ -230,6 +230,12 @@ class TestMultiMetricPrunerTrialReport:
         x = wrapped.suggest_float("x", 0.0, 1.0)
         assert 0.0 <= x <= 1.0
         assert "x" in wrapped.params
+
+    def test_is_instance_of_optuna_trial(self) -> None:
+        """Integrations that check isinstance(trial, optuna.Trial) must accept the wrapper."""
+        study = _make_study()
+        wrapped = _ask_wrapped(study)
+        assert isinstance(wrapped, optuna.Trial)
 
 
 # ── MultiMetricPrunerTrial.should_prune ──────────────────────────────────────

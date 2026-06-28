@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import optuna
 from optuna._warnings import optuna_warn
 
 from ._pruner import _USER_ATTR_KEY
@@ -31,8 +32,12 @@ def _cast_step_to_int(step: int) -> int:
         raise TypeError(f"`step` must be int but got {type(step)}.") from None
 
 
-class MultiMetricPrunerTrial:
+class MultiMetricPrunerTrial(optuna.Trial):
     """A :class:`~optuna.trial.Trial` wrapper for use with :class:`MultiMetricPruner`.
+
+    Inherits from :class:`optuna.trial.Trial` so that integrations which check
+    ``isinstance(trial, optuna.Trial)`` (e.g. :class:`optuna.integration.TorchDistributedTrial`)
+    accept this wrapper transparently.
 
     Wraps a trial to provide :meth:`report` and :meth:`should_prune` that work in
     multi-objective studies. All other trial attributes and methods are forwarded to the
@@ -53,13 +58,16 @@ class MultiMetricPrunerTrial:
             return x**2, (x - 2.0) ** 2
     """
 
-    def __init__(self, trial: Trial) -> None:
+    def __init__(self, trial: Trial) -> None:  # type: ignore[override]
+        # Do not call super().__init__ — optuna.Trial.__init__ requires (study, trial_id).
+        # All base-class attributes are delegated to self._trial via __getattr__.
         self._trial = trial
 
     def __getattr__(self, name: str) -> Any:
+        assert name not in ("report", "should_prune")
         return getattr(self._trial, name)
 
-    def report(self, values: dict[str, float], step: int) -> None:
+    def report(self, values: dict[str, float], step: int) -> None:  # type: ignore[override]
         """Report intermediate metric values at a given step.
 
         Args:
