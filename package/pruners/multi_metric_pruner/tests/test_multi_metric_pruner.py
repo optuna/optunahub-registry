@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
-import os
-
 import numpy as np
 import optuna
 from optuna.pruners import BasePruner
@@ -13,20 +10,16 @@ from optuna.trial import TrialState
 import optunahub
 import pytest
 
+from multi_metric_pruner._hypervolume._nondomination import _fast_non_domination_rank
+from multi_metric_pruner._hypervolume._ordering import _argsort_by_hv_contribution
+from multi_metric_pruner._hypervolume.hssp import _solve_hssp
+from multi_metric_pruner._pruner import _tie_break
 
-_MODULE_DIR = os.path.join(os.path.dirname(__file__), "..")
 
 module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
 MultiMetricPruner = module.MultiMetricPruner
 MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 _USER_ATTR_KEY = "multi_pruner:values"
-
-_spec = importlib.util.spec_from_file_location(
-    "_nondomination", os.path.join(_MODULE_DIR, "_hypervolume", "_nondomination.py")
-)
-_nondom = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_nondom)
-_fast_non_domination_rank = _nondom._fast_non_domination_rank
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -564,3 +557,106 @@ class TestFastNonDominationRank:
         assert ranks[2] == 1  # [1,2,2]: rank 1
         assert ranks[3] == 1  # [2,1,2]: rank 1
         assert ranks[1] == 2  # [2,2,2]: dominated by all others
+
+
+# ── _argsort_by_hv_contribution ───────────────────────────────────────────────
+
+
+class TestArgsortByHvContribution:
+    @pytest.mark.parametrize(
+        "loss_vals",
+        [
+            [[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [2.0, 2.0], [4.0, 4.0]],  # 2D
+            [[0.0, 3.0, 1.0], [1.0, 1.0, 1.0], [3.0, 0.0, 2.0], [2.0, 2.0, 0.0], [4.0, 4.0, 4.0]],
+        ],
+    )
+    def test_is_a_permutation(self, loss_vals: list) -> None:
+        lvals = np.array(loss_vals)
+        ref = np.full(lvals.shape[1], 5.0)
+        order = _argsort_by_hv_contribution(lvals, ref)
+        assert sorted(order.tolist()) == list(range(len(lvals)))
+
+    @pytest.mark.parametrize(
+        "loss_vals",
+        [
+            [[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [2.0, 2.0], [4.0, 4.0]],  # 2D
+            [[0.0, 3.0, 1.0], [1.0, 1.0, 1.0], [3.0, 0.0, 2.0], [2.0, 2.0, 0.0], [4.0, 4.0, 4.0]],
+        ],
+    )
+    def test_prefix_matches_greedy_selection(self, loss_vals: list) -> None:
+        # The first k of the order must be exactly the greedy best-k subset that the selector
+        # returns. This pins the order to genuine HV-contribution order for every prefix.
+        lvals = np.array(loss_vals)
+        n = len(lvals)
+        ref = np.full(lvals.shape[1], 5.0)
+        order = _argsort_by_hv_contribution(lvals, ref)
+        for k in range(1, n):
+            greedy_best_k = set(_solve_hssp(lvals, np.arange(n), k, ref).tolist())
+            assert set(order[:k].tolist()) == greedy_best_k
+
+    def test_full_set_is_greedy_unlike_solve_hssp(self) -> None:
+        # `_solve_hssp` short-circuits the full subset to original order; the helper must not.
+        lvals = np.array([[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [2.0, 2.0], [4.0, 4.0]])
+        ref = np.array([5.0, 5.0])
+        order = _argsort_by_hv_contribution(lvals, ref)
+        # [1,1] is the largest single contributor, [4,4] the smallest.
+        assert order[0] == 1
+        assert order[-1] == 4
+        assert _solve_hssp(lvals, np.arange(5), 5, ref).tolist() == [0, 1, 2, 3, 4]  # original
+
+    def test_duplicates_are_tied_adjacent_group(self) -> None:
+        # Rows 1 and 3 are identical, so they share a contribution and must be adjacent, and the
+        # unique groups must keep greedy order.
+        lvals = np.array([[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [1.0, 1.0], [4.0, 4.0]])
+        ref = np.array([5.0, 5.0])
+        order = _argsort_by_hv_contribution(lvals, ref).tolist()
+        assert abs(order.index(1) - order.index(3)) == 1  # tied pair adjacent
+        # Group order matches the order of the unique representatives.
+        uniq = np.array([[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [4.0, 4.0]])
+        uniq_order = _argsort_by_hv_contribution(uniq, ref).tolist()
+        assert uniq_order[0] == 1  # [1,1] group first
+
+    @pytest.mark.parametrize(
+        "loss_vals, expected",
+        [
+            ([[1.0, 2.0]], [0]),  # single point
+            ([[2.0, 2.0], [1.0, 1.0]], [1, 0]),  # dominated point goes last
+            ([[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]], [0, 1, 2]),  # all tied
+        ],
+    )
+    def test_edge_cases(self, loss_vals: list, expected: list) -> None:
+        lvals = np.array(loss_vals)
+        ref = np.array([5.0, 5.0])
+        assert _argsort_by_hv_contribution(lvals, ref).tolist() == expected
+
+
+# ── _tie_break ────────────────────────────────────────────────────────────────
+
+
+class TestTieBreak:
+    def test_current_trial_best_in_rank_gets_largest_bonus(self) -> None:
+        # Regression: the current trial (last index) used to be pinned to a 0.0 bonus. When it is
+        # the strongest HV contributor in its rank it must now get the most negative bonus.
+        ranks = np.array([1, 1, 1])
+        lvals = np.array([[0.0, 4.0], [4.0, 0.0], [2.0, 2.0]])  # current [2,2] dominates the box
+        indices, bonuses = _tie_break(lvals, ranks)
+        bonus_of = dict(zip(indices.tolist(), bonuses.tolist()))
+        assert bonus_of[2] == pytest.approx(-0.5)
+        assert bonus_of[2] == min(bonuses)
+
+    def test_current_trial_weakest_in_rank_gets_zero_bonus(self) -> None:
+        ranks = np.array([1, 1, 1])
+        lvals = np.array([[1.0, 3.0], [3.0, 1.0], [0.0, 4.0]])  # current [0,4] is the thin sliver
+        indices, bonuses = _tie_break(lvals, ranks)
+        bonus_of = dict(zip(indices.tolist(), bonuses.tolist()))
+        assert bonus_of[2] == pytest.approx(-0.1)
+
+    def test_bonuses_bounded_and_single_in_rank_is_zero(self) -> None:
+        ranks = np.array([1, 1, 1])
+        lvals = np.array([[0.0, 4.0], [4.0, 0.0], [2.0, 2.0]])
+        _, bonuses = _tie_break(lvals, ranks)
+        assert np.all(bonuses >= -0.5) and np.all(bonuses <= 0.0)
+        # Current alone in its rank -> no peers, zero bonus.
+        indices, bonuses = _tie_break(lvals, np.array([0, 2, 1]))
+        assert bonuses.tolist() == [0.0]
+        assert indices.tolist() == [2]
