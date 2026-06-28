@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from copy import deepcopy
+from functools import lru_cache
 import logging
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,7 @@ from optuna.trial import create_trial
 from optuna.trial import TrialState
 
 from ._hypervolume._nondomination import _fast_non_domination_rank
+from ._hypervolume.hssp import _solve_hssp
 
 
 if TYPE_CHECKING:
@@ -73,6 +75,49 @@ def _build_synthetic_study_and_trial(
     return new_study, new_trial
 
 
+@lru_cache(maxsize=30)
+def _solve_hssp_with_cache(
+    rank_i_lvals_tuple: tuple[float, ...],
+    rank_i_indices_tuple: tuple[int, ...],
+    subset_size: int,
+    ref_point_tuple: tuple[float, ...],
+) -> np.ndarray:
+    lvals_shape = (len(rank_i_indices_tuple), len(ref_point_tuple))
+    rank_i_lvals = np.reshape(rank_i_lvals_tuple, lvals_shape)
+    rank_i_indices = np.array(rank_i_indices_tuple)
+    ref_point = np.array(ref_point_tuple)
+    return _solve_hssp(rank_i_lvals, rank_i_indices, subset_size, ref_point)
+
+
+def _tie_break(loss_values: np.ndarray, ranks: np.ndarray) -> np.ndarray:
+    is_same_rank_current_trial = ranks == ranks[-1]
+    rank_i_lvals = loss_values[is_same_rank_current_trial]
+    rank_i_indices = np.arange(len(loss_values))[is_same_rank_current_trial]
+    assert len(rank_i_lvals) > 0
+    if len(rank_i_lvals) == 1:
+        return rank_i_indices
+
+    worst_lvals = np.max(rank_i_lvals, axis=0)
+    ok, ng = len(rank_i_indices), 0
+    target_i = len(loss_values) - 1
+    rank_i_lvals_tuple = tuple(rank_i_lvals.ravel())
+    rank_i_indices_tuple = tuple(rank_i_indices)
+    ref_point_tuple = tuple(np.maximum(1.1 * worst_lvals, 0.9 * worst_lvals))
+    while abs(ok - ng) > 1:
+        subset_size = (ok + ng) // 2
+        selected_indices = _solve_hssp_with_cache(
+            rank_i_lvals_tuple, rank_i_indices_tuple, subset_size, ref_point_tuple
+        )
+        if target_i in selected_indices:
+            ok = subset_size
+        else:
+            ng = subset_size
+
+    return _solve_hssp_with_cache(
+        rank_i_lvals_tuple, rank_i_indices_tuple, ok, ref_point_tuple
+    )
+
+
 def _create_single_metric_study_and_trial_multi(
     study: Study, trial: FrozenTrial, metric_directions: dict[str, StudyDirection]
 ) -> tuple[Study, FrozenTrial]:
@@ -107,14 +152,21 @@ def _create_single_metric_study_and_trial_multi(
             current_ranks[step] = 0.0
             continue
 
-        ranks = _fast_non_domination_rank(values_in_step * signs)
-        # If rank is zero, this means the trial is on the Pareto front. To prevent it from being
-        # pruned unintentionally, we use -1.0. This ensures that this trial won't be pruned.
-        pareto_bonus = -1.0 if np.min(ranks) == ranks[-1] else 0.0
-        # TODO: Tie-break until the current rank. The ranks after do not matter.
-        current_ranks[step] = float(ranks[-1]) + pareto_bonus
+        loss_values = values_in_step * signs
+        ranks = _fast_non_domination_rank(loss_values)
+        rewards = ranks.astype(float)  # lower is better.
+        if ranks[-1] == np.min(ranks):
+            # If rank is zero, it means the trial is on the Pareto front. To prevent it from being
+            # pruned unintentionally, we use -1.0. This ensures that this trial won't be pruned.
+            rewards[-1] -= 1.0
+        else:  # Tie-break for non-Pareto solutions.
+            winner_indices = _tie_break(loss_values, ranks)
+            winner_rewards = -np.linspace(0, 0.5, winner_indices.size)[::-1]
+            rewards[winner_indices] += winner_rewards
+
+        current_ranks[step] = rewards[-1].item()
         for i, trial_idx in enumerate(trial_indices):
-            ranks_list[trial_idx][step] = float(ranks[i])
+            ranks_list[trial_idx][step] = rewards[i].item()
 
     return _build_synthetic_study_and_trial(
         trial, trials, ranks_list, current_ranks, direction="minimize"
