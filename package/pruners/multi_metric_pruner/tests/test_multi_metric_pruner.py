@@ -14,12 +14,12 @@ from multi_metric_pruner._hypervolume._nondomination import _fast_non_domination
 from multi_metric_pruner._hypervolume._ordering import _argsort_by_hv_contribution
 from multi_metric_pruner._hypervolume.hssp import _solve_hssp
 from multi_metric_pruner._pruner import _tie_break
+from multi_metric_pruner._pruner import _USER_ATTR_KEY
 
 
 module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
 MultiMetricPruner = module.MultiMetricPruner
 MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
-_USER_ATTR_KEY = "multi_pruner:values"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -32,6 +32,15 @@ class AlwaysPrunePruner(BasePruner):
 
 class NeverPrunePruner(BasePruner):
     def prune(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> bool:
+        return False
+
+
+class CountingPruner(BasePruner):
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def prune(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> bool:
+        self.call_count += 1
         return False
 
 
@@ -307,21 +316,15 @@ class TestMultiMetricPrunerPrune:
         assert pruner.prune(study, frozen) is False
 
     def test_joint_false_iterates_all_metrics_when_no_name(self) -> None:
-        call_count: list[int] = [0]
-
-        class CountingPruner(BasePruner):
-            def prune(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> bool:
-                call_count[0] += 1
-                return False
-
-        pruner = _make_pruner(CountingPruner(), joint=False)
+        base = CountingPruner()
+        pruner = _make_pruner(base, joint=False)
         study = optuna.create_study(directions=["minimize", "minimize"], pruner=pruner)
         trial = study.ask()
         wrapped = MultiMetricPrunerTrial(trial)
         wrapped.report({"loss": 0.5, "acc": 0.5}, step=0)
         frozen = trial._get_latest_trial()
         pruner.prune(study, frozen)
-        assert call_count[0] == 2  # once per metric
+        assert base.call_count == 2  # once per metric
 
     def test_joint_false_short_circuits_on_first_prune(self) -> None:
         call_count: list[int] = [0]
@@ -342,21 +345,15 @@ class TestMultiMetricPrunerPrune:
         assert call_count[0] == 1  # stopped after first True
 
     def test_joint_false_with_metric_name_calls_base_once(self) -> None:
-        call_count: list[int] = [0]
-
-        class CountingPruner(BasePruner):
-            def prune(self, study: optuna.Study, trial: optuna.trial.FrozenTrial) -> bool:
-                call_count[0] += 1
-                return False
-
-        pruner = _make_pruner(CountingPruner(), joint=False)
+        base = CountingPruner()
+        pruner = _make_pruner(base, joint=False)
         study = optuna.create_study(directions=["minimize", "minimize"], pruner=pruner)
         trial = study.ask()
         wrapped = MultiMetricPrunerTrial(trial)
         wrapped.report({"loss": 0.5, "acc": 0.5}, step=0)
         frozen = trial._get_latest_trial()
         pruner.prune(study, frozen, metric_name="loss")
-        assert call_count[0] == 1
+        assert base.call_count == 1
 
 
 # ── Pareto bonus (joint=True) ─────────────────────────────────────────────────
@@ -561,37 +558,31 @@ class TestFastNonDominationRank:
 
 # ── _argsort_by_hv_contribution ───────────────────────────────────────────────
 
+_HV_LOSS_VALS = [
+    [[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [2.0, 2.0], [4.0, 4.0]],  # 2D
+    [[0.0, 3.0, 1.0], [1.0, 1.0, 1.0], [3.0, 0.0, 2.0], [2.0, 2.0, 0.0], [4.0, 4.0, 4.0]],  # 3D
+]
+
 
 class TestArgsortByHvContribution:
-    @pytest.mark.parametrize(
-        "loss_vals",
-        [
-            [[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [2.0, 2.0], [4.0, 4.0]],  # 2D
-            [[0.0, 3.0, 1.0], [1.0, 1.0, 1.0], [3.0, 0.0, 2.0], [2.0, 2.0, 0.0], [4.0, 4.0, 4.0]],
-        ],
-    )
+    @pytest.mark.parametrize("loss_vals", _HV_LOSS_VALS)
     def test_is_a_permutation(self, loss_vals: list) -> None:
         lvals = np.array(loss_vals)
         ref = np.full(lvals.shape[1], 5.0)
         order = _argsort_by_hv_contribution(lvals, ref)
         assert sorted(order.tolist()) == list(range(len(lvals)))
 
-    @pytest.mark.parametrize(
-        "loss_vals",
-        [
-            [[0.0, 3.0], [1.0, 1.0], [3.0, 0.0], [2.0, 2.0], [4.0, 4.0]],  # 2D
-            [[0.0, 3.0, 1.0], [1.0, 1.0, 1.0], [3.0, 0.0, 2.0], [2.0, 2.0, 0.0], [4.0, 4.0, 4.0]],
-        ],
-    )
+    @pytest.mark.parametrize("loss_vals", _HV_LOSS_VALS)
     def test_prefix_matches_greedy_selection(self, loss_vals: list) -> None:
         # The first k of the order must be exactly the greedy best-k subset that the selector
         # returns. This pins the order to genuine HV-contribution order for every prefix.
         lvals = np.array(loss_vals)
         n = len(lvals)
         ref = np.full(lvals.shape[1], 5.0)
+        all_indices = np.arange(n)
         order = _argsort_by_hv_contribution(lvals, ref)
         for k in range(1, n):
-            greedy_best_k = set(_solve_hssp(lvals, np.arange(n), k, ref).tolist())
+            greedy_best_k = set(_solve_hssp(lvals, all_indices, k, ref).tolist())
             assert set(order[:k].tolist()) == greedy_best_k
 
     def test_full_set_is_greedy_unlike_solve_hssp(self) -> None:
@@ -651,12 +642,14 @@ class TestTieBreak:
         bonus_of = dict(zip(indices.tolist(), bonuses.tolist()))
         assert bonus_of[2] == pytest.approx(-0.1)
 
-    def test_bonuses_bounded_and_single_in_rank_is_zero(self) -> None:
+    def test_bonuses_bounded(self) -> None:
         ranks = np.array([1, 1, 1])
         lvals = np.array([[0.0, 4.0], [4.0, 0.0], [2.0, 2.0]])
         _, bonuses = _tie_break(lvals, ranks)
         assert np.all(bonuses >= -0.5) and np.all(bonuses <= 0.0)
-        # Current alone in its rank -> no peers, zero bonus.
+
+    def test_single_in_rank_gets_zero_bonus(self) -> None:
+        lvals = np.array([[0.0, 4.0], [4.0, 0.0], [2.0, 2.0]])
         indices, bonuses = _tie_break(lvals, np.array([0, 2, 1]))
         assert bonuses.tolist() == [0.0]
         assert indices.tolist() == [2]
