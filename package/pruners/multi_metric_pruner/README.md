@@ -36,7 +36,7 @@ different step intervals.
 
 This is convenient when each objective has different computational overhead or when we would like to track multiple metrics per objective.
 
-For example, thi
+For example, we often encounter the following example in LLM trainings:
 
 ```python
 def objective(trial: optuna.Trial) -> tuple[float, float]:
