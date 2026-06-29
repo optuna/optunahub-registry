@@ -37,11 +37,10 @@ class Terminator(BaseTerminator):
     Args:
         improvement_evaluator:
             An evaluator object for assessing the room left for optimization. Defaults to a
-            :class:`~optuna.terminator.improvement.evaluator.RegretBoundEvaluator` object.
+            ``RegretBoundEvaluator`` object.
         error_evaluator:
             An evaluator for calculating the statistical error, e.g. cross-validation error.
-            Defaults to a :class:`~optuna.terminator.CrossValidationErrorEvaluator`
-            object.
+            Defaults to a ``CrossValidationErrorEvaluator`` object.
         min_n_trials:
             The minimum number of trials before termination is considered. Defaults to ``20``.
 
@@ -96,7 +95,7 @@ class Terminator(BaseTerminator):
                     break
 
     .. seealso::
-        Please refer to :class:`~optuna.terminator.TerminatorCallback` for how to use
+        Please refer to ``TerminatorCallback`` for how to use
         the terminator mechanism with the :func:`~optuna.study.Study.optimize` method.
 
     """
