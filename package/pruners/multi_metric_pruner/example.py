@@ -4,8 +4,7 @@ import optuna
 import optunahub
 
 
-# module = optunahub.load_module("pruners/multi_metric_pruner")
-module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
+module = optunahub.load_module("pruners/multi_metric_pruner")
 MultiMetricPruner = module.MultiMetricPruner
 MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
