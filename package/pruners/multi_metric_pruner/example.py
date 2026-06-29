@@ -70,7 +70,10 @@ study_per_metric = optuna.create_study(
     directions=["minimize", "maximize"],
     sampler=optuna.samplers.TPESampler(seed=42),
     pruner=MultiMetricPruner(
-        optuna.pruners.MedianPruner(n_startup_trials=3),
+        {
+            "loss": optuna.pruners.MedianPruner(n_startup_trials=3),
+            "acc": optuna.pruners.MedianPruner(n_startup_trials=5),
+        },
         metric_directions={"loss": "minimize", "acc": "maximize"},
         joint=False,
     ),
@@ -113,7 +116,10 @@ study_mixed = optuna.create_study(
     directions=["minimize", "minimize"],
     sampler=optuna.samplers.TPESampler(seed=42),
     pruner=MultiMetricPruner(
-        optuna.pruners.MedianPruner(n_startup_trials=3),
+        {
+            "train_loss": optuna.pruners.MedianPruner(n_startup_trials=3),
+            "val_loss": optuna.pruners.PercentilePruner(percentile=50.0, n_startup_trials=1),
+        },
         metric_directions={"train_loss": "minimize", "val_loss": "minimize"},
         joint=False,
     ),

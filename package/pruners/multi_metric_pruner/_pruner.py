@@ -195,7 +195,10 @@ class MultiMetricPruner(BasePruner):
 
     Args:
         base_pruner:
-            An Optuna pruner to delegate the actual pruning decision to.
+            An Optuna pruner to delegate the actual pruning decision to, or a dict
+            mapping metric names to pruners for per-metric pruning (only with
+            ``joint=False``). When a dict is given, its keys must exactly match the
+            keys of ``metric_directions``.
         metric_directions:
             A mapping from metric name to direction, e.g.
             ``{"loss": "minimize", "accuracy": "maximize"}``. All metrics reported via
@@ -237,7 +240,7 @@ class MultiMetricPruner(BasePruner):
 
     def __init__(
         self,
-        base_pruner: BasePruner,
+        base_pruner: BasePruner | dict[str, BasePruner],
         *,
         metric_directions: dict[str, str | StudyDirection],
         joint: bool,
@@ -255,6 +258,18 @@ class MultiMetricPruner(BasePruner):
                 f"`metric_directions` values must be 'minimize' or 'maximize', "
                 f"but got {metric_directions=}."
             )
+        if isinstance(base_pruner, dict):
+            if joint:
+                raise ValueError(
+                    "`base_pruner` must be a single BasePruner when `joint=True`, "
+                    "but got a dict. Per-metric pruners are only supported with `joint=False`."
+                )
+            if set(base_pruner.keys()) != set(metric_directions.keys()):
+                raise ValueError(
+                    f"When `base_pruner` is a dict, its keys must match `metric_directions` keys. "
+                    f"Got base_pruner keys {set(base_pruner.keys())} "
+                    f"vs metric_directions keys {set(metric_directions.keys())}."
+                )
         self._base_pruner = base_pruner
         self._joint = joint
         self._metric_directions = deepcopy(metric_directions)
@@ -277,6 +292,7 @@ class MultiMetricPruner(BasePruner):
             return False
 
         if self._joint:
+            assert isinstance(self._base_pruner, BasePruner)
             new_study, new_trial = _create_single_metric_study_and_trial_multi(
                 study, trial, self._metric_directions
             )
@@ -286,16 +302,21 @@ class MultiMetricPruner(BasePruner):
             metric_directions = self._metric_directions
             raise ValueError(f"{metric_name=} is not in {metric_directions=}.")
 
+        def _get_base_pruner(name: str) -> BasePruner:
+            if isinstance(self._base_pruner, dict):
+                return self._base_pruner[name]
+            return self._base_pruner
+
         if metric_name is None:
             for name, direction in self._metric_directions.items():
                 new_study, new_trial = _create_single_metric_study_and_trial_single(
                     study, trial, name, direction
                 )
-                if self._base_pruner.prune(new_study, new_trial):
+                if _get_base_pruner(name).prune(new_study, new_trial):
                     return True
             return False
         direction = self._metric_directions[metric_name]
         new_study, new_trial = _create_single_metric_study_and_trial_single(
             study, trial, metric_name, direction
         )
-        return self._base_pruner.prune(new_study, new_trial)
+        return _get_base_pruner(metric_name).prune(new_study, new_trial)
