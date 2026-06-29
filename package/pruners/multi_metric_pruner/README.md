@@ -31,6 +31,8 @@ intermediate values passed to the base pruner.
 Each metric is evaluated independently by the base pruner. Calling `should_prune()` with no
 argument checks all metrics and prunes if any one of them triggers the base pruner. You can
 also pass `metric_name` to `should_prune()` to restrict the check to a single metric.
+`base_pruner` can be a single pruner (shared across all metrics) or a dict mapping each
+metric name to its own pruner.
 This mode supports mixed-frequency reporting where different metrics are reported at
 different step intervals.
 
@@ -64,7 +66,7 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
 ## APIs
 
 - `MultiMetricPruner(base_pruner, *, metric_directions, joint)`
-  - `base_pruner`: Pruner that makes the actual pruning decision.
+  - `base_pruner`: Pruner that makes the actual pruning decision. Can also be a dict mapping metric names to pruners for per-metric pruning (only with `joint=False`). When a dict is given, its keys must exactly match the keys of `metric_directions`.
   - `metric_directions`: Mapping from metric name to direction (`"minimize"` / `"maximize"`).
   - `joint`: If `True`, use multi-metric (Pareto-rank) mode. If `False`, use per-metric mode where each metric is evaluated independently.
 - `MultiMetricPrunerTrial(trial)`
@@ -102,6 +104,19 @@ study = optuna.create_study(
     ),
 )
 study.optimize(objective, n_trials=30)
+```
+
+In per-metric mode, you can pass a dict of pruners to use a different pruner for each metric:
+
+```python
+pruner = MultiMetricPruner(
+    {
+        "loss": optuna.pruners.MedianPruner(n_startup_trials=3),
+        "acc": optuna.pruners.MedianPruner(n_startup_trials=5),
+    },
+    metric_directions={"loss": "minimize", "acc": "minimize"},
+    joint=False,
+)
 ```
 
 See [example.py](https://github.com/optuna/optunahub-registry/blob/main/package/pruners/multi_metric_pruner/example.py) for a full example including per-metric and mixed-frequency modes.
