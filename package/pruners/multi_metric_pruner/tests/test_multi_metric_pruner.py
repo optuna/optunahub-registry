@@ -463,9 +463,7 @@ class TestTieBreakBonusIntegration:
         study = _make_pareto_study(metric_directions={"loss": "minimize", "acc": "minimize"})
         _add_complete_trial(study, {0: {"loss": 1.0, "acc": 1.0}}, [1.0, 1.0])
         for _ in range(5):
-            _add_complete_trial(
-                study, {0: rank1_vals}, [rank1_vals["loss"], rank1_vals["acc"]]
-            )
+            _add_complete_trial(study, {0: rank1_vals}, [rank1_vals["loss"], rank1_vals["acc"]])
         wrapped = _ask_wrapped(study)
         wrapped.report(current_vals, step=0)
         assert (not wrapped.should_prune()) is expected_not_pruned
@@ -515,9 +513,7 @@ class TestEndToEnd:
             mmt = MultiMetricPrunerTrial(trial)
             x = mmt.suggest_float("x", -5.0, 5.0)
             for step in range(10):
-                mmt.report(
-                    {"loss": (x - step * 0.1) ** 2, "acc": (x + step * 0.1) ** 2}, step
-                )
+                mmt.report({"loss": (x - step * 0.1) ** 2, "acc": (x + step * 0.1) ** 2}, step)
                 if mmt.should_prune():
                     raise optuna.TrialPruned()
             return x**2, (x - 2.0) ** 2
@@ -663,7 +659,10 @@ class TestArgsortByHvContribution:
         ],
     )
     def test_edge_cases(self, loss_vals: list, expected: list) -> None:
-        assert _argsort_by_hv_contribution(np.array(loss_vals), np.array([5.0, 5.0])).tolist() == expected
+        assert (
+            _argsort_by_hv_contribution(np.array(loss_vals), np.array([5.0, 5.0])).tolist()
+            == expected
+        )
 
 
 # ── _tie_break ────────────────────────────────────────────────────────────────
