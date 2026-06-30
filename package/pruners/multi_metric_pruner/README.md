@@ -20,6 +20,8 @@ The pruning mode is selected via the `joint` argument:
 | Multi-metric | `True`  | `trial.report({"loss": v1, "acc": v2}, step)`                                      |
 | Per-metric   | `False` | `trial.report({"loss": v1, "acc": v2}, step)` or `trial.report({"loss": v}, step)` |
 
+When `metric_directions` has exactly one entry, `report` also accepts a plain `float` (i.e., the native Optuna `trial.report(value, step)` interface).
+
 ### Multi-metric mode (`joint=True`)
 
 All metrics are reported together as a dict at each step. The pruner ranks every trial at
@@ -71,6 +73,8 @@ def objective(trial: optuna.Trial) -> tuple[float, float]:
   - `joint`: If `True`, use multi-metric (Pareto-rank) mode. If `False`, use per-metric mode where each metric is evaluated independently.
 - `MultiMetricPrunerTrial(trial)`
   - `trial`: The trial object received in the objective function.
+  - `report(value, step)`: Report intermediate metric values at a given step. `value` is a dict mapping metric names to float values, or a plain `float` when `metric_directions` has exactly one entry.
+  - `should_prune(*, metric_name=None)`: Check whether the trial should be pruned. When `joint=True`, `metric_name` is ignored. When `joint=False`, passing `metric_name` restricts the check to that single metric; omitting it checks all metrics and prunes if any triggers the base pruner.
 
 ## Example
 
