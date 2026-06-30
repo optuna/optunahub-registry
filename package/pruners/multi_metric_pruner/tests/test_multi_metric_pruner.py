@@ -175,6 +175,25 @@ class TestMultiMetricPrunerTrialReport:
         with pytest.raises(TypeError, match="must be a dict"):
             wrapped.report([0.5, 0.8], step=0)  # type: ignore[arg-type]
 
+    def test_float_report_single_metric(self) -> None:
+        study = optuna.create_study(
+            direction="minimize",
+            pruner=MultiMetricPruner(
+                optuna.pruners.NopPruner(),
+                metric_directions={"loss": "minimize"},
+                joint=True,
+            ),
+        )
+        wrapped = _ask_wrapped(study)
+        wrapped.report(0.5, step=0)
+        attrs = wrapped._trial.user_attrs.get(_USER_ATTR_KEY, {})
+        assert attrs["0"]["loss"] == pytest.approx(0.5)
+
+    def test_float_report_multi_metric_raises(self) -> None:
+        wrapped = _ask_wrapped(_make_study())
+        with pytest.raises(TypeError, match="must be a dict"):
+            wrapped.report(0.5, step=0)  # type: ignore[arg-type]
+
     def test_empty_dict_raises(self) -> None:
         wrapped = _ask_wrapped(_make_study())
         with pytest.raises(ValueError, match="must have at least one entry"):
