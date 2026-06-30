@@ -19,7 +19,7 @@ def _cast_value_to_float(value: float) -> float:
     try:
         return float(value)
     except (TypeError, ValueError):
-        msg = f"`values` must be a dict of float but got value with type {type(value)}."
+        msg = f"`value` must be a dict of float but got value with type {type(value)}."
         raise TypeError(msg) from None
 
 
@@ -67,32 +67,33 @@ class MultiMetricPrunerTrial(optuna.Trial):
         assert name not in ("report", "should_prune")
         return getattr(self._trial, name)
 
-    def report(self, values: dict[str, float] | float, step: int) -> None:  # type: ignore[override]
+    def report(self, value: dict[str, float] | float, step: int) -> None:  # type: ignore[override]
         """Report intermediate metric values at a given step.
 
         Args:
-            values: A dict mapping metric names to float values, or a plain float when
+            value: A dict mapping metric names to float values, or a plain float when
                 ``metric_directions`` has exactly one entry (native Optuna interface).
                 All dict keys must be present in ``metric_directions``. Pass all metrics
                 for multi-metric (Pareto) mode, or a single-entry dict for per-metric mode.
             step: Step of the trial (e.g., training epoch).
         """
         step = _cast_step_to_int(step)
+        values = value  # `value` is just the Optuna compatible name.
         if not isinstance(values, dict):
             pruner = self._trial.study.pruner
             if isinstance(pruner, MultiMetricPruner) and len(pruner._metric_directions) == 1:
                 (metric_name,) = pruner._metric_directions
                 values = {metric_name: values}
             else:
-                raise TypeError(f"`values` must be a dict but got {type(values)}.")
+                raise TypeError(f"`value` must be a dict but got {type(values)}.")
         if len(values) == 0:
-            raise ValueError("`values` must have at least one entry.")
+            raise ValueError("`value` must have at least one entry.")
 
         pruner = self._trial.study.pruner
         if isinstance(pruner, MultiMetricPruner):
             unknown_keys = set(values.keys()) - set(pruner._metric_directions.keys())
             if unknown_keys:
-                raise ValueError(f"Got unknown metric names `{unknown_keys}` in `values`.")
+                raise ValueError(f"Got unknown metric names `{unknown_keys}` in `value`.")
             if not pruner._joint and len(values) > 1:
                 for k, v in values.items():
                     self.report({k: v}, step)
