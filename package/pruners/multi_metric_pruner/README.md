@@ -15,10 +15,12 @@ and constructing a synthetic single-objective study for the wrapped base pruner 
 
 The pruning mode is selected via the `joint` argument:
 
+```md
 | Mode         | `joint` | `report` call (Example with `metric_names = ["loss", "acc"]`)                      |
 | ------------ | ------- | ---------------------------------------------------------------------------------- |
 | Multi-metric | `True`  | `trial.report({"loss": v1, "acc": v2}, step)`                                      |
 | Per-metric   | `False` | `trial.report({"loss": v1, "acc": v2}, step)` or `trial.report({"loss": v}, step)` |
+```
 
 When `metric_directions` has exactly one entry, `report` also accepts a plain `float` (i.e., the native Optuna `trial.report(value, step)` interface).
 
