@@ -4,8 +4,7 @@ import optuna
 import optunahub
 
 
-# module = optunahub.load_module("pruners/multi_metric_pruner")
-module = optunahub.load_local_module("pruners/multi_metric_pruner", registry_root="package/")
+module = optunahub.load_module("pruners/multi_metric_pruner")
 MultiMetricPruner = module.MultiMetricPruner
 MultiMetricPrunerTrial = module.MultiMetricPrunerTrial
 
@@ -71,7 +70,10 @@ study_per_metric = optuna.create_study(
     directions=["minimize", "maximize"],
     sampler=optuna.samplers.TPESampler(seed=42),
     pruner=MultiMetricPruner(
-        optuna.pruners.MedianPruner(n_startup_trials=3),
+        {
+            "loss": optuna.pruners.MedianPruner(n_startup_trials=3),
+            "acc": optuna.pruners.MedianPruner(n_startup_trials=5),
+        },
         metric_directions={"loss": "minimize", "acc": "maximize"},
         joint=False,
     ),
@@ -114,7 +116,10 @@ study_mixed = optuna.create_study(
     directions=["minimize", "minimize"],
     sampler=optuna.samplers.TPESampler(seed=42),
     pruner=MultiMetricPruner(
-        optuna.pruners.MedianPruner(n_startup_trials=3),
+        {
+            "train_loss": optuna.pruners.MedianPruner(n_startup_trials=3),
+            "val_loss": optuna.pruners.PercentilePruner(percentile=50.0, n_startup_trials=1),
+        },
         metric_directions={"train_loss": "minimize", "val_loss": "minimize"},
         joint=False,
     ),
