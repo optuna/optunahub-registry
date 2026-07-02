@@ -23,7 +23,6 @@ from ..optuna_helpers import _process_constraints_after_trial
 from ..optuna_helpers import _solve_hssp
 from ..optuna_helpers import compute_hypervolume
 from .parzen_estimator import _ParzenEstimator
-from .parzen_estimator import _ParzenEstimatorParameters
 
 
 if TYPE_CHECKING:
@@ -54,6 +53,13 @@ def default_weights(x: int) -> np.ndarray:
         ramp = np.linspace(1.0 / x, 1.0, num=x - 25)
         flat = np.ones(25)
         return np.concatenate([ramp, flat], axis=0)
+
+
+def _filter_valid_trials(
+    search_space: dict[str, BaseDistribution],
+    trials: list[FrozenTrial],
+) -> list[FrozenTrial]:
+    return trials
 
 
 class TPESampler(BaseSampler):
@@ -111,14 +117,8 @@ class TPESampler(BaseSampler):
         constant_liar: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
-        self._parzen_estimator_parameters = _ParzenEstimatorParameters(
-            prior_weight=1.0,
-            consider_magic_clip=True,
-            consider_endpoints=False,
-            weights=default_weights,
-            multivariate=True,
-            categorical_distance_func={},
-        )
+        # NOTE: We removed the deprecated variables here.
+        self._weights = default_weights
 
         self._n_startup_trials = n_startup_trials
         self._n_ei_candidates = n_ei_candidates
@@ -232,7 +232,10 @@ class TPESampler(BaseSampler):
         else:
             states = [TrialState.COMPLETE, TrialState.PRUNED]
         use_cache = not self._constant_liar
-        trials = study._get_trials(deepcopy=False, states=states, use_cache=use_cache)
+        trials = _filter_valid_trials(
+            search_space,
+            trials=study._get_trials(deepcopy=False, states=states, use_cache=use_cache),
+        )
 
         if self._constant_liar:
             # For constant_liar, filter out the current trial.
@@ -280,12 +283,10 @@ class TPESampler(BaseSampler):
             )[param_mask_below]
             assert np.isfinite(weights_below).all()
             mpe = self._parzen_estimator_cls(
-                observations, search_space, self._parzen_estimator_parameters, weights_below
+                observations, search_space, self._weights, predetermined_weights=weights_below
             )
         else:
-            mpe = self._parzen_estimator_cls(
-                observations, search_space, self._parzen_estimator_parameters
-            )
+            mpe = self._parzen_estimator_cls(observations, search_space, self._weights)
 
         if not isinstance(mpe, _ParzenEstimator):
             raise RuntimeError("_parzen_estimator_cls must override _ParzenEstimator.")
