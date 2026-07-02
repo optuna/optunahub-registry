@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import NamedTuple
 
 import numpy as np
 from optuna.distributions import BaseDistribution
-from optuna.distributions import CategoricalChoiceType
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
@@ -21,16 +19,7 @@ from .probability_distributions import _MixtureOfProductDistribution
 
 EPS = 1e-12
 
-
-class _ParzenEstimatorParameters(NamedTuple):
-    prior_weight: float
-    consider_magic_clip: bool
-    consider_endpoints: bool
-    weights: Callable[[int], np.ndarray]
-    multivariate: bool
-    categorical_distance_func: dict[
-        str, Callable[[CategoricalChoiceType, CategoricalChoiceType], float]
-    ]
+# NOTE: We removed the deprecated variables here and use the bandwidth logic of multivariate=False.
 
 
 class _ParzenEstimator:
@@ -38,39 +27,29 @@ class _ParzenEstimator:
         self,
         observations: dict[str, np.ndarray],
         search_space: dict[str, BaseDistribution],
-        parameters: _ParzenEstimatorParameters,
+        weights: Callable[[int], np.ndarray],
         predetermined_weights: np.ndarray | None = None,
     ) -> None:
-        if parameters.prior_weight < 0:
-            raise ValueError(
-                "A non-negative value must be specified for prior_weight,"
-                f" but got {parameters.prior_weight}."
-            )
-
         self._search_space = search_space
-
         transformed_observations = self._transform(observations)
-
         assert predetermined_weights is None or len(transformed_observations) == len(
             predetermined_weights
         )
-        weights = (
+        weights_array = (
             predetermined_weights
             if predetermined_weights is not None
-            else self._call_weights_func(parameters.weights, len(transformed_observations))
+            else self._call_weights_func(weights, len(transformed_observations))
         )
 
         if len(transformed_observations) == 0:
-            weights = np.array([1.0])
+            weights_array = np.array([1.0])
         else:
-            weights = np.append(weights, [parameters.prior_weight])
-        weights /= weights.sum()
+            weights_array = np.append(weights_array, [1.0])
+        weights_array /= weights_array.sum()
         self._mixture_distribution = _MixtureOfProductDistribution(
-            weights=weights,
+            weights=weights_array,
             distributions=[
-                self._calculate_distributions(
-                    transformed_observations[:, i], param, search_space[param], parameters
-                )
+                self._calculate_distributions(transformed_observations[:, i], search_space[param])
                 for i, param in enumerate(search_space)
             ],
         )
@@ -115,24 +94,18 @@ class _ParzenEstimator:
     def _calculate_distributions(
         self,
         observations: np.ndarray,
-        param_name: str,
         search_space: BaseDistribution,
-        parameters: _ParzenEstimatorParameters,
     ) -> _BatchedDistributions:
         if isinstance(search_space, CategoricalDistribution):
-            return self._calculate_categorical_distributions(
-                observations, param_name, search_space, parameters
-            )
+            return self._calculate_categorical_distributions(observations, search_space)
         else:
             assert isinstance(search_space, (FloatDistribution, IntDistribution))
-            return self._calculate_numerical_distributions(observations, search_space, parameters)
+            return self._calculate_numerical_distributions(observations, search_space)
 
     def _calculate_categorical_distributions(
         self,
         observations: np.ndarray,
-        param_name: str,
         search_space: CategoricalDistribution,
-        parameters: _ParzenEstimatorParameters,
     ) -> _BatchedDistributions:
         choices = search_space.choices
         n_choices = len(choices)
@@ -144,21 +117,10 @@ class _ParzenEstimator:
         n_kernels = len(observations) + 1  # NOTE(sawa3030): +1 for prior.
         weights = np.full(
             shape=(n_kernels, n_choices),
-            fill_value=parameters.prior_weight / n_kernels,
+            fill_value=1.0 / n_kernels,
         )
         observed_indices = observations.astype(int)
-        if param_name in parameters.categorical_distance_func:
-            # TODO(nabenabe0928): Think about how to handle combinatorial explosion.
-            # The time complexity is O(n_choices * used_indices.size), so n_choices cannot be huge.
-            used_indices, rev_indices = np.unique(observed_indices, return_inverse=True)
-            dist_func = parameters.categorical_distance_func[param_name]
-            dists = np.array([[dist_func(choices[i], c) for c in choices] for i in used_indices])
-            coef = np.log(n_kernels / parameters.prior_weight) * np.log(n_choices) / np.log(6)
-            cat_weights = np.exp(-((dists / np.max(dists, axis=1)[:, np.newaxis]) ** 2) * coef)
-            weights[: len(observed_indices)] = cat_weights[rev_indices]
-        else:
-            weights[np.arange(len(observed_indices)), observed_indices] += 1
-
+        weights[np.arange(len(observed_indices)), observed_indices] += 1
         row_sums = weights.sum(axis=1, keepdims=True)
         weights /= np.where(row_sums == 0, 1, row_sums)
         return _BatchedCategoricalDistributions(weights)
@@ -167,7 +129,6 @@ class _ParzenEstimator:
         self,
         observations: np.ndarray,
         search_space: FloatDistribution | IntDistribution,
-        parameters: _ParzenEstimatorParameters,
     ) -> _BatchedDistributions:
         low = search_space.low
         high = search_space.high
@@ -182,42 +143,30 @@ class _ParzenEstimator:
         mus = observations
 
         def compute_sigmas() -> np.ndarray:
-            if parameters.multivariate:
-                SIGMA0_MAGNITUDE = 0.2
-                sigma = (
-                    SIGMA0_MAGNITUDE
-                    * max(len(observations), 1) ** (-1.0 / (len(self._search_space) + 4))
-                    * (high - low)
-                )
-                sigmas = np.full(shape=(len(observations),), fill_value=sigma)
-            else:
-                sorted_indices = np.argsort(mus)
-                sorted_mus = mus[sorted_indices]
-                sorted_mus_with_endpoints = np.empty(len(mus) + 2, dtype=float)
-                sorted_mus_with_endpoints[0] = low
-                sorted_mus_with_endpoints[1:-1] = sorted_mus
-                sorted_mus_with_endpoints[-1] = high
+            # NOTE: Each sigma is the widest gap to a neighboring (sorted) observation or the
+            # search space endpoint.
+            sorted_indices = np.argsort(mus)
+            sorted_mus = mus[sorted_indices]
+            sorted_mus_with_endpoints = np.empty(len(mus) + 2, dtype=float)
+            sorted_mus_with_endpoints[0] = low
+            sorted_mus_with_endpoints[1:-1] = sorted_mus
+            sorted_mus_with_endpoints[-1] = high
 
-                sorted_sigmas = np.maximum(
-                    sorted_mus_with_endpoints[1:-1] - sorted_mus_with_endpoints[0:-2],
-                    sorted_mus_with_endpoints[2:] - sorted_mus_with_endpoints[1:-1],
-                )
+            sorted_sigmas = np.maximum(
+                sorted_mus_with_endpoints[1:-1] - sorted_mus_with_endpoints[0:-2],
+                sorted_mus_with_endpoints[2:] - sorted_mus_with_endpoints[1:-1],
+            )
 
-                if not parameters.consider_endpoints and sorted_mus_with_endpoints.shape[0] >= 4:
-                    sorted_sigmas[0] = sorted_mus_with_endpoints[2] - sorted_mus_with_endpoints[1]
-                    sorted_sigmas[-1] = (
-                        sorted_mus_with_endpoints[-2] - sorted_mus_with_endpoints[-3]
-                    )
+            if sorted_mus_with_endpoints.shape[0] >= 4:
+                sorted_sigmas[0] = sorted_mus_with_endpoints[2] - sorted_mus_with_endpoints[1]
+                sorted_sigmas[-1] = sorted_mus_with_endpoints[-2] - sorted_mus_with_endpoints[-3]
 
-                sigmas = sorted_sigmas[np.argsort(sorted_indices)]
+            sigmas = sorted_sigmas[np.argsort(sorted_indices)]
 
             # We adjust the range of the 'sigmas' according to the 'consider_magic_clip' flag.
             maxsigma = high - low
-            if parameters.consider_magic_clip:
-                n_kernels = len(observations) + 1  # NOTE(sawa3030): +1 for prior.
-                minsigma = (high - low) / min(100.0, (1.0 + n_kernels))
-            else:
-                minsigma = EPS
+            n_kernels = len(observations) + 1  # NOTE(sawa3030): +1 for prior.
+            minsigma = (high - low) / min(100.0, (1.0 + n_kernels))
             return np.asarray(np.clip(sigmas, minsigma, maxsigma))
 
         sigmas = compute_sigmas()
