@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from optuna._warnings import optuna_warn
+from optuna.distributions import CategoricalDistribution
+from optuna.distributions import IntDistribution
+from optuna.distributions import FloatDistribution
 from optuna.samplers import BaseSampler
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -59,7 +62,23 @@ def _filter_valid_trials(
     search_space: dict[str, BaseDistribution],
     trials: list[FrozenTrial],
 ) -> list[FrozenTrial]:
-    return trials
+    # NOTE: This is the fundamental change for this sampler.
+    valid_trials = []
+    for t in trials:
+        is_in_search_space_domain = True
+        for param_name, v in t.params.items():
+            if (dist := search_space.get(param_name)) is None:
+                raise ValueError(f"Found unknown {param_name=}.")
+            if isinstance(dist, CategoricalDistribution):
+                # Categorical does not change during a study by design.
+                continue
+            assert isinstance(dist, (IntDistribution, FloatDistribution)), "MyPy redefinition."
+            if not (dist.low <= v <= dist.high):
+                is_in_search_space_domain = False
+                break
+        if is_in_search_space_domain:
+            valid_trials.append(t)
+    return valid_trials
 
 
 class TPESampler(BaseSampler):
