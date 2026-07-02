@@ -8,20 +8,20 @@ from typing import cast
 from typing import TYPE_CHECKING
 
 import numpy as np
-from optuna._hypervolume import compute_hypervolume
-from optuna._hypervolume.hssp import _solve_hssp
 from optuna._warnings import optuna_warn
 from optuna.samplers import BaseSampler
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.study import StudyDirection
-from optuna.study._multi_objective import _fast_non_domination_rank
-from optuna.study._multi_objective import _is_pareto_front
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
 from ..optuna_helpers import _CONSTRAINTS_KEY
+from ..optuna_helpers import _fast_non_domination_rank
+from ..optuna_helpers import _is_pareto_front
 from ..optuna_helpers import _process_constraints_after_trial
+from ..optuna_helpers import _solve_hssp
+from ..optuna_helpers import compute_hypervolume
 from .parzen_estimator import _ParzenEstimator
 from .parzen_estimator import _ParzenEstimatorParameters
 
