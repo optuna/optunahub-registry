@@ -11,17 +11,17 @@ import numpy as np
 from optuna._hypervolume import compute_hypervolume
 from optuna._hypervolume.hssp import _solve_hssp
 from optuna._warnings import optuna_warn
-from optuna.samplers._base import _CONSTRAINTS_KEY
-from optuna.samplers._base import _process_constraints_after_trial
-from optuna.samplers._base import BaseSampler
+from optuna.samplers import BaseSampler
+from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.samplers._random import RandomSampler
+from optuna.study import StudyDirection
 from optuna.study._multi_objective import _fast_non_domination_rank
 from optuna.study._multi_objective import _is_pareto_front
-from optuna.study._study_direction import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
+from ..optuna_helpers import _CONSTRAINTS_KEY
+from ..optuna_helpers import _process_constraints_after_trial
 from .parzen_estimator import _ParzenEstimator
 from .parzen_estimator import _ParzenEstimatorParameters
 
@@ -140,6 +140,8 @@ class TPESampler(BaseSampler):
         self, study: Study, trial: FrozenTrial
     ) -> dict[str, BaseDistribution]:
         complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
+        if len(complete_trials) == 0:
+            return {}
         return complete_trials[-1].distributions
 
     def sample_relative(
