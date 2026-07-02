@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from optuna._warnings import optuna_warn
 from optuna.distributions import CategoricalDistribution
-from optuna.distributions import IntDistribution
 from optuna.distributions import FloatDistribution
+from optuna.distributions import IntDistribution
 from optuna.samplers import BaseSampler
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
@@ -133,7 +133,7 @@ class TPESampler(BaseSampler):
         n_startup_trials: int = 10,
         n_ei_candidates: int = 24,
         seed: int | None = None,
-        constant_liar: bool = False,
+        constant_liar: bool = True,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
         # NOTE: We removed the deprecated variables here.
