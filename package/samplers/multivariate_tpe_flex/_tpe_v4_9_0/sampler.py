@@ -8,7 +8,6 @@ from typing import cast
 from typing import TYPE_CHECKING
 
 import numpy as np
-from optuna._experimental import warn_experimental_argument
 from optuna._hypervolume import compute_hypervolume
 from optuna._hypervolume.hssp import _solve_hssp
 from optuna._warnings import optuna_warn
@@ -17,9 +16,6 @@ from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._base import BaseSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.samplers._random import RandomSampler
-from optuna.search_space import IntersectionSearchSpace
-from optuna.search_space.group_decomposed import _GroupDecomposedSearchSpace
-from optuna.search_space.group_decomposed import _SearchSpaceGroup
 from optuna.study._multi_objective import _fast_non_domination_rank
 from optuna.study._multi_objective import _is_pareto_front
 from optuna.study._study_direction import StudyDirection
@@ -68,54 +64,6 @@ class TPESampler(BaseSampler):
     ``g(x)`` to the remaining parameter values. It chooses the parameter value ``x`` that
     maximizes the ratio ``l(x)/g(x)``.
 
-    For further information about TPE algorithm, please refer to the following papers:
-
-    - `Algorithms for Hyper-Parameter Optimization
-      <https://papers.nips.cc/paper/4443-algorithms-for-hyper-parameter-optimization.pdf>`__
-    - `Making a Science of Model Search: Hyperparameter Optimization in Hundreds of
-      Dimensions for Vision Architectures <http://proceedings.mlr.press/v28/bergstra13.pdf>`__
-    - `Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for
-      Better Empirical Performance <https://arxiv.org/abs/2304.11127>`__
-
-    For multi-objective TPE (MOTPE), please refer to the following papers:
-
-    - `Multiobjective Tree-Structured Parzen Estimator for Computationally Expensive Optimization
-      Problems <https://doi.org/10.1145/3377930.3389817>`__
-    - `Multiobjective Tree-Structured Parzen Estimator <https://doi.org/10.1613/jair.1.13188>`__
-
-    Please also check our articles:
-
-    - `Significant Speed Up of Multi-Objective TPESampler in Optuna v4.0.0
-      <https://medium.com/optuna/significant-speed-up-of-multi-objective-tpesampler-in-optuna-v4-0-0-2bacdcd1d99b>`__
-    - `Multivariate TPE Makes Optuna Even More Powerful
-      <https://medium.com/optuna/multivariate-tpe-makes-optuna-even-more-powerful-63c4bfbaebe2>`__
-
-    Example:
-        An example of a single-objective optimization is as follows:
-
-        .. testcode::
-
-            import optuna
-            from optuna.samplers import TPESampler
-
-
-            def objective(trial):
-                x = trial.suggest_float("x", -10, 10)
-                return x**2
-
-
-            study = optuna.create_study(sampler=TPESampler())
-            study.optimize(objective, n_trials=10)
-
-    .. note::
-        :class:`~optuna.samplers.TPESampler`, which became much faster in v4.0.0, c.f. `our article
-        <https://medium.com/optuna/significant-speed-up-of-multi-objective-tpesampler-in-optuna-v4-0-0-2bacdcd1d99b>`__,
-        can handle multi-objective optimization with many trials as well.
-        Please note that :class:`~optuna.samplers.NSGAIISampler` will be used by default for
-        multi-objective optimization, so if users would like to use
-        :class:`~optuna.samplers.TPESampler` for multi-objective optimization, ``sampler`` must be
-        explicitly specified when study is created.
-
     Args:
         n_startup_trials:
             The random sampling is used instead of the TPE algorithm until the given number
@@ -124,53 +72,6 @@ class TPESampler(BaseSampler):
             Number of candidate samples used to calculate the expected improvement.
         seed:
             Seed for random number generator.
-        multivariate:
-            If this is :obj:`True`, the multivariate TPE is used when suggesting parameters.
-            The multivariate TPE is reported to outperform the independent TPE. See `BOHB: Robust
-            and Efficient Hyperparameter Optimization at Scale
-            <http://proceedings.mlr.press/v80/falkner18a.html>`__ and `our article
-            <https://medium.com/optuna/multivariate-tpe-makes-optuna-even-more-powerful-63c4bfbaebe2>`__
-            for more details.
-
-            .. note::
-                Added in v2.2.0 as an experimental feature. The interface may change in newer
-                versions without prior notice. See
-                https://github.com/optuna/optuna/releases/tag/v2.2.0.
-        group:
-            If this and ``multivariate`` are :obj:`True`, the multivariate TPE with the group
-            decomposed search space is used when suggesting parameters.
-            The sampling algorithm decomposes the search space based on past trials and samples
-            from the joint distribution in each decomposed subspace.
-            The decomposed subspaces are a partition of the whole search space. Each subspace
-            is a maximal subset of the whole search space, which satisfies the following:
-            for a trial in completed trials, the intersection of the subspace and the search space
-            of the trial becomes subspace itself or an empty set.
-            Sampling from the joint distribution on the subspace is realized by multivariate TPE.
-            If ``group`` is :obj:`True`, ``multivariate`` must be :obj:`True` as well.
-
-            .. note::
-                Added in v2.8.0 as an experimental feature. The interface may change in newer
-                versions without prior notice. See
-                https://github.com/optuna/optuna/releases/tag/v2.8.0.
-
-            Example:
-
-            .. testcode::
-
-                import optuna
-
-
-                def objective(trial):
-                    x = trial.suggest_categorical("x", ["A", "B"])
-                    if x == "A":
-                        return trial.suggest_float("y", -10, 10)
-                    else:
-                        return trial.suggest_int("z", -10, 10)
-
-
-                sampler = optuna.samplers.TPESampler(multivariate=True, group=True)
-                study = optuna.create_study(sampler=sampler)
-                study.optimize(objective, n_trials=10)
         constant_liar:
             If :obj:`True`, penalize running trials to avoid suggesting parameter configurations
             nearby.
@@ -183,18 +84,6 @@ class TPESampler(BaseSampler):
                 When using an :class:`~optuna.storages.RDBStorage`, it is possible to enable the
                 ``heartbeat_interval`` to change the records for abnormally terminated trials to
                 ``FAIL``.
-
-            .. note::
-                It is recommended to set this value to :obj:`True` during distributed
-                optimization to avoid having multiple workers evaluating similar parameter
-                configurations. In particular, if each objective function evaluation is costly
-                and the durations of the running states are significant, and/or the number of
-                workers is high.
-
-            .. note::
-                Added in v2.8.0 as an experimental feature. The interface may change in newer
-                versions without prior notice. See
-                https://github.com/optuna/optuna/releases/tag/v2.8.0.
         constraints_func:
             An optional function that computes the objective constraints. It must take a
             :class:`~optuna.trial.FrozenTrial` and return the constraints. The return value must
@@ -219,8 +108,6 @@ class TPESampler(BaseSampler):
         n_startup_trials: int = 10,
         n_ei_candidates: int = 24,
         seed: int | None = None,
-        multivariate: bool = False,
-        group: bool = False,
         constant_liar: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
@@ -229,7 +116,7 @@ class TPESampler(BaseSampler):
             consider_magic_clip=True,
             consider_endpoints=False,
             weights=default_weights,
-            multivariate=multivariate,
+            multivariate=True,
             categorical_distance_func={},
         )
 
@@ -240,32 +127,10 @@ class TPESampler(BaseSampler):
         self._rng = LazyRandomState(seed)
         self._random_sampler = RandomSampler(seed=seed)
 
-        self._multivariate = multivariate
-        self._group = group
-        self._group_decomposed_search_space: _GroupDecomposedSearchSpace | None = None
-        self._search_space_group: _SearchSpaceGroup | None = None
-        self._search_space = IntersectionSearchSpace(include_pruned=True)
         self._constant_liar = constant_liar
         self._constraints_func = constraints_func
         # NOTE(nabenabe0928): Users can overwrite _ParzenEstimator to customize the TPE behavior.
         self._parzen_estimator_cls = _ParzenEstimator
-
-        if multivariate:
-            warn_experimental_argument("multivariate")
-
-        if group:
-            if not multivariate:
-                raise ValueError(
-                    "``group`` option can only be enabled when ``multivariate`` is enabled."
-                )
-            warn_experimental_argument("group")
-            self._group_decomposed_search_space = _GroupDecomposedSearchSpace(True)
-
-        if constant_liar:
-            warn_experimental_argument("constant_liar")
-
-        if constraints_func is not None:
-            warn_experimental_argument("constraints_func")
 
     def reseed_rng(self) -> None:
         self._rng.rng.seed()
@@ -274,53 +139,13 @@ class TPESampler(BaseSampler):
     def infer_relative_search_space(
         self, study: Study, trial: FrozenTrial
     ) -> dict[str, BaseDistribution]:
-        if not self._multivariate:
-            return {}
-
-        search_space: dict[str, BaseDistribution] = {}
-        use_trial_cache = self._multivariate or not self._constant_liar
-
-        if self._group:
-            assert self._group_decomposed_search_space is not None
-            self._search_space_group = self._group_decomposed_search_space.calculate(
-                study, use_trial_cache
-            )
-            for sub_space in self._search_space_group.search_spaces:
-                # Sort keys because Python's string hashing is nondeterministic.
-                for name, distribution in sorted(sub_space.items()):
-                    if distribution.single():
-                        continue
-                    search_space[name] = distribution
-            return search_space
-
-        for name, distribution in self._search_space.calculate(study, use_trial_cache).items():
-            if distribution.single():
-                continue
-            search_space[name] = distribution
-
-        return search_space
+        complete_trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
+        return complete_trials[-1].distributions
 
     def sample_relative(
         self, study: Study, trial: FrozenTrial, search_space: dict[str, BaseDistribution]
     ) -> dict[str, Any]:
-        if self._group:
-            assert self._search_space_group is not None
-            params = {}
-            for sub_space in self._search_space_group.search_spaces:
-                _search_space = {}
-                # Sort keys because Python's string hashing is nondeterministic.
-                for name, distribution in sorted(sub_space.items()):
-                    if distribution.single():
-                        continue
-                    if name not in search_space:
-                        # When used together with PartialFixedSampler, the search space may be
-                        # smaller than what is inferred from the study.
-                        continue
-                    _search_space[name] = distribution
-                params.update(self._sample_relative(study, trial, _search_space))
-        else:
-            params = self._sample_relative(study, trial, search_space)
-
+        params = self._sample_relative(study, trial, search_space)
         if params != {} and self._constant_liar:
             # Share the params obtained by the relative sampling with the other processes.
             params_str = json.dumps(params)
@@ -365,9 +190,7 @@ class TPESampler(BaseSampler):
         return self._sample(study, trial, {param_name: param_distribution})[param_name]
 
     def _get_params(self, trial: FrozenTrial) -> dict[str, Any]:
-        if trial.state.is_finished() or not self._multivariate:
-            # NOTE(not522): If not multivariate, `relative_params` does not exist and
-            # `system_attrs` access will be unnecessary, so we skip it.
+        if trial.state.is_finished():
             return trial.params
 
         params_strs = []
