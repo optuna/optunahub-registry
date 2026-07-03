@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import Any
 from typing import TYPE_CHECKING
 
-from ._tree import _TreeNode
-from ._tree import _UnexpandedTreeNode
-from ._tree import build_full_tree
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import IntDistribution
 from optuna.trial import TrialState
 import plotly.graph_objects as go
+
+from ._tree import _TreeNode
+from ._tree import _UnexpandedTreeNode
+from ._tree import build_full_tree
 
 
 if TYPE_CHECKING:
