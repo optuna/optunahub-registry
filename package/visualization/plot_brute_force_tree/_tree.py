@@ -46,6 +46,9 @@ class _UnexpandedTreeNode:
     def count_tree_size(self) -> int:
         return 1
 
+    def count_completed(self) -> int:
+        return 0
+
 
 _UNEXPANDED_NODE = _UnexpandedTreeNode()
 
@@ -55,6 +58,7 @@ class _TreeNode:
     param_name: str | None = None
     children: dict[float, _TreeNode | _UnexpandedTreeNode] | None = None
     choices_args: ChoicesArgsType | None = None
+    n_completed: int = 0
 
     def _validate_search_space_consistency(
         self, param_name: str | None, choices_args: ChoicesArgsType | None
@@ -97,9 +101,17 @@ class _TreeNode:
             return 1
         return sum(child.count_tree_size() for child in children.values())
 
+    def count_completed(self) -> int:
+        if not (children := self.children):
+            return self.n_completed
+        return self.n_completed + sum(child.count_completed() for child in children.values())
 
-def _populate_tree(tree: _TreeNode, trials: list[FrozenTrial]) -> None:
+
+def _populate_tree(
+    tree: _TreeNode, trials: list[FrozenTrial]
+) -> dict[int, list[FrozenTrial]]:
     cat_internal_repr_cache: dict[str, dict[CategoricalChoiceType, float]] = {}
+    leaf_trials: dict[int, list[FrozenTrial]] = {}
 
     def _get_trial_path(trial: FrozenTrial) -> list[tuple[str, ChoicesArgsType, float]]:
         trial_path: list[tuple[str, ChoicesArgsType, float]] = []
@@ -120,12 +132,15 @@ def _populate_tree(tree: _TreeNode, trials: list[FrozenTrial]) -> None:
         return trial_path
 
     for trial in trials:
-        tree.add_path(_get_trial_path(trial))
+        if (leaf := tree.add_path(_get_trial_path(trial))) is not None:
+            leaf_trials.setdefault(id(leaf), []).append(trial)
+            if trial.state == TrialState.COMPLETE:
+                leaf.n_completed += 1
+
+    return leaf_trials
 
 
-def build_full_tree(study: Study) -> _TreeNode:
-    states = (TrialState.COMPLETE, TrialState.PRUNED, TrialState.RUNNING, TrialState.FAIL)
-    trials = study._storage.get_all_trials(study._study_id, deepcopy=False, states=states)
+def build_full_tree(trials: Study) -> tuple[_TreeNode, dict[int, list[FrozenTrial]]]:
     tree = _TreeNode()
-    _populate_tree(tree, trials)
-    return tree
+    leaf_trials = _populate_tree(tree, trials)
+    return tree, leaf_trials

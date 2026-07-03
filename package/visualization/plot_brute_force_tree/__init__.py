@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-import decimal
 from typing import Any
+from typing import TYPE_CHECKING
 
-import optuna
-from optuna.distributions import BaseDistribution
+from _tree import _TreeNode
+from _tree import _UnexpandedTreeNode
+from _tree import build_full_tree
 from optuna.distributions import CategoricalDistribution
-from optuna.distributions import FloatDistribution
 from optuna.distributions import IntDistribution
 from optuna.trial import TrialState
 import plotly.graph_objects as go
+
+
+if TYPE_CHECKING:
+    from optuna.study import Study
 
 
 _STATE_COLORS = {
@@ -29,29 +33,7 @@ def _format_value(value: Any) -> str:
     return str(value)
 
 
-def _enumerate_candidates(distribution: BaseDistribution) -> list[Any]:
-    # Enumerate all candidate values of a (finite) distribution using its public attributes.
-    # Returns an empty list if the distribution is not finite (e.g. a step-less float range),
-    # in which case the "unexplored" count for that branch is simply not shown.
-    if isinstance(distribution, CategoricalDistribution):
-        return list(distribution.choices)
-    if isinstance(distribution, IntDistribution):
-        return list(range(distribution.low, distribution.high + 1, distribution.step))
-    if isinstance(distribution, FloatDistribution):
-        if distribution.step is None:
-            return []
-        low = decimal.Decimal(str(distribution.low))
-        high = decimal.Decimal(str(distribution.high))
-        step = decimal.Decimal(str(distribution.step))
-        candidates = []
-        while low <= high:
-            candidates.append(float(low))
-            low += step
-        return candidates
-    return []
-
-
-def plot_brute_force_tree(study: optuna.Study) -> go.Figure:
+def plot_brute_force_tree(study: Study) -> go.Figure:
     """Plot the search tree explored by :class:`~optuna.samplers.BruteForceSampler`.
 
     Each path from the root to a leaf represents the sequence of parameters suggested in one
@@ -69,69 +51,91 @@ def plot_brute_force_tree(study: optuna.Study) -> go.Figure:
     Returns:
         A :class:`plotly.graph_objects.Figure` with an interactive icicle chart.
     """
-    trials = study.get_trials(deepcopy=False)
+    param_dists = {}
+    states = (TrialState.COMPLETE, TrialState.PRUNED, TrialState.RUNNING, TrialState.FAIL)
+    trials = study._storage.get_all_trials(study._study_id, deepcopy=False, states=states)
+    tree, leaf_trials = build_full_tree(trials)
+    for t in trials:
+        for param_name, dist in t.params.items():
+            param_dists[param_name] = dist
 
     ids: list[str] = ["root"]
     labels: list[str] = ["root"]
     parents: list[str] = [""]
     colors: list[str] = [_INTERNAL_COLOR]
-    hovertexts: list[str] = [f"{len(trials)} trial(s)"]
+    hovertexts: list[str] = [f"{len(leaf_trials)} path(s)"]
     sizes: list[float] = [0]
 
-    node_index: dict[str, int] = {"root": 0}
-    node_distribution: dict[str, BaseDistribution] = {}
-    node_observed_values: dict[str, set[Any]] = {}
+    def _internal_to_external(param_name: str, internal_value: float) -> Any:
+        dist = param_dists.get(param_name)
+        if isinstance(dist, CategoricalDistribution):
+            return dist.choices[int(internal_value)]
+        if isinstance(dist, IntDistribution):
+            return int(internal_value)
+        return internal_value
 
-    for trial in trials:
-        node_id = "root"
-        for param_name, value in trial.params.items():
-            node_distribution.setdefault(node_id, trial.distributions[param_name])
-            node_observed_values.setdefault(node_id, set()).add(str(value))
+    def _walk(node: _TreeNode, icicle_id: str) -> float:
+        total_size: float = 0
 
-            child_id = f"{node_id}/{param_name}={_format_value(value)}"
-            if child_id not in node_index:
-                node_index[child_id] = len(ids)
-                ids.append(child_id)
-                labels.append(f"{param_name}={_format_value(value)}")
-                parents.append(node_id)
-                colors.append(_INTERNAL_COLOR)
-                hovertexts.append(f"{param_name}={value}")
-                sizes.append(0)
-            node_id = child_id
+        for trial in leaf_trials.get(id(node), []):
+            leaf_id = f"{icicle_id}#trial{trial.number}"
+            ids.append(leaf_id)
+            labels.append(f"trial {trial.number}")
+            parents.append(icicle_id)
+            state = trial.state
+            colors.append(_STATE_COLORS.get(state, _INTERNAL_COLOR))
+            sizes.append(1)
+            if state == TrialState.COMPLETE:
+                hovertexts.append(f"trial {trial.number} ({state.name}): values={trial.values}")
+            else:
+                hovertexts.append(f"trial {trial.number} ({state.name})")
+            total_size += 1
 
-        # Give every trial its own leaf, so duplicate parameter combinations remain visible.
-        leaf_id = f"{node_id}#trial{trial.number}"
-        node_index[leaf_id] = len(ids)
-        ids.append(leaf_id)
-        labels.append(f"trial {trial.number}")
-        parents.append(node_id)
-        sizes.append(1)
+        if not node.children:
+            return total_size
 
-        state = trial.state
-        colors.append(_STATE_COLORS.get(state, _INTERNAL_COLOR))
-        if state == TrialState.COMPLETE:
-            hovertexts.append(f"trial {trial.number} ({state.name}): values={trial.values}")
-        else:
-            hovertexts.append(f"trial {trial.number} ({state.name})")
+        assert node.param_name is not None
+        n_unexpanded = 0
 
-    for node_id, distribution in node_distribution.items():
-        candidates = _enumerate_candidates(distribution)
-        n_unexplored = len(candidates) - len(node_observed_values[node_id])
-        if n_unexplored <= 0:
-            continue
-        unexplored_id = f"{node_id}/...unexplored"
-        node_index[unexplored_id] = len(ids)
-        ids.append(unexplored_id)
-        labels.append(f"{n_unexplored} unexplored")
-        parents.append(node_id)
-        colors.append(_UNEXPANDED_COLOR)
-        hovertexts.append(f"{n_unexplored} candidate value(s) not sampled yet")
-        sizes.append(n_unexplored)
+        for internal_value, child in node.children.items():
+            if isinstance(child, _UnexpandedTreeNode):
+                n_unexpanded += 1
+                continue
 
-    # Aggregate leaf sizes into their ancestors. Children are always appended after their
-    # parent, so a single reverse pass is enough regardless of tree depth.
-    for i in range(len(ids) - 1, 0, -1):
-        sizes[node_index[parents[i]]] += sizes[i]
+            ext_value = _internal_to_external(node.param_name, internal_value)
+            child_icicle_id = f"{icicle_id}/{node.param_name}={_format_value(ext_value)}"
+            child_idx = len(ids)
+
+            ids.append(child_icicle_id)
+            labels.append(f"{node.param_name}={_format_value(ext_value)}")
+            parents.append(icicle_id)
+            colors.append(_INTERNAL_COLOR)
+            hovertexts.append(f"{node.param_name}={ext_value}")
+            sizes.append(0)
+
+            child_size = _walk(child, child_icicle_id)
+            sizes[child_idx] = child_size
+            total_size += child_size
+
+            labels[child_idx] += (
+                f"<br>(Done: {child.count_completed()}, Total: {child.count_tree_size()})"
+            )
+
+        if n_unexpanded > 0:
+            unexplored_id = f"{icicle_id}/...unexplored"
+            ids.append(unexplored_id)
+            labels.append(f"{n_unexpanded} unexplored")
+            parents.append(icicle_id)
+            colors.append(_UNEXPANDED_COLOR)
+            hovertexts.append(f"{n_unexpanded} candidate value(s) not sampled yet")
+            sizes.append(n_unexpanded)
+            total_size += n_unexpanded
+
+        return total_size
+
+    root_size = _walk(tree, "root")
+    sizes[0] = root_size
+    labels[0] += f"<br>(Done: {tree.count_completed()}, Total: {tree.count_tree_size()})"
 
     fig = go.Figure(
         go.Icicle(
