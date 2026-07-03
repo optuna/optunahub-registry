@@ -14,7 +14,6 @@ from optuna.trial import TrialState
 
 
 if TYPE_CHECKING:
-    from optuna.study import Study
     from optuna.trial import FrozenTrial
 
     ChoicesArgsType = tuple[int | float, int | float, int | float | None]  # low, high, step
@@ -59,6 +58,7 @@ class _TreeNode:
     children: dict[float, _TreeNode | _UnexpandedTreeNode] | None = None
     choices_args: ChoicesArgsType | None = None
     n_completed: int = 0
+    trial_number: int = -1
 
     def _validate_search_space_consistency(
         self, param_name: str | None, choices_args: ChoicesArgsType | None
@@ -107,11 +107,9 @@ class _TreeNode:
         return self.n_completed + sum(child.count_completed() for child in children.values())
 
 
-def _populate_tree(
-    tree: _TreeNode, trials: list[FrozenTrial]
-) -> dict[int, list[FrozenTrial]]:
+def build_full_tree(trials: list[FrozenTrial]) -> _TreeNode:
+    tree = _TreeNode()
     cat_internal_repr_cache: dict[str, dict[CategoricalChoiceType, float]] = {}
-    leaf_trials: dict[int, list[FrozenTrial]] = {}
 
     def _get_trial_path(trial: FrozenTrial) -> list[tuple[str, ChoicesArgsType, float]]:
         trial_path: list[tuple[str, ChoicesArgsType, float]] = []
@@ -133,14 +131,7 @@ def _populate_tree(
 
     for trial in trials:
         if (leaf := tree.add_path(_get_trial_path(trial))) is not None:
-            leaf_trials.setdefault(id(leaf), []).append(trial)
-            if trial.state == TrialState.COMPLETE:
+            leaf.trial_number = trial.number
+            if trial.state in [TrialState.COMPLETE, TrialState.PRUNED]:
                 leaf.n_completed += 1
-
-    return leaf_trials
-
-
-def build_full_tree(trials: Study) -> tuple[_TreeNode, dict[int, list[FrozenTrial]]]:
-    tree = _TreeNode()
-    leaf_trials = _populate_tree(tree, trials)
-    return tree, leaf_trials
+    return tree

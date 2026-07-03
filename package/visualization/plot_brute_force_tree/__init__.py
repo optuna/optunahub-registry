@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Any
 from typing import TYPE_CHECKING
 
-from _tree import _TreeNode
-from _tree import _UnexpandedTreeNode
-from _tree import build_full_tree
+from ._tree import _TreeNode
+from ._tree import _UnexpandedTreeNode
+from ._tree import build_full_tree
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import IntDistribution
 from optuna.trial import TrialState
@@ -51,19 +51,21 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
     Returns:
         A :class:`plotly.graph_objects.Figure` with an interactive icicle chart.
     """
-    param_dists = {}
     states = (TrialState.COMPLETE, TrialState.PRUNED, TrialState.RUNNING, TrialState.FAIL)
     trials = study._storage.get_all_trials(study._study_id, deepcopy=False, states=states)
-    tree, leaf_trials = build_full_tree(trials)
+    tree = build_full_tree(trials)
+
+    trials_by_number = {t.number: t for t in trials}
+    param_dists: dict[str, Any] = {}
     for t in trials:
-        for param_name, dist in t.params.items():
-            param_dists[param_name] = dist
+        for param_name, dist in t.distributions.items():
+            param_dists.setdefault(param_name, dist)
 
     ids: list[str] = ["root"]
     labels: list[str] = ["root"]
     parents: list[str] = [""]
     colors: list[str] = [_INTERNAL_COLOR]
-    hovertexts: list[str] = [f"{len(leaf_trials)} path(s)"]
+    hovertexts: list[str] = [f"{len(trials)} trial(s)"]
     sizes: list[float] = [0]
 
     def _internal_to_external(param_name: str, internal_value: float) -> Any:
@@ -77,7 +79,8 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
     def _walk(node: _TreeNode, icicle_id: str) -> float:
         total_size: float = 0
 
-        for trial in leaf_trials.get(id(node), []):
+        if node.trial_number >= 0:
+            trial = trials_by_number[node.trial_number]
             leaf_id = f"{icicle_id}#trial{trial.number}"
             ids.append(leaf_id)
             labels.append(f"trial {trial.number}")
