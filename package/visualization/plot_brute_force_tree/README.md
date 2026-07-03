@@ -16,6 +16,8 @@ internal node is a parameter, and a path from the root to a leaf is one trial's 
 been sampled, how each trial's parameters relate to one another, and how much of a finite
 (grid-like) search space is still unexplored.
 
+![Example](images/tree.png)
+
 Leaves are colored by trial state (complete/pruned/failed/running); hovering over a complete
 trial's leaf shows its objective value(s). A synthetic `... unexplored` leaf is added under every
 branching point that still has unvisited candidate values.
