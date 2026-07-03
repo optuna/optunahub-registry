@@ -4,8 +4,7 @@ import optuna
 import optunahub
 
 
-# module = optunahub.load_module("visualization/plot_brute_force_tree")
-module = optunahub.load_local_module("visualization/plot_brute_force_tree", registry_root="package")
+module = optunahub.load_module("visualization/plot_brute_force_tree")
 
 
 def objective(trial: optuna.Trial) -> float:
