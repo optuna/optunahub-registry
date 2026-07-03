@@ -86,7 +86,7 @@ def plot_brute_force_tree(study: optuna.Study) -> go.Figure:
         node_id = "root"
         for param_name, value in trial.params.items():
             node_distribution.setdefault(node_id, trial.distributions[param_name])
-            node_observed_values.setdefault(node_id, set()).add(value)
+            node_observed_values.setdefault(node_id, set()).add(str(value))
 
             child_id = f"{node_id}/{param_name}={_format_value(value)}"
             if child_id not in node_index:
