@@ -30,9 +30,11 @@ _ICICLE_VALUE_EXPONENT = 0.25  # dampens size disparity between branches; 1.0 = 
 
 
 def _format_value(value: Any) -> str:
-    if isinstance(value, float):
-        return f"{value:.6g}"
-    return str(value)
+    return f"{value:.6g}" if isinstance(value, float) else str(value)
+
+
+def _completion_color(n_completed: int, n_total: int) -> str:
+    return _STATE_COLORS[TrialState.COMPLETE] if n_completed == n_total else _INTERNAL_COLOR
 
 
 def _dampen_sibling_disparity(
@@ -109,7 +111,6 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
 
     def _walk(node: _TreeNode, icicle_id: str) -> float:
         total_size: float = 0
-
         if node.trial_number >= 0:
             trial = trials_by_number[node.trial_number]
             leaf_id = f"{icicle_id}#trial{trial.number}"
@@ -139,21 +140,18 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
             ext_value = _internal_to_external(node.param_name, internal_value)
             child_icicle_id = f"{icicle_id}/{node.param_name}={_format_value(ext_value)}"
             child_idx = len(ids)
-
             ids.append(child_icicle_id)
             labels.append(f"{node.param_name}={_format_value(ext_value)}")
             parents.append(icicle_id)
             colors.append(_INTERNAL_COLOR)
             hovertexts.append(f"{node.param_name}={ext_value}")
             sizes.append(0)
-
             child_size = _walk(child, child_icicle_id)
             sizes[child_idx] = child_size
             total_size += child_size
-
-            labels[child_idx] += (
-                f"<br>(Done: {child.count_completed()}, Total: {child.count_tree_size()})"
-            )
+            child_completed, child_total = child.count_completed(), child.count_tree_size()
+            colors[child_idx] = _completion_color(child_completed, child_total)
+            labels[child_idx] += f"<br>(Done: {child_completed}, Total: {child_total})"
 
         if n_unexpanded > 0:
             unexplored_id = f"{icicle_id}/...unexplored"
@@ -169,9 +167,10 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
 
     root_size = _walk(tree, "root")
     sizes[0] = root_size
-    labels[0] += f"<br>(Done: {tree.count_completed()}, Total: {tree.count_tree_size()})"
+    root_completed, root_total = tree.count_completed(), tree.count_tree_size()
+    colors[0] = _completion_color(root_completed, root_total)
+    labels[0] += f"<br>(Done: {root_completed}, Total: {root_total})"
     display_sizes = _dampen_sibling_disparity(ids, parents, sizes, _ICICLE_VALUE_EXPONENT)
-
     fig = go.Figure(
         go.Icicle(
             ids=ids,
@@ -184,10 +183,7 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
             marker={"colors": colors},
         )
     )
-    fig.update_layout(
-        title="Brute Force Search Tree",
-        margin={"t": 50, "l": 25, "r": 25, "b": 25},
-    )
+    fig.update_layout(title="Brute Force Search Tree", margin={"t": 50, "l": 25, "r": 25, "b": 25})
     return fig
 
 
