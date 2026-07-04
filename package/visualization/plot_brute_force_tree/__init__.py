@@ -26,6 +26,13 @@ _STATE_COLORS = {
 }
 _INTERNAL_COLOR = "#B0BEC5"
 _UNEXPANDED_COLOR = "#ECEFF1"
+
+_DARK_BG_COLORS = {
+    _STATE_COLORS[TrialState.COMPLETE],
+    _STATE_COLORS[TrialState.RUNNING],
+    _STATE_COLORS[TrialState.FAIL],
+    _STATE_COLORS[TrialState.WAITING],
+}
 _ICICLE_VALUE_EXPONENT = 0.25  # dampens size disparity between branches; 1.0 = literal proportions
 
 
@@ -98,6 +105,7 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
     labels: list[str] = ["root"]
     parents: list[str] = [""]
     colors: list[str] = [_INTERNAL_COLOR]
+    textcolors: list[str] = ["black"]
     hovertexts: list[str] = [f"{len(trials)} trial(s)"]
     sizes: list[float] = [0]
 
@@ -118,7 +126,9 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
             labels.append(f"trial {trial.number}")
             parents.append(icicle_id)
             state = trial.state
-            colors.append(_STATE_COLORS.get(state, _INTERNAL_COLOR))
+            state_color = _STATE_COLORS.get(state, _INTERNAL_COLOR)
+            colors.append(state_color)
+            textcolors.append("white" if state_color in _DARK_BG_COLORS else "black")
             sizes.append(1)
             if state == TrialState.COMPLETE:
                 hovertexts.append(f"trial {trial.number} ({state.name}): values={trial.values}")
@@ -144,13 +154,16 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
             labels.append(f"{node.param_name}={_format_value(ext_value)}")
             parents.append(icicle_id)
             colors.append(_INTERNAL_COLOR)
+            textcolors.append("black")
             hovertexts.append(f"{node.param_name}={ext_value}")
             sizes.append(0)
             child_size = _walk(child, child_icicle_id)
             sizes[child_idx] = child_size
             total_size += child_size
             child_completed, child_total = child.count_completed(), child.count_tree_size()
-            colors[child_idx] = _completion_color(child_completed, child_total)
+            child_color = _completion_color(child_completed, child_total)
+            colors[child_idx] = child_color
+            textcolors[child_idx] = "white" if child_color in _DARK_BG_COLORS else "black"
             labels[child_idx] += f"<br>(Done: {child_completed}, Total: {child_total})"
 
         if n_unexpanded > 0:
@@ -159,6 +172,7 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
             labels.append(f"{n_unexpanded} unexplored")
             parents.append(icicle_id)
             colors.append(_UNEXPANDED_COLOR)
+            textcolors.append("black")
             hovertexts.append(f"{n_unexpanded} candidate value(s) not sampled yet")
             sizes.append(n_unexpanded)
             total_size += n_unexpanded
@@ -168,7 +182,9 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
     root_size = _walk(tree, "root")
     sizes[0] = root_size
     root_completed, root_total = tree.count_completed(), tree.count_tree_size()
-    colors[0] = _completion_color(root_completed, root_total)
+    root_color = _completion_color(root_completed, root_total)
+    colors[0] = root_color
+    textcolors[0] = "white" if root_color in _DARK_BG_COLORS else "black"
     labels[0] += f"<br>(Done: {root_completed}, Total: {root_total})"
     display_sizes = _dampen_sibling_disparity(ids, parents, sizes, _ICICLE_VALUE_EXPONENT)
     fig = go.Figure(
@@ -181,6 +197,7 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
             hovertext=hovertexts,
             hoverinfo="text",
             marker={"colors": colors},
+            textfont={"color": textcolors},
         )
     )
     fig.update_layout(title="Brute Force Search Tree", margin={"t": 50, "l": 25, "r": 25, "b": 25})
