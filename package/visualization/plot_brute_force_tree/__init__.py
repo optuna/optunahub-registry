@@ -26,12 +26,42 @@ _STATE_COLORS = {
 }
 _INTERNAL_COLOR = "#B0BEC5"
 _UNEXPANDED_COLOR = "#ECEFF1"
+_ICICLE_VALUE_EXPONENT = 0.25  # dampens size disparity between branches; 1.0 = literal proportions
 
 
 def _format_value(value: Any) -> str:
     if isinstance(value, float):
         return f"{value:.6g}"
     return str(value)
+
+
+def _dampen_sibling_disparity(
+    ids: list[str], parents: list[str], raw_sizes: list[float], exponent: float
+) -> list[float]:
+    # Icicle's branchvalues="total" requires each node's value to exactly equal the sum of
+    # its children's values, so a branch's size can't be dampened in isolation (that breaks
+    # consistency with its already-summed children and renders nothing). Instead, redistribute
+    # each parent's value top-down: children split it in proportion to `raw_size**exponent`,
+    # which shrinks the gap between large and small siblings while every node's displayed value
+    # still sums exactly to its parent's.
+    children_by_parent: dict[str, list[int]] = {}
+    for idx, parent_id in enumerate(parents):
+        children_by_parent.setdefault(parent_id, []).append(idx)
+
+    display_sizes = list(raw_sizes)
+
+    def _distribute(node_idx: int, node_display_value: float) -> None:
+        display_sizes[node_idx] = node_display_value
+        child_indices = children_by_parent.get(ids[node_idx], [])
+        if not child_indices:
+            return
+        weights = [raw_sizes[i] ** exponent for i in child_indices]
+        weight_total = sum(weights)
+        for child_idx, weight in zip(child_indices, weights):
+            _distribute(child_idx, node_display_value * weight / weight_total)
+
+    _distribute(0, raw_sizes[0])
+    return display_sizes
 
 
 def plot_brute_force_tree(study: Study) -> go.Figure:
@@ -140,13 +170,14 @@ def plot_brute_force_tree(study: Study) -> go.Figure:
     root_size = _walk(tree, "root")
     sizes[0] = root_size
     labels[0] += f"<br>(Done: {tree.count_completed()}, Total: {tree.count_tree_size()})"
+    display_sizes = _dampen_sibling_disparity(ids, parents, sizes, _ICICLE_VALUE_EXPONENT)
 
     fig = go.Figure(
         go.Icicle(
             ids=ids,
             labels=labels,
             parents=parents,
-            values=sizes,
+            values=display_sizes,
             branchvalues="total",
             hovertext=hovertexts,
             hoverinfo="text",
