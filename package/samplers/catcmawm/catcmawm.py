@@ -331,7 +331,7 @@ class CatCmawmSampler(BaseSampler):
         population_size: Optional[int] = None,
     ) -> "CmaClass":
         return cmaes.CatCMAwM(  # type: ignore
-            x_space=x_space=float_bounds if float_bounds else None,
+            x_space=float_bounds if float_bounds else None,
             z_space=int_values,
             c_space=cat_num,
             population_size=population_size,
