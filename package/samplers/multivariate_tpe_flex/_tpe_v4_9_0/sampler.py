@@ -269,20 +269,25 @@ class TPESampler(BaseSampler):
             self._constraints_func is not None,
         )
 
+        single_params = {param_name: d for param_name, d in search_space.items() if d.single()} 
+        target_search_space = {param_name: d for param_name, d in search_space.items() if not d.single()}
         mpe_below = self._build_parzen_estimator(
-            study, search_space, below_trials, handle_below=True
+            study, target_search_space, below_trials, handle_below=True
         )
         mpe_above = self._build_parzen_estimator(
-            study, search_space, above_trials, handle_below=False
+            study, target_search_space, above_trials, handle_below=False
         )
 
         samples_below = mpe_below.sample(self._rng.rng, self._n_ei_candidates)
         acq_func_vals = self._compute_acquisition_func(samples_below, mpe_below, mpe_above)
         ret = TPESampler._compare(samples_below, acq_func_vals)
 
-        for param_name, dist in search_space.items():
+        for param_name, dist in target_search_space.items():
             ret[param_name] = dist.to_external_repr(ret[param_name])
-
+        for param_name, dist in single_params.items():
+            ret[param_name] = (
+                dist.choices[0] if isinstance(dist, CategoricalDistribution) else dist.low
+            )
         return ret
 
     def _build_parzen_estimator(
