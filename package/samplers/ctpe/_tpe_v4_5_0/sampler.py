@@ -18,16 +18,16 @@ from optuna.samplers import BaseSampler
 from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.search_space import IntersectionSearchSpace
-from optuna.search_space.group_decomposed import _GroupDecomposedSearchSpace
-from optuna.search_space.group_decomposed import _SearchSpaceGroup
 from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
 from ..optuna_helpers import _CONSTRAINTS_KEY
 from ..optuna_helpers import _fast_non_domination_rank
+from ..optuna_helpers import _GroupDecomposedSearchSpace
 from ..optuna_helpers import _is_pareto_front
 from ..optuna_helpers import _process_constraints_after_trial
+from ..optuna_helpers import _SearchSpaceGroup
 from ..optuna_helpers import _solve_hssp
 from ..optuna_helpers import compute_hypervolume
 from .parzen_estimator import _ParzenEstimator
@@ -276,6 +276,7 @@ class TPESampler(BaseSampler):
     def __init__(
         self,
         *,
+        consider_prior: bool = True,
         prior_weight: float = 1.0,
         consider_magic_clip: bool = True,
         consider_endpoints: bool = False,
@@ -286,13 +287,13 @@ class TPESampler(BaseSampler):
         seed: int | None = None,
         multivariate: bool = False,
         group: bool = False,
+        warn_independent_sampling: bool = True,
         constant_liar: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
         categorical_distance_func: (
             dict[str, Callable[[CategoricalChoiceType, CategoricalChoiceType], float]] | None
         ) = None,
     ) -> None:
-
         self._parzen_estimator_parameters = _ParzenEstimatorParameters(
             prior_weight=prior_weight,
             consider_magic_clip=consider_magic_clip,
