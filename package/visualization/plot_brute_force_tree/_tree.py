@@ -133,5 +133,6 @@ def build_full_tree(trials: list[FrozenTrial]) -> _TreeNode:
         if (leaf := tree.add_path(_get_trial_path(trial))) is not None:
             leaf.trial_number = trial.number
             if trial.state in [TrialState.COMPLETE, TrialState.PRUNED]:
-                leaf.n_completed += 1
+                # This ensures no double count for any duplicated trials.
+                leaf.n_completed = 1
     return tree
