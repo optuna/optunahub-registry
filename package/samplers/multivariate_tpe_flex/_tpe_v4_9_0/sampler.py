@@ -269,8 +269,10 @@ class TPESampler(BaseSampler):
             self._constraints_func is not None,
         )
 
-        single_params = {param_name: d for param_name, d in search_space.items() if d.single()} 
-        target_search_space = {param_name: d for param_name, d in search_space.items() if not d.single()}
+        single_params = {param_name: d for param_name, d in search_space.items() if d.single()}
+        target_search_space = {
+            param_name: d for param_name, d in search_space.items() if not d.single()
+        }
         mpe_below = self._build_parzen_estimator(
             study, target_search_space, below_trials, handle_below=True
         )
