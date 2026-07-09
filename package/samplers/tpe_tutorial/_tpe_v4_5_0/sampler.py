@@ -11,25 +11,24 @@ from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
-from optuna._hypervolume import compute_hypervolume
-from optuna._hypervolume.hssp import _solve_hssp
 from optuna.distributions import BaseDistribution
 from optuna.logging import get_logger
-from optuna.samplers._base import _CONSTRAINTS_KEY
-from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
-from optuna.samplers._base import _process_constraints_after_trial
-from optuna.samplers._base import BaseSampler
+from optuna.samplers import BaseSampler
+from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.samplers._random import RandomSampler
 from optuna.search_space import IntersectionSearchSpace
 from optuna.search_space.group_decomposed import _GroupDecomposedSearchSpace
 from optuna.search_space.group_decomposed import _SearchSpaceGroup
-from optuna.study._multi_objective import _fast_non_domination_rank
-from optuna.study._multi_objective import _is_pareto_front
-from optuna.study._study_direction import StudyDirection
+from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
+from ..optuna_helpers import _CONSTRAINTS_KEY
+from ..optuna_helpers import _fast_non_domination_rank
+from ..optuna_helpers import _is_pareto_front
+from ..optuna_helpers import _process_constraints_after_trial
+from ..optuna_helpers import _solve_hssp
+from ..optuna_helpers import compute_hypervolume
 from .parzen_estimator import _ParzenEstimator
 from .parzen_estimator import _ParzenEstimatorParameters
 
@@ -200,10 +199,6 @@ class TPESampler(BaseSampler):
                 sampler = optuna.samplers.TPESampler(multivariate=True, group=True)
                 study = optuna.create_study(sampler=sampler)
                 study.optimize(objective, n_trials=10)
-        warn_independent_sampling:
-            If this is :obj:`True` and ``multivariate=True``, a warning message is emitted when
-            the value of a parameter is sampled by using an independent sampler.
-            If ``multivariate=False``, this flag has no effect.
         constant_liar:
             If :obj:`True`, penalize running trials to avoid suggesting parameter configurations
             nearby.
@@ -256,7 +251,6 @@ class TPESampler(BaseSampler):
         seed: int | None = None,
         multivariate: bool = False,
         group: bool = False,
-        warn_independent_sampling: bool = True,
         constant_liar: bool = False,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
     ) -> None:
@@ -265,7 +259,6 @@ class TPESampler(BaseSampler):
         self._n_ei_candidates = n_ei_candidates
         self._gamma = gamma
 
-        self._warn_independent_sampling = warn_independent_sampling
         self._rng = LazyRandomState(seed)
         self._random_sampler = RandomSampler(seed=seed)
 
@@ -372,21 +365,6 @@ class TPESampler(BaseSampler):
             return self._random_sampler.sample_independent(
                 study, trial, param_name, param_distribution
             )
-
-        if self._warn_independent_sampling and self._multivariate:
-            # Avoid independent warning at the first sampling of `param_name`.
-            if any(param_name in trial.params for trial in trials):
-                _logger.warning(
-                    _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
-                        param_name=param_name,
-                        trial_number=trial.number,
-                        independent_sampler_name=self._random_sampler.__class__.__name__,
-                        sampler_name=self.__class__.__name__,
-                        fallback_reason=(
-                            "dynamic search space is not supported for `multivariate=True`"
-                        ),
-                    )
-                )
 
         return self._sample(study, trial, {param_name: param_distribution})[param_name]
 
