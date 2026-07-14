@@ -120,9 +120,9 @@ class GPRegressor:
         return 1.0 / np.sqrt(self.inverse_squared_lengthscales.detach().numpy())
 
     def _cache_matrix(self) -> None:
-        assert self._cov_Y_Y_inv is None and self._cov_Y_Y_inv_Y is None, (
-            "Cannot call cache_matrix more than once."
-        )
+        assert (
+            self._cov_Y_Y_inv is None and self._cov_Y_Y_inv_Y is None
+        ), "Cannot call cache_matrix more than once."
         with torch.no_grad():
             cov_Y_Y = self.kernel().detach().numpy()
 
@@ -180,9 +180,9 @@ class GPRegressor:
 
         Please note that we clamp the variance to avoid negative values due to numerical errors.
         """
-        assert self._cov_Y_Y_inv is not None and self._cov_Y_Y_inv_Y is not None, (
-            "Call cache_matrix before calling posterior."
-        )
+        assert (
+            self._cov_Y_Y_inv is not None and self._cov_Y_Y_inv_Y is not None
+        ), "Call cache_matrix before calling posterior."
         cov_fx_fX = self.kernel(x)
         cov_fx_fx = self.kernel_scale  # kernel(x, x) = kernel_scale
         mean = cov_fx_fX @ self._cov_Y_Y_inv_Y

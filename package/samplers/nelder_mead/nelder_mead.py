@@ -52,9 +52,9 @@ class NelderMeadSampler(optunahub.samplers.SimpleBaseSampler):
 
         assert 0.0 <= centroid <= 1.0, "The centroid must be exists in the unit hypercube. "
 
-        assert 0.0 < edge <= max(centroid, 1 - centroid), (
-            f"Maximum edge length is {max(centroid, 1 - centroid)}"
-        )
+        assert (
+            0.0 < edge <= max(centroid, 1 - centroid)
+        ), f"Maximum edge length is {max(centroid, 1 - centroid)}"
 
         if search_space is None:
             self._NM_state = "estimate_search_space"

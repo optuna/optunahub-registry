@@ -40,9 +40,9 @@ def _batched_lbfgsb(
     max_iters: int,
     max_line_search: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    assert x0_batched.ndim == 2, (
-        f"The shape of x0 must be (batch_size, dim), but got {x0_batched.shape}."
-    )
+    assert (
+        x0_batched.ndim == 2
+    ), f"The shape of x0 must be (batch_size, dim), but got {x0_batched.shape}."
     batch_size = len(x0_batched)
     xs_opt = np.empty_like(x0_batched)
     fvals_opt = np.empty(batch_size, dtype=float)

@@ -39,9 +39,9 @@ def generate_initial_simplex(
 
     assert 0.0 <= centroid <= 1.0, "The centroid must be exists in the unit hypercube. "
 
-    assert 0.0 < edge <= max(centroid, 1 - centroid), (
-        f"Maximum edge length is {max(centroid, 1 - centroid)}"
-    )
+    assert (
+        0.0 < edge <= max(centroid, 1 - centroid)
+    ), f"Maximum edge length is {max(centroid, 1 - centroid)}"
 
     # Our implementation normalizes the search space to unit hypercube [0, 1]^n.
     bdrys = np.array([[0, 1] for _ in range(dim)])

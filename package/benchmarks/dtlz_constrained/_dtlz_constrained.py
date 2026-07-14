@@ -60,9 +60,9 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
             dimension = n_objectives + (4 if function_id in [1, 4] else 9)
         self._dtlz_type = {"constraint_type": constraint_type, "function_id": function_id}
 
-        assert self._dtlz_type in self.available_combinations, (
-            f"Invalid combination of constraint_type and function_id: {self._dtlz_type}. Available combinations are: {self.available_combinations}"
-        )
+        assert (
+            self._dtlz_type in self.available_combinations
+        ), f"Invalid combination of constraint_type and function_id: {self._dtlz_type}. Available combinations are: {self.available_combinations}"
         self._problem = optproblems.dtlz.DTLZ(n_objectives, dimension, **kwargs)[function_id - 1]
 
         self._search_space = {
