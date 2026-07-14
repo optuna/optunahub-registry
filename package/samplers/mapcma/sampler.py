@@ -154,7 +154,9 @@ class MAPCMASampler(BaseSampler):
         # MAPCMASampler only supports continuous search spaces.
         assert all(
             isinstance(distribution, FloatDistribution) for distribution in search_space.values()
-        ), "`MapCmaSampler` only supports continuous or integer search spaces (categorical parameters are not supported)."
+        ), (
+            "`MapCmaSampler` only supports continuous or integer search spaces (categorical parameters are not supported)."
+        )
 
         trans = _SearchSpaceTransform(search_space)
         if self._initial_popsize is None:

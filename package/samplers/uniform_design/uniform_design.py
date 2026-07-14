@@ -36,8 +36,10 @@ class UniformDesignSampler(BaseSampler):
                     IntDistribution,
                     CategoricalDistribution,
                 ),
-            ), "{} contains a value with the type of {}, which is not supported by UniformDesignSampler. Please make sure a value is int, float or categorical for persistent storage.".format(
-                param_name, type(distribution)
+            ), (
+                "{} contains a value with the type of {}, which is not supported by UniformDesignSampler. Please make sure a value is int, float or categorical for persistent storage.".format(
+                    param_name, type(distribution)
+                )
             )
 
         self._search_space = search_space

@@ -225,9 +225,9 @@ class ImplicitNaturalGradientSampler(BaseSampler):
 
         solution_trials = [t for t in completed_trials if self._check_trial_is_generation(t)]
         if len(solution_trials) >= self._optimizer.population_size:
-            assert (
-                len(solution_trials) == self._optimizer.population_size
-            ), "This sampler currently does not support PRUNED or FAIL"
+            assert len(solution_trials) == self._optimizer.population_size, (
+                "This sampler currently does not support PRUNED or FAIL"
+            )
             solutions_x = np.empty(shape=(self._optimizer.population_size, len(trans.bounds)))
             solutions_y = np.empty(shape=self._optimizer.population_size)
             for i, t in enumerate(solution_trials[: self._optimizer.population_size]):

@@ -181,7 +181,7 @@ class MoCmaSampler(BaseSampler):
                 )
             elite_ids = [e._trial_id for e in elites]
             study._storage.set_study_system_attr(
-                study._study_id, f"mocma:generation:{g-1}:elite_ids", elite_ids
+                study._study_id, f"mocma:generation:{g - 1}:elite_ids", elite_ids
             )
         elif g >= 2 and generation_finished:
             # This section conducts the parameter updates for g-1 with individuals for g-1 and g-2
@@ -190,7 +190,7 @@ class MoCmaSampler(BaseSampler):
 
             parents = [
                 [t for t in complete_trials if t._trial_id == eid][0]
-                for eid in study_system_attrs[f"mocma:generation:{g-2}:elite_ids"]
+                for eid in study_system_attrs[f"mocma:generation:{g - 2}:elite_ids"]
             ]
             # Handling conditional parameters for parents
             # (Discard cma parmeter values for paramaters not in the intersection search space)
@@ -318,7 +318,7 @@ class MoCmaSampler(BaseSampler):
                     del front_i[candidate]
             elite_ids = [e._trial_id for e in elites]
             study._storage.set_study_system_attr(
-                study._study_id, f"mocma:generation:{g-1}:elite_ids", elite_ids
+                study._study_id, f"mocma:generation:{g - 1}:elite_ids", elite_ids
             )
 
         # Load/reload study_system_attrs after updates
@@ -328,7 +328,7 @@ class MoCmaSampler(BaseSampler):
         a = [
             t
             for t in complete_trials
-            if t._trial_id == study_system_attrs[f"mocma:generation:{g-1}:elite_ids"][k]
+            if t._trial_id == study_system_attrs[f"mocma:generation:{g - 1}:elite_ids"][k]
         ][0]
         mean = trans.transform(a.params)
         sigma = study_system_attrs[f"mocma:trial:{a._trial_id}:sigma"]

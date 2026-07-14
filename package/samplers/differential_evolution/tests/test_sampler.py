@@ -243,12 +243,12 @@ def test_sample_relative_numerical(
         assert np.all(points[:, i] >= distribution.low), "The sampled value must be >= low."
         assert np.all(points[:, i] <= distribution.high), "The sampled value must be <= high."
     for param_value, distribution in zip(sample(), search_space.values()):
-        assert not isinstance(
-            param_value, np.floating
-        ), f"The sampled value must not be a numpy float, instead it is {param_value}"
-        assert not isinstance(
-            param_value, np.integer
-        ), f"The sampled value must not be a numpy integer, instead it is {param_value}"
+        assert not isinstance(param_value, np.floating), (
+            f"The sampled value must not be a numpy float, instead it is {param_value}"
+        )
+        assert not isinstance(param_value, np.integer), (
+            f"The sampled value must not be a numpy integer, instead it is {param_value}"
+        )
         if isinstance(distribution, IntDistribution):
             assert isinstance(param_value, int), "The sampled value must be an integer."
         else:
@@ -723,12 +723,12 @@ def test_reproducible_in_other_process(sampler_name: str, unset_seed_in_test: No
     os.remove(log_file)  # change from Jinglue: added log file cleanup
 
     # Rest of the assertions...
-    assert not (
-        hash_dict[0] == hash_dict[1] == hash_dict[2]
-    ), "Hashes are expected to be different"
-    assert (
-        sequence_dict[0] == sequence_dict[1] == sequence_dict[2]
-    ), "Sequences are expected to be same"
+    assert not (hash_dict[0] == hash_dict[1] == hash_dict[2]), (
+        "Hashes are expected to be different"
+    )
+    assert sequence_dict[0] == sequence_dict[1] == sequence_dict[2], (
+        "Sequences are expected to be same"
+    )
 
 
 @pytest.mark.parametrize("n_jobs", [1, 2])
