@@ -22,7 +22,6 @@ repos:
     hooks:
       - id: mdformat
         additional_dependencies:
-          - mdformat-frontmatter
           - mdformat-myst
         # Ignore only the `README.md` for this repository and check the others in `packages`.
         exclude: ^(.github/|README.md)
