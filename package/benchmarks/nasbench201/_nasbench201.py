@@ -23,7 +23,7 @@ def _extract_search_space(bench: NASBench201) -> dict[str, optuna.distributions.
     for param_name, choices in bench.search_space.items():
         n_choices = len(choices)
         key = f"{param_name}{_INDEX_SUFFIX}"
-        if param_types[param_name] == str:
+        if param_types[param_name] is str:
             dist = optuna.distributions.CategoricalDistribution(list(range(n_choices)))
         else:
             dist = optuna.distributions.IntDistribution(low=0, high=n_choices - 1)
