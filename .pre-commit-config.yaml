@@ -3,7 +3,7 @@ default_language_version:
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.5
+    rev: v0.15.21
     hooks:
       - id: ruff
         args: [ --fix, --exit-non-zero-on-fix ]
@@ -11,18 +11,17 @@ repos:
       - id: ruff-format
         types_or: [python, pyi]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.9.0
+    rev: v2.3.0
     hooks:
     - id: mypy
       additional_dependencies: [
         "types-PyYAML",
       ]
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.16
+    rev: 1.0.0
     hooks:
       - id: mdformat
         additional_dependencies:
-          - mdformat-frontmatter
           - mdformat-myst
         # Ignore only the `README.md` for this repository and check the others in `packages`.
         exclude: ^(.github/|README.md)
