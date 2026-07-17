@@ -11,29 +11,25 @@ from typing import TYPE_CHECKING
 import warnings
 
 import numpy as np
-from optuna import _deprecated
-from optuna._convert_positional_args import convert_positional_args
-from optuna._experimental import warn_experimental_argument
-from optuna._hypervolume import compute_hypervolume
-from optuna._hypervolume.hssp import _solve_hssp
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalChoiceType
 from optuna.logging import get_logger
-from optuna.samplers._base import _CONSTRAINTS_KEY
-from optuna.samplers._base import _INDEPENDENT_SAMPLING_WARNING_TEMPLATE
-from optuna.samplers._base import _process_constraints_after_trial
-from optuna.samplers._base import BaseSampler
+from optuna.samplers import BaseSampler
+from optuna.samplers import RandomSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
-from optuna.samplers._random import RandomSampler
 from optuna.search_space import IntersectionSearchSpace
-from optuna.search_space.group_decomposed import _GroupDecomposedSearchSpace
-from optuna.search_space.group_decomposed import _SearchSpaceGroup
-from optuna.study._multi_objective import _fast_non_domination_rank
-from optuna.study._multi_objective import _is_pareto_front
-from optuna.study._study_direction import StudyDirection
+from optuna.study import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
+from ..optuna_helpers import _CONSTRAINTS_KEY
+from ..optuna_helpers import _fast_non_domination_rank
+from ..optuna_helpers import _GroupDecomposedSearchSpace
+from ..optuna_helpers import _is_pareto_front
+from ..optuna_helpers import _process_constraints_after_trial
+from ..optuna_helpers import _SearchSpaceGroup
+from ..optuna_helpers import _solve_hssp
+from ..optuna_helpers import compute_hypervolume
 from .parzen_estimator import _ParzenEstimator
 from .parzen_estimator import _ParzenEstimatorParameters
 
@@ -221,10 +217,6 @@ class TPESampler(BaseSampler):
                 sampler = optuna.samplers.TPESampler(multivariate=True, group=True)
                 study = optuna.create_study(sampler=sampler)
                 study.optimize(objective, n_trials=10)
-        warn_independent_sampling:
-            If this is :obj:`True` and ``multivariate=True``, a warning message is emitted when
-            the value of a parameter is sampled by using an independent sampler.
-            If ``multivariate=False``, this flag has no effect.
         constant_liar:
             If :obj:`True`, penalize running trials to avoid suggesting parameter configurations
             nearby.
@@ -281,22 +273,6 @@ class TPESampler(BaseSampler):
                 See https://github.com/optuna/optuna/releases/tag/v3.4.0.
     """
 
-    @convert_positional_args(
-        previous_positional_arg_names=[
-            "self",
-            "consider_prior",
-            "prior_weight",
-            "consider_magic_clip",
-            "consider_endpoints",
-            "n_startup_trials",
-            "n_ei_candidates",
-            "gamma",
-            "weights",
-            "seed",
-        ],
-        deprecated_version="4.4.0",
-        removed_version="6.0.0",
-    )
     def __init__(
         self,
         *,
@@ -318,15 +294,6 @@ class TPESampler(BaseSampler):
             dict[str, Callable[[CategoricalChoiceType, CategoricalChoiceType], float]] | None
         ) = None,
     ) -> None:
-        if not consider_prior:
-            msg = _deprecated._DEPRECATION_WARNING_TEMPLATE.format(
-                name="`consider_prior`", d_ver="4.3.0", r_ver="6.0.0"
-            )
-            warnings.warn(
-                f"{msg} From v4.3.0 onward, `consider_prior` automatically falls back to `True`.",
-                FutureWarning,
-            )
-
         self._parzen_estimator_parameters = _ParzenEstimatorParameters(
             prior_weight=prior_weight,
             consider_magic_clip=consider_magic_clip,
@@ -339,7 +306,6 @@ class TPESampler(BaseSampler):
         self._n_ei_candidates = n_ei_candidates
         self._gamma = gamma
 
-        self._warn_independent_sampling = warn_independent_sampling
         self._rng = LazyRandomState(seed)
         self._random_sampler = RandomSampler(seed=seed)
 
@@ -353,25 +319,12 @@ class TPESampler(BaseSampler):
         # NOTE(nabenabe0928): Users can overwrite _ParzenEstimator to customize the TPE behavior.
         self._parzen_estimator_cls = _ParzenEstimator
 
-        if multivariate:
-            warn_experimental_argument("multivariate")
-
         if group:
             if not multivariate:
                 raise ValueError(
                     "``group`` option can only be enabled when ``multivariate`` is enabled."
                 )
-            warn_experimental_argument("group")
             self._group_decomposed_search_space = _GroupDecomposedSearchSpace(True)
-
-        if constant_liar:
-            warn_experimental_argument("constant_liar")
-
-        if constraints_func is not None:
-            warn_experimental_argument("constraints_func")
-
-        if categorical_distance_func is not None:
-            warn_experimental_argument("categorical_distance_func")
 
     def reseed_rng(self) -> None:
         self._rng.rng.seed()
@@ -459,21 +412,6 @@ class TPESampler(BaseSampler):
             return self._random_sampler.sample_independent(
                 study, trial, param_name, param_distribution
             )
-
-        if self._warn_independent_sampling and self._multivariate:
-            # Avoid independent warning at the first sampling of `param_name`.
-            if any(param_name in trial.params for trial in trials):
-                _logger.warning(
-                    _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
-                        param_name=param_name,
-                        trial_number=trial.number,
-                        independent_sampler_name=self._random_sampler.__class__.__name__,
-                        sampler_name=self.__class__.__name__,
-                        fallback_reason=(
-                            "dynamic search space is not supported for `multivariate=True`"
-                        ),
-                    )
-                )
 
         return self._sample(study, trial, {param_name: param_distribution})[param_name]
 
