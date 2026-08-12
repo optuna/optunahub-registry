@@ -291,6 +291,25 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
     def _get_generation_trials(self, study: optuna.study.Study, generation: int) -> list:
         """Get all completed trials for a specific generation.
 
+        A trial's generation is defined as ``trial.number // population_size`` (see
+        :meth:`sample_relative`). A naive implementation materializes the study's entire
+        trial history on every call, so its cost grows with the total number of trials
+        recorded so far rather than with the ``population_size`` trials actually needed.
+        Over a full run this makes the amortized per-trial sampling overhead grow with the
+        study size.
+
+        Instead, only the bounded, study-local block of trials that realizes
+        ``generation`` is retrieved. Because a trial's generation is
+        ``trial.number // population_size``, generation ``g`` corresponds to the trial
+        numbers ``[g * pop, (g + 1) * pop)``, which are looked up through the study-scoped
+        ``(study_id, number)`` API. This uses study-local numbers only, so it is unaffected
+        by the storage-global trial id being offset or interleaved by other studies sharing
+        the same storage.
+
+        The retrieved trials are then filtered exactly as before (``COMPLETE`` state and a
+        matching stored generation attribute), so the returned list -- including its
+        ordering by trial number -- is identical to the full-scan behavior.
+
         Args:
             study:
                 Optuna study object.
@@ -299,17 +318,37 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
 
         Returns:
             list:
-                A list of completed trials for the specified generation.
+                A list of completed trials for the specified generation, ordered by
+                trial number.
         """
-        all_trials = study.get_trials(deepcopy=False)
-        return [
-            t
-            for t in all_trials
+        if not isinstance(self.population_size, int):
+            raise ValueError("Population size must be resolved to an integer before this point.")
+
+        storage = study._storage
+        study_id = study._study_id
+
+        # A trial's generation is ``trial.number // population_size`` (see
+        # :meth:`sample_relative`), so generation ``g`` is realized by the study-local
+        # trial numbers ``[g * pop, (g + 1) * pop)``. Fetch only that bounded block
+        # instead of scanning the whole history.
+        start = generation * self.population_size
+        end = start + self.population_size
+
+        generation_trials: list[optuna.trial.FrozenTrial] = []
+        for number in range(start, end):
+            try:
+                trial_id = storage.get_trial_id_from_study_id_trial_number(study_id, number)
+            except KeyError:
+                # This generation is not fully recorded yet; no further trials exist.
+                break
+            trial = storage.get_trial(trial_id)
             if (
-                t.state == optuna.trial.TrialState.COMPLETE
-                and t.system_attrs.get("differential_evolution:generation") == generation
-            )
-        ]
+                trial.state == optuna.trial.TrialState.COMPLETE
+                and trial.system_attrs.get("differential_evolution:generation") == generation
+            ):
+                generation_trials.append(trial)
+
+        return generation_trials
 
     def reseed_rng(self) -> None:
         """Reseed the random number generator for the sampler."""
@@ -383,9 +422,12 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
                 "Population size must be an integer before initializing trial vectors."
             )
 
-        # Calculate current generation and individual index
-        current_generation = trial._trial_id // self.population_size
-        individual_index = trial._trial_id % self.population_size
+        # Calculate current generation and individual index from the study-local trial
+        # number so that generations map to a study's own 0-based trial blocks and do not
+        # depend on the storage-global trial id (which may be offset or interleaved by
+        # other studies sharing the same storage).
+        current_generation = trial.number // self.population_size
+        individual_index = trial.number % self.population_size
 
         # Store generation and individual info as trial attributes
         study._storage.set_trial_system_attr(
