@@ -236,5 +236,44 @@ def test_retrieval_touches_only_generation_sized_set_independent_of_history() ->
     assert calls_small == calls_large
 
 
+def test_generation_semantics_slot_gaps_and_no_completion_barrier() -> None:
+    # Makes the generation invariant explicit (as requested in review):
+    # (1) FAIL/PRUNED trials consume their trial-number slot, so a generation can
+    #     hold fewer than population_size completed trials; and
+    # (2) generation boundaries are not completion barriers -- a later generation
+    #     can be fully present while an earlier one is left under-filled.
+    population_size = 5
+    sampler = DESampler(population_size=population_size, seed=0)
+    study = optuna.create_study(direction="minimize", sampler=sampler, storage=InMemoryStorage())
+    dist = FloatDistribution(-5.0, 5.0)
+
+    # Generation 0 (numbers 0..4): #2 FAIL, #3 PRUNED -> only 3 completed.
+    # Generation 1 (numbers 5..9): all completed.
+    non_complete = {2: TrialState.FAIL, 3: TrialState.PRUNED}
+    for number in range(10):
+        state = non_complete.get(number, TrialState.COMPLETE)
+        study.add_trial(
+            create_trial(
+                state=state,
+                value=float(number) if state == TrialState.COMPLETE else None,
+                params={"x": float(number % 7) - 3.0},
+                distributions={"x": dist},
+                system_attrs={_GENERATION_KEY: number // population_size},
+            )
+        )
+
+    gen0 = sampler._get_generation_trials(study, 0)
+    gen1 = sampler._get_generation_trials(study, 1)
+
+    # (1) Under-filled generation: fewer than population_size completed trials.
+    assert [t.number for t in gen0] == [0, 1, 4]
+    assert len(gen0) < population_size
+
+    # (2) No completion barrier: the later generation is fully present even though
+    #     the earlier one never reached population_size completed trials.
+    assert [t.number for t in gen1] == [5, 6, 7, 8, 9]
+    assert len(gen1) == population_size
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

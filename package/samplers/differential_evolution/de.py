@@ -82,7 +82,24 @@ class DESampler(optunahub.samplers.SimpleBaseSampler):
             Last processed generation.
         current_gen_vectors:
             Trial vectors for the current generation.
-    """
+
+    Generation semantics:
+        A trial's generation is defined by study-local trial creation order::
+
+            generation = trial.number // population_size
+
+        This is intentional and has consequences worth noting:
+
+        - Generation boundaries are **not** completion barriers. Under
+          asynchronous execution (``n_jobs > 1``), trials in generation ``g + 1``
+          may be sampled before every trial in generation ``g`` has completed, so
+          a generation is not guaranteed to be sampled from the fully updated
+          population of the previous generation.
+        - Failed or pruned trials still consume their trial-number slot, so a
+          generation may contain fewer than ``population_size`` completed trials.
+          When a previous generation does not have exactly ``population_size``
+          completed trials, the DE update for that step is skipped and sampling
+          falls back accordingly."""
 
     def __init__(
         self,
