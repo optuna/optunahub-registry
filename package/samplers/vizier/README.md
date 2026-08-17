@@ -18,14 +18,10 @@ It is a simple wrapper around Vizier's Python client, enabling its optimization 
 
 ## Installation
 
-```bash
-pip install google-vizier[jax] # with JAX
-```
-
-or
+This package currently supports Python 3.10–3.13.
 
 ```bash
-pip install google-vizier[all] # with All algorithm
+pip install -r https://hub.optuna.org/samplers/vizier/requirements.txt
 ```
 
 ## Example
