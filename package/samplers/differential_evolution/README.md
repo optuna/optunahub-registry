@@ -116,6 +116,21 @@ Seed for the random number generator, ensuring reproducibility of results.
 - **Default**: `None`
 - **Example**: `seed=42`
 
+______________________________________________________________________
+
+## Generation Semantics
+
+`DESampler` groups trials into generations by study-local trial creation order:
+
+```python
+generation = trial.number // population_size
+```
+
+Two consequences of this definition are worth noting:
+
+- **Generation boundaries are not completion barriers.** Under asynchronous execution (`n_jobs > 1`), trials in generation `g + 1` may be sampled before every trial in generation `g` has completed. A generation is therefore not guaranteed to be sampled from the fully updated population of the previous generation.
+- **Failed or pruned trials still consume their trial-number slot.** A generation may contain fewer than `population_size` completed trials. When the previous generation does not have exactly `population_size` completed trials, the DE update for that step is skipped and sampling falls back accordingly.
+
 ## Installation
 
 No additional packages besides `optuna` and `optunahub` are required.
