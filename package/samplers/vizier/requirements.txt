@@ -1,0 +1,3 @@
+google-vizier[jax]==0.1.24
+jax==0.4.34
+jaxlib==0.4.34
