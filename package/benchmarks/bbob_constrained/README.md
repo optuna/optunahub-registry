@@ -3,7 +3,7 @@ author: Optuna team
 title: The blackbox optimization benchmarking-constrained (bbob-constrained) test suite
 description: The bbob-constrained test suite is a suite of 54 non-linearly constrained test functions with varying number of (active and inactive) constraints. This package is a wrapper of the COCO (COmparing Continuous Optimizers) experiments library.
 tags: [benchmark, continuous optimization, constrained optimization, BBOB, COCO]
-optuna_versions: [4.1.0]
+optuna_versions: [5.0.0]
 license: MIT License
 ---
 
@@ -33,14 +33,10 @@ This package provides a wrapper of the COCO experiments libarary's bbob-constrai
   - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `float`
-- `constraints_func(trial: optuna.Trial.FrozenTrial)`: Evaluate the constraint functions and return the list of constraint functions values.
-  - Args:
-    - `trial`: Optuna trial object.
-  - Returns: `list[float]`
-- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the list of constraint functions values.
+- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the constraint functions values keyed by the constraint names.
   - Args:
     - `params`: Decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
-  - Returns: `list[float]`
+  - Returns: `dict[str, float]`
 
 The properties defined by [cocoex.Problem](https://numbbo.github.io/coco-doc/apidocs/cocoex/cocoex.Problem.html) are also available such as `number_of_objectives`.
 
@@ -63,9 +59,7 @@ bbob_constrained = optunahub.load_module("benchmarks/bbob_constrained")
 constrained_sphere2d = bbob_constrained.Problem(function_id=1, dimension=2, instance_id=1)
 
 study = optuna.create_study(
-    sampler=optuna.samplers.TPESampler(
-        constraints_func=constrained_sphere2d.constraints_func
-    ),
+    sampler=optuna.samplers.TPESampler(),
     directions=constrained_sphere2d.directions
 )
 study.optimize(constrained_sphere2d, n_trials=20)

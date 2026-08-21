@@ -4,6 +4,7 @@ from typing import Any
 
 import optuna
 import optunahub
+from packaging import version
 
 
 try:
@@ -14,7 +15,7 @@ except ModuleNotFoundError:
     )
 
 
-class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BaseProblem):
+class Problem(optunahub.benchmarks.BaseProblem):
     """Wrapper class for COCO bbob-constrained test suite.
     https://coco-platform.org/
 
@@ -36,6 +37,13 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
         """
 
         self._valid_arguments = False
+        if version.parse(optunahub.__version__).release < (0, 5, 0):
+            raise RuntimeError(
+                "This problem requires OptunaHub v0.5.0 or newer to handle its constraints, "
+                f"but v{optunahub.__version__} is installed. "
+                "Please upgrade it by `pip install -U optunahub`."
+            )
+
         assert 1 <= function_id <= 54, "function_id must be in [1, 54]"
         assert dimension in [2, 3, 5, 10, 20, 40], "dimension must be in [2, 3, 5, 10, 20, 40]"
         assert 1 <= instance_id <= 15, "instance_id must be in [1, 15]"
@@ -76,17 +84,18 @@ class Problem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BasePr
         """
         return self._problem([params[name] for name in self._search_space])
 
-    def evaluate_constraints(self, params: dict[str, float]) -> list[float]:
+    def evaluate_constraints(self, params: dict[str, float]) -> dict[str, float]:
         """Evaluate the constraint functions.
         Args:
             params:
                 Decision variable, e.g., evaluate_constraints({"x0": 1.0, "x1": 2.0}).
                 The number of parameters must be equal to the dimension of the problem.
         Returns:
-            The constraint functions values.
+            The constraint function values keyed by the constraint names.
 
         """
-        return self._problem.constraint([params[name] for name in self._search_space])
+        constraints = self._problem.constraint([params[name] for name in self._search_space])
+        return {str(i): c for i, c in enumerate(constraints)}
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._problem, name)

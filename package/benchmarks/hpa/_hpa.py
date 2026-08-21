@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import optuna
 import optunahub
+from packaging import version
 
 from .hpa_original import problem
 
@@ -135,7 +136,7 @@ class Problem(optunahub.benchmarks.BaseProblem):
         return getattr(self._problem, name)
 
 
-class ConstrainedProblem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchmarks.BaseProblem):
+class ConstrainedProblem(optunahub.benchmarks.BaseProblem):
     def __init__(self, problem_name: str, n_div: int = 4, level: int = 0) -> None:
         """Initialize the problem.
         Args:
@@ -146,6 +147,13 @@ class ConstrainedProblem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchm
         Please refer to the hpa repository for the details.
         https://github.com/Nobuo-Namura/hpa
         """
+        if version.parse(optunahub.__version__).release < (0, 5, 0):
+            raise RuntimeError(
+                "This problem requires OptunaHub v0.5.0 or newer to handle its constraints, "
+                f"but v{optunahub.__version__} is installed. "
+                "Please upgrade it by `pip install -U optunahub`."
+            )
+
         if problem_name not in constrained_problems:
             raise ValueError(
                 f"problem_name must be in {list(constrained_problems.keys())}, "
@@ -182,8 +190,9 @@ class ConstrainedProblem(optunahub.benchmarks.ConstrainedMixin, optunahub.benchm
     def __getattr__(self, name: str) -> Any:
         return getattr(self._problem, name)
 
-    def evaluate_constraints(self, params: dict[str, float]) -> list[float]:
-        return self._problem([params[name] for name in self._search_space])[1].tolist()
+    def evaluate_constraints(self, params: dict[str, float]) -> dict[str, float]:
+        constraints = self._problem([params[name] for name in self._search_space])[1].tolist()
+        return {str(i): c for i, c in enumerate(constraints)}
 
 
 if TYPE_CHECKING:

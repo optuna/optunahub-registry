@@ -6,6 +6,7 @@ from typing import List
 
 import optuna
 import optunahub
+from packaging import version
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
@@ -18,6 +19,13 @@ class Problem(optunahub.benchmarks.BaseProblem):
         max_weight: int = 50,
         max_capacity: float = 0.5,
     ):
+        if version.parse(optunahub.__version__).release < (0, 5, 0):
+            raise RuntimeError(
+                "This problem requires OptunaHub v0.5.0 or newer to handle its constraints, "
+                f"but v{optunahub.__version__} is installed. "
+                "Please upgrade it by `pip install -U optunahub`."
+            )
+
         self.n_items = n_items
         self.n_dimensions = n_dimensions
         self.seed = seed
@@ -53,10 +61,10 @@ class Problem(optunahub.benchmarks.BaseProblem):
         total_value = sum(self.values[i] * x[i] for i in range(self.n_items))
         return total_value
 
-    def evaluate_constraints(self, trial: optuna.trial.FrozenTrial) -> List[float]:
-        x = [trial.params[f"x{i}"] for i in range(self.n_items)]
-        constraints = []
+    def evaluate_constraints(self, params: Dict[str, int]) -> Dict[str, float]:
+        x = [params[f"x{i}"] for i in range(self.n_items)]
+        constraints: dict[str, float] = {}
         for j in range(self.n_dimensions):
             total_weight = sum(self.weights[i][j] * x[i] for i in range(self.n_items))
-            constraints.append(total_weight - self.capacities[j])  # Should be <= 0
+            constraints[str(j)] = total_weight - self.capacities[j]  # Should be <= 0
         return constraints
