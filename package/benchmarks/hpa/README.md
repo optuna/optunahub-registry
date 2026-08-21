@@ -3,7 +3,7 @@ author: Optuna Team
 title: Single and Multi-objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design
 description: The benchmark problem for human-powered aircraft design introduced in the paper `Single and Multi-Objective Optimization Benchmark Problems Focusing on Human-Powered Aircraft Design`
 tags: [benchmark, HPA, multi-objective, human-powered aircraft]
-optuna_versions: [4.1.0]
+optuna_versions: [5.0.0]
 license: MIT License
 ---
 
@@ -33,10 +33,10 @@ Note that `Problem` also receives the same set of arguments.
   - Args:
     - `params`: A dictionary representing decision variable like `{"x0": x1_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `self.nx`. `xn_value` must be a `float` in `[0, 1]`.
   - Returns: List of length `self.nf`.
-- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the list of constraint functions values. This method is only available in `ConstrainedProblem`.
+- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the constraint functions values keyed by the constraint names. This method is only available in `ConstrainedProblem`.
   - Args:
     - `params`: A dictionary representing the decision variables, with the same format and value range as in evaluate.
-  - Returns: List of length `self.ng`.
+  - Returns: `dict[str, float]` of length `self.ng`.
 
 The properties and functions of classes in [`hpa.problem`](https://hub.optuna.org/benchmarks/hpa/hpa_original) are also available such as `nx`.
 
