@@ -26,9 +26,9 @@ There are three types of constraints in the C-DTLZ problems:
 
 ### class `Problem(function_id: int, n_objectives: int, constraint_type: int, dimension: int | None = None, **kwargs: Any)`
 
-- `function_id`: Function ID of the DTLZ problem in \[1, 4\].
+- `function_id`: Function ID of the DTLZ problem in [1, 4].
 - `n_objectives`: Number of objectives.
-- `constraint_type`: Type of constraints in \[1, 3\].
+- `constraint_type`: Type of constraints in [1, 3].
 - `dimension`: Number of variables. If not provided, defaults to `n_objectives + 4` for DTLZ1 and DTLZ4, or `n_objectives + 9` for DTLZ2 and DTLZ3.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/dtlz.html) for more details.
 
