@@ -54,7 +54,7 @@ where:
 - `evaluate_constraints(params: dict[str, int])`: Evaluate constraint violations.
   - Args:
     - `params`: Binary decisions for each item, e.g., `{"x0": 1, "x1": 0, ...}`
-  - Returns: `dict[str, float]` - Constraint values (should be >= 0 for feasible solutions)
+  - Returns: `dict[str, float]` - Constraint values (should be <= 0 for feasible solutions)
 
 #### Instance Properties
 
