@@ -1,3 +1,4 @@
 pandas
 scipy
-optunahub
+optunahub>=0.5
+optuna>=5.0
