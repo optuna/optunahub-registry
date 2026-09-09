@@ -3,7 +3,7 @@ author: Optuna team
 title: The C-DTLZ Problem Collection
 description: The C-DTLZ Problem Collection (Jain & Deb, 2014) is a widely-used benchmark suite for constrained multi-objective optimization. This package is a wrapper of the optproblems library, while the constraint components are implemented separately according to the original paper (Jain & Deb, 2014).
 tags: [benchmark, continuous optimization, constrained, multi-objective, C-DTLZ, optproblems]
-optuna_versions: [4.5.0]
+optuna_versions: [5.0.0]
 license: MIT License
 ---
 
@@ -26,9 +26,9 @@ There are three types of constraints in the C-DTLZ problems:
 
 ### class `Problem(function_id: int, n_objectives: int, constraint_type: int, dimension: int | None = None, **kwargs: Any)`
 
-- `function_id`: Function ID of the DTLZ problem in \[1, 4\].
+- `function_id`: Function ID of the DTLZ problem in [1, 4].
 - `n_objectives`: Number of objectives.
-- `constraint_type`: Type of constraints in \[1, 3\].
+- `constraint_type`: Type of constraints in [1, 3].
 - `dimension`: Number of variables. If not provided, defaults to `n_objectives + 4` for DTLZ1 and DTLZ4, or `n_objectives + 9` for DTLZ2 and DTLZ3.
 - `kwargs`: Arbitrary keyword arguments, please refer to [the optproblems documentation](https://www.simonwessing.de/optproblems/doc/dtlz.html) for more details.
 
@@ -54,10 +54,10 @@ Note: Only specific combinations of `constraint_type` and `function_id` are supp
   - Args:
     - `params`: Decision variable like `{"x0": x0_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
   - Returns: `list[float]`
-- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the constraint values.
+- `evaluate_constraints(params: dict[str, float])`: Evaluate the constraint functions and return the constraint values keyed by the constraint names.
   - Args:
     - `params`: Decision variable like `{"x0": x0_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `dimension`.
-  - Returns: `list[float]`
+  - Returns: `dict[str, float]`
 
 The properties defined by [optproblems](https://www.simonwessing.de/optproblems/doc/dtlz.html) are also available such as `get_optimal_solutions`.
 
@@ -80,7 +80,7 @@ cdtlz = optunahub.load_module("benchmarks/dtlz_constrained")
 c2dtlz2 = cdtlz.Problem(function_id=2, n_objectives=2, constraint_type=2, dimension=3)
 
 study = optuna.create_study(
-    sampler=optuna.samplers.GPSampler(seed=42, constraints_func=c2dtlz2.constraints_func, deterministic_objective=True),
+    sampler=optuna.samplers.GPSampler(seed=42, deterministic_objective=True),
     directions=c2dtlz2.directions,
 )
 study.optimize(c2dtlz2, n_trials=300)
