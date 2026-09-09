@@ -64,13 +64,17 @@ For more details, please check [Tutorials for Contributors](https://optuna.githu
 
 ## Citation
 
-Please cite [the OptunaHub paper](https://arxiv.org/abs/2510.02798) with the following format when you use it in your project:
+Please cite [the OptunaHub paper](https://www.jmlr.org/papers/v27/25-2424.html) with the following format when you use it in your project:
 
 ```bibtex
-@article{ozaki2025optunahub,
+@article{ozaki2026optunahub,
   title={{OptunaHub}: A Platform for Black-Box Optimization},
   author={Ozaki, Yoshihiko and Watanabe, Shuhei and Yanase, Toshihiko},
-  journal={arXiv preprint arXiv:2510.02798},
-  year={2025}
+  journal={Journal of Machine Learning Research},
+  volume={27},
+  number={203},
+  pages={1--10},
+  year={2026},
+  url={https://www.jmlr.org/papers/v27/25-2424.html}
 }
 ```
