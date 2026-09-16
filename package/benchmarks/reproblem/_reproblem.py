@@ -104,7 +104,7 @@ class _ProblemInfo(NamedTuple):
 # original problem name and the original objectives, and the unconstrained problem additionally
 # folds the constraints into an aggregated violation objective, while the constrained problem
 # exposes them as constraints.
-# CRE11-CRE14 are not part of the paper's Table 1: RE22-RE25 already fold real constraints into their
+# CRE12-CRE15 are not part of the paper's Table 1: RE22-RE25 already fold real constraints into their
 # violation objective, so this package exposes those same constraints as their constrained
 # counterpart, following the naming convention of the pairs the paper does define.
 # The objective names carry the `f_i` index used by the problem definitions in the supplementary
