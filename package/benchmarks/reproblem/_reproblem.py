@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
+from optuna.distributions import FloatDistribution
 import optunahub
 
 from .reproblem_original import problem
@@ -62,6 +63,10 @@ unconstrained_problem_names = [
 ]
 
 constrained_problem_names = [
+    "CRE12",
+    "CRE13",
+    "CRE14",
+    "CRE15",
     "CRE21",
     "CRE22",
     "CRE23",
@@ -99,6 +104,9 @@ class _ProblemInfo(NamedTuple):
 # original problem name and the original objectives, and the unconstrained problem additionally
 # folds the constraints into an aggregated violation objective, while the constrained problem
 # exposes them as constraints.
+# CRE12-CRE15 are not part of the paper's Table 1: RE22-RE25 already fold real constraints into their
+# violation objective, so this package exposes those same constraints as their constrained
+# counterpart, following the naming convention of the pairs the paper does define.
 # The objective names carry the `f_i` index used by the problem definitions in the supplementary
 # file (https://github.com/ryojitanabe/reproblems/blob/master/doc/re-supplementary_file.pdf), and
 # `negative_` is prefixed to the quantities that the paper maximizes, because the original
@@ -122,28 +130,28 @@ _PROBLEM_INFO_TABLE: list[_ProblemInfo] = [
     _ProblemInfo(
         "ReinforcedConcreteBeam",
         "RE22",
-        None,
+        "CRE12",
         ("f1_total_cost",),
         ("g1_flexural_capacity", "g2_depth_to_width_ratio"),
     ),
     _ProblemInfo(
         "PressureVessel",
         "RE23",
-        None,
+        "CRE13",
         ("f1_total_cost",),
         ("g1_shell_thickness", "g2_head_thickness", "g3_working_volume"),
     ),
     _ProblemInfo(
         "HatchCover",
         "RE24",
-        None,
+        "CRE14",
         ("f1_weight",),
         ("g1_bending_stress", "g2_shear_stress", "g3_deflection", "g4_buckling_stress"),
     ),
     _ProblemInfo(
         "CoilCompressionSpring",
         "RE25",
-        None,
+        "CRE15",
         ("f1_volume",),
         (
             "g1_shear_stress",
@@ -343,6 +351,20 @@ def _build_name_tables() -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[st
 _METRIC_NAMES, _CONSTRAINT_NAMES = _build_name_tables()
 
 
+def _modify_search_space_for_hard_problems(
+    problem_name: str, search_space: dict[str, FloatDistribution], enable: bool
+) -> dict[str, FloatDistribution]:
+    if problem_name not in ["CRE21", "RE31"] or not enable:
+        return search_space
+    # NOTE(nabe): Special treatment. Without log-transform, random sampling cannot find feasible
+    # solutions even with 10**6 trials.
+    x0_dist = search_space["x0"]
+    x1_dist = search_space["x1"]
+    search_space["x0"] = FloatDistribution(x0_dist.low, x0_dist.high, log=True)
+    search_space["x1"] = FloatDistribution(x1_dist.low, x1_dist.high, log=True)
+    return search_space
+
+
 class Problem(optunahub.benchmarks.BaseProblem):
     def __init__(self, problem_name: str) -> None:
         """Initialize the problem.
@@ -362,10 +384,16 @@ class Problem(optunahub.benchmarks.BaseProblem):
 
         self._problem = unconstrained_problems[problem_name]()
 
-        self._search_space: dict[str, optuna.distributions.BaseDistribution] = {
-            f"x{i}": optuna.distributions.FloatDistribution(low, high)
+        search_space: dict[str, optuna.distributions.BaseDistribution] = {
+            f"x{i}": FloatDistribution(low, high)
             for i, (low, high) in enumerate(zip(self._problem.lbound, self._problem.ubound))
         }
+        # Hidden variable to reproduce the original work by setting it to False.
+        self._enable_modification = True
+        self._search_space = _modify_search_space_for_hard_problems(
+            problem_name, search_space, enable=self._enable_modification
+        )
+
         self._metric_names = list(_METRIC_NAMES[problem_name])
         n_objectives = self._problem.n_objectives
         assert len(self._metric_names) == n_objectives, (
@@ -406,10 +434,13 @@ class Problem(optunahub.benchmarks.BaseProblem):
 
 
 class ConstrainedProblem(optunahub.benchmarks.BaseProblem):
-    def __init__(self, problem_name: str) -> None:
+    def __init__(self, problem_name: str, clip_constraints: bool = True) -> None:
         """Initialize the problem.
         Args:
             problem_name: Name of problem.
+            clip_constraints:
+                Whether to clip constraints by max(0, constraint_violation). Defaults to True
+                following the original implementation.
 
         Please refer to the reproblem repository for the details.
         https://github.com/ryojitanabe/reproblems
@@ -421,13 +452,19 @@ class ConstrainedProblem(optunahub.benchmarks.BaseProblem):
             )
 
         self.problem_name = problem_name
+        self.clip_constraints = clip_constraints
 
         self._problem = constrained_problems[problem_name]()
 
-        self._search_space = {
-            f"x{i}": optuna.distributions.FloatDistribution(low, high)
+        search_space = {
+            f"x{i}": FloatDistribution(low, high)
             for i, (low, high) in enumerate(zip(self._problem.lbound, self._problem.ubound))
         }
+        # Hidden variable to reproduce the original work by setting it to False.
+        self._enable_modification = True
+        self._search_space = _modify_search_space_for_hard_problems(
+            problem_name, search_space, enable=self._enable_modification
+        )
         self._metric_names = list(_METRIC_NAMES[problem_name])
         n_objectives = self._problem.n_objectives
         assert len(self._metric_names) == n_objectives, (
@@ -476,6 +513,8 @@ class ConstrainedProblem(optunahub.benchmarks.BaseProblem):
     def evaluate_constraints(self, params: dict[str, float]) -> dict[str, float]:
         x = np.array([params[name] for name in self._search_space])
         _, g = self._problem.evaluate(x)
+        if self.clip_constraints:
+            g = np.maximum(0.0, g)
         return dict(zip(self._constraint_names, g.tolist()))
 
 
