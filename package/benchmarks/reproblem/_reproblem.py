@@ -63,10 +63,10 @@ unconstrained_problem_names = [
 ]
 
 constrained_problem_names = [
-    "CRE11",
     "CRE12",
     "CRE13",
     "CRE14",
+    "CRE15",
     "CRE21",
     "CRE22",
     "CRE23",
