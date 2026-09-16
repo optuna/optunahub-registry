@@ -19,7 +19,7 @@ Note that `ConstrainedProblem` relies on `optuna.trial.Trial.set_constraint`, wh
 This benchmark collection modified some parts of the original implementation:
 - The constraint clipping can be disabled. The original implementation hard-codes the clipping.
 - The `CRE1X` series is added by exposing the constraint sum from the `RE2X` series, so `CRE1X` does not belong to the contribution of the original paper.
-- 
+- The search space of `CRE21` and `RE31` use the log scale for `x0` and `x1` because the feasiblity ratio is extremely low without this modification. You can also disable it by setting `<instance name>._enable_modification = False`.
 
 ## APIs
 
