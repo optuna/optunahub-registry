@@ -15,6 +15,12 @@ This package serves as a wrapper for a re-implementation of the original benchma
 
 Note that `ConstrainedProblem` relies on `optuna.trial.Trial.set_constraint`, which requires Optuna v5.0.0 or newer.
 
+### Disclaimer
+This benchmark collection modified some parts of the original implementation:
+- The constraint clipping can be disabled. The original implementation hard-codes the clipping.
+- The `CRE1X` series is added by exposing the constraint sum from the `RE2X` series, so `CRE1X` does not belong to the contribution of the original paper.
+- 
+
 ## APIs
 
 - `Problem(problem_name: str)`
@@ -34,9 +40,10 @@ Note that `ConstrainedProblem` relies on `optuna.trial.Trial.set_constraint`, wh
         - `params`: A dictionary representing decision variables like `{"x0": x0_value, "x1": x1_value, ..., "xn": xn_value}`. The number of parameters must be equal to `self.n_variables`.
       - Returns: List of length `self.n_objectives`.
 
-- `ConstrainedProblem(problem_name: str)`
+- `ConstrainedProblem(problem_name: str, clip_constraints: bool = True)`
 
-  - `problem_name`: The name of a constrained benchmark problem. Available names are `CRE21`, `CRE22`, `CRE23`, `CRE24`, `CRE25`, `CRE31`, `CRE32`, and `CRE51`.
+  - `problem_name`: The name of a constrained benchmark problem. Available names are `CRE12`, `CRE13`, `CRE14`, `CRE15`, `CRE21`, `CRE22`, `CRE23`, `CRE24`, `CRE25`, `CRE31`, `CRE32`, and `CRE51`.
+  - `clip_constraints`: Whether to clip constraints by `max(0, constraint_violation)`. Defaults to `True` following the original implementation.
   - Attributes:
     - `search_space`: Return the search space.
       - Returns: `dict[str, optuna.distributions.BaseDistribution]`
@@ -67,6 +74,7 @@ Which names a problem uses can also be inspected at runtime via `problem.metric_
 
 As Table 1 of the paper shows, an unconstrained problem and its constrained counterpart are derived from the same original problem, e.g. `RE31` and `CRE21` are both the `TwoBarTruss` problem, and the pair shares both the original problem name and the original objectives listed below.
 The two variants differ in how they treat the original constraints: `Problem` folds them into an extra aggregated objective, whereas `ConstrainedProblem` exposes them through `evaluate_constraints`.
+`CRE12`-`CRE15` are not in the paper's Table 1: `RE22`-`RE25` already fold real constraints into their violation objective, so this package exposes those same constraints as a constrained counterpart, following the naming convention of the pairs the paper does define.
 
 ### Objectives (all minimized)
 
@@ -76,10 +84,10 @@ Since the paper maximizes the annual cargo transport capacity of the `Conceptual
 | Original name            | `Problem` | `ConstrainedProblem` | Objective names shared by the pair                                                                                                                              |
 | ------------------------ | --------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FourBarTruss`           | `RE21`    | -                    | `f1_structural_volume`, `f2_joint_displacement`                                                                                                                 |
-| `ReinforcedConcreteBeam` | `RE22`    | -                    | `f1_total_cost`                                                                                                                                                 |
-| `PressureVessel`         | `RE23`    | -                    | `f1_total_cost`                                                                                                                                                 |
-| `HatchCover`             | `RE24`    | -                    | `f1_weight`                                                                                                                                                     |
-| `CoilCompressionSpring`  | `RE25`    | -                    | `f1_volume`                                                                                                                                                     |
+| `ReinforcedConcreteBeam` | `RE22`    | `CRE12`              | `f1_total_cost`                                                                                                                                                 |
+| `PressureVessel`         | `RE23`    | `CRE13`              | `f1_total_cost`                                                                                                                                                 |
+| `HatchCover`             | `RE24`    | `CRE14`              | `f1_weight`                                                                                                                                                     |
+| `CoilCompressionSpring`  | `RE25`    | `CRE15`              | `f1_volume`                                                                                                                                                     |
 | `TwoBarTruss`            | `RE31`    | `CRE21`              | `f1_structural_weight`, `f2_member_ac_stress`                                                                                                                   |
 | `WeldedBeam`             | `RE32`    | `CRE22`              | `f1_cost`, `f2_end_deflection`                                                                                                                                  |
 | `DiscBrake`              | `RE33`    | `CRE23`              | `f1_brake_mass`, `f2_minimum_stopping_time`                                                                                                                     |
@@ -107,6 +115,10 @@ The descriptive part of each name below is therefore read off the constraint for
 
 | `ConstrainedProblem` | `constraint_names`                                                                                                                                                                                                                                                                                                                           |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CRE12`              | `g1_flexural_capacity`, `g2_depth_to_width_ratio`                                                                                                                                                                                                                                                                                            |
+| `CRE13`              | `g1_shell_thickness`, `g2_head_thickness`, `g3_working_volume`                                                                                                                                                                                                                                                                               |
+| `CRE14`              | `g1_bending_stress`, `g2_shear_stress`, `g3_deflection`, `g4_buckling_stress`                                                                                                                                                                                                                                                                |
+| `CRE15`              | `g1_shear_stress`, `g2_free_length`, `g3_coil_to_wire_diameter_ratio`, `g4_deflection_under_preload`, `g5_combined_deflection_clearance`, `g6_working_deflection`                                                                                                                                                                            |
 | `CRE21`              | `g1_structural_weight`, `g2_member_ac_stress`, `g3_member_bc_stress`                                                                                                                                                                                                                                                                         |
 | `CRE22`              | `g1_weld_shear_stress`, `g2_beam_bending_stress`, `g3_geometric_side`, `g4_buckling_load`                                                                                                                                                                                                                                                    |
 | `CRE23`              | `g1_minimum_radial_thickness`, `g2_maximum_actuating_pressure`, `g3_maximum_temperature`, `g4_minimum_braking_torque`                                                                                                                                                                                                                        |
@@ -129,15 +141,8 @@ The returned values are therefore always zero or greater, and a trial is feasibl
 
 ### Constraints folded into `f{n}_total_constraint_violation`
 
-The eight problems listed in the table above expose their constraints through their constrained counterpart as well, so what `Problem` folds into the violation objective can be looked up there.
-The remaining four constrained problems have no constrained counterpart, and the constraints their violation objective sums up are the following.
-
-| `Problem` | Folded constraints                                                                                                                                                |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RE22`    | `g1_flexural_capacity`, `g2_depth_to_width_ratio`                                                                                                                 |
-| `RE23`    | `g1_shell_thickness`, `g2_head_thickness`, `g3_working_volume`                                                                                                    |
-| `RE24`    | `g1_bending_stress`, `g2_shear_stress`, `g3_deflection`, `g4_buckling_stress`                                                                                     |
-| `RE25`    | `g1_shear_stress`, `g2_free_length`, `g3_coil_to_wire_diameter_ratio`, `g4_deflection_under_preload`, `g5_combined_deflection_clearance`, `g6_working_deflection` |
+Every problem listed in the table above that has original constraints exposes them through its constrained counterpart, so what `Problem` folds into the violation objective can always be looked up there.
+`RE21`, `RE34`, and `RE37` have no original constraints at all, so their `Problem` has nothing folded in, and `RE91` is the special case described above that keeps each folded constraint as its own objective instead.
 
 These names are documentation only, since `constraint_names` exists on `ConstrainedProblem` alone.
 
