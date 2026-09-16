@@ -362,6 +362,7 @@ def _modify_search_space_for_hard_problems(
     x1_dist = search_space["x1"]
     search_space["x0"] = FloatDistribution(x0_dist.low, x0_dist.high, log=True)
     search_space["x1"] = FloatDistribution(x1_dist.low, x1_dist.high, log=True)
+    return search_space
 
 
 class Problem(optunahub.benchmarks.BaseProblem):
