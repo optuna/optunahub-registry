@@ -253,11 +253,11 @@ class CatCmawmSampler(BaseSampler):
         # Convert cmaes.CatCma's internal representation to Optuna's representation.
         float_values = {}
         if isinstance(solution.x, np.ndarray) and solution.x.shape[0] > 0:
-            float_values = {k: v for k, v in zip(solution.x, float_search_space.keys())}
+            float_values = {k: v for v, k in zip(solution.x, float_search_space.keys())}
 
         integer_values = {}
         if isinstance(solution.z, np.ndarray) and solution.z.shape[0] > 0:
-            integer_values = {k: v for k, v in zip(solution.z, integer_search_space.keys())}
+            integer_values = {k: v for v, k in zip(solution.z, integer_search_space.keys())}
 
         # cmaes.CatCma returns the categorical choice as one-hot vectors, e.g.,
         # [[True False, False], [False, True]].
