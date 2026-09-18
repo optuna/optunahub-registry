@@ -31,6 +31,8 @@ This benchmark collection modified some parts of the original implementation:
   - Attributes:
     - `search_space`: Return the search space.
       - Returns: `dict[str, optuna.distributions.BaseDistribution]`
+    - `reference_point`: Return the reference point.
+      - Returns: `list[float]`
     - `directions`: Return the optimization directions.
       - Returns: `list[optuna.study.StudyDirection]`
     - `metric_names`: Return the objective names in the order returned by `evaluate`.
@@ -49,6 +51,8 @@ This benchmark collection modified some parts of the original implementation:
   - Attributes:
     - `search_space`: Return the search space.
       - Returns: `dict[str, optuna.distributions.BaseDistribution]`
+    - `reference_point`: Return the reference point.
+      - Returns: `list[float]`
     - `directions`: Return the optimization directions.
       - Returns: `list[optuna.study.StudyDirection]`
     - `metric_names`: Return the objective names in the order returned by `evaluate`.

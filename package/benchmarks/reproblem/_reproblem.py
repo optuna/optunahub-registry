@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 from typing import Any
 from typing import NamedTuple
 from typing import Protocol
@@ -43,6 +45,9 @@ class BaseConstrainedREBenchmark(Protocol):
         raise NotImplementedError
 
 
+REF_POINTS: dict[str, list[float]] = json.load(
+    open(os.path.join(os.path.dirname(__file__), "ref_points.json"))
+)
 unconstrained_problem_names = [
     "RE21",
     "RE22",
@@ -421,6 +426,10 @@ class Problem(optunahub.benchmarks.BaseProblem):
         return self._metric_names.copy()
 
     @property
+    def reference_point(self) -> list[float]:
+        return REF_POINTS[self.problem_name]
+
+    @property
     def original_problem_name(self) -> str:
         """Return the name of the original problem, e.g. ``FourBarTruss`` for ``RE21``."""
         return _ORIGINAL_NAMES[self.problem_name]
@@ -496,6 +505,10 @@ class ConstrainedProblem(optunahub.benchmarks.BaseProblem):
     def constraint_names(self) -> list[str]:
         """Return the constraint names used as the keys of ``evaluate_constraints``."""
         return self._constraint_names.copy()
+
+    @property
+    def reference_point(self) -> list[float]:
+        return REF_POINTS[self.problem_name]
 
     @property
     def original_problem_name(self) -> str:
