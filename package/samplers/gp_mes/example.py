@@ -22,3 +22,10 @@ if __name__ == "__main__":
     study = optuna.create_study(sampler=mod.MESSampler(max_value_sampler="posterior", seed=42))
     study.optimize(objective, n_trials=50)
     print(f"posterior best value: {study.best_value:.5f}, params: {study.best_params}")
+
+    # GIBBONSampler is the batch-aware variant. It only differs from MESSampler when
+    # trials run concurrently, since its extra term penalises a candidate for resembling
+    # trials already in flight.
+    study = optuna.create_study(sampler=mod.GIBBONSampler(seed=42))
+    study.optimize(objective, n_trials=64, n_jobs=8)
+    print(f"gibbon    best value: {study.best_value:.5f}, params: {study.best_params}")

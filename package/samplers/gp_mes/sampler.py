@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import optuna
+from optuna.samplers._gp.sampler import _get_params
 from optuna.samplers._gp.sampler import _standardize_values
 from optuna.samplers._gp.sampler import GPSampler
 from optuna.study import StudyDirection
@@ -37,7 +38,7 @@ else:
     acqf_module = _LazyImport("optuna._gp.acqf")
 
 
-__all__ = ["MESSampler"]
+__all__ = ["GIBBONSampler", "MESSampler"]
 
 _LOG_SQRT_2PI = 0.5 * math.log(2.0 * math.pi)
 
@@ -197,6 +198,125 @@ def _clip_to_incumbent(samples: np.ndarray, y_best: float, scale: float) -> torc
     return torch.from_numpy(np.maximum(samples, floor))
 
 
+class _GIBBON(acqf_module.BaseAcquisitionFunc):
+    """The GIBBON lower bound on the batch information gain about ``y*``.
+
+    Moss, Leslie, Gonzalez & Rayson, "GIBBON: General-purpose Information-Based Bayesian
+    OptimisatioN", JMLR 22(235), 2021, eq. (7). Writing ``R`` for the posterior correlation
+    matrix of the batch, ``gamma_i = (y* - mu_i) / sigma_i``, and ``phi``, ``Psi`` for the
+    standard normal PDF and CDF, the bound for one sampled maximum is
+
+        IG(batch, y*) = 0.5 log|R| - 0.5 sum_i log(1 - rho_i^2 r_i (gamma_i + r_i))
+
+    with ``r_i = phi(gamma_i) / Psi(gamma_i)`` and ``gamma_i = (y* - mu_i) / sigma_i``. The
+    paper distinguishes the observations from the latent function they inform: ``R`` is the
+    correlation matrix of the *observations*, whose covariance carries the fitted noise,
+    while ``gamma`` is formed from the *latent* posterior and
+    ``rho_i^2 = latent_var_i / observation_var_i`` is the squared correlation between the
+    two. They coincide only for a noiseless objective, which is not Optuna's default.
+
+    The first term rewards batches whose members are weakly correlated, and is what makes
+    this a batch acquisition rather than a per-point one. The second is a per-point
+    information term closely related to max-value entropy search: at batch size one the
+    first term vanishes and the bound sits strictly below Wang & Jegelka's exact value.
+
+    Optuna evaluates one trial at a time, so the batch here is the set of currently running
+    trials together with the candidate under consideration. Scoring a candidate therefore
+    penalises it for resembling work already in flight, which is the diversity mechanism.
+    """
+
+    def __init__(
+        self,
+        gpr: gp.GPRegressor,
+        search_space: gp_search_space.SearchSpace,
+        max_value_samples: torch.Tensor,
+        pending: np.ndarray | None = None,
+        stabilizing_noise: float = 1e-12,
+    ) -> None:
+        self._gpr = gpr
+        self._max_value_samples = max_value_samples
+        self._stabilizing_noise = stabilizing_noise
+        self._noise_var = float(gpr.noise_var)
+        self._pending = None if pending is None or len(pending) == 0 else torch.from_numpy(pending)
+
+        self._pending_logdet_corr = torch.zeros((), dtype=torch.float64)
+        self._pending_info = torch.zeros((), dtype=torch.float64)
+        if self._pending is not None:
+            mean_p, cov_latent = gpr.posterior(self._pending, joint=True)
+            # eq. (7) is stated for the observations A, whose covariance carries the
+            # observation noise; gamma is formed from the latent C. They coincide only when
+            # the objective is deterministic, which is not Optuna's default.
+            cov_p = cov_latent + self._noise_var * torch.eye(
+                cov_latent.shape[-1], dtype=cov_latent.dtype
+            )
+            # Pending trials may coincide exactly, which categorical parameters make
+            # common. The observation noise on the diagonal already keeps the matrix
+            # invertible in that case; this jitter is a guard for the degenerate
+            # `deterministic_objective` setting, where the noise floor is 1e-6.
+            jitter = 1e-10 * float(torch.diagonal(cov_p).mean().clamp_min(1e-12))
+            cov_p = cov_p + jitter * torch.eye(cov_p.shape[-1], dtype=cov_p.dtype)
+            sd_p = torch.sqrt(torch.diagonal(cov_p))
+            corr_p = cov_p / torch.outer(sd_p, sd_p)
+            self._pending_cov_chol = torch.linalg.cholesky(cov_p)
+            self._pending_logdet_corr = torch.linalg.slogdet(corr_p)[1]
+            latent_sd_p = torch.sqrt(torch.diagonal(cov_latent) + stabilizing_noise)
+            self._pending_info = self._log_reduction(
+                mean_p, latent_sd_p, torch.diagonal(cov_latent) / torch.diagonal(cov_p)
+            ).sum(dim=-1)
+            # Depends only on the pending set and the fitted GP, so it is computed once.
+            self._u_pending = torch.linalg.solve_triangular(
+                gpr._cov_Y_Y_chol, gpr.kernel(gpr._X_all, self._pending), upper=False
+            )
+
+        super().__init__(gpr.length_scales, search_space)
+
+    def _log_reduction(
+        self, mean: torch.Tensor, latent_sd: torch.Tensor, rho_sq: torch.Tensor
+    ) -> torch.Tensor:
+        """log(1 - rho^2 r (gamma + r)) per point. Shape (n_samples, *mean.shape)."""
+        y_star = self._max_value_samples.reshape((-1,) + (1,) * mean.ndim)
+        gamma = (y_star - mean) / latent_sd
+        log_cdf = torch.special.log_ndtr(gamma)
+        log_pdf = -0.5 * gamma**2 - _LOG_SQRT_2PI
+        ratio = torch.exp(log_pdf - log_cdf)  # phi/Psi, formed in log space for the tail
+        inner = 1.0 - rho_sq * ratio * (gamma + ratio)
+        # The bracket is a variance ratio and so lies in (0, 1]; the clamp guards rounding.
+        return torch.log(torch.clamp(inner, min=1e-300))
+
+    def _cross_covariance(self, x: torch.Tensor) -> torch.Tensor:
+        """Posterior covariance between the pending points and each candidate."""
+        assert self._pending is not None
+        u_x = torch.linalg.solve_triangular(
+            self._gpr._cov_Y_Y_chol, self._gpr.kernel(self._gpr._X_all, x), upper=False
+        )
+        return self._gpr.kernel(self._pending, x) - self._u_pending.T @ u_x
+
+    def eval_acqf(self, x: torch.Tensor) -> torch.Tensor:
+        mean, latent_var = self._gpr.posterior(x)
+        latent_var = latent_var + self._stabilizing_noise
+        obs_var = latent_var + self._noise_var
+        own = self._log_reduction(mean, torch.sqrt(latent_var), latent_var / obs_var)
+
+        if self._pending is None:
+            return torch.mean(-0.5 * own, dim=0)
+
+        # log|R| for {pending, x} via the bordered determinant: the Schur complement is the
+        # only part that varies with the candidate, so one solve serves every candidate.
+        flat = x.reshape(-1, x.shape[-1])
+        cross = self._cross_covariance(flat)
+        solved = torch.cholesky_solve(cross, self._pending_cov_chol)
+        obs_flat = obs_var.reshape(-1)
+        schur = obs_flat - (cross * solved).sum(dim=0)
+        # Relative floor, matching the relative jitter applied to the pending covariance.
+        schur = torch.clamp(schur, min=self._stabilizing_noise * obs_flat)
+        logdet_corr = (self._pending_logdet_corr + torch.log(schur / obs_flat)).reshape(
+            obs_var.shape
+        )
+
+        info = self._pending_info.reshape((-1,) + (1,) * mean.ndim) + own
+        return torch.mean(0.5 * logdet_corr - 0.5 * info, dim=0)
+
+
 class MESSampler(GPSampler):
     """Sampler using the max-value entropy search acquisition function.
 
@@ -262,18 +382,22 @@ class MESSampler(GPSampler):
         self._n_max_value_samples = n_max_value_samples
         self._n_representer_points = n_representer_points
 
-    def _create_acqf(
+    #: Whether ``_create_acqf`` consumes the pending set. Read-only, so it carries none of
+    #: the thread-safety hazard that motivated passing ``pending`` by argument.
+    _uses_pending_trials = False
+
+    def _sample_max_values(
         self,
         gpr: gp.GPRegressor,
         search_space: gp_search_space.SearchSpace,
         standardized_score_vals: np.ndarray,
-    ) -> acqf_module.BaseAcquisitionFunc:
-        sample_max_values = (
+    ) -> torch.Tensor:
+        sample = (
             _sample_max_values_by_gumbel
             if self._max_value_sampler == "gumbel"
             else _sample_max_values_by_posterior
         )
-        max_value_samples = sample_max_values(
+        return sample(
             gpr,
             search_space,
             self._n_max_value_samples,
@@ -281,10 +405,18 @@ class MESSampler(GPSampler):
             self._rng.rng,
             float(standardized_score_vals.max()),
         )
+
+    def _create_acqf(
+        self,
+        gpr: gp.GPRegressor,
+        search_space: gp_search_space.SearchSpace,
+        standardized_score_vals: np.ndarray,
+        pending: np.ndarray | None = None,
+    ) -> acqf_module.BaseAcquisitionFunc:
         return _MaxValueEntropySearch(
             gpr=gpr,
             search_space=search_space,
-            max_value_samples=max_value_samples,
+            max_value_samples=self._sample_max_values(gpr, search_space, standardized_score_vals),
         )
 
     def _sample_relative_impl(
@@ -327,12 +459,64 @@ class MESSampler(GPSampler):
         )
         self._gprs_cache_list = [gpr_obj]
 
+        # Passed by argument rather than stored on the sampler: one instance is shared
+        # across threads under `n_jobs > 1`, and the kernel fit above releases the GIL long
+        # enough that instance state is overwritten by another thread before it is read.
+        # Derived only when the acquisition will use it, since `_get_params` parses the
+        # system attributes of every running trial.
+        pending = (
+            internal_search_space.get_normalized_params(trials, [_get_params(t) for t in trials])
+            if trials and self._uses_pending_trials
+            else None
+        )
         acqf = self._create_acqf(
             gpr=gpr_obj,
             search_space=internal_search_space,
             standardized_score_vals=standardized_score_vals[:, 0],
+            pending=pending,
         )
         best_params = normalized_params[np.argmax(standardized_score_vals[:, 0]), np.newaxis]
 
         normalized_param = self._optimize_acqf(acqf, best_params)
         return internal_search_space.get_unnormalized_param(normalized_param)
+
+
+class GIBBONSampler(MESSampler):
+    """Batch-aware max-value entropy search, using the GIBBON lower bound.
+
+    Extends :class:`MESSampler` with the acquisition of Moss, Leslie, Gonzalez & Rayson
+    (JMLR 2021), which scores a *set* of evaluations rather than a single point. The extra
+    term rewards batches whose members are weakly correlated under the GP posterior, so a
+    candidate resembling work already in flight is penalised.
+
+    Optuna runs one trial at a time, so the batch is taken to be the currently running
+    trials plus the candidate under consideration. **This sampler is only worth using when
+    trials run concurrently** -- through ``n_jobs``, multiple workers, or an ask-and-tell
+    loop. With no running trials the correlation term vanishes and the acquisition reduces
+    to a lower bound on the quantity :class:`MESSampler` already computes exactly, so
+    :class:`MESSampler` is the better choice for sequential studies.
+
+    Args:
+        Identical to :class:`MESSampler`.
+
+    Reference:
+        Henry B. Moss, David S. Leslie, Javier Gonzalez and Paul Rayson. GIBBON:
+        General-purpose Information-Based Bayesian OptimisatioN. Journal of Machine
+        Learning Research, 22(235):1-49, 2021.
+    """
+
+    _uses_pending_trials = True
+
+    def _create_acqf(
+        self,
+        gpr: gp.GPRegressor,
+        search_space: gp_search_space.SearchSpace,
+        standardized_score_vals: np.ndarray,
+        pending: np.ndarray | None = None,
+    ) -> acqf_module.BaseAcquisitionFunc:
+        return _GIBBON(
+            gpr=gpr,
+            search_space=search_space,
+            max_value_samples=self._sample_max_values(gpr, search_space, standardized_score_vals),
+            pending=pending,
+        )
