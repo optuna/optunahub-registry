@@ -1,4 +1,4 @@
-from optuna.samplers import TPESampler
+from .sampler import TPESampler
 
 
 __all__ = ["TPESampler"]
