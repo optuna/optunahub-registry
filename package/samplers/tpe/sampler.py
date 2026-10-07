@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from optuna.distributions import BaseDistribution
+    from optuna.distributions import CategoricalChoiceType
     from optuna.study import Study
 
 
@@ -344,6 +345,9 @@ class TPESampler(BaseSampler):
         warn_independent_sampling: bool | None = None,
         constant_liar: bool = True,
         constraints_func: Callable[[FrozenTrial], Sequence[float]] | None = None,
+        categorical_distance_func: (
+            dict[str, Callable[[CategoricalChoiceType, CategoricalChoiceType], float]] | None
+        ) = None,
     ) -> None:
         consider_prior = _warn_if_deprecated_argument(
             "`consider_prior`", consider_prior, True, "4.3.0", "6.0.0"
@@ -373,6 +377,7 @@ class TPESampler(BaseSampler):
             # The ``multivariate`` field remains only for historical reasons and is unused,
             # so any value is fine here.
             multivariate=True,
+            categorical_distance_func=categorical_distance_func or {},
         )
 
         self._n_startup_trials = n_startup_trials

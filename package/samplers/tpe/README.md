@@ -3,7 +3,7 @@ author: Optuna team
 title: TPE Sampler
 description: Sampler using TPE (Tree-structured Parzen Estimator) algorithm.
 tags: [sampler, built-in]
-optuna_versions: [3.6.1]
+optuna_versions: [5.1.0.dev]
 license: MIT License
 ---
 
@@ -27,6 +27,11 @@ sampler = TPESampler()
 study = optuna.create_study(sampler=sampler)
 study.optimize(objective, n_trials=10)
 ```
+
+## Categorical distance
+
+This package is based on the Optuna 5.1.0.dev `TPESampler` and restores categorical-distance
+support using the Optuna 4.9 implementation as a behavioral reference. 
 
 ## Others
 
