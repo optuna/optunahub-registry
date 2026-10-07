@@ -10,8 +10,6 @@ from typing import TypeVar
 
 import numpy as np
 
-from optuna import _deprecated
-from optuna._convert_positional_args import convert_positional_args
 from optuna._experimental import warn_experimental_argument
 from optuna._hypervolume.hssp import _solve_hssp
 from optuna._warnings import optuna_warn
@@ -72,82 +70,11 @@ def default_weights(x: int) -> np.ndarray:
         return np.concatenate([ramp, flat], axis=0)
 
 
-_T = TypeVar("_T")
-
-
-def _warn_if_deprecated_argument(
-    name: str, value: _T | None, default: _T, d_ver: str, r_ver: str
-) -> _T:
-    if value is not None:
-        msg = _deprecated._DEPRECATION_WARNING_TEMPLATE.format(name=name, d_ver=d_ver, r_ver=r_ver)
-        optuna_warn(msg, FutureWarning)
-        return value
-    return default
-
-
 class TPESampler(BaseSampler):
-    """Sampler using TPE (Tree-structured Parzen Estimator) algorithm.
+    """Sampler using the Tree-structured Parzen Estimator algorithm.
 
-    On each trial, for each parameter, TPE fits one Gaussian Mixture Model (GMM) ``l(x)`` to
-    the set of parameter values associated with the best objective values, and another GMM
-    ``g(x)`` to the remaining parameter values. It chooses the parameter value ``x`` that
-    maximizes the ratio ``l(x)/g(x)``.
-
-    For further information about TPE algorithm, please refer to the following papers:
-
-    - `Algorithms for Hyper-Parameter Optimization
-      <https://papers.nips.cc/paper/4443-algorithms-for-hyper-parameter-optimization.pdf>`__
-    - `Making a Science of Model Search: Hyperparameter Optimization in Hundreds of
-      Dimensions for Vision Architectures <http://proceedings.mlr.press/v28/bergstra13.pdf>`__
-    - `Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for
-      Better Empirical Performance <https://arxiv.org/abs/2304.11127>`__
-
-    For multi-objective TPE (MOTPE), please refer to the following papers:
-
-    - `Multiobjective Tree-Structured Parzen Estimator for Computationally Expensive Optimization
-      Problems <https://doi.org/10.1145/3377930.3389817>`__
-    - `Multiobjective Tree-Structured Parzen Estimator <https://doi.org/10.1613/jair.1.13188>`__
-
-    For constrained TPE (c-TPE), please refer to the following papers:
-
-    - `Optuna Constrained Tree-Structured Parzen Estimator Is a Joint Density Generalization of
-      c-TPE <https://arxiv.org/abs/2606.09889>`__
-    - `c-TPE: Tree-structured Parzen Estimator with Inequality Constraints for Expensive
-      Hyperparameter Optimization <https://arxiv.org/abs/2211.14411>`__
-
-    The first paper explains how Optuna handles constraints, while the second provides the
-    background of constrained optimization for TPE in general. Notably, the Optuna algorithm
-    differs from the one proposed in the second paper. OptunaHub provides
-    `c-TPE proposed by the second paper <https://hub.optuna.org/samplers/ctpe/>`__.
-
-    Please also check our articles:
-
-    - `Significant Speed Up of Multi-Objective TPESampler in Optuna v4.0.0
-      <https://medium.com/optuna/significant-speed-up-of-multi-objective-tpesampler-in-optuna-v4-0-0-2bacdcd1d99b>`__
-    - `Multivariate TPE Makes Optuna Even More Powerful
-      <https://medium.com/optuna/multivariate-tpe-makes-optuna-even-more-powerful-63c4bfbaebe2>`__
-
-    Example:
-        An example of a single-objective optimization is as follows:
-
-        .. testcode::
-
-            import optuna
-            from optuna.samplers import TPESampler
-
-
-            def objective(trial):
-                x = trial.suggest_float("x", -10, 10)
-                return x**2
-
-
-            study = optuna.create_study(sampler=TPESampler())
-            study.optimize(objective, n_trials=10)
-
-    .. note::
-        :class:`~optuna.samplers.TPESampler`, which became much faster in v4.0.0, c.f. `our article
-        <https://medium.com/optuna/significant-speed-up-of-multi-objective-tpesampler-in-optuna-v4-0-0-2bacdcd1d99b>`__,
-        can handle multi-objective optimization with many trials as well.
+    This is a copy of Optuna's TPE sampler with registry-specific support for
+    ``categorical_distance_func``.
 
     Args:
         n_startup_trials:
@@ -158,53 +85,13 @@ class TPESampler(BaseSampler):
         seed:
             Seed for random number generator.
         multivariate:
-            If this is :obj:`True`, the multivariate TPE is used when suggesting parameters.
-            The multivariate TPE is reported to outperform the independent TPE in single-objective
-            optimization. See `BOHB: Robust and Efficient Hyperparameter Optimization at Scale
-            <http://proceedings.mlr.press/v80/falkner18a.html>`__ and `our article
-            <https://medium.com/optuna/multivariate-tpe-makes-optuna-even-more-powerful-63c4bfbaebe2>`__
-            for more details.
-            If this is :obj:`None`, the value is automatically determined based on the number of
-            objectives: :obj:`True` for single-objective optimization and :obj:`False` for
-            multi-objective optimization.
+            Whether to use multivariate TPE. If :obj:`None`, this is selected from the number of
+            objectives.
         group:
-            If this and ``multivariate`` are :obj:`True`, the multivariate TPE with the group
-            decomposed search space is used when suggesting parameters.
-            The sampling algorithm decomposes the search space based on past trials and samples
-            from the joint distribution in each decomposed subspace.
-            The decomposed subspaces are a partition of the whole search space. Each subspace
-            is a maximal subset of the whole search space, which satisfies the following:
-            for a trial in completed trials, the intersection of the subspace and the search space
-            of the trial becomes subspace itself or an empty set.
-            Sampling from the joint distribution on the subspace is realized by multivariate TPE.
-            If ``group`` is :obj:`True`, ``multivariate`` must be :obj:`True` as well.
+            Whether to use the group-decomposed multivariate search space.
 
-            .. note::
-                Added in v2.8.0 as an experimental feature. The interface may change in newer
-                versions without prior notice. See
-                https://github.com/optuna/optuna/releases/tag/v2.8.0.
-
-            Example:
-
-            .. testcode::
-
-                import optuna
-
-
-                def objective(trial):
-                    x = trial.suggest_categorical("x", ["A", "B"])
-                    if x == "A":
-                        return trial.suggest_float("y", -10, 10)
-                    else:
-                        return trial.suggest_int("z", -10, 10)
-
-
-                sampler = optuna.samplers.TPESampler(multivariate=True, group=True)
-                study = optuna.create_study(sampler=sampler)
-                study.optimize(objective, n_trials=10)
         constant_liar:
-            If :obj:`True`, penalize running trials to avoid suggesting parameter configurations
-            nearby. Defaults to :obj:`True`.
+            Whether to penalize configurations near running trials.
 
             .. note::
                 Abnormally terminated trials often leave behind a record with a state of
@@ -226,63 +113,32 @@ class TPESampler(BaseSampler):
             The function won't be called when trials fail or they are pruned, but this behavior is
             subject to change in the future releases.
 
-            .. warning::
-                Deprecated in v5.0.0. This feature will be removed in the future. The removal of
-                this feature is currently scheduled for v7.0.0, but this schedule is subject to
-                change. Use :meth:`~optuna.trial.Trial.set_constraint` instead.
-                See https://github.com/optuna/optuna/releases/tag/v5.0.0.
         consider_prior:
             Enhance the stability of Parzen estimator by imposing a Gaussian prior when
             :obj:`True`. The prior is only effective if the sampling distribution is
             either :class:`~optuna.distributions.FloatDistribution`,
             or :class:`~optuna.distributions.IntDistribution`.
 
-            .. warning::
-                Deprecated in v4.3.0. ``consider_prior`` argument will be removed in the future.
-                The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                From v4.3.0 onward, ``consider_prior`` automatically falls back to ``True``.
-                See https://github.com/optuna/optuna/releases/tag/v4.3.0.
         prior_weight:
             The weight of the prior. This argument is used in
             :class:`~optuna.distributions.FloatDistribution`,
             :class:`~optuna.distributions.IntDistribution`, and
             :class:`~optuna.distributions.CategoricalDistribution`.
 
-            .. warning::
-                Deprecated in v4.9.0. ``prior_weight`` argument will be removed in the future.
-                The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                See https://github.com/optuna/optuna/releases/tag/v4.9.0.
         consider_magic_clip:
             Enable a heuristic to limit the smallest variances of Gaussians used in
             the Parzen estimator.
 
-            .. warning::
-                Deprecated in v4.9.0. ``consider_magic_clip`` argument will be removed in the
-                future. The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                See https://github.com/optuna/optuna/releases/tag/v4.9.0.
         consider_endpoints:
             Take endpoints of domains into account when calculating variances of Gaussians
             in Parzen estimator. See the original paper for details on the heuristics
             to calculate the variances.
 
-            .. warning::
-                Deprecated in v4.9.0. ``consider_endpoints`` argument will be removed in the
-                future. The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                See https://github.com/optuna/optuna/releases/tag/v4.9.0.
         gamma:
             A function that takes the number of finished trials and returns the number
             of trials to form a density function for samples with low grains.
             See the original paper for more details.
 
-            .. warning::
-                Deprecated in v4.9.0. ``gamma`` argument will be removed in the future.
-                The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                See https://github.com/optuna/optuna/releases/tag/v4.9.0.
         weights:
             A function that takes the number of finished trials and returns a weight for them.
             See `Making a Science of Model Search: Hyperparameter Optimization in Hundreds of
@@ -295,39 +151,17 @@ class TPESampler(BaseSampler):
                 <https://papers.nips.cc/paper/4443-algorithms-for-hyper-parameter-optimization.pdf>`__
                 ). The weights of good trials, i.e., trials to construct `l(x)`, are uniform.
 
-            .. warning::
-                Deprecated in v4.9.0. ``weights`` argument will be removed in the future.
-                The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                See https://github.com/optuna/optuna/releases/tag/v4.9.0.
         warn_independent_sampling:
             If this is :obj:`True` and ``multivariate=True``, a warning message is emitted when
             the value of a parameter is sampled by using an independent sampler.
             If ``multivariate=False``, this flag has no effect.
 
-            .. warning::
-                Deprecated in v4.9.0. ``warn_independent_sampling`` argument will be removed in
-                the future. The removal of this feature is currently scheduled for v6.0.0,
-                but this schedule is subject to change.
-                See https://github.com/optuna/optuna/releases/tag/v4.9.0.
+        categorical_distance_func:
+            A mapping from categorical parameter names to non-negative distance functions.
+            Related choices receive similar probability weights during categorical Parzen
+            estimation.
     """
 
-    @convert_positional_args(
-        previous_positional_arg_names=[
-            "self",
-            "consider_prior",
-            "prior_weight",
-            "consider_magic_clip",
-            "consider_endpoints",
-            "n_startup_trials",
-            "n_ei_candidates",
-            "gamma",
-            "weights",
-            "seed",
-        ],
-        deprecated_version="4.4.0",
-        removed_version="6.0.0",
-    )
     def __init__(
         self,
         *,
@@ -349,24 +183,13 @@ class TPESampler(BaseSampler):
             dict[str, Callable[[CategoricalChoiceType, CategoricalChoiceType], float]] | None
         ) = None,
     ) -> None:
-        consider_prior = _warn_if_deprecated_argument(
-            "`consider_prior`", consider_prior, True, "4.3.0", "6.0.0"
-        )
-        prior_weight = _warn_if_deprecated_argument(
-            "`prior_weight`", prior_weight, 1.0, "4.9.0", "6.0.0"
-        )
-        consider_magic_clip = _warn_if_deprecated_argument(
-            "`consider_magic_clip`", consider_magic_clip, True, "4.9.0", "6.0.0"
-        )
-        consider_endpoints = _warn_if_deprecated_argument(
-            "`consider_endpoints`", consider_endpoints, False, "4.9.0", "6.0.0"
-        )
-        gamma = _warn_if_deprecated_argument("`gamma`", gamma, None, "4.9.0", "6.0.0")
-        weights = _warn_if_deprecated_argument(
-            "`weights`", weights, default_weights, "4.9.0", "6.0.0"
-        )
-        warn_independent_sampling = _warn_if_deprecated_argument(
-            "`warn_independent_sampling`", warn_independent_sampling, False, "4.9.0", "6.0.0"
+        consider_prior = True if consider_prior is None else consider_prior
+        prior_weight = 1.0 if prior_weight is None else prior_weight
+        consider_magic_clip = True if consider_magic_clip is None else consider_magic_clip
+        consider_endpoints = False if consider_endpoints is None else consider_endpoints
+        weights = default_weights if weights is None else weights
+        warn_independent_sampling = (
+            False if warn_independent_sampling is None else warn_independent_sampling
         )
 
         self._parzen_estimator_parameters = _ParzenEstimatorParameters(
@@ -405,12 +228,6 @@ class TPESampler(BaseSampler):
                 )
             warn_experimental_argument("group")
             self._group_decomposed_search_space = _GroupDecomposedSearchSpace(True)
-
-        if constraints_func is not None:
-            msg = _deprecated._DEPRECATION_WARNING_TEMPLATE.format(
-                name="`constraints_func`", d_ver="5.0.0", r_ver="7.0.0"
-            )
-            optuna_warn(f"{msg} Use `optuna.trial.Trial.set_constraint` instead.", FutureWarning)
 
     def reseed_rng(self) -> None:
         self._rng.rng.seed()
@@ -676,7 +493,6 @@ class TPESampler(BaseSampler):
         return {k: v[best_idx].item() for k, v in samples.items()}
 
     @staticmethod
-    @_deprecated.deprecated_func("4.9.0", "6.0.0")
     def hyperopt_parameters() -> dict[str, Any]:
         """Return the the default parameters of hyperopt (v0.1.2).
 
