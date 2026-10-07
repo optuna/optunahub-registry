@@ -6,10 +6,8 @@ import math
 from typing import Any
 from typing import cast
 from typing import TYPE_CHECKING
-from typing import TypeVar
 
 import numpy as np
-
 from optuna._experimental import warn_experimental_argument
 from optuna._hypervolume.hssp import _solve_hssp
 from optuna._warnings import optuna_warn
@@ -19,8 +17,6 @@ from optuna.samplers._base import _process_constraints_after_trial
 from optuna.samplers._base import BaseSampler
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.samplers._random import RandomSampler
-from .parzen_estimator import _ParzenEstimator
-from .parzen_estimator import _ParzenEstimatorParameters
 from optuna.search_space import IntersectionSearchSpace
 from optuna.search_space.group_decomposed import _GroupDecomposedSearchSpace
 from optuna.search_space.group_decomposed import _SearchSpaceGroup
@@ -28,6 +24,9 @@ from optuna.study._multi_objective import _fast_non_domination_rank
 from optuna.study._study_direction import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
+
+from .parzen_estimator import _ParzenEstimator
+from .parzen_estimator import _ParzenEstimatorParameters
 
 
 if TYPE_CHECKING:
@@ -342,21 +341,23 @@ class TPESampler(BaseSampler):
                 study, trial, param_name, param_distribution
             )
 
-        if self._warn_independent_sampling and self._is_multivariate(study):
-            # Avoid independent warning at the first sampling of `param_name`.
-            if any(param_name in trial.params for trial in trials):
-                _logger.warning(
-                    _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
-                        param_name=param_name,
-                        trial_number=trial.number,
-                        independent_sampler_name=self._random_sampler.__class__.__name__,
-                        sampler_name=self.__class__.__name__,
-                        fallback_reason=(
-                            "`multivariate=True,group=False` does not support dynamic search space"
-                            " (but `multivariate=True,group=True` works)"
-                        ),
-                    )
+        if (
+            self._warn_independent_sampling
+            and self._is_multivariate(study)
+            and any(param_name in trial.params for trial in trials)
+        ):
+            _logger.warning(
+                _INDEPENDENT_SAMPLING_WARNING_TEMPLATE.format(
+                    param_name=param_name,
+                    trial_number=trial.number,
+                    independent_sampler_name=self._random_sampler.__class__.__name__,
+                    sampler_name=self.__class__.__name__,
+                    fallback_reason=(
+                        "`multivariate=True,group=False` does not support dynamic search space"
+                        " (but `multivariate=True,group=True` works)"
+                    ),
                 )
+            )
 
         return self._sample(study, trial, {param_name: param_distribution})[param_name]
 
@@ -459,7 +460,7 @@ class TPESampler(BaseSampler):
             )
 
         if not isinstance(mpe, _ParzenEstimator):
-            raise RuntimeError("_parzen_estimator_cls must override _ParzenEstimator.")
+            raise TypeError("_parzen_estimator_cls must override _ParzenEstimator.")
 
         return mpe
 
