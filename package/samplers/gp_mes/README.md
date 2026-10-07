@@ -240,9 +240,9 @@ paired regrets rather than their difference; negative favours GIBBON.
 |          4 |                   −0.346 | [−0.624, −0.046] | 29/40, p = 0.0064 |
 |          8 |                   −0.395 | [−0.612, −0.189] | 29/40, p = 0.0064 |
 
-A mean of −0.395 is a regret ratio of 0.40, so a little under half. The effect grows with
-batch size, which is what the mechanism predicts: more pending trials means more correlation
-to penalise.
+A mean of −0.395 is a regret ratio of 0.40, so a little under half. The estimated effect is
+larger at batch 8, as the mechanism predicts (more pending trials means more correlation to
+penalise), but the two intervals overlap.
 
 By function and dimension, pooled over both batch sizes:
 
@@ -257,10 +257,11 @@ By function and dimension, pooled over both batch sizes:
 | f21 Gallagher d=2 |           +0.121 | [−0.393, +0.904] |
 | f1 Sphere d=2     |           +0.136 | [−0.298, +0.586] |
 
-**The advantage is not established at dimension 2.** Three of the four two-dimensional cells
-have a mean favouring MES, none significantly, while three of the four five-dimensional
-cells favour GIBBON significantly. Diversity within a batch buys more where there is more
-room to spread out. Wall-clock cost over `MESSampler` is 1.3x.
+**The advantage is not established at dimension 2.** Pooled over its four cells the mean is
+−0.192 [−0.477, +0.110]; two cells favour each sampler, and only f8 Rosenbrock is
+significant. At dimension 5 the pooled mean is −0.549 [−0.761, −0.355], and three of the
+four cells favour GIBBON significantly. Diversity within a batch buys more where there is
+more room to spread out. Wall-clock cost over `MESSampler` is 1.3x.
 
 ## Others
 
