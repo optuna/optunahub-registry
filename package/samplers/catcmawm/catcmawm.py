@@ -49,6 +49,42 @@ class _CmaEsAttrKeys(NamedTuple):
     popsize: Callable[[], str]
 
 
+def _grid_of(distribution: Union[FloatDistribution, IntDistribution]) -> List[float]:
+    """Return the candidate values of a gridded parameter, in the optimizer's space."""
+    if isinstance(distribution, IntDistribution):
+        values = list(
+            range(distribution.low, distribution.high + distribution.step, distribution.step)
+        )
+        if distribution.log:
+            # ``step`` is always 1 for log integers.
+            return [math.log(v) for v in values]
+        return [float(v) for v in values]
+
+    # A float with ``step``; Optuna forbids ``log`` alongside it.
+    assert distribution.step is not None
+    num_steps = int(round((distribution.high - distribution.low) / distribution.step))
+    return [distribution.low + i * distribution.step for i in range(num_steps + 1)]
+
+
+def _untransform_x(value: float, distribution: FloatDistribution) -> float:
+    """Map a continuous ``x_space`` value back to Optuna's representation."""
+    external = math.exp(value) if distribution.log else float(value)
+    return min(max(external, distribution.low), distribution.high)
+
+
+def _untransform_z(
+    value: float, distribution: Union[FloatDistribution, IntDistribution]
+) -> Union[int, float]:
+    """Map a gridded ``z_space`` value back to Optuna's representation."""
+    if isinstance(distribution, IntDistribution):
+        external = round(math.exp(value)) if distribution.log else int(round(value))
+        # Snap to the step grid, which Optuna checks exactly for integers.
+        external -= (external - distribution.low) % distribution.step
+        return min(max(external, distribution.low), distribution.high)
+
+    return min(max(float(value), distribution.low), distribution.high)
+
+
 class CatCmawmSampler(BaseSampler):
     """A sampler to solve mixed-variablse optimization using `cmaes <https://github.com/CyberAgentAILab/cmaes>`__ as the backend.
 
@@ -146,24 +182,34 @@ class CatCmawmSampler(BaseSampler):
 
         # cmaes.CatCma handles numerical and categorical parameters separately.
         # In the following, we split the search space into numerical and categorical parameters.
-        # Then, for numerical parameters, we normalize them to [0, 1].
         # For categorical parameters, we convert them to the number of choices, e.g.,
         # c1 = ['a', 'b', 'c'], c2 = ['d', 'e'] -> cat_num = [3, 2].
+        # Continuous parameters go to ``x_space``; gridded ones -- integers and floats with
+        # a ``step`` -- go to ``z_space``, where CatCMAwM applies its margin correction.
+        # ``log=True`` is handled by optimizing in log space and mapping back below.
         float_search_space = {
-            k: v for k, v in search_space.items() if isinstance(v, FloatDistribution)
+            k: v
+            for k, v in search_space.items()
+            if isinstance(v, FloatDistribution) and v.step is None
         }
 
         float_bounds = []
         for k, v in float_search_space.items():
-            float_bounds.append((v.low, v.high))
+            if v.log:
+                float_bounds.append((math.log(v.low), math.log(v.high)))
+            else:
+                float_bounds.append((v.low, v.high))
 
         integer_search_space = {
-            k: v for k, v in search_space.items() if isinstance(v, IntDistribution)
+            k: v
+            for k, v in search_space.items()
+            if isinstance(v, IntDistribution)
+            or (isinstance(v, FloatDistribution) and v.step is not None)
         }
 
         int_values = []
         for k, v in integer_search_space.items():
-            int_values.append(list(range(v.low, v.high + v.step, v.step)))
+            int_values.append(_grid_of(v))
 
         categorical_search_space = {
             k: v for k, v in search_space.items() if isinstance(v, CategoricalDistribution)
@@ -253,11 +299,17 @@ class CatCmawmSampler(BaseSampler):
         # Convert cmaes.CatCma's internal representation to Optuna's representation.
         float_values = {}
         if isinstance(solution.x, np.ndarray) and solution.x.shape[0] > 0:
-            float_values = {k: v for v, k in zip(solution.x, float_search_space.keys())}
+            float_values = {
+                k: _untransform_x(v, d)
+                for v, (k, d) in zip(solution.x, float_search_space.items())
+            }
 
         integer_values = {}
         if isinstance(solution.z, np.ndarray) and solution.z.shape[0] > 0:
-            integer_values = {k: v for v, k in zip(solution.z, integer_search_space.keys())}
+            integer_values = {
+                k: _untransform_z(v, d)
+                for v, (k, d) in zip(solution.z, integer_search_space.items())
+            }
 
         # cmaes.CatCma returns the categorical choice as one-hot vectors, e.g.,
         # [[True False, False], [False, True]].
