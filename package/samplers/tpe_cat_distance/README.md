@@ -11,27 +11,48 @@ license: MIT License
 
 - TPESampler
 
+## APIs
+
+- `TPESampler(...)`
+  - This is Optuna's TPE sampler with support for
+    `categorical_distance_func`.
+  - `categorical_distance_func`: A mapping from categorical parameter names to distance
+    functions. Each function receives two choices and returns a non-negative distance.
+
 ## Example
 
 ```python
 import optuna
-from optuna.samplers import TPESampler
+import optunahub
+
+
+module = optunahub.load_module(package="samplers/tpe_cat_distance")
+
+
+def hamming_distance(x: str, y: str) -> float:
+    return float(x != y)
+
+
+sampler = module.TPESampler(
+    categorical_distance_func={"optimizer": hamming_distance},
+)
+
+
+study = optuna.create_study(sampler=sampler)
 
 
 def objective(trial):
-    x = trial.suggest_float("x", -10, 10)
-    return x**2
+    optimizer = trial.suggest_categorical("optimizer", ["adam", "sgd"])
+    return float(optimizer != "adam")
 
 
-sampler = TPESampler()
-study = optuna.create_study(sampler=sampler)
-study.optimize(objective, n_trials=10)
+study.optimize(objective, n_trials=20)
 ```
 
 ## Categorical distance
 
 This package is based on the Optuna 5.1.0.dev `TPESampler` and restores categorical-distance
-support using the Optuna 4.9 implementation as a behavioral reference. 
+support using the Optuna 4.9 implementation as a behavioral reference.
 
 ## Others
 
