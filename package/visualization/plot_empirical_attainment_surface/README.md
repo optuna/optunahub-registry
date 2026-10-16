@@ -13,8 +13,6 @@ Hyperparameter optimization is crucial to achieving high performance in deep lea
 On top of the performance, other criteria such as inference time or memory requirement often need to be optimized due to some practical reasons.
 This motivates research on multi-objective optimization (MOO).
 However, Pareto fronts of MOO methods are often shown without considering the variability caused by random seeds, making the performance stability evaluation difficult.
-The empirical attainment function (EAF), on which the empirical attainment surface is based, was formulated by [Grunert da Fonseca et al. (2001)](https://doi.org/10.1007/3-540-44719-9_15).
-This type of visualization was used in early works such as [López-Ibáñez et al. (2004)](https://doi.org/10.1007/978-3-540-28646-2_19), and the first publicly available software to produce it is described in [López-Ibáñez et al. (2010)](https://doi.org/10.1007/978-3-642-02538-9_9), which became the R package [eaf](https://mlopez-ibanez.github.io/eaf/).
 This package provides empirical attainment surface implementation based on [the original implementation](https://github.com/nabenabe0928/empirical-attainment-func).
 
 The details of empirical attainment surface are available in [`Python Tool for Visualizing Variability of Pareto Fronts over Multiple Runs`](https://arxiv.org/abs/2305.08852).
@@ -114,7 +112,11 @@ Please cite [our paper](https://arxiv.org/abs/2305.08852), when using this modul
 }
 ```
 
-### References
+### Related Work
+
+The empirical attainment function (EAF) was formulated by Grunert da Fonseca et al. (2001), and this type of visualization was used in early works such as López-Ibáñez et al. (2004).
+As historical background, the first publicly available software to produce this visualization is described in López-Ibáñez et al. (2010), which became the R package [eaf](https://mlopez-ibanez.github.io/eaf/).
+Note that this package is based on [the author's Python implementation](https://github.com/nabenabe0928/empirical-attainment-func), which was developed independently of the R package.
 
 - V. Grunert da Fonseca, C. M. Fonseca, and A. Hall. [Inferential performance assessment of stochastic optimisers and the attainment function](https://doi.org/10.1007/3-540-44719-9_15). In *Evolutionary Multi-Criterion Optimization (EMO 2001)*, Lecture Notes in Computer Science, vol. 1993, pp. 213–225, Springer, 2001.
 - M. López-Ibáñez, L. Paquete, and T. Stützle. [On the design of ACO for the biobjective quadratic assignment problem](https://doi.org/10.1007/978-3-540-28646-2_19). In *Ant Colony Optimization and Swarm Intelligence (ANTS 2004)*, Lecture Notes in Computer Science, vol. 3172, pp. 214–225, Springer, 2004.
