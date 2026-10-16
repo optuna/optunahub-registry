@@ -154,11 +154,11 @@ class EmpiricalAttainmentFuncPlot:
 
         for surf in surfs_list:
             lb = EPS if self.x_is_log else -np.inf
-            surf[..., 0][surf[..., 0] == lb] = self.x_min
+            surf[..., 0][surf[..., 0] <= lb] = self.x_min
             surf[..., 0][surf[..., 0] == np.inf] = self.x_max
 
             lb = EPS if self.y_is_log else -np.inf
-            surf[..., 1][surf[..., 1] == lb] = self.y_min
+            surf[..., 1][surf[..., 1] <= lb] = self.y_min
             surf[..., 1][surf[..., 1] == np.inf] = self.y_max
 
         return surfs_list
