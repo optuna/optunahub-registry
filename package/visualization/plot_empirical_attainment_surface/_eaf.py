@@ -131,11 +131,16 @@ def _get_empirical_attainment_surfaces(
         on_front = optuna.study._multi_objective._is_pareto_front(
             loss_vals, assume_unique_lexsorted=False
         )
-        pareto_list.append(loss_vals[on_front])
+        pf = loss_vals[on_front]
+        # _compute_emp_att_surf requires each front to be sorted by the first objective.
+        pareto_list.append(pf[np.argsort(pf[:, 0], kind="stable")])
 
     log_scale_inds = log_scale_inds or []
     pareto_sols = np.vstack(pareto_list)
-    X = np.unique(np.hstack([EPS if 0 in log_scale_inds else -np.inf, pareto_sols[:, 0], np.inf]))
+    # EPS is the lower bound only when the first objective is minimized, because the maximized
+    # objectives are negated. For maximization, the plotter maps -np.inf to the lower bound.
+    x_lb = EPS if 0 in log_scale_inds and 0 not in larger_is_better_objectives else -np.inf
+    X = np.unique(np.hstack([x_lb, pareto_sols[:, 0], np.inf]))
     emp_att_surfs = _compute_emp_att_surf(X=X, pareto_list=pareto_list, levels=np.asarray(levels))
     emp_att_surfs[..., larger_is_better_objectives] *= -1
     if larger_is_better_objectives is not None and 0 in larger_is_better_objectives:

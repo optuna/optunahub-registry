@@ -10,6 +10,19 @@ from ._eaf import _get_empirical_attainment_surfaces
 from ._visualizer import EmpiricalAttainmentFuncPlot
 
 
+def _create_plotter(
+    study_list: list[optuna.Study], log_scale_inds: list[int] | None
+) -> EmpiricalAttainmentFuncPlot:
+    larger_is_better_objectives = [
+        i
+        for i, d in enumerate(study_list[0].directions)
+        if d == optuna.study.StudyDirection.MAXIMIZE
+    ]
+    return EmpiricalAttainmentFuncPlot(
+        larger_is_better_objectives=larger_is_better_objectives, log_scale_inds=log_scale_inds
+    )
+
+
 def plot_empirical_attainment_surface(
     study_list: list[optuna.Study],
     attainment_ratios: list[float],
@@ -26,7 +39,7 @@ def plot_empirical_attainment_surface(
 
     levels = [math.ceil(r * len(study_list)) for r in attainment_ratios]
     surfs = _get_empirical_attainment_surfaces(study_list, levels, log_scale_inds)
-    plotter = EmpiricalAttainmentFuncPlot()
+    plotter = _create_plotter(study_list, log_scale_inds)
     if len(attainment_ratios) == 1:
         plotter.plot_surface(
             ax,
@@ -72,7 +85,7 @@ def plot_multiple_empirical_attainment_surfaces(
         levels = [math.ceil(r * len(study_list)) for r in attainment_ratios]
         surfs_list.append(_get_empirical_attainment_surfaces(study_list, levels, log_scale_inds))
 
-    plotter = EmpiricalAttainmentFuncPlot()
+    plotter = _create_plotter(multiple_study_list[0], log_scale_inds)
     if len(attainment_ratios) == 1:
         surfs_list = [surfs[0] for surfs in surfs_list]
         plotter.plot_multiple_surface(
