@@ -328,7 +328,8 @@ class SMACSampler(optunahub.samplers.SimpleBaseSampler):
         scale_values: dict[str, tuple] = {}
         for name, distribution in search_space.items():
             if isinstance(distribution, (FloatDistribution, IntDistribution)):
-                if distribution.step is not None:
+                is_int = isinstance(distribution, IntDistribution)
+                if distribution.step is not None and not (is_int and distribution.step == 1):
                     # See the doc-string of _transform_step_hp_to_integer.
                     n_discrete_values, scale_values_hp = self._transform_step_hp_to_integer(
                         distribution
