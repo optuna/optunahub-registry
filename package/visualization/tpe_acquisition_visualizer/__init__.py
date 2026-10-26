@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+import inspect
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -7,7 +9,37 @@ import numpy as np
 import optuna
 from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
 from optuna.samplers._tpe.sampler import _split_trials
+from optuna.samplers._tpe.sampler import default_gamma
 from optuna.trial import TrialState
+
+
+try:
+    from optuna.samplers._tpe.sampler import default_gamma_multiobjective
+except ImportError:  # Optuna < 5.0 has no separate multi-objective default
+    default_gamma_multiobjective = default_gamma
+
+_SPLIT_TRIALS_TAKES_CONSTRAINTS = (
+    "constraints_enabled" in inspect.signature(_split_trials).parameters
+)
+
+
+def _resolve_gamma(
+    sampler: optuna.samplers.TPESampler, study: optuna.study.Study
+) -> Callable[[int], int]:
+    # Since Optuna v5, ``TPESampler._gamma`` is None until the sampler first samples.
+    # Resolve it the same way ``TPESampler`` does, without mutating the sampler.
+    if sampler._gamma is not None:
+        return sampler._gamma
+    if len(study.directions) <= 1:
+        return default_gamma
+    return default_gamma_multiobjective
+
+
+def _is_multivariate(sampler: optuna.samplers.TPESampler, study: optuna.study.Study) -> bool:
+    # Since Optuna v5, ``multivariate`` defaults to None and is resolved per study.
+    if hasattr(sampler, "_is_multivariate"):
+        return sampler._is_multivariate(study)
+    return bool(sampler._multivariate)
 
 
 class TPEAcquisitionVisualizer:
@@ -30,7 +62,7 @@ class TPEAcquisitionVisualizer:
         sampler = study.sampler
         if not isinstance(sampler, optuna.samplers.TPESampler):
             raise ValueError("This callback is only compatible with optuna.samplers.TPESampler.")
-        if sampler._multivariate:
+        if _is_multivariate(sampler, study):
             raise ValueError("This callback is not compatible with multivariate TPE sampler.")
 
         if sampler._constant_liar:
@@ -43,12 +75,13 @@ class TPEAcquisitionVisualizer:
 
         # We divide data into below and above.
         n = sum(trial.state != TrialState.RUNNING for trial in trials)  # Ignore running trials.
-        below_trials, above_trials = _split_trials(
-            study,
-            trials,
-            sampler._gamma(n),
-            sampler._constraints_func is not None,
-        )
+        n_below = _resolve_gamma(sampler, study)(n)
+        if _SPLIT_TRIALS_TAKES_CONSTRAINTS:
+            below_trials, above_trials = _split_trials(
+                study, trials, n_below, sampler._constraints_func is not None
+            )
+        else:
+            below_trials, above_trials = _split_trials(study, trials, n_below)
         mpe_below = {}
         mpe_above = {}
         for key, distribution in trial.distributions.items():
