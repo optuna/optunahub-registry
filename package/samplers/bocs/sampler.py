@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import Literal
 
 import numpy as np
 import optuna
@@ -14,6 +15,7 @@ from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
 from ._acquisition import maximize_sdp
+from ._annealing import maximize_sa
 from ._horseshoe import HorseshoeState
 from ._horseshoe import sample_horseshoe
 from ._model import second_order_features
@@ -50,14 +52,18 @@ class BOCSSampler(BaseSampler):
     BOCS models the objective over binary parameters with a second-order polynomial
     whose coefficients have a sparsity-inducing horseshoe prior. In each trial it
     draws one coefficient vector from the posterior (Thompson sampling) and
-    proposes the binary point that maximizes it, found with a semidefinite
-    relaxation and randomized rounding.
+    proposes the binary point that maximizes it, found either with a semidefinite
+    relaxation and randomized rounding (BOCS-SDP) or with simulated annealing (BOCS-SA).
 
     Binary parameters are declared either with ``trial.suggest_int(name, 0, 1)`` or
     with ``trial.suggest_categorical(name, [a, b])``. Other parameters are sampled by
     ``independent_sampler``.
 
     Args:
+        acquisition:
+            ``"sdp"`` (default) maximizes the sampled model with a semidefinite
+            relaxation; ``"sa"`` uses simulated annealing, which is cheaper for many
+            binary parameters.
         n_startup_trials:
             Number of initial trials sampled by ``independent_sampler``.
         penalty:
@@ -71,7 +77,7 @@ class BOCSSampler(BaseSampler):
             from the previous trial, so far fewer sweeps are needed than for burn-in.
         n_rounding:
             Number of randomized roundings of the semidefinite relaxation per
-            rounding method.
+            rounding method. Only used with ``acquisition="sdp"``.
         seed:
             Seed for the random number generator.
         independent_sampler:
@@ -85,6 +91,7 @@ class BOCSSampler(BaseSampler):
     def __init__(
         self,
         *,
+        acquisition: Literal["sdp", "sa"] = "sdp",
         n_startup_trials: int = 10,
         penalty: float = 0.0,
         n_burnin: int = 1000,
@@ -94,8 +101,11 @@ class BOCSSampler(BaseSampler):
         independent_sampler: BaseSampler | None = None,
         warn_independent_sampling: bool = True,
     ) -> None:
+        if acquisition not in ("sdp", "sa"):
+            raise ValueError(f"acquisition must be 'sdp' or 'sa', got {acquisition!r}.")
         if n_burnin < 0 or n_gibbs_steps < 1 or n_rounding < 1:
             raise ValueError("n_burnin must be nonnegative and the other counts positive.")
+        self._acquisition = acquisition
         self._n_startup_trials = n_startup_trials
         self._penalty = penalty
         self._n_burnin = n_burnin
@@ -155,9 +165,16 @@ class BOCSSampler(BaseSampler):
         )
         self._state_param_names = names
 
-        x_next = maximize_sdp(
-            samples[0], len(names), self._rng, penalty=self._penalty, n_rounding=self._n_rounding
-        )
+        if self._acquisition == "sdp":
+            x_next = maximize_sdp(
+                samples[0],
+                len(names),
+                self._rng,
+                penalty=self._penalty,
+                n_rounding=self._n_rounding,
+            )
+        else:
+            x_next = maximize_sa(samples[0], len(names), self._rng, penalty=self._penalty)
         return {n: _from_binary(search_space[n], bit) for n, bit in zip(names, x_next)}
 
     def sample_independent(
