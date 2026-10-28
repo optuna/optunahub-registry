@@ -3,7 +3,7 @@ author: OptTek Systems, Inc.
 title: Optuna sampler adapter for the OptQuest engine (https://www.opttek.com/optquest/)
 description: OptQuest is a proprietary simulation optimization engine. It combines linear and mixed-integer programming, a design of experiments, scatter search, local search, enumeration of small domains and a Kriging metamodel.
 tags: [sampler, optquest, mixed-variable optimization, multi-objective optimization]
-optuna_versions: [4.5.0, 4.9.0]
+optuna_versions: [4.5.0, 4.9.0, 5.0.0]
 license: MIT License (Python API) / Commercial Proprietary (binary libraries)
 ---
 
