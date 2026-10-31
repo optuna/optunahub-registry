@@ -7,7 +7,6 @@ import optuna
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import FloatDistribution
 from optuna.samplers import TPESampler
-from optuna.samplers._tpe.sampler import _split_trials
 from optuna.trial import TrialState
 import optunahub
 import pytest
@@ -18,6 +17,10 @@ _module = optunahub.load_local_module(
 )
 HierarchicalTPESampler = _module.HierarchicalTPESampler
 _TreeBranchClassifier = _module.sampler._TreeBranchClassifier
+_split_trials_compat = _module.sampler._split_trials_compat
+_TPE_SAMPLER_TAKES_CATEGORICAL_DISTANCE_FUNC = (
+    _module.sampler._TPE_SAMPLER_TAKES_CATEGORICAL_DISTANCE_FUNC
+)
 
 
 @pytest.fixture(autouse=True)
@@ -158,7 +161,7 @@ def test_hierarchy_is_inferred() -> None:
     trial = study.ask()
     sampler.infer_relative_search_space(study, trial)
     trials = study.get_trials(deepcopy=False)
-    hierarchy = sampler._determine_hierarchy(trials)
+    hierarchy = sampler._determine_hierarchy(study, trials)
     groups = [set(g) for g in sampler._search_space_group.search_spaces]
 
     roots = [i for i, parent in enumerate(hierarchy) if parent is None]
@@ -177,8 +180,8 @@ def test_hierarchy_is_cached() -> None:
     trial = study.ask()
     sampler.infer_relative_search_space(study, trial)
     trials = study.get_trials(deepcopy=False)
-    first = sampler._determine_hierarchy(trials)
-    second = sampler._determine_hierarchy(trials)
+    first = sampler._determine_hierarchy(study, trials)
+    second = sampler._determine_hierarchy(study, trials)
     assert first is second
 
 
@@ -241,6 +244,43 @@ def test_constraints_are_respected() -> None:
     assert best_feasible < 0.02
 
 
+def test_constraints_steer_sampling_away_from_infeasible_optimum() -> None:
+    """The sampler keeps sampling feasible points when the unconstrained optimum is infeasible."""
+
+    def constrained_objective(trial: optuna.Trial) -> float:
+        """Conditional objective whose unconstrained optimum violates the constraint.
+
+        Args:
+            trial: The Optuna trial to evaluate.
+
+        Returns:
+            The objective value to minimize.
+        """
+        opt = trial.suggest_categorical("opt", ["sgd", "adam"])
+        value = trial.suggest_float("lr" if opt == "sgd" else "beta", 0.0, 1.0)
+        trial.set_user_attr("constraint", [value - 0.5])
+        return (value - 1.0) ** 2
+
+    def constraints(trial: optuna.trial.FrozenTrial) -> list[float]:
+        """Return the stored constraint values for a trial.
+
+        Args:
+            trial: The trial to read the constraint from.
+
+        Returns:
+            The constraint values (feasible when <= 0).
+        """
+        return trial.user_attrs["constraint"]
+
+    sampler = HierarchicalTPESampler(seed=0, n_startup_trials=10, constraints_func=constraints)
+    study = optuna.create_study(sampler=sampler)
+    study.optimize(constrained_objective, n_trials=60)
+    late_trials = study.trials[-30:]
+    n_feasible = sum(t.user_attrs["constraint"][0] <= 0 for t in late_trials)
+    # Without constraints_func, only about 10% of these trials are feasible.
+    assert n_feasible / len(late_trials) >= 0.4
+
+
 def test_falls_back_to_tpe_when_not_grouped(caplog: pytest.LogCaptureFixture) -> None:
     """Disabling ``multivariate`` forces ``group=False`` and logs the TPE fallback.
 
@@ -300,7 +340,7 @@ def test_conditional_decomposition_recovers_base_tpe() -> None:
     study = optuna.create_study(sampler=sampler)
     study.optimize(objective, n_trials=120)
     trials = study.get_trials(deepcopy=False, states=(TrialState.COMPLETE,))
-    below, above = _split_trials(study, trials, sampler._gamma(len(trials)), False)
+    below, above = _split_trials_compat(study, trials, sampler._gamma(len(trials)), False)
 
     space_x = {"x": CategoricalDistribution(["p", "q"])}
     space_a = {"a": FloatDistribution(-3, 3)}
@@ -322,3 +362,30 @@ def test_conditional_decomposition_recovers_base_tpe() -> None:
     np.testing.assert_allclose(root_x + conditional_a, base, atol=1e-10)
     # The conditional child differs from the marginal child (correlation is captured).
     assert np.mean(np.abs(conditional_a - marginal_a)) > 1e-3
+
+
+@pytest.mark.skipif(
+    not _TPE_SAMPLER_TAKES_CATEGORICAL_DISTANCE_FUNC,
+    reason="categorical_distance_func is only supported with Optuna v4.",
+)
+def test_categorical_distance_func_is_forwarded_on_optuna_v4() -> None:
+    """On Optuna v4, ``categorical_distance_func`` reaches both internal TPE samplers."""
+    categorical_distance_func = {"x": lambda a, b: 0.0}
+    sampler = HierarchicalTPESampler(categorical_distance_func=categorical_distance_func)
+    assert (
+        sampler._parzen_estimator_parameters.categorical_distance_func is categorical_distance_func
+    )
+    assert (
+        sampler._independent_sampler._parzen_estimator_parameters.categorical_distance_func
+        is categorical_distance_func
+    )
+
+
+@pytest.mark.skipif(
+    _TPE_SAMPLER_TAKES_CATEGORICAL_DISTANCE_FUNC,
+    reason="Optuna v4 still supports categorical_distance_func.",
+)
+def test_categorical_distance_func_raises_on_optuna_v5() -> None:
+    """On Optuna v5, passing ``categorical_distance_func`` raises ``ValueError``."""
+    with pytest.raises(ValueError, match="categorical_distance_func"):
+        HierarchicalTPESampler(categorical_distance_func={"x": lambda a, b: 0.0})
