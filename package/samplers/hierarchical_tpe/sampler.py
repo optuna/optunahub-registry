@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
+import inspect
 from typing import Any
 
 import numpy as np
@@ -42,6 +43,28 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 _logger = get_logger(f"optuna.{__name__}")
+
+# Optuna v5 dropped ``constraints_enabled`` from ``_split_trials()`` and
+# ``categorical_distance_func`` from ``TPESampler``, and added ``study`` to
+# ``TPESampler._get_params()``. Check the argument names (not the version) so that both
+# Optuna v4 and v5 are supported.
+_SPLIT_TRIALS_TAKES_CONSTRAINTS = (
+    "constraints_enabled" in inspect.signature(_split_trials).parameters
+)
+_GET_PARAMS_TAKES_STUDY = "study" in inspect.signature(TPESampler._get_params).parameters
+_TPE_SAMPLER_TAKES_CATEGORICAL_DISTANCE_FUNC = (
+    "categorical_distance_func" in inspect.signature(TPESampler.__init__).parameters
+)
+
+
+def _split_trials_compat(
+    study: Study, trials: list[FrozenTrial], n_below: int, constraints_enabled: bool
+) -> tuple[list[FrozenTrial], list[FrozenTrial]]:
+    if _SPLIT_TRIALS_TAKES_CONSTRAINTS:
+        return _split_trials(study, trials, n_below, constraints_enabled)
+    # Optuna v5 reads constraints from the trials, so the flag is not needed.
+    return _split_trials(study, trials, n_below)
+
 
 # A user-provided exact map: given the parameter values chosen so far (external
 # representation, like ``trial.params``), return the names of the parameters that the
@@ -71,6 +94,7 @@ class _TreeBranchClassifier:
 
     def predict(
         self,
+        study: Study,
         path_params: dict[str, NDArray[np.float64]],
         parent_trials: list[FrozenTrial],
         groups: list[dict[str, BaseDistribution]],
@@ -81,6 +105,7 @@ class _TreeBranchClassifier:
         """Predict which child group activates for each candidate row.
 
         Args:
+            study: The study being optimized.
             path_params: The parameter values sampled so far, keyed by name, each an array
                 with one entry per candidate row (internal representation).
             parent_trials: Observed trials that contain the parent group's parameters.
@@ -101,8 +126,8 @@ class _TreeBranchClassifier:
 
         parent_group = groups[parent_group_index]
         self._ensure_encoders(parent_group)
-        features = self._trial_features(parent_trials, parent_group, sampler)
-        targets = self._trial_targets(parent_trials, groups, child_group_indices, sampler)
+        features = self._trial_features(study, parent_trials, parent_group, sampler)
+        targets = self._trial_targets(study, parent_trials, groups, child_group_indices, sampler)
         self._fit_if_needed(features, targets, parent_group_index, len(parent_trials))
 
         sample_features = self._sample_features(path_params, parent_group)
@@ -174,6 +199,7 @@ class _TreeBranchClassifier:
 
     def _trial_features(
         self,
+        study: Study,
         trials: list[FrozenTrial],
         parent_group: dict[str, BaseDistribution],
         sampler: HierarchicalTPESampler,
@@ -181,6 +207,7 @@ class _TreeBranchClassifier:
         """Encode the parent-group parameters of each trial into a feature matrix.
 
         Args:
+            study: The study being optimized.
             trials: The trials to encode (each must contain the parent group's parameters).
             parent_group: The parent group's parameters and their distributions.
             sampler: The owning sampler, used to read trial parameters consistently.
@@ -192,7 +219,7 @@ class _TreeBranchClassifier:
         for name, distribution in parent_group.items():
             internal = np.asarray(
                 [
-                    distribution.to_internal_repr(sampler._get_params(trial)[name])
+                    distribution.to_internal_repr(sampler._get_params_compat(trial, study)[name])
                     for trial in trials
                 ]
             )
@@ -201,6 +228,7 @@ class _TreeBranchClassifier:
 
     def _trial_targets(
         self,
+        study: Study,
         trials: list[FrozenTrial],
         groups: list[dict[str, BaseDistribution]],
         child_group_indices: list[int],
@@ -209,6 +237,7 @@ class _TreeBranchClassifier:
         """Label each trial with the child group it activated.
 
         Args:
+            study: The study being optimized.
             trials: The trials to label.
             groups: All parameter groups of the search space.
             child_group_indices: Indices into ``groups`` of the parent's child groups.
@@ -222,7 +251,7 @@ class _TreeBranchClassifier:
         n_child = len(child_group_indices)
         targets = []
         for trial in trials:
-            params = set(sampler._get_params(trial).keys())
+            params = set(sampler._get_params_compat(trial, study).keys())
             for local_index, group_index in enumerate(child_group_indices):
                 if params.issuperset(groups[group_index]):
                     targets.append(local_index)
@@ -363,6 +392,9 @@ class HierarchicalTPESampler(TPESampler):
             constant_liar: Forwarded to :class:`~optuna.samplers.TPESampler`.
             constraints_func: Forwarded to :class:`~optuna.samplers.TPESampler`.
             categorical_distance_func: Forwarded to :class:`~optuna.samplers.TPESampler`.
+                Only supported with Optuna v4, since Optuna v5 removed this argument from
+                :class:`~optuna.samplers.TPESampler`. Passing a value other than ``None``
+                with Optuna v5 raises ``ValueError``.
             conditional_fn: Optional exact map of the objective's conditional structure,
                 ``Callable[[dict[str, Any]], Iterable[str]]``. It is called once per hierarchy
                 level while building each candidate. Its **input** is a dict of every parameter
@@ -382,6 +414,16 @@ class HierarchicalTPESampler(TPESampler):
         if not multivariate:
             group = False
 
+        # Optuna v5 removed ``categorical_distance_func`` from ``TPESampler``.
+        categorical_distance_kwargs: dict[str, Any] = {}
+        if _TPE_SAMPLER_TAKES_CATEGORICAL_DISTANCE_FUNC:
+            categorical_distance_kwargs["categorical_distance_func"] = categorical_distance_func
+        elif categorical_distance_func is not None:
+            raise ValueError(
+                "`categorical_distance_func` is not supported with Optuna v5 because it was "
+                "removed from `TPESampler`. Please use Optuna v4 to use this argument."
+            )
+
         super().__init__(
             consider_prior=consider_prior,
             prior_weight=prior_weight,
@@ -397,7 +439,7 @@ class HierarchicalTPESampler(TPESampler):
             warn_independent_sampling=warn_independent_sampling,
             constant_liar=constant_liar,
             constraints_func=constraints_func,
-            categorical_distance_func=categorical_distance_func,
+            **categorical_distance_kwargs,
         )
 
         self._conditional_fn = conditional_fn
@@ -425,7 +467,7 @@ class HierarchicalTPESampler(TPESampler):
             warn_independent_sampling=False,
             constant_liar=constant_liar,
             constraints_func=constraints_func,
-            categorical_distance_func=categorical_distance_func,
+            **categorical_distance_kwargs,
         )
 
     def sample_relative(
@@ -465,7 +507,7 @@ class HierarchicalTPESampler(TPESampler):
             return {}
 
         trials = self._get_trials(study)
-        hierarchy = self._determine_hierarchy(trials)
+        hierarchy = self._determine_hierarchy(study, trials)
         if all(parent is None for parent in hierarchy):
             # No conditional structure was observed, so the groups are independent and the
             # hierarchical routing is a no-op. Delegate to the standard group TPESampler,
@@ -499,6 +541,12 @@ class HierarchicalTPESampler(TPESampler):
             states = [TrialState.COMPLETE, TrialState.PRUNED]
         use_cache = not self._constant_liar
         return study._get_trials(deepcopy=False, states=states, use_cache=use_cache)
+
+    def _get_params_compat(self, trial: FrozenTrial, study: Study) -> dict[str, Any]:
+        if _GET_PARAMS_TAKES_STUDY:
+            return self._get_params(trial, study)
+        # Optuna v4's ``_get_params()`` does not take ``study``.
+        return self._get_params(trial)
 
     def _sample_hierarchy(
         self,
@@ -628,12 +676,14 @@ class HierarchicalTPESampler(TPESampler):
 
         parent_group = groups[parent_group_index]
         parent_trials = [
-            trial for trial in trials if set(parent_group).issubset(self._get_params(trial).keys())
+            trial
+            for trial in trials
+            if set(parent_group).issubset(self._get_params_compat(trial, study).keys())
         ]
         # All parameters chosen so far on the path to this branch, aligned to the rows.
         path_params = {**ancestor_params, **samples}
         predictions = self._predict_children(
-            path_params, parent_trials, groups, child_group_indices, parent_group_index
+            study, path_params, parent_trials, groups, child_group_indices, parent_group_index
         )
 
         for local_index, index in enumerate(child_group_indices):
@@ -656,6 +706,7 @@ class HierarchicalTPESampler(TPESampler):
 
     def _predict_children(
         self,
+        study: Study,
         path_params: dict[str, NDArray[np.float64]],
         parent_trials: list[FrozenTrial],
         groups: list[dict[str, BaseDistribution]],
@@ -665,6 +716,7 @@ class HierarchicalTPESampler(TPESampler):
         """Predict the activated child group per candidate row, via map or learned tree.
 
         Args:
+            study: The study being optimized.
             path_params: The parameter values sampled so far, keyed by name, aligned to the
                 candidate rows (internal representation).
             parent_trials: Observed trials that contain the parent group's parameters.
@@ -679,7 +731,13 @@ class HierarchicalTPESampler(TPESampler):
         if self._conditional_fn is not None:
             return self._predict_children_from_fn(path_params, groups, child_group_indices)
         return self._tree_classifier.predict(
-            path_params, parent_trials, groups, child_group_indices, parent_group_index, self
+            study,
+            path_params,
+            parent_trials,
+            groups,
+            child_group_indices,
+            parent_group_index,
+            self,
         )
 
     def _predict_children_from_fn(
@@ -748,10 +806,12 @@ class HierarchicalTPESampler(TPESampler):
             below/above log-likelihood ratio per row.
         """
         trial_subset = [
-            trial for trial in trials if set(group).issubset(self._get_params(trial).keys())
+            trial
+            for trial in trials
+            if set(group).issubset(self._get_params_compat(trial, study).keys())
         ]
         n = sum(trial.state != TrialState.RUNNING for trial in trial_subset)
-        below_trials, above_trials = _split_trials(
+        below_trials, above_trials = _split_trials_compat(
             study, trial_subset, self._gamma(n), self._constraints_func is not None
         )
 
@@ -811,7 +871,7 @@ class HierarchicalTPESampler(TPESampler):
             if name not in group and not self._name_to_distribution[name].single()
         }
 
-    def _determine_hierarchy(self, trials: list[FrozenTrial]) -> list[int | None]:
+    def _determine_hierarchy(self, study: Study, trials: list[FrozenTrial]) -> list[int | None]:
         """Infer the parent index of each parameter group (or ``None`` for a root group).
 
         The result is cached and only recomputed when a new distinct parameter combination
@@ -820,6 +880,7 @@ class HierarchicalTPESampler(TPESampler):
         branch classifier.
 
         Args:
+            study: The study being optimized.
             trials: The observed trials to infer the hierarchy from.
 
         Returns:
@@ -830,14 +891,14 @@ class HierarchicalTPESampler(TPESampler):
         groups = self._search_space_group.search_spaces
         finished_trials = [trial for trial in trials if trial.state != TrialState.RUNNING]
         combinations = frozenset(
-            frozenset(self._get_params(trial).keys()) for trial in finished_trials
+            frozenset(self._get_params_compat(trial, study).keys()) for trial in finished_trials
         )
         groups_key = tuple(frozenset(group) for group in groups)
         cache_key = (combinations, groups_key)
         if self._hierarchy_cache_key == cache_key and self._cached_hierarchy is not None:
             return self._cached_hierarchy
 
-        hierarchy = self._compute_hierarchy(finished_trials, groups)
+        hierarchy = self._compute_hierarchy(study, finished_trials, groups)
         if self._cached_hierarchy is not None and self._cached_hierarchy != hierarchy:
             self._tree_classifier.reset()
         self._hierarchy_cache_key = cache_key
@@ -845,7 +906,7 @@ class HierarchicalTPESampler(TPESampler):
         return hierarchy
 
     def _compute_hierarchy(
-        self, trials: list[FrozenTrial], groups: list[dict[str, BaseDistribution]]
+        self, study: Study, trials: list[FrozenTrial], groups: list[dict[str, BaseDistribution]]
     ) -> list[int | None]:
         """Compute the strict parent of each group from the trials' intersection spaces.
 
@@ -855,6 +916,7 @@ class HierarchicalTPESampler(TPESampler):
         candidate are dropped, leaving each group with its single direct parent.
 
         Args:
+            study: The study being optimized.
             trials: The (non-running) observed trials.
             groups: All parameter groups of the search space.
 
@@ -872,7 +934,7 @@ class HierarchicalTPESampler(TPESampler):
                 [
                     trial
                     for trial in trials
-                    if set(child_group).issubset(self._get_params(trial).keys())
+                    if set(child_group).issubset(self._get_params_compat(trial, study).keys())
                 ]
             )
             for i, parent_group in enumerate(groups):
