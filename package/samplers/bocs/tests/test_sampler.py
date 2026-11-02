@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import Literal
 
 import numpy as np
 import optuna
@@ -32,7 +33,9 @@ def _count_ones(trial: optuna.Trial) -> float:
 
 
 @pytest.mark.parametrize("direction, best", [("maximize", D), ("minimize", 0)])
-def test_finds_optimum_of_linear_objective(direction: str, best: int) -> None:
+def test_finds_optimum_of_linear_objective(
+    direction: Literal["minimize", "maximize"], best: int
+) -> None:
     study = optuna.create_study(direction=direction, sampler=_fast_sampler())
     study.optimize(_count_ones, n_trials=15)
     assert study.best_value == best

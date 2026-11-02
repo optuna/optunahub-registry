@@ -30,6 +30,17 @@ On the binary quadratic programming benchmark of the paper, BOCS gets closer to 
 
 The gap is `(f* - best value found) / (f* - f_min)`, averaged over 10 random instances with d = 10 binary variables (correlation length 10, as in Sect. 4.1 of the paper), where `f*` and `f_min` are found by enumerating all 1024 points.
 
+BOCS has no constraint handling. Constrained problems have to be passed as a penalized objective, and because BOCS fits the objective's values, unlike the rank-based TPE, the result depends strongly on the penalty weight. On the `multidimensional_knapsack` benchmark (20 items, 2 constraints, 10 instances, objective `value - lambda * total violation`), the gap to the optimum after 100 trials, among feasible points only and in percent, was:
+
+| `lambda` (multiple of total value / mean total weight) | BOCS-SDP | BOCS-SA |  TPE | Random |
+| ------------------------------------------------------ | -------: | ------: | ---: | -----: |
+| 1                                                      |      3.4 |     4.4 |  9.4 |   19.6 |
+| 3                                                      |      9.7 |    10.4 | 12.1 |   19.6 |
+| 10                                                     |     22.1 |    18.0 | 13.4 |   19.6 |
+| `2 * max(value) / min(weight)`                         |     22.8 |    19.9 | 14.2 |   19.6 |
+
+TPE with `constraints_func` on the plain value reached 14.2%. So a penalty that is much larger than the objective's scale makes BOCS no better than random search here. Prefer a penalty of the same scale as the objective, or TPE with `constraints_func` for problems where feasibility dominates.
+
 ## APIs
 
 - `BOCSSampler(*, acquisition: Literal["sdp", "sa"] = "sdp", n_startup_trials: int = 10, penalty: float = 0.0, n_burnin: int = 1000, n_gibbs_steps: int = 100, n_rounding: int = 100, seed: int | None = None, independent_sampler: BaseSampler | None = None, warn_independent_sampling: bool = True)`
