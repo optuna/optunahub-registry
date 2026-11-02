@@ -3,7 +3,7 @@ author: Rishabh Dewangan
 title: Heteroscedastic Gaussian-Process Sampler
 description: A Gaussian Process-based Bayesian Optimization sampler that natively supports heteroscedastic (input-dependent) observation noise to prevent surrogate model corruption.
 tags: [sampler, gaussian-process, bayesian-optimization, heteroscedastic]
-optuna_versions: [3.6.0]
+optuna_versions: [3.6.0, 4.8.0, 4.9.0, 5.0.0]
 license: MIT License
 ---
 
