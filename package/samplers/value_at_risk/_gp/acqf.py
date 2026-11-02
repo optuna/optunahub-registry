@@ -145,7 +145,7 @@ class LogCumulativeProbabilityAtRisk(BaseAcquisitionFunc):
         # different values under the original search space used by GPRegressor.  So we carry around the
         # normalized version of const_noisy_param_values explicity and use them instead.
         x = x.clone()
-        x[:, self._fixed_indices] = self._fixed_values
+        x[..., self._fixed_indices] = self._fixed_values
 
         x_noisy = x.unsqueeze(-2) + self._input_noise
         log_feas_probs = torch.zeros(x_noisy.shape[:-1], dtype=torch.float64)
@@ -245,7 +245,8 @@ class ValueAtRisk(BaseAcquisitionFunc):
 
     def _value_at_risk(self, x: torch.Tensor) -> torch.Tensor:
         means, covar = self._gpr.posterior(x.unsqueeze(-2) + self._input_noise, joint=True)
-        L = torch.linalg.cholesky(covar)
+        # Add a small jitter as in eval_acqf, since the noisy points can be numerically low rank.
+        L = torch.linalg.cholesky(covar + 1e-12 * torch.eye(covar.shape[-1]))
         posterior_samples = means.unsqueeze(-2) + self._fixed_samples.matmul(L)
         # If CVaR, use torch.topk instead of torch.quantile.
         return torch.quantile(posterior_samples, q=self._confidence_level, dim=-1)
@@ -281,7 +282,7 @@ class ValueAtRisk(BaseAcquisitionFunc):
         # different values under the original search space used by GPRegressor.  So we carry around the
         # normalized version of const_noisy_param_values explicity and use them instead.
         x = x.clone()
-        x[:, self._fixed_indices] = self._fixed_values
+        x[..., self._fixed_indices] = self._fixed_values
 
         if self._acqf_type == "mean":
             return self._value_at_risk(x).mean(dim=-1)
