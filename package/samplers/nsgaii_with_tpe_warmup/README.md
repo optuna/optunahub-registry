@@ -3,7 +3,7 @@ author: Shuhei Watanabe
 title: NSGAIISampler Using TPESampler for the Initialization
 description: This sampler uses TPESampler for the initialization to warm start.
 tags: [sampler, tpe, nsgaii, warmstart]
-optuna_versions: [4.1.0]
+optuna_versions: [4.1.0, 4.9.0, 5.0.0]
 license: MIT License
 ---
 
