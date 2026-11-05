@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 from typing import Literal
 
@@ -113,6 +114,36 @@ def test_acquisition_option_selects_the_optimizer(
     study = optuna.create_study(sampler=_fast_sampler(acquisition=acquisition))
     study.optimize(_count_ones, n_trials=7)
     assert calls[used] == 2 and calls[unused] == 0
+
+
+@pytest.mark.parametrize("acquisition", ["sdp", "sa"])
+@pytest.mark.parametrize("direction, bad", [("minimize", math.inf), ("maximize", -math.inf)])
+def test_infinite_objective_values_do_not_stop_the_study(
+    acquisition: str, direction: Literal["minimize", "maximize"], bad: float
+) -> None:
+    # Reported in the PR review: these values used to make the model fit raise.
+    def objective(trial: optuna.Trial) -> float:
+        x = [trial.suggest_int(f"x{i}", 0, 1) for i in range(D)]
+        return bad if x[0] == 1 and x[1] == 1 else float(sum(x))
+
+    study = optuna.create_study(
+        direction=direction, sampler=_fast_sampler(acquisition=acquisition)
+    )
+    for _ in range(2):
+        study.enqueue_trial({f"x{i}": 1 for i in range(D)})
+    study.optimize(objective, n_trials=15)
+    assert len(study.trials) == 15
+    assert all(t.state == optuna.trial.TrialState.COMPLETE for t in study.trials)
+
+
+def test_clip_non_finite() -> None:
+    values = np.array([1.0, math.inf, -2.0, -math.inf])
+    np.testing.assert_array_equal(sampler_module._clip_non_finite(values), [1.0, 1.0, -2.0, -2.0])
+    np.testing.assert_array_equal(
+        sampler_module._clip_non_finite(np.array([math.inf, -math.inf])), [0.0, 0.0]
+    )
+    finite = np.array([3.0, 4.0])
+    assert sampler_module._clip_non_finite(finite) is finite
 
 
 def test_rejects_unknown_acquisition() -> None:

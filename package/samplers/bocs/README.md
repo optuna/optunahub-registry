@@ -41,6 +41,8 @@ BOCS has no constraint handling. Constrained problems have to be passed as a pen
 
 TPE with `constraints_func` on the plain value reached 14.2%. So a penalty that is much larger than the objective's scale makes BOCS no better than random search here. Prefer a penalty of the same scale as the objective, or TPE with `constraints_func` for problems where feasibility dominates.
 
+Infinite objective values, for example `inf` returned at an infeasible point, are clipped to the range of the finite values observed so far before the model is fitted, as in `GPSampler`. Such a point is then modeled as no worse than the worst finite point, so a finite penalty on the objective's scale is still preferable.
+
 ## APIs
 
 - `BOCSSampler(*, acquisition: Literal["sdp", "sa"] = "sdp", n_startup_trials: int = 10, penalty: float = 0.0, n_burnin: int = 1000, n_gibbs_steps: int = 100, n_rounding: int = 100, seed: int | None = None, independent_sampler: BaseSampler | None = None, warn_independent_sampling: bool = True)`

@@ -25,6 +25,18 @@ from ._model import second_order_features
 _logger = optuna.logging.get_logger(__name__)
 
 
+def _clip_non_finite(values: np.ndarray) -> np.ndarray:
+    # Optuna accepts infinite objective values, but the model fit needs finite ones. As in
+    # GPSampler, clip them to the range of the finite values seen so far.
+    is_finite = np.isfinite(values)
+    if is_finite.all():
+        return values
+    _logger.warning("Clipping non-finite objective values to the min/max finite values for BOCS.")
+    if not is_finite.any():
+        return np.zeros_like(values)
+    return np.clip(values, values[is_finite].min(), values[is_finite].max())
+
+
 def _is_binary(distribution: BaseDistribution) -> bool:
     if isinstance(distribution, IntDistribution):
         return (
@@ -151,7 +163,7 @@ class BOCSSampler(BaseSampler):
             return {}
 
         x = np.array([[_to_binary(search_space[n], t.params[n]) for n in names] for t in trials])
-        values = np.array([t.value for t in trials], dtype=float)
+        values = _clip_non_finite(np.array([t.value for t in trials], dtype=float))
         if study.direction == StudyDirection.MINIMIZE:
             values = -values  # BOCS maximizes.
         std = values.std()
