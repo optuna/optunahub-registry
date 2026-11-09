@@ -431,7 +431,13 @@ class HeteroscedasticGPSampler(BaseSampler):
                 )
                 i_opt = np.argmax(y_with_neginf)
                 best_feasible_y = y_with_neginf[i_opt]
-                acqf = acqf_module.ConstrainedLogEI(
+                # Optuna v5 renamed ``ConstrainedLogEI`` to ``LogCEI``.
+                constrained_logei_cls = (
+                    acqf_module.LogCEI
+                    if hasattr(acqf_module, "LogCEI")
+                    else acqf_module.ConstrainedLogEI
+                )
+                acqf = constrained_logei_cls(
                     gpr=gprs_list[0],
                     search_space=internal_search_space,
                     threshold=best_feasible_y,
@@ -448,7 +454,13 @@ class HeteroscedasticGPSampler(BaseSampler):
                     constraint_vals, internal_search_space, normalized_params
                 )
                 is_all_infeasible = not any(is_feasible)
-                acqf = acqf_module.ConstrainedLogEHVI(
+                # Optuna v5 renamed ``ConstrainedLogEHVI`` to ``LogCEHVI``.
+                constrained_logehvi_cls = (
+                    acqf_module.LogCEHVI
+                    if hasattr(acqf_module, "LogCEHVI")
+                    else acqf_module.ConstrainedLogEHVI
+                )
+                acqf = constrained_logehvi_cls(
                     gpr_list=gprs_list,
                     search_space=internal_search_space,
                     Y_feasible=(
