@@ -47,6 +47,8 @@ class MetaLearnTPESampler(BaseSampler):
         n_startup_trials:
             Number of trials before meta-learning kicks in. During startup,
             the sampler falls back to standard TPE.
+            With group=True, the threshold applies to matching completed target
+            observations in each subspace.
         seed:
             Random seed for reproducibility.
         n_ei_candidates:
@@ -55,6 +57,10 @@ class MetaLearnTPESampler(BaseSampler):
             If True, penalize parameters of running target trials to avoid
             proposing similar parameters to concurrent workers. Defaults to False.
             Source studies continue to use completed trials only.
+        group:
+            If True, decompose a conditional search space and perform meta-learning
+            separately for each subspace, using trials containing its parameters.
+            Defaults to False.
     """
 
     def __init__(
@@ -65,6 +71,7 @@ class MetaLearnTPESampler(BaseSampler):
         seed: int | None = None,
         n_ei_candidates: int = 24,
         constant_liar: bool = False,
+        group: bool = False,
     ) -> None:
         """Initialize MetaLearnTPESampler with source studies for knowledge transfer."""
         if len(source_studies) == 0:
@@ -76,6 +83,7 @@ class MetaLearnTPESampler(BaseSampler):
         self._rng = np.random.RandomState(seed)
         self._n_ei_candidates = n_ei_candidates
         self._constant_liar = constant_liar
+        self._group = group
 
         # Build internal TPE samplers for source studies.
         self._source_samplers: list[TPESampler] = []
@@ -96,6 +104,7 @@ class MetaLearnTPESampler(BaseSampler):
             n_startup_trials=n_startup_trials,
             n_ei_candidates=n_ei_candidates,
             constant_liar=constant_liar,
+            group=group,
         )
 
     def infer_relative_search_space(
@@ -111,7 +120,20 @@ class MetaLearnTPESampler(BaseSampler):
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
         """Sample parameters using weighted mixture of target and source TPE models."""
-        params = self._sample_relative(study, trial, search_space)
+        if self._group:
+            search_space_group = self._target_sampler._search_space_group
+            assert search_space_group is not None
+            params = {}
+            for subspace in search_space_group.search_spaces:
+                # Match TPE's ordering and respect restricted relative search spaces.
+                subspace = {
+                    name: distribution
+                    for name, distribution in sorted(subspace.items())
+                    if name in search_space and not distribution.single()
+                }
+                params.update(self._sample_relative(study, trial, subspace))
+        else:
+            params = self._sample_relative(study, trial, search_space)
         if params and self._constant_liar:
             # Other workers may need these values before suggest_* stores them.
             params_str = json.dumps(params)
@@ -152,11 +174,13 @@ class MetaLearnTPESampler(BaseSampler):
                 for t in target_trials
                 if t.state != TrialState.RUNNING or search_space.keys() <= t.params.keys()
             ]
+        if self._group:
+            target_trials = [t for t in target_trials if search_space.keys() <= t.params.keys()]
         n_complete = sum(t.state == TrialState.COMPLETE for t in target_trials)
 
         # Before enough trials, fall back to the target TPE sampler.
-        if n_complete < self._n_startup_trials:
-            return self._target_sampler.sample_relative(study, trial, search_space)
+        if n_complete < self._n_startup_trials or (self._group and n_complete == 0):
+            return self._target_sampler._sample_relative(study, trial, search_space)
 
         # Build Parzen estimators for target task.
         target_below, target_above = self._build_parzen_estimators(
@@ -164,22 +188,27 @@ class MetaLearnTPESampler(BaseSampler):
         )
 
         # Build Parzen estimators for each source task.
-        source_estimators: list[tuple[Any, Any, int]] = []
+        source_estimators: list[tuple[Any, Any, tuple[int, int]]] = []
         for source_study, source_sampler in zip(self._source_studies, self._source_samplers):
             source_trials = source_study._get_trials(
                 deepcopy=False,
                 states=(TrialState.COMPLETE,),
                 use_cache=True,
             )
+            if self._group:
+                source_trials = [
+                    t for t in source_trials if search_space.keys() <= t.params.keys()
+                ]
             if len(source_trials) == 0:
                 continue
             s_below, s_above = self._build_parzen_estimators(
                 source_study, search_space, source_trials, sampler=source_sampler
             )
-            source_estimators.append((s_below, s_above, len(source_trials)))
+            n_below = max(1, int(_get_gamma(source_sampler, source_study)(len(source_trials))))
+            source_estimators.append((s_below, s_above, (n_below, len(source_trials) - n_below)))
 
         if len(source_estimators) == 0:
-            return self._target_sampler.sample_relative(study, trial, search_space)
+            return self._target_sampler._sample_relative(study, trial, search_space)
 
         # Compute task similarities and weights.
         similarities = self._compute_task_similarities(target_below, source_estimators)
@@ -216,12 +245,11 @@ class MetaLearnTPESampler(BaseSampler):
         n_samples_above[0] = len(target_trials) - gamma_t
 
         # Source tasks.
-        for i, (s_below, s_above, n_trials) in enumerate(source_estimators):
+        for i, (s_below, s_above, (n_below, n_above)) in enumerate(source_estimators):
             ll_below[i + 1] = s_below.log_pdf(samples)
             ll_above[i + 1] = s_above.log_pdf(samples)
-            gamma_s = max(1, int(_get_gamma(self._source_samplers[i], study)(n_trials)))
-            n_samples_below[i + 1] = gamma_s
-            n_samples_above[i + 1] = n_trials - gamma_s
+            n_samples_below[i + 1] = n_below
+            n_samples_above[i + 1] = n_above
 
         # Weighted mixture of likelihoods (log-sum-exp for numerical stability).
         w_below = task_weights * n_samples_below
@@ -279,7 +307,7 @@ class MetaLearnTPESampler(BaseSampler):
     def _compute_task_similarities(
         self,
         target_below: Any,
-        source_estimators: list[tuple[Any, Any, int]],
+        source_estimators: list[tuple[Any, Any, tuple[int, int]]],
     ) -> np.ndarray:
         """Compute similarity between target and each source task.
 

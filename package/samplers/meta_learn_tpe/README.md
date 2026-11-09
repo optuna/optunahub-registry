@@ -26,12 +26,15 @@ The key idea is to compute task similarity between the target task and source ta
 | Name               | Type              | Default    | Description                                                 |
 | ------------------ | ----------------- | ---------- | ----------------------------------------------------------- |
 | `source_studies`   | `Sequence[Study]` | (required) | Completed Optuna studies on related tasks                   |
-| `n_startup_trials` | `int`             | `10`       | Number of random trials before meta-learning activates      |
+| `n_startup_trials` | `int`             | `10`       | Completed target observations before meta-learning starts   |
 | `seed`             | `int \| None`     | `None`     | Random seed for reproducibility                             |
 | `n_ei_candidates`  | `int`             | `24`       | Number of EI candidates per task                            |
 | `constant_liar`    | `bool`            | `False`    | Consider running target trials during parallel optimization |
+| `group`            | `bool`            | `False`    | Sample conditional parameter groups separately              |
 
 For parallel optimization, set `constant_liar=True` to penalize regions being explored by running target trials. This makes concurrent workers less likely to propose similar parameters. Startup still depends on the number of completed trials, and source studies continue to use completed trials only. The default is `False` to keep this behavior opt-in.
+
+For conditional search spaces, set `group=True`. For example, when a choice determines whether `y` or `z` is used, those parameters are modeled in separate subspaces. Each subspace uses only trials containing all its parameters and starts meta-learning after `n_startup_trials` matching completed target trials. Subspaces without usable source observations fall back to standard TPE. This option can be combined with `constant_liar=True`.
 
 ## Installation
 
