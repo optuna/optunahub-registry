@@ -33,15 +33,20 @@ def _multi_objective(trial: optuna.Trial) -> tuple[float, float]:
         (["minimize", "minimize"], _multi_objective),
     ],
 )
+@pytest.mark.parametrize("constant_liar", [False, True])
 def test_optimize_after_startup_trials(
-    directions: Sequence[str], objective: Callable[[optuna.Trial], float | tuple[float, float]]
+    directions: Sequence[str],
+    objective: Callable[[optuna.Trial], float | tuple[float, float]],
+    constant_liar: bool,
 ) -> None:
     source = optuna.create_study(
         directions=directions, sampler=optuna.samplers.RandomSampler(seed=0)
     )
     source.optimize(objective, n_trials=30)
 
-    sampler = MetaLearnTPESampler(source_studies=[source], n_startup_trials=5, seed=0)
+    sampler = MetaLearnTPESampler(
+        source_studies=[source], n_startup_trials=5, seed=0, constant_liar=constant_liar
+    )
     study = optuna.create_study(directions=directions, sampler=sampler)
     # The trials after ``n_startup_trials`` are sampled by the meta-learning TPE.
     study.optimize(objective, n_trials=15)

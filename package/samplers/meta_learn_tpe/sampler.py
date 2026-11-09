@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from copy import copy
 import inspect
+import json
 from typing import Any
 from typing import Callable
 from typing import Sequence
@@ -20,6 +22,9 @@ from optuna.trial import TrialState
 _SPLIT_TRIALS_TAKES_CONSTRAINTS_ENABLED = (
     "constraints_enabled" in inspect.signature(_split_trials).parameters
 )
+# Use TPE's format so the target sampler can also read pending relative parameters.
+_RELATIVE_PARAMS_KEY = "tpe:relative_params"
+_SYSTEM_ATTR_MAX_LENGTH = 2045
 
 
 class MetaLearnTPESampler(BaseSampler):
@@ -46,6 +51,10 @@ class MetaLearnTPESampler(BaseSampler):
             Random seed for reproducibility.
         n_ei_candidates:
             Number of candidates sampled from each task's below distribution.
+        constant_liar:
+            If True, penalize parameters of running target trials to avoid
+            proposing similar parameters to concurrent workers. Defaults to False.
+            Source studies continue to use completed trials only.
     """
 
     def __init__(
@@ -55,6 +64,7 @@ class MetaLearnTPESampler(BaseSampler):
         n_startup_trials: int = 10,
         seed: int | None = None,
         n_ei_candidates: int = 24,
+        constant_liar: bool = False,
     ) -> None:
         """Initialize MetaLearnTPESampler with source studies for knowledge transfer."""
         if len(source_studies) == 0:
@@ -65,6 +75,7 @@ class MetaLearnTPESampler(BaseSampler):
         self._seed = seed
         self._rng = np.random.RandomState(seed)
         self._n_ei_candidates = n_ei_candidates
+        self._constant_liar = constant_liar
 
         # Build internal TPE samplers for source studies.
         self._source_samplers: list[TPESampler] = []
@@ -84,6 +95,7 @@ class MetaLearnTPESampler(BaseSampler):
             multivariate=True,
             n_startup_trials=n_startup_trials,
             n_ei_candidates=n_ei_candidates,
+            constant_liar=constant_liar,
         )
 
     def infer_relative_search_space(
@@ -99,15 +111,51 @@ class MetaLearnTPESampler(BaseSampler):
         search_space: dict[str, BaseDistribution],
     ) -> dict[str, Any]:
         """Sample parameters using weighted mixture of target and source TPE models."""
+        params = self._sample_relative(study, trial, search_space)
+        if params and self._constant_liar:
+            # Other workers may need these values before suggest_* stores them.
+            params_str = json.dumps(params)
+            for i in range(0, len(params_str), _SYSTEM_ATTR_MAX_LENGTH):
+                study._storage.set_trial_system_attr(
+                    trial._trial_id,
+                    f"{_RELATIVE_PARAMS_KEY}:{i // _SYSTEM_ATTR_MAX_LENGTH}",
+                    params_str[i : i + _SYSTEM_ATTR_MAX_LENGTH],
+                )
+        return params
+
+    def _sample_relative(
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        search_space: dict[str, BaseDistribution],
+    ) -> dict[str, Any]:
         if len(search_space) == 0:
             return {}
 
-        target_trials = study._get_trials(
-            deepcopy=False, states=(TrialState.COMPLETE,), use_cache=True
+        states = (
+            (TrialState.COMPLETE, TrialState.RUNNING)
+            if self._constant_liar
+            else (TrialState.COMPLETE,)
         )
+        target_trials = study._get_trials(
+            deepcopy=False, states=states, use_cache=not self._constant_liar
+        )
+        if self._constant_liar:
+            target_trials = [
+                _with_running_params(t, search_space) if t.state == TrialState.RUNNING else t
+                for t in target_trials
+                if t.number != trial.number
+            ]
+            # A running trial cannot penalize the joint model without all its parameters.
+            target_trials = [
+                t
+                for t in target_trials
+                if t.state != TrialState.RUNNING or search_space.keys() <= t.params.keys()
+            ]
+        n_complete = sum(t.state == TrialState.COMPLETE for t in target_trials)
 
         # Before enough trials, fall back to the target TPE sampler.
-        if len(target_trials) < self._n_startup_trials:
+        if n_complete < self._n_startup_trials:
             return self._target_sampler.sample_relative(study, trial, search_space)
 
         # Build Parzen estimators for target task.
@@ -163,7 +211,7 @@ class MetaLearnTPESampler(BaseSampler):
         # Target task.
         ll_below[0] = target_below.log_pdf(samples)
         ll_above[0] = target_above.log_pdf(samples)
-        gamma_t = max(1, int(_get_gamma(self._target_sampler, study)(len(target_trials))))
+        gamma_t = max(1, int(_get_gamma(self._target_sampler, study)(n_complete)))
         n_samples_below[0] = gamma_t
         n_samples_above[0] = len(target_trials) - gamma_t
 
@@ -214,7 +262,8 @@ class MetaLearnTPESampler(BaseSampler):
         if sampler is None:
             sampler = self._target_sampler
 
-        n_below = max(1, int(_get_gamma(sampler, study)(len(trials))))
+        n_finished = sum(t.state != TrialState.RUNNING for t in trials)
+        n_below = max(1, int(_get_gamma(sampler, study)(n_finished)))
         if _SPLIT_TRIALS_TAKES_CONSTRAINTS_ENABLED:
             below_trials, above_trials = _split_trials(study, trials, n_below, False)
         else:
@@ -271,6 +320,29 @@ class MetaLearnTPESampler(BaseSampler):
         weights = np.maximum(weights, 0.0)
         weights /= weights.sum() + 1e-12
         return weights
+
+
+def _with_running_params(
+    trial: FrozenTrial, search_space: dict[str, BaseDistribution]
+) -> FrozenTrial:
+    """Read shared relative parameters without modifying the storage's trial object."""
+    chunks = []
+    i = 0
+    while chunk := trial.system_attrs.get(f"{_RELATIVE_PARAMS_KEY}:{i}"):
+        chunks.append(chunk)
+        i += 1
+    if not chunks:
+        return trial
+    try:
+        params = json.loads("".join(chunks))
+    except json.JSONDecodeError:
+        # Another worker may still be writing the remaining chunks.
+        return trial
+    updated_trial = copy(trial)
+    updated_trial.params = {**params, **trial.params}
+    # Optuna v4.1 also reads distributions for parameters not yet suggested.
+    updated_trial.distributions = {**search_space, **trial.distributions}
+    return updated_trial
 
 
 def _get_gamma(sampler: TPESampler, study: Study) -> Callable[[int], int]:
