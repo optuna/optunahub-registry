@@ -40,6 +40,7 @@ recovered from a `describe()` reverse-parse work identically here.
 
 from __future__ import annotations
 
+import decimal
 import itertools
 import math
 from typing import Any
@@ -424,19 +425,36 @@ def _selection(stmt):
     )
 
 
-def _azimuth_decoder(low: float, high: float) -> Callable[[float], float]:
-    """Move an angle that the engine reports in [0, 360) back into its declared arc.
+# The engine treats an arc as the full circle when |max - min| is at least this (in degrees).
+# This codec uses the same test, so that the arc it registers is the engine's arc.
+_FULL_CIRCLE_DEG = 360.0 - 1e-9
+
+
+def _arc_top(low: float, high: float) -> float:
+    """The upper bound of the Optuna distribution for the arc that the engine declares from `low`
+    to `high`. The arc goes from `low` in the direction of increasing angle, so the bound is
+    `high` when `high` is above `low`. When `low` is greater than `high` (an arc such as 320 to
+    40, which crosses 0), Optuna cannot take FloatDistribution(320, 40), and the bound is
+    `high` plus 360 (here 400), so that 10 degrees is the value 370. A full circle that ends
+    below its start (`low` - `high` >= 360) is `low` to `low` + 360.
+    """
+    if low <= high:
+        return high
+    if low - high >= _FULL_CIRCLE_DEG:
+        return low + 360.0
+    return high + 360.0
+
+
+def _azimuth_decoder(low: float, top: float) -> Callable[[float], float]:
+    """Move an angle that the engine reports in [0, 360) onto the registered range [low, top].
 
     The engine reports an angle as its equivalent in [0, 360), not in the range that you
-    declare: an ANGLE declared from -45 to 45 reports 315 for -45. If this codec registers
-    FloatDistribution(-45, 45) and gives Optuna the value 315, Optuna rejects the value of the
-    engine, puts a random value in its place, and sends that value back to the engine. This
-    function subtracts 360 as necessary, so the value is in the declared arc.
-
-    When the arc is 360 degrees or more, the arc is the full circle and the value stays as it is.
+    declare: an ANGLE declared from -45 to 45 reports 315 for -45, and so does an ANGLE declared
+    from -180 to 180. If this codec gave Optuna the value 315, Optuna would reject it as outside
+    the distribution, put a random value in its place, and send that value back to the engine.
+    This function adds or subtracts 360 so that the value is in [low, low + 360), which holds
+    every angle of the arc once. `top` is the upper bound from _arc_top().
     """
-    if high - low >= 360.0:
-        return _identity
 
     def decode(value):
         wrapped = low + math.fmod(float(value) - low, 360.0)
@@ -444,7 +462,7 @@ def _azimuth_decoder(low: float, high: float) -> Callable[[float], float]:
             wrapped += 360.0
         # Clamp for the same floating-point reason the log decoders clamp: at a bound, fmod
         # can give a value one ulp outside, and the distribution's bounds are inclusive.
-        return min(high, max(low, wrapped))
+        return min(top, max(low, wrapped))
 
     return decode
 
@@ -452,27 +470,83 @@ def _azimuth_decoder(low: float, high: float) -> Callable[[float], float]:
 def _angle(stmt):
     name = stmt["name"]
     low, high = float(stmt["min_deg"]), float(stmt["max_deg"])
-    codec = _fixed_subkeys(name, {"theta": _float(low, high)})
+    top = _arc_top(low, high)
+    codec = _fixed_subkeys(name, {"theta": _float(low, top)})
     # The engine reports the ANGLE value in [0, 360). (The SPHERICALANGLE theta is an
     # elevation, and the engine reports it as it is.)
-    codec.from_engine[f"{name}@theta"] = _azimuth_decoder(low, high)
+    codec.from_engine[f"{name}@theta"] = _azimuth_decoder(low, top)
     return codec
 
 
 def _spherical_angle(stmt):
     name = stmt["name"]
     phi_low, phi_high = float(stmt["min_phi_deg"]), float(stmt["max_phi_deg"])
+    phi_top = _arc_top(phi_low, phi_high)
     codec = _fixed_subkeys(
         name,
         {
             "theta": _float(stmt["min_theta_deg"], stmt["max_theta_deg"]),
-            "phi": _float(phi_low, phi_high),
+            "phi": _float(phi_low, phi_top),
         },
     )
     # phi is the azimuth, and the engine reports it in [0, 360). theta is the elevation, and
     # the engine reports it as it is.
-    codec.from_engine[f"{name}@phi"] = _azimuth_decoder(phi_low, phi_high)
+    codec.from_engine[f"{name}@phi"] = _azimuth_decoder(phi_low, phi_top)
     return codec
+
+
+# Commands whose values are on the grid min + k * step, with the fields min, max and step.
+STEPPED_CMDS = frozenset({"DISCRETE", "DISCRETEVECTOR", "DISCRETEMATRIX", "DISCRETENDVARIABLE"})
+
+
+def _optuna_grid_top(low: float, high: float, step: float) -> float:
+    """The largest value of the grid `low` + k * `step` that is not above `high`, computed in
+    decimal arithmetic as FloatDistribution(low, high, step=step) computes it, so that Optuna
+    keeps it as it is."""
+    d_low, d_step = decimal.Decimal(str(low)), decimal.Decimal(str(step))
+    count = int((decimal.Decimal(str(high)) - d_low) // d_step)
+    return float(count * d_step + d_low)
+
+
+def _engine_grid_top(low: float, high: float, step: float) -> float:
+    """The largest value of the grid that the engine uses for a DISCRETE variable declared from
+    `low` to `high`. The engine moves the upper bound to the grid value nearest to it, so the
+    top can be above `high`: from 0 to 1 with step 0.6 the grid is 0, 0.6, 1.2. The top is
+    computed in decimal arithmetic, so that Optuna keeps it as it is."""
+    count = int(0.5 + (high - low) / step)
+    top = float(count * decimal.Decimal(str(step)) + decimal.Decimal(str(low)))
+    return high if math.isclose(top, high, rel_tol=1e-12, abs_tol=1e-12) else top
+
+
+def align_stepped_max(stmt: Mapping[str, Any], *, engine_built: bool) -> Mapping[str, Any]:
+    """Make the engine and Optuna agree on the largest value of a DISCRETE-type grid.
+
+    When `max` - `min` is not a whole multiple of `step`, the engine and Optuna disagree about
+    the largest value: the engine takes the grid value nearest to `max`, which can be above
+    `max`, and Optuna takes the largest grid value that is not above `max`. If they disagree,
+    Optuna rejects every engine value above its top and samples a random value in its place.
+
+    - engine_built=False (statements=): the sampler builds the engine model, so this function
+      gives the statement Optuna's largest value as `max`. The engine and Optuna then both use
+      the grid of Optuna's FloatDistribution(min, max, step=step).
+    - engine_built=True (model=): the caller built the engine model, and its grid cannot be
+      changed. This function gives the statement the engine's largest value as `max`, so that
+      the registered distribution is the engine's grid.
+
+    Other statements, and a statement whose fields are not a valid grid (the engine or Optuna
+    reports that one), are returned as they are."""
+    if str(stmt.get("cmd", "")).upper() not in STEPPED_CMDS:
+        return stmt
+    try:
+        low, high, step = float(stmt["min"]), float(stmt["max"]), float(stmt["step"])
+    except (KeyError, TypeError, ValueError):
+        return stmt
+    if not all(math.isfinite(v) for v in (low, high, step)) or not 0.0 < step <= high - low:
+        return stmt
+    top = _engine_grid_top(low, high, step) if engine_built else _optuna_grid_top(low, high, step)
+    if top == high:
+        return stmt
+    return {**stmt, "max": top}
 
 
 def _mixture(stmt):

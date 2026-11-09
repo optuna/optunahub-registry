@@ -3,6 +3,7 @@
 TREE, top-k rankings, spherical polygons and policy sequence item scores."""
 
 import importlib
+import math
 
 import optquest
 import optunahub
@@ -155,3 +156,68 @@ def test_dag_and_tree_without_options_keep_the_plain_statement():
     lines = model.describe().splitlines()
     assert "DAG flow A,B" in lines
     assert "TREE net a,b" in lines
+
+
+@pytest.mark.parametrize(
+    "low, high, top",
+    [
+        (0.0, 360.0, 360.0),
+        (-45.0, 45.0, 45.0),
+        (-180.0, 180.0, 180.0),
+        (90.0, 450.0, 450.0),
+        (0.0, 720.0, 720.0),
+        (320.0, 40.0, 400.0),
+        (50.0, 10.0, 370.0),
+        (400.0, 30.0, 760.0),  # |max - min| >= 360: the engine treats it as the full circle
+        (10.0, 10.0, 10.0),
+    ],
+)
+def test_arc_top_is_the_engines_arc_measured_upward_from_min(low, high, top):
+    assert _variable_codec._arc_top(low, high) == top
+    fold = _variable_codec._azimuth_decoder(low, top)
+    for engine_value in (0.0, 45.0, 180.0, 315.0, 359.0):
+        value = fold(engine_value)
+        assert low <= value <= top
+        if top - low >= 360.0 - 1e-9:  # every angle is on a full circle: only the turn changes
+            turns = (value - engine_value) / 360.0
+            assert math.isclose(turns, round(turns), abs_tol=1e-9)
+
+
+@pytest.mark.parametrize(
+    "stmt, engine_built, new_max",
+    [
+        ({"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 1.0, "step": 0.6}, False, 0.6),
+        ({"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 1.0, "step": 0.6}, True, 1.2),
+        ({"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 1.0, "step": 0.4}, True, 1.2),
+        ({"cmd": "DISCRETE", "name": "d", "min": 0.1, "max": 0.7, "step": 0.2}, False, 0.7),
+        ({"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 0.3, "step": 0.1}, True, 0.3),
+        (
+            {"cmd": "discretevector", "name": "v", "size": 2, "min": 0, "max": 5, "step": 2},
+            False,
+            4.0,
+        ),
+        (
+            {"cmd": "DISCRETENDVARIABLE", "name": "n", "dims": [2], "min": 0, "max": 5, "step": 2},
+            True,
+            6.0,
+        ),
+    ],
+)
+def test_align_stepped_max_picks_one_grid_top(stmt, engine_built, new_max):
+    aligned = _variable_codec.align_stepped_max(stmt, engine_built=engine_built)
+    assert aligned["max"] == new_max
+    if new_max == stmt["max"]:
+        assert aligned is stmt
+
+
+@pytest.mark.parametrize(
+    "stmt",
+    [
+        {"cmd": "CONTINUOUS", "name": "x", "min": 0.0, "max": 1.0},
+        {"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 1.0, "step": 2.0},  # step > range
+        {"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 1.0, "step": -0.5},
+        {"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 1.0},
+    ],
+)
+def test_align_stepped_max_leaves_other_statements_alone(stmt):
+    assert _variable_codec.align_stepped_max(stmt, engine_built=False) is stmt

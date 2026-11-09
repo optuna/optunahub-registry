@@ -537,6 +537,135 @@ def test_angle_azimuth_is_folded_into_the_declared_window():
     assert full.from_engine["full@theta"](315.0) == 315.0
 
 
+def _run_counting_fallbacks(sampler, objective, n_trials, enqueue=None):
+    """Run a study and return (study, warnings, the params that Optuna sampled at random
+    because it rejected the engine's value)."""
+    fallbacks = []
+    original = sampler.sample_independent
+
+    def counting(study, trial, name, dist):
+        fallbacks.append(name)
+        return original(study, trial, name, dist)
+
+    sampler.sample_independent = counting
+    study = optuna.create_study(sampler=sampler, directions=sampler.directions)
+    if enqueue is not None:
+        study.enqueue_trial(enqueue)
+    caught = _optimize(study, sampler.wrap(objective), n_trials)
+    return study, caught, fallbacks
+
+
+def _with_output(*variables, direction="min"):
+    return [
+        *variables,
+        {"cmd": "OUTPUT", "name": "out"},
+        {"cmd": "OBJECTIVE", "name": "obj", "direction": direction, "expression": "out"},
+    ]
+
+
+def test_a_full_circle_that_does_not_start_at_zero_keeps_the_engine_values():
+    """The engine reports an angle in [0, 360). On a full circle declared from -180 to 180, the
+    codec moves the engine's 315 to -45, so that Optuna takes the engine's value instead of
+    sampling a random one."""
+    statements = _with_output(
+        {"cmd": "ANGLE", "name": "dir", "min_deg": -180.0, "max_deg": 180.0},
+        {
+            "cmd": "SPHERICALANGLE",
+            "name": "sph",
+            "min_theta_deg": -80.0,
+            "max_theta_deg": 80.0,
+            "min_phi_deg": 90.0,
+            "max_phi_deg": 450.0,
+        },
+    )
+    sampler = OptQuestSampler(statements=statements, license="", seed=4)
+    study, caught, fallbacks = _run_counting_fallbacks(
+        sampler, lambda p: {"out": abs(p["dir"]) + abs(p["sph"]["phi"] - 270.0)}, 30
+    )
+    assert caught == [] and fallbacks == []
+    for t in study.trials:
+        assert -180.0 <= t.params["dir@theta"] <= 180.0
+        assert 90.0 <= t.params["sph@phi"] <= 450.0
+    fold = sampler._var_codecs["dir"].from_engine["dir@theta"]
+    assert fold(315.0) == -45.0 and fold(0.0) == 0.0 and fold(180.0) == -180.0
+    fold_phi = sampler._var_codecs["sph"].from_engine["sph@phi"]
+    assert fold_phi(10.0) == 370.0 and fold_phi(90.0) == 90.0
+
+
+def test_an_arc_with_min_above_max_crosses_zero_and_is_registered_above_360():
+    """An arc from 320 to 40 goes through 0. Optuna cannot take FloatDistribution(320, 40), so
+    the codec registers 320 to 400, and 10 degrees is the value 370."""
+    statements = _with_output(
+        {"cmd": "ANGLE", "name": "a", "min_deg": 320.0, "max_deg": 40.0},
+        {
+            "cmd": "SPHERICALANGLE",
+            "name": "sph",
+            "min_theta_deg": -80.0,
+            "max_theta_deg": 80.0,
+            "min_phi_deg": 320.0,
+            "max_phi_deg": 40.0,
+        },
+    )
+    sampler = OptQuestSampler(statements=statements, license="", seed=4)
+    for param in ("a@theta", "sph@phi"):
+        assert sampler._space[param] == D.FloatDistribution(320.0, 400.0)
+
+    def objective(p):
+        angles = (p["a"], p["sph"]["phi"])
+        return {"out": sum(abs(math.sin(math.radians(v))) for v in angles)}
+
+    study, caught, fallbacks = _run_counting_fallbacks(
+        sampler,
+        objective,
+        20,
+        enqueue={"a@theta": 370.0, "sph@theta": 0.0, "sph@phi": 390.0},
+    )
+    assert caught == [] and fallbacks == []
+    first = study.trials[0]
+    assert first.state.name == "COMPLETE"
+    assert first.params["a@theta"] == 370.0 and first.params["sph@phi"] == 390.0
+    for t in study.trials:
+        for param in ("a@theta", "sph@phi"):
+            assert 320.0 <= t.params[param] <= 400.0
+    fold = sampler._var_codecs["a"].from_engine["a@theta"]
+    assert fold(10.0) == 370.0 and fold(320.0) == 320.0 and fold(40.0) == 400.0
+
+
+def test_discrete_statements_use_optunas_grid_top_for_the_engine_too():
+    """From 0 to 1 with step 0.6, the engine's own grid is 0, 0.6, 1.2 and Optuna's is 0, 0.6.
+    With statements=, the sampler gives the engine Optuna's top, so no engine value is
+    rejected and the engine's grid is Optuna's grid."""
+    statements = _with_output(
+        {"cmd": "DISCRETE", "name": "d", "min": 0.0, "max": 1.0, "step": 0.6},
+        {"cmd": "DISCRETEVECTOR", "name": "v", "size": 2, "min": 0.0, "max": 1.0, "step": 0.6},
+        direction="max",
+    )
+    sampler = OptQuestSampler(statements=statements, license="", seed=4)
+    assert sampler._space["d"] == D.FloatDistribution(0.0, 0.6, step=0.6)
+    assert sampler._space["v@1"] == D.FloatDistribution(0.0, 0.6, step=0.6)
+    study, caught, fallbacks = _run_counting_fallbacks(
+        sampler, lambda p: {"out": p["d"] + sum(p["v"])}, 20
+    )
+    assert caught == [] and fallbacks == []
+    assert {t.params["d"] for t in study.trials if t.params} == {0.0, 0.6}
+    assert statements[0]["max"] == 1.0  # the caller's statement is not changed
+
+
+def test_discrete_model_mode_registers_the_engines_grid():
+    """With model=, the caller built the engine model, so the registered distribution is the
+    engine's grid, 0, 0.6, 1.2, and the engine's 1.2 is not rejected."""
+    model = optquest.OptQuestModel()
+    model.set_license("")
+    model.add_discrete_variable("d", 0.0, 1.0, 0.6)
+    model.add_output_variable("out")
+    model.add_maximize_objective("obj", "out")
+    sampler = OptQuestSampler(model=model, seed=4)
+    assert sampler._space["d"] == D.FloatDistribution(0.0, 1.2, step=0.6)
+    study, caught, fallbacks = _run_counting_fallbacks(sampler, lambda p: {"out": p["d"]}, 10)
+    assert fallbacks == []
+    assert {t.params["d"] for t in study.trials if t.params} == {0.0, 0.6, 1.2}
+
+
 def _side_values(point, vertices):
     """dot(P, A x B) for each edge A -> B. The region of a clockwise polygon is where every
     value is negative or zero."""

@@ -508,6 +508,9 @@ class OptQuestSampler(optuna.samplers.BaseSampler):
             # The sampler applies these through the license=/seed= kwargs in every construction
             # mode; see _variable_codec.build_model_statement's docstring for why.
             return
+        # The engine and Optuna must agree on the top of a DISCRETE-type grid; see
+        # _variable_codec.align_stepped_max.
+        stmt = _variable_codec.align_stepped_max(stmt, engine_built=build_on is None)
         if build_on is not None:
             _variable_codec.build_model_statement(build_on, stmt)
         kind = _variable_codec.classify(cmd)
