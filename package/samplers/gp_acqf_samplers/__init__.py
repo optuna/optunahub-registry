@@ -288,6 +288,8 @@ class _ThompsonSampling(acqf_module.BaseAcquisitionFunc):
         # Compute RFF features for training data.
         X_train = self._gpr._X_train
         Y_train = self._gpr._y_train
+        # Optuna v5 stores `_y_train` as (n, 1), while v4 stores it as (n,).
+        Y_train = Y_train.reshape(-1)
         Phi_train = self._rff_feature(X_train)  # (n_train, 2 * n_features)
 
         # Bayesian linear regression posterior.
