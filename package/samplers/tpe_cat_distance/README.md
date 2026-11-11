@@ -1,8 +1,8 @@
 ---
 author: Optuna team
-title: TPE Sampler
-description: Sampler using TPE (Tree-structured Parzen Estimator) algorithm.
-tags: [sampler, built-in]
+title: TPE Sampler with Categorical Distance
+description: TPE sampler with user-defined distance functions for categorical parameters.
+tags: [sampler]
 optuna_versions: [5.1.0.dev]
 license: MIT License
 ---
