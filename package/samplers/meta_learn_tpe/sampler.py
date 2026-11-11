@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import inspect
 from typing import Any
+from typing import Callable
 from typing import Sequence
 
 import numpy as np
@@ -8,9 +10,16 @@ from optuna.distributions import BaseDistribution
 from optuna.samplers import BaseSampler
 from optuna.samplers import TPESampler
 from optuna.samplers._tpe.sampler import _split_trials
+from optuna.samplers._tpe.sampler import default_gamma
 from optuna.study import Study
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
+
+
+# Optuna v5 removed the ``constraints_enabled`` argument of ``_split_trials``.
+_SPLIT_TRIALS_TAKES_CONSTRAINTS_ENABLED = (
+    "constraints_enabled" in inspect.signature(_split_trials).parameters
+)
 
 
 class MetaLearnTPESampler(BaseSampler):
@@ -154,7 +163,7 @@ class MetaLearnTPESampler(BaseSampler):
         # Target task.
         ll_below[0] = target_below.log_pdf(samples)
         ll_above[0] = target_above.log_pdf(samples)
-        gamma_t = max(1, int(self._target_sampler._gamma(len(target_trials))))
+        gamma_t = max(1, int(_get_gamma(self._target_sampler, study)(len(target_trials))))
         n_samples_below[0] = gamma_t
         n_samples_above[0] = len(target_trials) - gamma_t
 
@@ -162,7 +171,7 @@ class MetaLearnTPESampler(BaseSampler):
         for i, (s_below, s_above, n_trials) in enumerate(source_estimators):
             ll_below[i + 1] = s_below.log_pdf(samples)
             ll_above[i + 1] = s_above.log_pdf(samples)
-            gamma_s = max(1, int(self._source_samplers[i]._gamma(n_trials)))
+            gamma_s = max(1, int(_get_gamma(self._source_samplers[i], study)(n_trials)))
             n_samples_below[i + 1] = gamma_s
             n_samples_above[i + 1] = n_trials - gamma_s
 
@@ -205,10 +214,11 @@ class MetaLearnTPESampler(BaseSampler):
         if sampler is None:
             sampler = self._target_sampler
 
-        n_below = max(1, int(sampler._gamma(len(trials))))
-        below_trials, above_trials = _split_trials(
-            study, trials, n_below, constraints_enabled=False
-        )
+        n_below = max(1, int(_get_gamma(sampler, study)(len(trials))))
+        if _SPLIT_TRIALS_TAKES_CONSTRAINTS_ENABLED:
+            below_trials, above_trials = _split_trials(study, trials, n_below, False)
+        else:
+            below_trials, above_trials = _split_trials(study, trials, n_below)
         mpe_below = sampler._build_parzen_estimator(
             study, search_space, below_trials, handle_below=True
         )
@@ -261,6 +271,22 @@ class MetaLearnTPESampler(BaseSampler):
         weights = np.maximum(weights, 0.0)
         weights /= weights.sum() + 1e-12
         return weights
+
+
+def _get_gamma(sampler: TPESampler, study: Study) -> Callable[[int], int]:
+    """Return the ``gamma`` function that ``sampler`` uses for ``study``.
+
+    In Optuna v5, ``TPESampler._gamma`` stays ``None`` until ``TPESampler._sample``
+    is called, so resolve the default in the same way as ``TPESampler._sample``.
+    """
+    if sampler._gamma is not None:
+        return sampler._gamma
+    if len(study.directions) <= 1:
+        return default_gamma
+    # Only Optuna v5 reaches here, and it provides ``default_gamma_multiobjective``.
+    from optuna.samplers._tpe.sampler import default_gamma_multiobjective
+
+    return default_gamma_multiobjective
 
 
 def _log_weighted_sum_exp(weights: np.ndarray, log_values: np.ndarray) -> np.ndarray:
