@@ -26,7 +26,9 @@ sampler = OptQuestSampler.OptQuestSampler(statements=model, license="")
 
 
 def sim(params):
-    edges = params["precedence"]  # {(from, to): 0/1} for every ordered pair of different TASKS
+    # {(from, to): 0/1} for every ordered pair of TASKS; the entry of a task paired with itself
+    # is always 0
+    edges = params["precedence"]
     n_edges = sum(edges.values())
     if n_edges == 0:
         return None  # reject: an empty precedence graph isn't a useful schedule

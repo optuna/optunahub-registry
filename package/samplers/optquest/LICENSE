@@ -1,6 +1,6 @@
 Licensing Information for OptQuest
 
-MIT License (applies only to the public Python API source code)
+MIT License (applies to every file of this package)
 
 Copyright (c) 2026 OptTek Systems, Inc.
 
@@ -24,25 +24,17 @@ SOFTWARE.
 
 Scope of the MIT License
 
-The MIT License set forth above applies exclusively to the following Python 
-API source files and Python example files:
+The MIT License set forth above applies to every file of this package: the Python
+source code, the examples, the tests and the documentation. The OptQuest Engine
+binaries listed below are not part of this package.
 
-- OptQuestSampler.py
-- OptQuestConstraintsExample.py
-- OptQuestExample.py
-- OptunaExample.py
-
-These files constitute the public Python API and examples for interacting with 
-the OptQuest library.
-
-Proprietary Commercial License (applies to the OptQuest Engine binaries - 
+Proprietary Commercial License (applies to the OptQuest Engine binaries -
 installed separately from PyPI)
 
-All other components of the OptQuest distribution — including, but not limited 
-to, the core OptQuest optimization engine implemented as shared libraries 
-(.so, .dll, .dylib, or equivalent binary files) — are proprietary software
-owned by OptTek Systems, Inc. and are not licensed under the MIT License or any 
-other open-source license.
+The OptQuest Engine binaries, the shared libraries (.so, .dll, .dylib, or
+equivalent binary files) that the `optquest` package on PyPI installs, are
+proprietary software owned by OptTek Systems, Inc. and are not licensed under the
+MIT License or any other open-source license.
 
 A commercial license applies to the following:
 - OptQuestEngine.dll
