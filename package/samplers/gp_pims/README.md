@@ -3,7 +3,7 @@ author: Shion TAKENO
 title: Gaussian-Process Probability of Improvement from Maximum of Sample Path Sampler
 description: This sampler searches for each trial based on Probability of Improvement from Maximum of Sample Path using Gaussian process.
 tags: [sampler, Gaussian process]
-optuna_versions: [3.6.1]
+optuna_versions: [3.6.1, 4.9.0, 5.0.0]
 license: MIT License
 ---
 

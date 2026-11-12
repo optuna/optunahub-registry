@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from abc import abstractmethod
-from abc.collections import Callable
+from collections.abc import Callable
 import time
 from typing import Any
 
