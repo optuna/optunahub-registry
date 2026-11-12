@@ -3,7 +3,7 @@ author: Lars Andersen Bratholm
 title: Hierarchical TPE Sampler
 description: A mixture-of-experts TPESampler that samples correlated conditional parameter subspaces hierarchically.
 tags: [sampler, tpe, conditional, hierarchical, mixture-of-experts]
-optuna_versions: [4.8.0]
+optuna_versions: [4.8.0, 4.9.0, 5.0.0]
 license: MIT License
 ---
 
