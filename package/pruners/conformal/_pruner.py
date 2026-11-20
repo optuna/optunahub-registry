@@ -11,6 +11,10 @@
 - **The final outcome is the last reported intermediate value,** not `trial.value`.
 - **Every calibration trial must report on the same step grid.**
 
+**Two guarantees.** `guarantee="joint"` (default) bounds the fraction of all trials that are good
+and pruned. `guarantee="conditional"` bounds the probability that a good trial is pruned, and
+needs at least ceil(1/alpha) - 1 good calibration trials.
+
 **The guarantee needs the later trials to be exchangeable with the calibration trials.** With
 `RandomSampler`, `QMCSampler` or a shuffled `GridSampler` they are. With `TPESampler`, `GPSampler`
 or `CmaEsSampler` they are not, so the pruner warns once and the bound should not be relied on.
@@ -18,6 +22,7 @@ or `CmaEsSampler` they are not, so the pruner warns once and the bound should no
 
 from __future__ import annotations
 
+import math
 from typing import Any
 import warnings
 
@@ -29,6 +34,7 @@ from optuna.trial import TrialState
 
 from ._core import KillRule
 from ._core import last_value
+from ._core import NotEnoughCalibration
 from ._core import Predictor
 
 
@@ -48,15 +54,31 @@ class ConformalPruner(BasePruner):
         n_calibration: int = 60,
         alpha: float = 0.05,
         *,
+        guarantee: str = "joint",
         good_threshold: float | None = None,
         good_quantile: float = 0.20,
         min_peek: int = 0,
         hold_until_resolved: float | None = None,
         predictor: Predictor = last_value,
     ) -> None:
+        if guarantee not in ("joint", "conditional"):
+            raise ValueError('guarantee must be "joint" or "conditional"')
+        need = math.ceil(1 / alpha) - 1
+        if (
+            guarantee == "conditional"
+            and good_threshold is None
+            and math.ceil(good_quantile * n_calibration) < need
+        ):
+            raise NotEnoughCalibration(
+                f"alpha={alpha} with guarantee='conditional' needs {need} good calibration trials; "
+                f"good_quantile={good_quantile} of n_calibration={n_calibration} gives "
+                f"{math.ceil(good_quantile * n_calibration)}. Raise n_calibration to at least "
+                f"{math.ceil(need / good_quantile)}."
+            )
         self.n_calibration = n_calibration
         self._kw: dict[str, Any] = dict(
             alpha=alpha,
+            guarantee=guarantee,
             good_threshold=good_threshold,
             good_quantile=good_quantile,
             min_peek=min_peek,
@@ -67,6 +89,7 @@ class ConformalPruner(BasePruner):
         self.steps_: list[int] | None = None
         self.calibration_trials_: list[int] = []
         self._warned = False
+        self._uncalibratable = False
 
     @classmethod
     def from_curves(
@@ -104,7 +127,18 @@ class ConformalPruner(BasePruner):
             )
             return False
         maximize = study.direction == StudyDirection.MAXIMIZE
-        self.rule_ = KillRule(maximize=maximize, **self._kw).fit(np.asarray(rows))
+        try:
+            self.rule_ = KillRule(maximize=maximize, **self._kw).fit(np.asarray(rows))
+        except NotEnoughCalibration as e:
+            if self._kw["guarantee"] != "conditional":
+                raise
+            # Too few calibration trials met good_threshold. Losing a sweep to an exception
+            # after the calibration trials have run is worse than not pruning.
+            warnings.warn(
+                f"{e}. No trial will be pruned in this study.", RuntimeWarning, stacklevel=3
+            )
+            self._uncalibratable = True
+            return False
         self.steps_ = grid
         self.calibration_trials_ = [t.number for t in done]
         return True
@@ -121,7 +155,7 @@ class ConformalPruner(BasePruner):
             )
             self._warned = True
         step = trial.last_step
-        if step is None:
+        if step is None or self._uncalibratable:
             return False
         if self.rule_ is None and not self._calibrate(study):
             return False

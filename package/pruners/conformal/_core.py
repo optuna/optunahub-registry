@@ -17,9 +17,15 @@ i.i.d. by the same random sampler — then the expected fraction of new runs tha
 killed is at most α. One kill decision covers every step at once, with no multiplicity
 correction.
 
+**Two guarantees.** `guarantee="joint"` (the default, and what CC-03c measured) is the bound
+above. `guarantee="conditional"` calibrates on the good runs alone: λ̂ is the ⌈(1−α)(m+1)⌉-th
+smallest score among the m good calibration runs, and the probability that a good run is killed
+is at most α. It needs at least ⌈1/α⌉ − 1 good calibration runs, and it saves less compute.
+
 **What it does not promise.**
-- **It bounds the joint rate, not the share of good runs killed.** With a small good fraction,
-  the conditional rate can be large: ~30% on CC-03c.
+- **The joint rate is not the share of good runs killed.** With a small good fraction, the
+  joint bound allows a large conditional rate: ~30% on CC-03c. Use `guarantee="conditional"` to
+  bound that share instead.
 - **It needs exchangeability.** An adaptive sampler such as TPE shifts later runs away from the
   calibration runs, and the guarantee no longer applies.
 - **With τ estimated from the calibration finals** (`good_quantile`), the bound is measured, not
@@ -73,7 +79,11 @@ class KillRule:
 
     Parameters
     ----------
-    alpha : bound on the expected fraction of runs that are good and killed.
+    alpha : the error budget. Under `guarantee="joint"` it bounds the expected fraction of all
+        runs that are good and killed. Under `guarantee="conditional"` it bounds the probability
+        that a good run is killed.
+    guarantee : "joint" (default) or "conditional". The conditional rule calibrates on the good
+        runs only and needs at least ceil(1/alpha) - 1 of them.
     good_threshold : a run is good if its final value is at or below this. Overrides `good_quantile`.
     good_quantile : if no threshold is given, τ is this quantile of the calibration finals.
     min_peek : index of the earliest step at which a kill may fire.
@@ -86,6 +96,7 @@ class KillRule:
     """
 
     alpha: float = 0.05
+    guarantee: str = "joint"
     good_threshold: float | None = None
     good_quantile: float = 0.20
     min_peek: int = 0
@@ -114,9 +125,11 @@ class KillRule:
             raise ValueError("calibration curves must be finite; drop incomplete runs first")
         if not 0 < self.alpha < 1:
             raise ValueError("alpha must lie in (0, 1)")
+        if self.guarantee not in ("joint", "conditional"):
+            raise ValueError('guarantee must be "joint" or "conditional"')
         n, T = Y.shape
         order = math.ceil((1 - self.alpha) * (n + 1))
-        if order > n:
+        if self.guarantee == "joint" and order > n:
             raise NotEnoughCalibration(
                 f"alpha={self.alpha} needs at least {math.ceil(1 / self.alpha) - 1} calibration "
                 f"runs for any threshold to certify; got {n}"
@@ -144,8 +157,20 @@ class KillRule:
             scores = np.where(good, P[:, j0 : last_eligible + 1].max(axis=1) - tau, -np.inf)
         else:
             scores = np.full(n, -np.inf)
-        lam = float(np.sort(scores)[order - 1])
-        if lam == -np.inf and j0 <= last_eligible:
+        if self.guarantee == "conditional":
+            # Rank among the good runs only. A new good run is exchangeable with these m, so its
+            # score exceeds the k-th smallest of them with probability at most 1 − k/(m+1) ≤ α.
+            m = int(good.sum())
+            order = math.ceil((1 - self.alpha) * (m + 1))
+            if order > m:
+                raise NotEnoughCalibration(
+                    f"alpha={self.alpha} with guarantee='conditional' needs at least "
+                    f"{math.ceil(1 / self.alpha) - 1} good calibration runs; got {m} good of {n}"
+                )
+            lam = float(np.sort(scores[good])[order - 1])
+        else:
+            lam = float(np.sort(scores)[order - 1])
+        if lam == -np.inf and j0 <= last_eligible and self.guarantee == "joint":
             warnings.warn(
                 f"only {int(good.sum())} good calibration runs: at alpha={self.alpha} no finite "
                 "threshold certifies, so the rule kills every run at its first eligible step. "
