@@ -20,10 +20,11 @@ on 400 real LoRA fine-tuning runs under a pre-registered protocol; the curves an
 script are in the [surestop](https://github.com/ACNoonan/surestop) repository.
 
 **Use it when every good trial matters**, such as seed replicates or repeated training jobs with
-an acceptance bar. **To find the single best configuration in a sweep, use
-`SuccessiveHalvingPruner`.** On the 400 measured runs it pruned 79% of the good trials, saved 88%
-of the compute, and still ended within 0.0005 nats of the best run. This pruner pruned about a
-quarter of the good trials and saved 63%.
+an acceptance bar. **For finding one winner in a sweep, `SuccessiveHalvingPruner` is the better
+tool.** On the 400 measured runs it pruned 79% of the good trials, saved 88% of the compute, and
+still ended within 0.0005 nats of the best run. This pruner pruned about a quarter of the good
+trials and saved 63%, so it costs less in total once a pruned good trial costs more than about
+3 full trials of compute.
 
 ## Class or Function Names
 
@@ -82,10 +83,13 @@ A later, exploratory comparison ran every pruner over a whole sweep of the same 
 | ----------------------------------------------- | ------------- | ------------------ | ------------- |
 | `ConformalPruner`, joint, 60 calibration        | 62.9%         | 26.6%              | 0.0000        |
 | `ConformalPruner`, conditional, 200 calibration | 28.8%         | 1.7%               | 0.0000        |
-| `MedianPruner`, 5 startup trials                | 91.8%         | 83.6%              | 0.0006        |
+| `MedianPruner`, 5 startup trials, warmup 18     | 58.0%         | 62.6%              | 0.0002        |
+| `MedianPruner`, 5 startup trials, no warmup     | 91.8%         | 83.6%              | 0.0006        |
 | `SuccessiveHalvingPruner`, reduction factor 3   | 87.8%         | 79.4%              | 0.0005        |
 
 Regret is the best surviving final loss minus the best in the pool. Final losses in this pool span only 2.1575 to 2.2170, so the good trials are close to interchangeable and pruning most of them costs a sweep almost nothing.
+
+Against `MedianPruner` with 18 warmup steps, the joint rule saved more compute and pruned fewer than half as many good trials. Against `SuccessiveHalvingPruner` it is a trade. The break-even is the extra compute successive halving saved, in full trials, divided by the extra good trials it pruned: (0.878 − 0.629) × 400 / ((0.794 − 0.266) × 65) = 2.9 full trials for the joint rule, and 4.7 for the conditional one. Above that cost per pruned good trial, this pruner is cheaper in total.
 
 ### Reference
 
