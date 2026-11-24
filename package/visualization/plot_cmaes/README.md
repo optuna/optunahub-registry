@@ -13,10 +13,9 @@ This package provides an animation of CMA-ES optimization in an Optuna study. It
 
 ## APIs
 
--`plot_cmaes(study, params=None, target=None, contour_function=None, interval=500)`
+-`plot_cmaes(study, target=None, contour_function=None, interval=500)`
 
 - `study`: A single-objective study optimized with the default : class: `~optuna.samplers CmaEsSampler.`
-- `params`: The names of the two parameters to plot. If None, the parameters of the completed trials are used.
 - `target`: A callable that accepts a `FrozenTrial` and returns a scalar value used to color sampled points when no contour function is provided. Defaults to `trial.value`.
 - `contour_function`: Optional function `f(x1, x2)` drawn as contour lines. Optuna does not know the objective function, so this is only useful for experiments where it is known.
   -`interval`: Delay between frames in milliseconds.

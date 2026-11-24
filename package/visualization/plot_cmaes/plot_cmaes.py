@@ -25,7 +25,6 @@ from optuna.distributions import FloatDistribution
 from optuna.samplers import CmaEsSampler
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
-from pylab import rcParams
 from scipy import stats
 
 
@@ -42,15 +41,12 @@ color_dict = {
 
 bw = LinearSegmentedColormap("Bluewhile", color_dict)
 
-rcParams["figure.figsize"] = 10, 5
-
 
 unsupported: tuple[str, ...] = ("sepcma", "cmawm", "restart", "cma:ipop", "cma:bipop")
 
 
 def get_trial_values(
     study: Study,
-    params: Sequence[str] | None,
     target: Callable[[FrozenTrial], float] | None,
 ) -> tuple[np.ndarray, list[tuple[float, float]], list[str], np.ndarray]:
     """Extract objective values, bounds, parameter name and parameter values from the completed trials."""
@@ -71,7 +67,7 @@ def get_trial_values(
 
     if any(k.startswith(unsupported) for t in trials for k in t.system_attrs):
         raise ValueError(
-            "Plot Cmae only supports default Cma Es. 'use_Seperable_cma = True' or "
+            "Plot CMA-ES only supports default CmaEsSampler. 'use_Seperable_cma = True' or "
             "'with_margin = True' not supported yet"
         )
 
@@ -91,21 +87,12 @@ def get_trial_values(
         for param_name, dist in t.distributions.items():
             param_dist.setdefault(param_name, dist)
 
-    if params is None:
-        params = sorted(set(param_dist.keys()))
+    params = sorted(set(param_dist.keys()))
 
     if len(params) != 2:
         raise ValueError(
-            "Plot CMAE only supports 2 parameters. Please specify exactly 2 parameters to plot."
+            "Plot CMA-ES only supports 2 parameters. Please specify exactly 2 parameters to plot."
         )
-
-    # validate parameter names
-    for name in params:
-        if name not in param_dist:
-            raise ValueError(
-                f"Parameter '{name}' not found in study."
-                f" Available parameters are : {list(param_dist.keys())}"
-            )
 
     bounds: list[tuple[float, float]] = []
 
@@ -203,7 +190,6 @@ def transform_gaussian(
 
 def plot_cmaes(
     study: Study,
-    params: Sequence[str] | None = None,
     target: Callable[[FrozenTrial], float] | None = None,
     contour_function: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None,
     interval: int = 500,
@@ -230,10 +216,6 @@ def plot_cmaes(
             :class:`~optuna.samplers.CmaEsSampler`, ``use_separable_cma = True``,
             ``with_margin = True``,and `` restart_startegy`` are not supported.
 
-        params:
-            The names of the two parameters to plot.
-            Only float parameters without ``log`` or ``step`` are supported for now.
-            If ``None``, all paramters across the completed trials are used.
 
         target:
             A callable that extracts scalar values from
@@ -254,13 +236,13 @@ def plot_cmaes(
 
     """
 
-    fig, (ax1, ax2) = plt.subplots(1, 2)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
 
-    objective, bounds, params, points = get_trial_values(study, params, target)
+    objective, bounds, params, points = get_trial_values(study, target)
 
     if len(params) != 2:
         raise ValueError(
-            "Plot CMAE only supports 2 parameters. Please specify exactly 2 parameters to plot."
+            "Plot CMA-ES only supports 2 parameters. Please specify exactly 2 parameters to plot."
         )
 
     states = (TrialState.COMPLETE,)
@@ -293,10 +275,11 @@ def plot_cmaes(
 
         # Plot contour of objective function if given
         if contour_function is not None:
-            x1 = np.arange(x1_lower_bound, x1_upper_bound, 0.01)
-            x2 = np.arange(x2_lower_bound, x2_upper_bound, 0.01)
-            x1, x2 = np.meshgrid(x1, x2)
-            z = contour_function(x1, x2)  # need to define contour function
+            x1 = np.linspace(x1_lower_bound, x1_upper_bound, 200)
+            x2 = np.linspace(x2_lower_bound, x2_upper_bound, 200)
+            x1, x2 = np.meshgrid(x1, x2, indexing="ij")
+
+            z = contour_function(x1, x2)
             ax1.contour(x1, x2, z, 30, cmap=bw)
 
     def update(frames: int) -> None:
@@ -336,11 +319,14 @@ def plot_cmaes(
         # Plot multivariate gaussian distribution of CMA-ES
         lower = np.array([b[0] for b in bounds], dtype=float)
         upper = np.array([b[1] for b in bounds], dtype=float)
-        mean_tranform, covar_transform = transform_gaussian(mean, covar, lower, upper, sigma)
+        mean_transform, covar_transform = transform_gaussian(mean, covar, lower, upper, sigma)
 
-        x, y = np.mgrid[x1_lower_bound:x1_upper_bound:0.01, x2_lower_bound:x2_upper_bound:0.01]
+        x1_grid = np.linspace(x1_lower_bound, x1_upper_bound, 200)
+        x2_grid = np.linspace(x2_lower_bound, x2_upper_bound, 200)
+
+        x, y = np.meshgrid(x1_grid, x2_grid, indexing="ij")
         pos = np.dstack((x, y))
-        rv = stats.multivariate_normal(mean_tranform, covar_transform)
+        rv = stats.multivariate_normal(mean_transform, covar_transform)
 
         ax2.contourf(x, y, rv.pdf(pos))
 
