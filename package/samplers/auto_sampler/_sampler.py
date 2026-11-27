@@ -186,8 +186,9 @@ class AutoSampler(BaseSampler):
                     return GPSampler(seed=seed, constraints_func=self._constraints_func)
         else:
             if n_objectives < 4:
-                return NSGAIISampler(seed=seed, constraints_func=self._constraints_func)
-            else:
+                if not isinstance(self._sampler, NSGAIISampler):
+                    return NSGAIISampler(seed=seed, constraints_func=self._constraints_func)
+            elif not isinstance(self._sampler, NSGAIIISampler):
                 return NSGAIIISampler(seed=seed, constraints_func=self._constraints_func)
 
         return self._sampler  # No update happens to self._sampler.
